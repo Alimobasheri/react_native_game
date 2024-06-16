@@ -9,8 +9,8 @@ const CharacterRenderer = ({ body, size, isKilled }) => {
     position: { x, y },
     angle,
   } = body;
-  const left = x;
-  const top = y;
+  const left = x - size.width / 2;
+  const top = y - size.height / 2;
   return (
     <Rect
       x={left}
@@ -41,12 +41,13 @@ export default function ({ world, position, width, height }) {
     //   category:
     //     COLLISION_CATEGORIES.defaultCategory | COLLISION_CATEGORIES.ships,
     // },
-    // mass: 60,
+    // mass: 0.1,
     label: "character",
     // density: 0.05,
-    // density: 0.1,
-    // frictionAir: 0.05,
-    // friction: 0.2,
+    density: 0.5,
+    mass: 1,
+    frictionAir: 1,
+    // friction: 0.5,
     // collisionFilter: {
     //   category: COLLISION_CATEGORIES.character,
     //   mask: COLLISION_CATEGORIES.platform,

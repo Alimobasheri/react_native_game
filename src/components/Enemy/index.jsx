@@ -9,7 +9,7 @@ const EnemyRenderer = ({ body, size, killed }) => {
     position: { x, y },
     angle,
   } = body;
-  const left = x;
+  const left = x - size.width / 2;
   const top = y;
   return (
     <Rect
@@ -54,14 +54,9 @@ export default function ({
     // },
     label: "enemy",
     isStatic: true,
-    // frictionAir: 0.5,
-    // friction: 0.01,
-    // mass: 0.05,
-    // inertia: Infinity,
-    // density: 0.02,
-    // density: 0.2,
-    // frictionAir: 0.05,
-    // friction: 0.05,
+    frictionAir: 0.3,
+    density: 0.0001,
+    friction: 0.5,
     // collisionFilter: {
     //   category: COLLISION_CATEGORIES.character,
     //   mask: COLLISION_CATEGORIES.platform,

@@ -9,7 +9,12 @@ const mapLevelToGameLoop = {
   1: Level1GameLoop,
 };
 
-export default function useLevel({ engine, levelNumber, windowWidth }) {
+export default function useLevel({
+  engine,
+  levelNumber,
+  windowWidth,
+  isUsingCanvas,
+}) {
   const entities = useRef({});
   const insets = useSafeAreaInsets();
 
@@ -22,7 +27,7 @@ export default function useLevel({ engine, levelNumber, windowWidth }) {
   const getLevelEntities = () => {
     switch (levelNumber) {
       case 1:
-        return level1Entities({ insets, windowWidth });
+        return level1Entities({ insets, windowWidth, isUsingCanvas });
       case 2:
         return level2Entities();
       default:

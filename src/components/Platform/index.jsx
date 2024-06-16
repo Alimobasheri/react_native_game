@@ -27,6 +27,7 @@ export default function (
   let body = Matter.Bodies.rectangle(position.x, position.y, width, height, {
     isStatic: options.notStatic ? false : true,
     angle,
+    chamfer: options.chamfer || 0,
     // friction: 0.5,
     // collisionFilter: {
     //   category: COLLISION_CATEGORIES.platform,

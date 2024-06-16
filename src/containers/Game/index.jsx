@@ -1,12 +1,12 @@
-import { useRef, useState, useMemo, memo } from "react";
-import { StyleSheet, View, useWindowDimensions } from "react-native";
+import React, { useRef, useMemo } from "react";
+import { StyleSheet, useWindowDimensions } from "react-native";
 import { GameEngine } from "react-native-game-engine";
-import GameLoop from "../../systems/GameLoop";
-import { touches } from "../../systems/touches";
-import useLevel from "../../core/hooks/useLevel";
-import LevelComplete from "../LevelComplete";
-import { useGameState } from "../../store/useGameState";
-import { Canvas, LinearGradient, vec, Rect } from "@shopify/react-native-skia";
+import Matter from "matter-js";
+import { Canvas, Path, Rect } from "@shopify/react-native-skia";
+import { LinearGradient, vec, Skia, Group } from "@shopify/react-native-skia";
+import { createWaveSystem } from "../../systems/waveSystems";
+import { WaveRenderer } from "../../components/Wave";
+import { EntityRenderer } from "../../components/Entity";
 
 const RenderEntity = ({ entity, screen, layout }) => {
   if (typeof entity.renderer === "object")
@@ -65,66 +65,86 @@ const renderer = (entities, screen, layout) => {
   return <Render entities={entities} screen={screen} layout={layout} />;
 };
 
-export default function Game() {
-  const { isGameRunning, stopGame, startGame } = useGameState();
+const Game = () => {
+  const engine = useRef(Matter.Engine.create()).current;
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const engine = useRef();
-  const [showLevelComplete, setShowLevelComplete] = useState(false);
-  const [levelNumber, setLevelNumber] = useState(1);
-  const { entities, resetEntities, gameLoop } = useLevel({
-    engine,
-    levelNumber,
-    windowWidth,
-    windowHeight,
-  });
-  const onNextLevel = () => {
-    setLevelNumber(levelNumber + 1);
-    startGame();
-    setTimeout(() => setShowLevelComplete(false), 300);
-  };
-  const onReplay = () => {
-    resetEntities();
-    startGame();
-    setTimeout(() => setShowLevelComplete(false), 300);
-  };
-  return (
-    <View style={styles.container}>
-      <GameEngine
-        ref={engine}
-        style={{
-          width: "100%",
-          height: "100%",
-          flex: null,
-        }}
-        entities={entities}
-        systems={[gameLoop, touches]}
-        running={isGameRunning}
-        // onEvent={(e) => {
-        //   switch (e) {
-        //     case "level-success":
-        //       stopGame();
-        //       setTimeout(() => setShowLevelComplete(true), 300);
-        //       return;
-        //     case "game_over":
-        //       stopGame();
-        //       setTimeout(() => onReplay(), 3000);
-        //       return;
-        //   }
-        // }}
-        renderer={renderer}
-      />
-      {showLevelComplete && <LevelComplete {...{ onReplay, onNextLevel }} />}
-    </View>
+  const waterSurfaceY = windowHeight * 0.8;
+
+  // Create ship, sea, and initial boats
+  const ship = Matter.Bodies.rectangle(
+    windowWidth / 2,
+    waterSurfaceY,
+    windowWidth * 0.1,
+    windowHeight * 0.1
   );
-}
+  const initialBoats = [];
+
+  for (let i = 0; i < 1; i++) {
+    const boat = Matter.Bodies.rectangle(
+      Math.random() * windowWidth,
+      waterSurfaceY,
+      windowWidth * 0.075,
+      windowHeight * 0.05,
+      { frictionAir: 0.1 }
+    );
+    initialBoats.push(boat);
+    Matter.World.add(engine.world, boat);
+  }
+
+  Matter.World.add(engine.world, [ship]);
+
+  const enemiesAndWaterCollisionDetector = Matter.Detector.create({
+    bodies: [...initialBoats.map((boat) => boat.body)],
+  });
+
+  return (
+    <GameEngine
+      systems={[createWaveSystem()]}
+      renderer={renderer}
+      entities={{
+        physics: {
+          engine,
+          world: engine.world,
+          enemiesAndWaterCollisionDetector,
+        },
+        ship: {
+          body: ship,
+          size: [windowWidth * 0.1, windowHeight * 0.1],
+          renderer: EntityRenderer,
+        },
+        wave: {
+          waves: [],
+          renderer: (props) => (
+            <WaveRenderer
+              {...props}
+              windowWidth={windowWidth}
+              windowHeight={windowHeight}
+              waterSurfaceY={waterSurfaceY}
+            />
+          ),
+        },
+        ...initialBoats.reduce((acc, boat, index) => {
+          acc[`boat${index}`] = {
+            body: boat,
+            size: [windowWidth * 0.075, windowHeight * 0.05],
+            renderer: EntityRenderer,
+            isBoat: true,
+          };
+          return acc;
+        }, {}),
+        windowWidth,
+        windowHeight,
+      }}
+      style={styles.container}
+    />
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    width: "100%",
-    height: "100%",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "",
+    backgroundColor: "blue",
   },
 });
+
+export default Game;
