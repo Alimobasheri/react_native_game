@@ -69,33 +69,36 @@ const Game = () => {
   const engine = useRef(Matter.Engine.create()).current;
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const waterSurfaceY = windowHeight * 0.8;
+  console.log("🚀 ~ Game ~ waterSurfaceY:", waterSurfaceY);
+
+  const shipRatio = 451 / 942;
+  const shipSize = [windowWidth * 0.3, windowWidth * 0.3 * shipRatio];
 
   // Create ship, sea, and initial boats
   const ship = Matter.Bodies.rectangle(
     windowWidth / 2,
-    waterSurfaceY,
-    windowWidth * 0.1,
-    windowHeight * 0.1
+    waterSurfaceY - (windowWidth * 0.1) / 2,
+    shipSize[0],
+    shipSize[1]
   );
   const initialBoats = [];
 
-  for (let i = 0; i < 1; i++) {
+  const boatRatio = 59.5 / 256;
+  const boatSize = [windowWidth * 0.1, windowWidth * 0.1 * boatRatio];
+
+  for (let i = 0; i < 8; i++) {
     const boat = Matter.Bodies.rectangle(
-      Math.random() * windowWidth,
-      waterSurfaceY,
-      windowWidth * 0.075,
-      windowHeight * 0.05,
-      { frictionAir: 0.1 }
+      windowWidth + 1000,
+      windowHeight + 1000,
+      boatSize[0],
+      boatSize[1],
+      { label: `boat_${i}`, isStatic: true, isAttacking: false }
     );
     initialBoats.push(boat);
     Matter.World.add(engine.world, boat);
   }
 
   Matter.World.add(engine.world, [ship]);
-
-  const enemiesAndWaterCollisionDetector = Matter.Detector.create({
-    bodies: [...initialBoats.map((boat) => boat.body)],
-  });
 
   return (
     <GameEngine
@@ -105,13 +108,25 @@ const Game = () => {
         physics: {
           engine,
           world: engine.world,
-          enemiesAndWaterCollisionDetector,
         },
         ship: {
           body: ship,
-          size: [windowWidth * 0.1, windowHeight * 0.1],
+          size: shipSize,
           renderer: EntityRenderer,
+          isShip: true,
         },
+
+        ...initialBoats.reduce((acc, boat, index) => {
+          acc[`boat${index}`] = {
+            body: boat,
+            size: boatSize,
+            isSinked: false,
+            isInitialized: false,
+            renderer: EntityRenderer,
+            isBoat: true,
+          };
+          return acc;
+        }, {}),
         wave: {
           waves: [],
           renderer: (props) => (
@@ -123,17 +138,12 @@ const Game = () => {
             />
           ),
         },
-        ...initialBoats.reduce((acc, boat, index) => {
-          acc[`boat${index}`] = {
-            body: boat,
-            size: [windowWidth * 0.075, windowHeight * 0.05],
-            renderer: EntityRenderer,
-            isBoat: true,
-          };
-          return acc;
-        }, {}),
         windowWidth,
         windowHeight,
+        health: {
+          value: 100,
+        },
+        waveCount: 0,
       }}
       style={styles.container}
     />

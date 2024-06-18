@@ -14,13 +14,13 @@ const Overlay = () => {
         { width, height, minWidth: width, minHeight: height },
       ]}
     >
-      {!isGameRunning && (
+      {/* {!isGameRunning && (
         <View
           style={[styles.overlayRoot, { minWidth: width, minHeight: height }]}
         >
           <StartButton />
         </View>
-      )}
+      )} */}
       <View style={styles.gameRoot}>
         <Game />
       </View>
