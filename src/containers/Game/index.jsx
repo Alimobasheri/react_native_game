@@ -116,6 +116,7 @@ const Game = () => {
           renderer: EntityRenderer,
           isShip: true,
           createdFrame: 1,
+          trail: [],
         },
 
         wave: {

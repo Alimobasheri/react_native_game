@@ -1,5 +1,6 @@
 import Matter from "matter-js";
 import { EntityRenderer } from "../components/Entity";
+import { TRAIL_FADE_DURATION } from "../constants/configs";
 // System to handle waves creation and updates
 let frame = 1;
 export const createWaveSystem = () => {
@@ -100,7 +101,7 @@ export const createWaveSystem = () => {
       .filter((key) => key.startsWith("boat") || key.startsWith("ship"))
       .map((key) => entities[key]);
 
-    boats.forEach(({ body, size, createdFrame }) => {
+    boats.forEach(({ body, size, createdFrame, trail }) => {
       const { label } = body;
       if (body.isSinked) {
         if (body.position.y > windowHeight + size[1] * size[0] * 4)
@@ -149,9 +150,12 @@ export const createWaveSystem = () => {
       const submergedDepth = boatBottomY - combinedY;
       const submergedArea = Math.min(submergedDepth, size[1]) * size[0]; // Cross-sectional submerged area
       const submergedVolume = submergedArea; // Submerged volume
-
-      // Adjust frictionAir based on the position relative to the water surface
+      if (submergedArea >= size[1] * size[0]) {
+        body.isSinked = true;
+        body.isAttacking = false;
+      }
       if (submergedDepth > 30) {
+        // Adjust frictionAir based on the position relative to the water surface
         Matter.Body.set(body, "frictionAir", 0.1);
       } else if (body.position.y < combinedY - (size[1] / 2) * 8) {
         Matter.Body.set(body, "frictionAir", 0.04);
@@ -161,11 +165,11 @@ export const createWaveSystem = () => {
         Matter.Body.set(body, "frictionAir", 0.05);
       }
 
-      if (submergedDepth < 30 && Math.abs(body.angle) === 0) {
+      if (submergedDepth < 30 && Math.abs(body.angle) < 0.1) {
         if (label.startsWith("boat") && Math.abs(body.velocity.x) < 10) {
           Matter.Body.setVelocity(body, {
             x:
-              body.position.x > entities.windowWidth / 2
+              body.position.x > entities.ship.body.position.x
                 ? body.velocity.x === 0
                   ? -2
                   : body.velocity.x * 1.3
@@ -191,25 +195,25 @@ export const createWaveSystem = () => {
         body.isSinked = true; // Mark the boat as sunk
         body.isAttacking = false;
       }
-      if (label.startsWith("ship") && !body.isSinked && frame < 40) {
-        console.log(
-          "🚀 ~ boats.forEach ~ body.velocity.y:",
-          "frame:",
-          frame,
-          "velocity.x",
-          body.velocity.x,
-          "velocity.y",
-          body.velocity.y,
-          "position.y",
-          body.position.y,
-          "frictionAir:",
-          body.frictionAir,
-          "Speed",
-          body.speed,
-          "isInitialized",
-          body.isInitialized
-        );
-      }
+      // if (label.startsWith("ship") && !body.isSinked && frame < 40) {
+      //   console.log(
+      //     "🚀 ~ boats.forEach ~ body.velocity.y:",
+      //     "frame:",
+      //     frame,
+      //     "velocity.x",
+      //     body.velocity.x,
+      //     "velocity.y",
+      //     body.velocity.y,
+      //     "position.y",
+      //     body.position.y,
+      //     "frictionAir:",
+      //     body.frictionAir,
+      //     "Speed",
+      //     body.speed,
+      //     "isInitialized",
+      //     body.isInitialized
+      //   );
+      // }
 
       // Apply buoyancy force based on velocity and size
       if (submergedDepth > 10) {
@@ -240,6 +244,45 @@ export const createWaveSystem = () => {
         const targetAngle = Math.atan(combinedSlope);
         Matter.Body.setAngle(body, targetAngle);
       }
+      if (
+        body.position.y <= combinedY + size[1] / 2 &&
+        body.position.y >= combinedY - size[1] / 2
+      ) {
+        const isAdjacentToWater =
+          body.position.y <= waterSurfaceY + size[1] / 2 &&
+          body.position.y >= waterSurfaceY - size[1] / 2;
+        trail.push({
+          x: body.position.x,
+          y: body.position.y,
+          timestamp: Date.now(),
+          render: isAdjacentToWater,
+          velocityX: Math.abs(body.velocity.x),
+        });
+      }
+      // Function to get the water surface y-coordinate at a given x
+      const getWaterSurfaceY = (x) => {
+        let combinedY = waterSurfaceY;
+        waveEntity.waves.forEach((wave) => {
+          const distance = x - wave.x;
+          const decayFactor = Math.exp(-0.01 * Math.abs(distance));
+          const waveContribution =
+            wave.amplitude *
+            decayFactor *
+            Math.cos(distance * wave.frequency + wave.phase);
+          combinedY += waveContribution;
+        });
+        return combinedY;
+      };
+      if (trail.length > 20) trail.shift(); // Limit the trail length
+      // Update the y-coordinate of each trail point based on the water surface
+      trail.forEach((trailPoint) => {
+        trailPoint.y = getWaterSurfaceY(trailPoint.x);
+      });
+      // Remove trail points that are older than TRAIL_FADE_DURATION
+      const now = Date.now();
+      trail = trail.filter(
+        (trailPoint) => now - trailPoint.timestamp < TRAIL_FADE_DURATION
+      );
       if (frame - createdFrame >= 7) body.isInitialized = true;
     });
 
@@ -273,6 +316,9 @@ export const createWaveSystem = () => {
         isBoat: true,
         direction,
         createdFrame: frame,
+        trail: [],
+        waterSurfaceY,
+        waveEntity,
       };
     }
     frame++;

@@ -1,0 +1,1 @@
+export const TRAIL_FADE_DURATION = 1000;
