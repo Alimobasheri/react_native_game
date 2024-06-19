@@ -72,31 +72,32 @@ const Game = () => {
   console.log("🚀 ~ Game ~ waterSurfaceY:", waterSurfaceY);
 
   const shipRatio = 451 / 942;
-  const shipSize = [windowWidth * 0.3, windowWidth * 0.3 * shipRatio];
+  const shipSize = [windowWidth * 0.2, windowWidth * 0.2 * shipRatio];
 
   // Create ship, sea, and initial boats
   const ship = Matter.Bodies.rectangle(
     windowWidth / 2,
     waterSurfaceY - (windowWidth * 0.1) / 2,
     shipSize[0],
-    shipSize[1]
+    shipSize[1],
+    { label: "ship" }
   );
   const initialBoats = [];
 
   const boatRatio = 59.5 / 256;
   const boatSize = [windowWidth * 0.1, windowWidth * 0.1 * boatRatio];
 
-  for (let i = 0; i < 8; i++) {
-    const boat = Matter.Bodies.rectangle(
-      windowWidth + 1000,
-      windowHeight + 1000,
-      boatSize[0],
-      boatSize[1],
-      { label: `boat_${i}`, isStatic: true, isAttacking: false }
-    );
-    initialBoats.push(boat);
-    Matter.World.add(engine.world, boat);
-  }
+  // for (let i = 0; i < 8; i++) {
+  //   const boat = Matter.Bodies.rectangle(
+  //     windowWidth + 1000,
+  //     windowHeight + 1000,
+  //     boatSize[0],
+  //     boatSize[1],
+  //     { label: `boat_${i}`, isStatic: true, isAttacking: false }
+  //   );
+  //   initialBoats.push(boat);
+  //   Matter.World.add(engine.world, boat);
+  // }
 
   Matter.World.add(engine.world, [ship]);
 
@@ -114,19 +115,9 @@ const Game = () => {
           size: shipSize,
           renderer: EntityRenderer,
           isShip: true,
+          createdFrame: 1,
         },
 
-        ...initialBoats.reduce((acc, boat, index) => {
-          acc[`boat${index}`] = {
-            body: boat,
-            size: boatSize,
-            isSinked: false,
-            isInitialized: false,
-            renderer: EntityRenderer,
-            isBoat: true,
-          };
-          return acc;
-        }, {}),
         wave: {
           waves: [],
           renderer: (props) => (

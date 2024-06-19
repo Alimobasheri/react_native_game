@@ -22,7 +22,10 @@ export const createWaveSystem = () => {
       );
 
       collisions.forEach((collision) => {
-        if (collision.bodyA === ship.body || collision.bodyB === ship.body) {
+        if (
+          (collision.bodyA === ship.body || collision.bodyB === ship.body) &&
+          collision.depth > 5
+        ) {
           entities.health.value -= 10;
           const boatBody =
             collision.bodyA === ship.body ? collision.bodyB : collision.bodyA;
@@ -62,8 +65,8 @@ export const createWaveSystem = () => {
 
           if (duration > 0) {
             const speed = distance / duration;
-            const amplitude = Math.min(distance, 100); // Scale down amplitude
-            const frequency = Math.max(0.01, Math.min(0.01, speed / 1000)); // Scale frequency to a reasonable range
+            const amplitude = Math.min(distance, 300); // Scale down amplitude
+            const frequency = Math.max(0.008, Math.min(0.005, speed / 1000)); // Scale frequency to a reasonable range
 
             waveEntity.waves.push({
               x: endTouch.x,
@@ -95,16 +98,15 @@ export const createWaveSystem = () => {
 
     const boats = Object.keys(entities)
       .filter((key) => key.startsWith("boat") || key.startsWith("ship"))
-      .map((key) => ({ ...entities[key], key }));
+      .map((key) => entities[key]);
 
-    boats.forEach(({ body, size, key }) => {
-      if (body.isSinked) return;
-      // if (Math.abs(body.velocity.y) > 20) {
-      //   Matter.Body.setVelocity(body, {
-      //     x: body.velocity.x,
-      //     y: body.velocity.y < 0 ? -20 : 20,
-      //   });
-      // }
+    boats.forEach(({ body, size, createdFrame }) => {
+      const { label } = body;
+      if (body.isSinked) {
+        if (body.position.y > windowHeight + size[1] * size[0] * 4)
+          Matter.World.remove(entities.physics.engine.world, body);
+        return;
+      }
       // Ensure proper initialization
       if (!body.isInitialized) {
         Matter.Body.setPosition(body, {
@@ -149,74 +151,119 @@ export const createWaveSystem = () => {
       const submergedVolume = submergedArea; // Submerged volume
 
       // Adjust frictionAir based on the position relative to the water surface
-      if (submergedDepth > 0) {
-        Matter.Body.set(body, "frictionAir", 0.5);
+      if (submergedDepth > 30) {
+        Matter.Body.set(body, "frictionAir", 0.1);
       } else if (body.position.y < combinedY - (size[1] / 2) * 8) {
         Matter.Body.set(body, "frictionAir", 0.04);
       } else if (body.position.y < combinedY - (size[1] / 2) * 2) {
         Matter.Body.set(body, "frictionAir", 0.02);
-      } else if (body.position.y < combinedY) {
-        Matter.Body.set(body, "frictionAir", 0.1);
+      } else if (submergedDepth < 5) {
+        Matter.Body.set(body, "frictionAir", 0.05);
       }
 
-      if (submergedDepth < 10 && Math.abs(body.angle) === 0) {
-        if (key.startsWith("boat") && Math.abs(body.velocity.x) < 10) {
+      if (submergedDepth < 30 && Math.abs(body.angle) === 0) {
+        if (label.startsWith("boat") && Math.abs(body.velocity.x) < 10) {
           Matter.Body.setVelocity(body, {
             x:
               body.position.x > entities.windowWidth / 2
-                ? body.velocity.x - 3
-                : body.velocity.x + 3,
+                ? body.velocity.x === 0
+                  ? -2
+                  : body.velocity.x * 1.3
+                : body.velocity.x === 0
+                ? 2
+                : body.velocity.x * 1.3,
             y: body.velocity.y,
           });
         }
       }
-      if (key.startsWith("boat") && frame % 16 === 0) {
-        console.log("🚀 ~ boats.forEach ~ body.velocity.y:", body.velocity.y);
-        // console.log(
-        //   "🚀 ~ boats.forEach ~ submergedDepth:",
-        //   submergedDepth,
-        //   submergedVolume,
-        //   buoyancyForceMagnitude
-        // );
+
+      const BOAT_BREAK_VELOCITY_THRESHOLD = 30;
+      const BOAT_BREAK_HEIGHT_THRESHOLD = windowWidth * 0.2;
+      // Check for the condition to break the boat
+      if (
+        body.velocity.y > -BOAT_BREAK_VELOCITY_THRESHOLD &&
+        body.position.y < BOAT_BREAK_HEIGHT_THRESHOLD
+      ) {
+        body.isBroken = true; // Mark the boat as broken
       }
-      // Apply buoyancy force
+
+      if (body.isBroken && body.position.y >= combinedY) {
+        body.isSinked = true; // Mark the boat as sunk
+        body.isAttacking = false;
+      }
+      if (label.startsWith("ship") && !body.isSinked && frame < 40) {
+        console.log(
+          "🚀 ~ boats.forEach ~ body.velocity.y:",
+          "frame:",
+          frame,
+          "velocity.x",
+          body.velocity.x,
+          "velocity.y",
+          body.velocity.y,
+          "position.y",
+          body.position.y,
+          "frictionAir:",
+          body.frictionAir,
+          "Speed",
+          body.speed,
+          "isInitialized",
+          body.isInitialized
+        );
+      }
+
+      // Apply buoyancy force based on velocity and size
       if (submergedDepth > 10) {
         const densityOfWater = 0.000002; // Lower density to achieve smaller forces
         const waveHeightFactor = 1 + maxWaveHeight * 0.1;
+        const sizeFactor = Math.min(Math.sqrt(size[0] * size[1]) * 0.01, 0.2); // Larger size results in more buoyancy force
         const buoyancyForceMagnitude =
-          densityOfWater * submergedVolume * 9.8 * waveHeightFactor;
+          densityOfWater *
+          submergedVolume *
+          9.8 *
+          waveHeightFactor *
+          sizeFactor;
+        const buoyancyForce = -Math.min(buoyancyForceMagnitude, 0.5);
 
         Matter.Body.applyForce(
           body,
           { x: body.position.x, y: body.position.y },
-          { x: 0, y: -Math.min(buoyancyForceMagnitude, 0.9) }
+          { x: 0, y: buoyancyForce }
         );
       }
 
-      if (submergedDepth > 0 && !key.startsWith("ship")) {
+      if (
+        submergedDepth > 0 &&
+        body.velocity.y < 0 &&
+        !label.startsWith("ship")
+      ) {
         // Rotate the boat based on the wave slope
         const targetAngle = Math.atan(combinedSlope);
         Matter.Body.setAngle(body, targetAngle);
       }
-      if (!body.isInitialized) body.isInitialized = true;
+      if (frame - createdFrame >= 7) body.isInitialized = true;
     });
 
     // if (frame % 1000 === 0)
     Matter.Engine.update(entities.physics.engine, time.delta);
-    frame++;
     const isAyEnemyAttaking = enemyBoats.some(
       (enemy) => enemy.body.isAttacking
     );
     if (!isAyEnemyAttaking) {
       const label = `boat_${Matter.Common.random(10 ** 6, 10 ** 20)}`;
+      const direction = Matter.Common.choose([-1, 1]);
+      const x =
+        direction === 1 ? windowWidth - boatSize[0] / 2 : boatSize[0] / 2;
+
+      console.log("🚀 ~ return ~ x:", x);
       const boat = Matter.Bodies.rectangle(
-        windowWidth - boatSize[0] / 2,
+        x,
         waterSurfaceY - boatSize[1] / 2,
         boatSize[0],
         boatSize[1],
         { label, isAttacking: true }
       );
       Matter.World.add(entities.physics.engine.world, boat);
+      boat.direction = direction;
       entities[label] = {
         body: boat,
         size: boatSize,
@@ -224,8 +271,12 @@ export const createWaveSystem = () => {
         isInitialized: false,
         renderer: EntityRenderer,
         isBoat: true,
+        direction,
+        createdFrame: frame,
       };
     }
+    frame++;
+
     return entities;
   };
 };

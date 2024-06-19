@@ -9,7 +9,7 @@ import {
   Paint,
 } from "@shopify/react-native-skia";
 
-export const BoatRenderer = ({ body, size }) => {
+export const BoatRenderer = ({ body, size, direction }) => {
   const { position } = body;
   const boatImage = useImage(require("../../../assets/speedboat-png.png"));
   // console.log("🚀 ~ BoatRenderer ~ position:", position.y, position.x);
@@ -25,6 +25,9 @@ export const BoatRenderer = ({ body, size }) => {
         y={position.y - size[1] / 2}
         width={size[0]}
         height={size[1]}
+        // transform={
+        //   direction === -1 ? [{ translateX: size[0] }, { scaleX: -1 }] : []
+        // }
       />
       {/* <Shadow
         dx={size[0] / 4}
@@ -80,13 +83,20 @@ export const ShipRenderer = ({ body, size }) => {
 };
 
 // Renderer for entities
-export const EntityRenderer = ({ body, size, isSea, isBoat, isShip }) => {
+export const EntityRenderer = ({
+  body,
+  size,
+  isSea,
+  isBoat,
+  isShip,
+  ...rest
+}) => {
   const { position } = body;
   if (isBoat) {
-    return <BoatRenderer {...{ body, size }} />;
+    return <BoatRenderer {...{ body, size, ...rest }} />;
   }
   if (isShip) {
-    return <ShipRenderer {...{ body, size }} />;
+    return <ShipRenderer {...{ body, size, ...rest }} />;
   }
   // console.log("🚀 ~ EntityRenderer ~ position:", position.y);
   return (
