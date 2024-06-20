@@ -5,16 +5,17 @@ import { TRAIL_FADE_DURATION } from "../constants/configs";
 let frame = 1;
 export const createWaveSystem = () => {
   return (entities, { touches, time }) => {
-    "worklet";
+    ("worklet");
 
     const enemyBoats = Object.keys(entities)
       .filter((key) => key.startsWith("boat"))
       .map((key) => entities[key]);
+    console.log("🚀 ~ return ~ enemyBoats:", enemyBoats.length);
     const { windowWidth, windowHeight } = entities;
     const boatRatio = 59.5 / 256;
     const boatSize = [windowWidth * 0.1, windowWidth * 0.1 * boatRatio];
     const ship = entities.ship;
-    if (enemyBoats.length > 0) {
+    if (enemyBoats.length > 0 && entities.ship) {
       const boatAndShipCollisionDetector = Matter.Detector.create({
         bodies: [...enemyBoats.map((boat) => boat.body), ship.body],
       });
@@ -23,10 +24,7 @@ export const createWaveSystem = () => {
       );
 
       collisions.forEach((collision) => {
-        if (
-          (collision.bodyA === ship.body || collision.bodyB === ship.body) &&
-          collision.depth > 5
-        ) {
+        if (collision.bodyA === ship.body || collision.bodyB === ship.body) {
           entities.health.value -= 10;
           const boatBody =
             collision.bodyA === ship.body ? collision.bodyB : collision.bodyA;
@@ -66,21 +64,17 @@ export const createWaveSystem = () => {
 
           if (duration > 0) {
             const speed = distance / duration;
-            const amplitude = Math.min(distance, 300); // Scale down amplitude
-            const frequency = Math.max(0.008, Math.min(0.005, speed / 1000)); // Scale frequency to a reasonable range
+            const amplitude = Math.min(distance, 150); // Scale down amplitude
+            const frequency = Math.max(0.01, Math.min(0.007, speed / 500)); // Scale frequency to a reasonable range
 
             waveEntity.waves.push({
               x: endTouch.x,
               y: waterSurfaceY,
               amplitude,
               frequency,
-              phase: 0,
+              phase: 2,
               time: 0,
             });
-          } else {
-            console.error(
-              `Duration is not valid: start time=${waveEntity.startTouch.time}, end time=${endTouch.time}`
-            );
           }
 
           waveEntity.startTouch = null;
@@ -88,24 +82,26 @@ export const createWaveSystem = () => {
       });
 
     waveEntity.waves.forEach((wave) => {
-      wave.phase += 0.12;
+      wave.phase += 0.2;
       wave.time += 1;
-      wave.amplitude *= 0.98; // Slight decay for simplicity
+      wave.amplitude *= 0.95; // Slight decay for simplicity
       wave.frequency *= 1.01; // Slight increase in frequency for shorter waves as it propagates
     });
 
     // Remove waves that have weakened below a certain threshold
-    waveEntity.waves = waveEntity.waves.filter((wave) => wave.amplitude > 1);
+    waveEntity.waves = waveEntity.waves.filter((wave) => wave.amplitude > 5);
 
     const boats = Object.keys(entities)
       .filter((key) => key.startsWith("boat") || key.startsWith("ship"))
       .map((key) => entities[key]);
-
+    const killedBoatsByLabels = [];
     boats.forEach(({ body, size, createdFrame, trail }) => {
       const { label } = body;
       if (body.isSinked) {
-        if (body.position.y > windowHeight + size[1] * size[0] * 4)
+        if (body.position.y > windowHeight + size[1]) {
+          killedBoatsByLabels.push(label);
           Matter.World.remove(entities.physics.engine.world, body);
+        }
         return;
       }
       // Ensure proper initialization
@@ -165,7 +161,7 @@ export const createWaveSystem = () => {
         Matter.Body.set(body, "frictionAir", 0.05);
       }
 
-      if (submergedDepth < 30 && Math.abs(body.angle) < 0.1) {
+      if (submergedDepth < 30 && Math.abs(body.angle) < 0.1 && entities.ship) {
         if (label.startsWith("boat") && Math.abs(body.velocity.x) < 10) {
           Matter.Body.setVelocity(body, {
             x:
@@ -235,6 +231,17 @@ export const createWaveSystem = () => {
         );
       }
 
+      if (Math.abs(body.velocity.x) > 5) {
+        const maxTiltAngle = Math.PI / 8; // Adjust the tilt angle as needed
+        const tiltFactor = 0.01; // Adjust the factor to control the tilting effect
+        const targetTilt = body.velocity.x * tiltFactor; // Reverse the tilt direction
+        const clampedTilt = Math.max(
+          -maxTiltAngle,
+          Math.min(maxTiltAngle, targetTilt)
+        );
+        Matter.Body.setAngle(body, -clampedTilt);
+      }
+
       if (
         submergedDepth > 0 &&
         body.velocity.y < 0 &&
@@ -242,7 +249,8 @@ export const createWaveSystem = () => {
       ) {
         // Rotate the boat based on the wave slope
         const targetAngle = Math.atan(combinedSlope);
-        Matter.Body.setAngle(body, targetAngle);
+        if (Math.abs(combinedSlope) > 0.004)
+          Matter.Body.setAngle(body, -targetAngle);
       }
       if (
         body.position.y <= combinedY + size[1] / 2 &&
@@ -291,7 +299,7 @@ export const createWaveSystem = () => {
     const isAyEnemyAttaking = enemyBoats.some(
       (enemy) => enemy.body.isAttacking
     );
-    if (!isAyEnemyAttaking) {
+    if (enemyBoats.length <= 0) {
       const label = `boat_${Matter.Common.random(10 ** 6, 10 ** 20)}`;
       const direction = Matter.Common.choose([-1, 1]);
       const x =
@@ -323,7 +331,16 @@ export const createWaveSystem = () => {
     }
     frame++;
 
-    return entities;
+    const newEntitiesKeys = Object.keys(entities).filter(
+      (key) => !killedBoatsByLabels.includes(key)
+    );
+
+    const updatedEntities = newEntitiesKeys.reduce((newEntitites, key) => {
+      newEntitites[key] = entities[key];
+      return newEntitites;
+    }, {});
+
+    return updatedEntities;
   };
 };
 

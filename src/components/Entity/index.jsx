@@ -10,6 +10,7 @@ import {
   Circle,
   vec,
   Path,
+  LinearGradient,
 } from "@shopify/react-native-skia";
 import { TRAIL_FADE_DURATION } from "../../constants/configs";
 
@@ -20,20 +21,6 @@ export const BoatRenderer = ({ body, size, direction, trail }) => {
   if (!boatImage) return null;
   // Create a smooth path for the trail with fading effect
   const now = Date.now();
-
-  // // Create a path for the trail
-  // const path = Skia.Path.Make();
-  // if (trail && trail.length > 0) {
-  //   path.moveTo(trail[0].x, trail[0].y);
-  //   for (let i = 1; i < trail.length; i++) {
-  //     path.lineTo(trail[i].x, trail[i].y);
-  //   }
-  // }
-
-  // // Create a paint object
-  // const paint = Skia.Paint();
-  // paint.setStyle("stroke");
-  // paint.setStrokeWidth(2);
   return (
     <Group>
       {/* Render the trail */}
@@ -74,11 +61,12 @@ export const BoatRenderer = ({ body, size, direction, trail }) => {
             color={`rgba(255, 255, 255, ${opacity})`}
             strokeWidth={width}
             style={"stroke"}
-          />
+            // style={"fill"}
+          ></Path>
         );
       })}
       <Group
-        origin={{ x: position.x - size[0] / 2, y: position.y - size[1] / 2 }}
+        origin={{ x: position.x + size[0] / 2, y: position.y + size[1] / 2 }}
         transform={[{ rotate: body.angle }]}
       >
         <Image
@@ -87,30 +75,7 @@ export const BoatRenderer = ({ body, size, direction, trail }) => {
           y={position.y - size[1] / 2}
           width={size[0]}
           height={size[1]}
-          // transform={
-          //   direction === -1 ? [{ translateX: size[0] }, { scaleX: -1 }] : []
-          // }
         />
-        {/* <Shadow
-        dx={size[0] / 4}
-        dy={size[1] / 2}
-        blur={10}
-        color="rgba(0, 0, 0, 0.5)"
-        x={position.x - size[0] / 2}
-        y={position.y - size[1] / 2}
-      /> */}
-        {/* Reflection Image */}
-        {/* <Group transform={[{ scaleY: -1 }]}>
-        <Image
-          image={boatImage}
-          x={position.x - size[0] / 2}
-          y={position.y + size[1]}
-          width={size[0]}
-          height={size[1]}
-          opacity={0.4}
-          transform={[{ scaleY: -1 }]}
-        />
-      </Group> */}
       </Group>
     </Group>
   );

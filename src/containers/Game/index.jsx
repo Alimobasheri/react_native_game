@@ -72,7 +72,7 @@ const Game = () => {
   console.log("🚀 ~ Game ~ waterSurfaceY:", waterSurfaceY);
 
   const shipRatio = 451 / 942;
-  const shipSize = [windowWidth * 0.2, windowWidth * 0.2 * shipRatio];
+  const shipSize = [windowWidth * 0.15, windowWidth * 0.15 * shipRatio];
 
   // Create ship, sea, and initial boats
   const ship = Matter.Bodies.rectangle(
@@ -85,7 +85,7 @@ const Game = () => {
   const initialBoats = [];
 
   const boatRatio = 59.5 / 256;
-  const boatSize = [windowWidth * 0.1, windowWidth * 0.1 * boatRatio];
+  const boatSize = [windowWidth * 0.9, windowWidth * 0.9 * boatRatio];
 
   // for (let i = 0; i < 8; i++) {
   //   const boat = Matter.Bodies.rectangle(
