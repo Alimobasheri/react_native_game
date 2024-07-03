@@ -3,7 +3,7 @@ import { StatusBar } from "expo-status-bar";
 import { StyleSheet, useWindowDimensions } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { View } from "react-native";
-import Overlay from "./src/containers/Overlay";
+import Overlay from "@/containers/Overlay";
 
 export default function App() {
   const { width, height } = useWindowDimensions();

@@ -1,10 +1,10 @@
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
-import React from "react";
+import React, { FC } from "react";
 import Game from "../Game";
 import StartButton from "../../components/StartButton";
 import { useGameState } from "../../store/useGameState";
 
-const Overlay = () => {
+const Overlay: FC<{}> = () => {
   const { width, height } = useWindowDimensions();
   const { isGameRunning } = useGameState();
   return (

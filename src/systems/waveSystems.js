@@ -13,7 +13,7 @@ export const createWaveSystem = () => {
     console.log("🚀 ~ return ~ enemyBoats:", enemyBoats.length);
     const { windowWidth, windowHeight } = entities;
     const boatRatio = 59.5 / 256;
-    const boatSize = [windowWidth * 0.1, windowWidth * 0.1 * boatRatio];
+    const boatSize = [windowWidth * 0.08, windowWidth * 0.08 * boatRatio];
     const ship = entities.ship;
     if (enemyBoats.length > 0 && entities.ship) {
       const boatAndShipCollisionDetector = Matter.Detector.create({

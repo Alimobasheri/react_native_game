@@ -1,0 +1,9 @@
+export const DEFAULT_VEHICLE_HEALTH = 100;
+export const DEFAULT_VEHICLE_MAX_VELOCITY_X = 8;
+export const DEFAULT_VEHICLE_ACCELERATION = 1.1;
+export const DEFAULT_MIN_FRAMES_BEFORE_INITIALIZATION = 7;
+
+export enum VEHICLE_TYPE_IDENTIFIERS {
+  SHIP = "ship",
+  BOAT = "boat",
+}
