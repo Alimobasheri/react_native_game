@@ -89,7 +89,7 @@ export class PhysicsSystem implements IPhysicsSystem {
         combinedSlope
       );
 
-      // this.applyAngleByWave(submergedDepth, body, combinedSlope);
+      this.applyAngleByWave(submergedDepth, body, sea);
     });
   }
 
@@ -300,7 +300,7 @@ export class PhysicsSystem implements IPhysicsSystem {
       };
 
       Matter.Body.setPosition(body, position);
-      this.applyAngleByWave(submergedDepth, body, combinedSlope);
+      this.applyAngleByWave(submergedDepth, body, sea);
     }
   }
 
@@ -322,7 +322,7 @@ export class PhysicsSystem implements IPhysicsSystem {
             buoyantVehicle.body?.position.x
           ).y -
             3 * size[1]) ||
-      Math.abs(buoyantVehicle.body.angle) > 0.12
+      Math.abs(buoyantVehicle.body.angle) > 0.5
     ) {
       buoyantVehicle.isSinked = true;
       // buoyantVehicle.isAttacking = false;
@@ -350,14 +350,25 @@ export class PhysicsSystem implements IPhysicsSystem {
   protected applyAngleByWave(
     submergedDepth: number,
     body: Matter.Body,
-    combinedSlope: number
+    sea: Sea
   ): void {
-    if (submergedDepth > 10 && body.velocity.y < 0) {
-      // Rotate the boat based on the wave slope
-      const targetAngle = Math.atan(combinedSlope);
+    if (submergedDepth > 0) {
+      const bodyLength = body.bounds.max.x - body.bounds.min.x;
+      const numberOfPoints = 5; // Number of points to sample along the body's length
+      let totalSlope = 0;
+
+      for (let i = 0; i <= numberOfPoints; i++) {
+        const pointX = body.bounds.min.x + (i * bodyLength) / numberOfPoints;
+        totalSlope += sea.getWaterSlopeAtPoint(pointX);
+      }
+
+      const averageSlope = totalSlope / (numberOfPoints + 1);
+      const targetAngle = Math.atan(averageSlope);
       const diffAngle = body.angle - targetAngle;
-      if (Math.abs(diffAngle) > 0 && Math.abs(body.angle) > 0)
+
+      if (Math.abs(diffAngle) > 0 && Math.abs(body.angle) > 0) {
         Matter.Body.setAngle(body, body.angle + diffAngle * 0.1);
+      }
     }
   }
 }
