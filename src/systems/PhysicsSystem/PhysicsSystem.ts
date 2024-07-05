@@ -216,17 +216,19 @@ export class PhysicsSystem implements IPhysicsSystem {
         5 &&
       submergedDepth > -10
     ) {
-      // if (body.label.startsWith(ENTITIES_KEYS.BOAT_LABEL)) {
+      const originalWaterSurfaceY = sea.getOriginalWaterSurfaceY();
+      const densityOfWater = 0.0001; // Lower density to achieve smaller forces
+      const sizeFactor = Math.log(size[0] * size[1] * 0.1); // Larger size results in more buoyancy force
+
+      // if (!body.label.startsWith(ENTITIES_KEYS.BOAT_LABEL)) {
       //   console.log("========");
       //   console.log(
       //     "🚀 ~ PhysicsSystem ~ sea.getWaterSurfaceAndMaxHeightAtPoint(body.position.x).maxWaveHeight:",
       //     sea.getOriginalWaterSurfaceY() -
-      //       sea.getWaterSurfaceAndMaxHeightAtPoint(body.position.x).y
+      //       sea.getWaterSurfaceAndMaxHeightAtPoint(body.position.x).y,
+      //     sizeFactor
       //   );
       // }
-      const originalWaterSurfaceY = sea.getOriginalWaterSurfaceY();
-      const densityOfWater = 0.0001; // Lower density to achieve smaller forces
-      const sizeFactor = Math.min(Math.sqrt(submergedArea) * 0.01, 0.8); // Larger size results in more buoyancy force
 
       const maxWaveHeightFactor =
         1 +
@@ -235,7 +237,7 @@ export class PhysicsSystem implements IPhysicsSystem {
             sea.getOriginalWaterSurfaceY()
         );
 
-      const buoyancyForceMagnitude = densityOfWater * 9.8;
+      const buoyancyForceMagnitude = densityOfWater * 9.8 * sizeFactor;
       // console.log(
       //   "🚀 ~ PhysicsSystem ~ buoyancyForceMagnitude:",
       //   buoyancyForceMagnitude
@@ -264,7 +266,7 @@ export class PhysicsSystem implements IPhysicsSystem {
 
         const localBuoyancyForce =
           (buoyancyForce / vehiclePoints.length) * (1 + waveHeightAtPoint);
-        // if (body.label.startsWith(ENTITIES_KEYS.BOAT_LABEL)) {
+        // if (!body.label.startsWith(ENTITIES_KEYS.BOAT_LABEL)) {
         //   console.log(
         //     "🚀 ~ PhysicsSystem ~ vehiclePoints.forEach ~ waveHeightAtPoint:",
         //     waveHeightAtPoint,
@@ -300,9 +302,6 @@ export class PhysicsSystem implements IPhysicsSystem {
       Matter.Body.setPosition(body, position);
       this.applyAngleByWave(submergedDepth, body, combinedSlope);
     }
-    // if (submergedArea > size[0] * size[1] * 0.1) {
-
-    // }
   }
 
   protected applySinkStatus(
