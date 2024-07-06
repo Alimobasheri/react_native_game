@@ -142,10 +142,6 @@ const Game = forwardRef((props, ref) => {
         [ENTITIES_KEYS.COLLISIONS_SYSTEM_INSTANCE]: collisionsSystem,
         [ENTITIES_KEYS.PHYSICS_SYSTEM_INSTANCE]: physicsSystem,
         [ENTITIES_KEYS.SEA_SYSTEM_INSTANCE]: seaSystem,
-        // health: {
-        //   value: 100,
-        // },
-        // waveCount: 0,
       }}
       style={styles.container}
     />
