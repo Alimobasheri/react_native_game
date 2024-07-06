@@ -132,8 +132,8 @@ const Game = forwardRef((props, ref) => {
       renderer={renderer}
       entities={{
         [ENTITIES_KEYS.SCREEN_TOP_UI]: screenTopUI,
-        [ENTITIES_KEYS.SHIP]: ship,
         [ENTITIES_KEYS.SEA]: sea,
+        [ENTITIES_KEYS.SHIP]: ship,
         [ENTITIES_KEYS.UI_SYSTEM_INSTANCE]: uiSystem,
         [ENTITIES_KEYS.GAME_LOOP_SYSTEM]: gameLoopSystem,
         [ENTITIES_KEYS.TOUCH_SYSTEM_INSTANCE]: touchSystem,

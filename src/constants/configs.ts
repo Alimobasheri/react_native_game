@@ -1,4 +1,5 @@
 import { SeaConfig } from "@/Game/Entities/Sea/types";
+import { WATER_GRADIENT_COLORS } from "./waterConfigs";
 
 export const TRAIL_FADE_DURATION = 1000;
 
@@ -24,9 +25,12 @@ export function getSeaConfigDefaults(
   const width = windowWidth * 1.2;
   return {
     x: width / 2,
-    y: windowHeight * 0.8,
+    y: windowHeight - windowHeight * 0.2,
     width: width,
     height: windowHeight * 0.2,
+    layersCount: 1,
+    mainLayerIndex: 0,
+    gradientColors: WATER_GRADIENT_COLORS[0],
   };
 }
 

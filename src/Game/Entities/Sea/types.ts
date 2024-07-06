@@ -2,6 +2,7 @@ import { Point2D, WaterSurfacePoint } from "@/types/globals";
 import { IWave } from "../Wave/types";
 import { FC, JSX } from "react";
 import { EntityRendererProps } from "@/constants/views";
+import { Sea } from "./Sea";
 
 export type SurfacePointMap = Map<number, WaterSurfacePoint>;
 
@@ -17,6 +18,7 @@ export type InitiateWaveConfig = {
   phase?: number;
   time?: number;
   source: WaveSource;
+  layerIndex?: number;
 };
 
 /**
@@ -29,6 +31,7 @@ export interface ISea {
   get startingY(): number;
   get startingX(): number;
   get waterSurfacePoints(): SurfacePointMap;
+  get layers(): Sea[];
   /**
    * Array of current active waves, affecting water surface.
    * @returns {IWave[]}
@@ -94,4 +97,13 @@ export type SeaConfig = {
    * Height of the sea rendered.
    */
   height: number;
+  /**
+   * How many layers this sea item contains.
+   */
+  layersCount?: number;
+  /**
+   * Index of the layer that is the main layer the vehicles move on.
+   */
+  mainLayerIndex?: number;
+  gradientColors?: string[];
 };

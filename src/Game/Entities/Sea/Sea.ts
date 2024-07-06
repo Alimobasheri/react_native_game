@@ -9,6 +9,7 @@ import {
 } from "./types";
 import { Point2D, WaterSurfacePoint } from "@/types/globals";
 import { Wave } from "@/Game/Entities/Wave/Wave";
+import { WATER_GRADIENT_COLORS } from "@/constants/waterConfigs";
 
 export class Sea implements ISea {
   protected _x: number;
@@ -22,13 +23,31 @@ export class Sea implements ISea {
     number,
     WaterSurfacePoint
   >();
+  protected _layers: Sea[] = [];
+  protected _layersCount: number = 1;
+  protected _mainLayerIndex: number = 0;
+  public gradientColors: string[] | undefined;
 
-  constructor({ x, y, width, height }: SeaConfig) {
+  constructor({
+    x,
+    y,
+    width,
+    height,
+    layersCount,
+    mainLayerIndex,
+    gradientColors,
+  }: SeaConfig) {
     this._x = x;
     this._y = y;
     this._width = width;
     this._height = height;
+    this.gradientColors = gradientColors;
+    if (!!layersCount) this._layersCount = layersCount;
+    if (typeof mainLayerIndex !== "undefined")
+      this._mainLayerIndex = mainLayerIndex;
     this.setBounds();
+    if (this._layersCount > 1) this.createLayers();
+    else this._layers[0] = this;
     this.setWaterSurfacePoints();
   }
 
@@ -53,10 +72,32 @@ export class Sea implements ISea {
     return this._waterSurfacePoints;
   }
 
+  get layers(): Sea[] {
+    return this._layers;
+  }
+
   update(currentFrame?: number | undefined): void {
-    this._waves.forEach((wave) => wave.update(currentFrame));
-    this.setWaterSurfacePoints();
-    this._waves = this._waves.filter((wave) => !wave.isExpired());
+    this._layers.forEach((layer) => {
+      layer._waves.forEach((wave) => wave.update(currentFrame));
+      layer.setWaterSurfacePoints();
+      layer._waves = layer._waves.filter((wave) => !wave.isExpired());
+    });
+  }
+
+  protected createLayers(): void {
+    for (let i = 0; i < this._layersCount; i++) {
+      const gradientColors =
+        WATER_GRADIENT_COLORS[i % WATER_GRADIENT_COLORS.length];
+      const layerConfig: SeaConfig = {
+        x: this._x,
+        y: this._y - (this._height / this._layersCount) * i,
+        width: this._width,
+        height: this._height / this._layersCount,
+        gradientColors,
+      };
+      const layer = new Sea(layerConfig);
+      this._layers.push(layer);
+    }
   }
   protected setBounds(): void {
     this._startingX = this._x - this._width / 2;
@@ -69,7 +110,9 @@ export class Sea implements ISea {
     phase,
     time,
     source,
+    layerIndex,
   }: InitiateWaveConfig): IWave {
+    const layer: Sea = this.getDefaultLayer(layerIndex);
     const waveConfig: WaveConfig = {
       x,
       initialAmplitude: amplitude,
@@ -78,25 +121,30 @@ export class Sea implements ISea {
       initialTime: time,
     };
     const wave = new Wave(waveConfig);
-    this._waves.push(wave);
+    layer._waves.push(wave);
     return wave;
   }
-  getWaterSurfaceAndMaxHeightAtPoint(x: number): WaterSurfacePoint {
+  getWaterSurfaceAndMaxHeightAtPoint(
+    x: number,
+    layerIndex?: number
+  ): WaterSurfacePoint {
+    const layer: Sea = this.getDefaultLayer(layerIndex);
     let surface = this.getOriginalWaterSurfaceY();
     let maxWaveHeight = 0;
-    this._waves.forEach((wave) => {
+    layer._waves.forEach((wave) => {
       const waveSurface = wave.getSurfaceAtPosition(x);
       surface += waveSurface;
       if (waveSurface > maxWaveHeight) maxWaveHeight = waveSurface;
     });
     return { x, y: surface, maxWaveHeight };
   }
-  getWaterSurfacePoints(): SurfacePointMap {
+  getWaterSurfacePoints(layerIndex?: number): SurfacePointMap {
+    const layer: Sea = this.getDefaultLayer(layerIndex);
     const surfacePoints: SurfacePointMap = new Map<number, WaterSurfacePoint>();
-    const startingX = this._x - this._width / 2;
-    const endingX = this._x + this._width / 2;
+    const startingX = layer._x - layer._width / 2;
+    const endingX = layer._x + layer._width / 2;
     for (let i = startingX; i <= endingX; i++) {
-      const surfacePoint = this.getWaterSurfaceAndMaxHeightAtPoint(i);
+      const surfacePoint = layer.getWaterSurfaceAndMaxHeightAtPoint(i);
       surfacePoints.set(i, {
         x: i,
         y: surfacePoint.y,
@@ -106,18 +154,29 @@ export class Sea implements ISea {
     return surfacePoints;
   }
   protected setWaterSurfacePoints(): void {
+    if (this._layersCount > 1) return;
     const surfacePoints: SurfacePointMap = this.getWaterSurfacePoints();
     this._waterSurfacePoints = surfacePoints;
   }
-  getWaterSlopeAtPoint(x: number): number {
+  protected getWaterSlopeAtPoint(x: number, layerIndex?: number): number {
+    const layer: Sea = this.getDefaultLayer(layerIndex);
     let slope = 0;
-    this._waves.forEach((wave) => {
+    layer._waves.forEach((wave) => {
       slope += wave.getSurfaceAtPosition(x);
     });
     return slope;
   }
-  getOriginalWaterSurfaceY(): number {
-    return this._y - this._height / 2;
+  getOriginalWaterSurfaceY(layerIndex?: number): number {
+    const layer: Sea = this.getDefaultLayer(layerIndex);
+    return layer._y - layer._height / 2;
+  }
+
+  getDefaultLayer(layerIndex?: number): Sea {
+    let layer: Sea =
+      this._layersCount > 1 ? this._layers[this._mainLayerIndex] : this;
+    if ((!!layerIndex || layerIndex === 0) && this._layersCount > 0)
+      layer = this._layers[layerIndex];
+    return layer;
   }
   renderer = SeaView;
 }

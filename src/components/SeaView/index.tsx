@@ -1,12 +1,31 @@
 import { Sea } from "@/Game/Entities/Sea/Sea";
 import { ISea, SurfacePointMap } from "@/Game/Entities/Sea/types";
 import { EntityRendererProps } from "@/constants/views";
-import { Path } from "@shopify/react-native-skia";
+import { Group, Path } from "@shopify/react-native-skia";
 import { Skia, vec, LinearGradient } from "@shopify/react-native-skia";
 import { FC } from "react";
 
-export const SeaView: FC<EntityRendererProps<ISea>> = ({ entity }) => {
-  const { waterSurfacePoints, height, width, startingX, startingY } = entity;
+export const SeaView: FC<EntityRendererProps<Sea>> = (props) => {
+  const { entity } = props;
+  const {
+    waterSurfacePoints,
+    height,
+    width,
+    startingX,
+    startingY,
+    layers,
+    gradientColors,
+  } = entity;
+  if (layers && layers.length > 1) {
+    return layers.map((layer, index) => (
+      <SeaView
+        key={index.toString()}
+        entity={layer}
+        layout={props.layout}
+        screen={props.screen}
+      />
+    ));
+  }
 
   const endingX = startingX + width;
   const endingY = startingY + height;
@@ -23,14 +42,14 @@ export const SeaView: FC<EntityRendererProps<ISea>> = ({ entity }) => {
   combinedWavePath.lineTo(startingX, startingY);
 
   return (
-    <>
-      <Path path={combinedWavePath} color="rgba(0, 0, 0, 0.5)" style={"fill"}>
+    <Group>
+      <Path path={combinedWavePath} color={`rgba(0, 0, 0, 0.5)`} style={"fill"}>
         <LinearGradient
           start={vec(startingX, startingY)}
           end={vec(startingX, endingY)}
-          colors={["#0000ff", "#001a99", "#003366", "#004d66"]}
+          colors={gradientColors}
         />
       </Path>
-    </>
+    </Group>
   );
 };
