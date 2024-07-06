@@ -151,7 +151,7 @@ export class Boat extends Vehicle implements IBoat {
     // );
     if (hasThisBoatCollided) {
       this.takeDamage(100);
-      this._isSinked = true;
+      this.isSinked = true;
       this._isAttacking = false;
     } else if (!!ship) {
       this._attackShip(ship, sea);

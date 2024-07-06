@@ -10,8 +10,9 @@ import {
 import { RNGE_Entities, RNGE_System_Args } from "@/systems/types";
 import { GameLoopSystem } from "@/systems/GameLoopSystem/GameLoopSystem";
 import { ENTITIES_KEYS } from "@/constants/configs";
+import EventEmitter from "react-native/Libraries/vendor/emitter/EventEmitter";
 
-export class Vehicle implements IVehicle {
+export class Vehicle extends EventEmitter implements IVehicle {
   protected _x: number;
   protected _y: number;
   protected _isBuoyant: boolean;
@@ -48,6 +49,7 @@ export class Vehicle implements IVehicle {
     maxVelocityX,
     acceleration,
   }: VehicleConfig) {
+    super();
     this._x = x;
     this._y = y;
     this._isBuoyant = isBuoyant;
@@ -97,7 +99,9 @@ export class Vehicle implements IVehicle {
   }
 
   public set isSinked(value: boolean) {
+    if (this._isSinked === value) return;
     this._isSinked = value;
+    this.emit("isSinkedChange", value);
   }
 
   public get size(): number[] {

@@ -367,7 +367,7 @@ export class PhysicsSystem implements IPhysicsSystem {
       const diffAngle = body.angle - targetAngle;
 
       if (Math.abs(diffAngle) > 0 && Math.abs(body.angle) > 0) {
-        Matter.Body.setAngle(body, body.angle + diffAngle * 0.1);
+        Matter.Body.setAngle(body, body.angle + diffAngle * 0.01);
       }
     }
   }

@@ -2,6 +2,7 @@ import { ENTITIES_KEYS } from "@/constants/configs";
 import { IShipSystem } from "./types";
 import { RNGE_Entities, RNGE_System_Args } from "../types";
 import { IShip } from "@/Game/Entities/Ship/types";
+import { Ship } from "@/Game/Entities/Ship/Ship";
 
 /**
  * The ship system is responsible for keeping the main sheep stable.
@@ -9,8 +10,14 @@ import { IShip } from "@/Game/Entities/Ship/types";
  */
 export class ShipSystem implements IShipSystem {
   systemInstance(entities: RNGE_Entities, args: RNGE_System_Args) {
-    const ship: IShip = entities[ENTITIES_KEYS.SHIP];
+    const ship: Ship = entities[ENTITIES_KEYS.SHIP];
     ship.update(entities, args);
+    ship.removeAllListeners("isSinkedChange");
+    ship.addListener("isSinkedChange", (isSinked) => {
+      if (isSinked) {
+        args.dispatch("shipSinked");
+      }
+    });
     return entities;
   }
   systemManger(entities: RNGE_Entities, args: RNGE_System_Args) {

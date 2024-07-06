@@ -9,6 +9,8 @@ import { create } from "zustand";
 interface IGameState {
   isGameRunning: boolean;
   isUsingCanvas: boolean;
+  startGame: () => void;
+  stopGame: () => void;
 }
 
 /**

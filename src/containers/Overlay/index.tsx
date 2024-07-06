@@ -1,12 +1,22 @@
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
-import React, { FC } from "react";
+import React, { FC, useRef } from "react";
 import Game from "../Game";
-import StartButton from "../../components/StartButton";
+import StartButton from "../../components/UI/StartButton";
 import { useGameState } from "../../store/useGameState";
 
 const Overlay: FC<{}> = () => {
   const { width, height } = useWindowDimensions();
-  const { isGameRunning } = useGameState();
+  const { isGameRunning, startGame, stopGame } = useGameState();
+  const gameRef = useRef();
+  const onStartPress = () => {
+    if (isGameRunning) {
+      stopGame();
+      gameRef.current.gameEngineRef.current.dispatch("gameOver");
+    } else {
+      startGame();
+      gameRef.current.gameEngineRef.current.dispatch("startGame");
+    }
+  };
   return (
     <View
       style={[
@@ -14,15 +24,15 @@ const Overlay: FC<{}> = () => {
         { width, height, minWidth: width, minHeight: height },
       ]}
     >
-      {/* {!isGameRunning && (
+      {!isGameRunning && (
         <View
           style={[styles.overlayRoot, { minWidth: width, minHeight: height }]}
         >
-          <StartButton />
+          <StartButton onPress={onStartPress} />
         </View>
-      )} */}
+      )}
       <View style={styles.gameRoot}>
-        <Game />
+        <Game ref={gameRef} />
       </View>
     </View>
   );
@@ -39,7 +49,7 @@ const styles = StyleSheet.create({
   },
   overlayRoot: {
     position: "absolute",
-    backgroundColor: "red",
+    backgroundColor: "transparent",
     zIndex: 2,
   },
   gameRoot: {

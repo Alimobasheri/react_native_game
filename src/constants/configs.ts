@@ -13,6 +13,8 @@ export enum ENTITIES_KEYS {
   PHYSICS_SYSTEM_INSTANCE = "physics_system_instance",
   COLLISIONS_SYSTEM_INSTANCE = "collisions_system_instanc",
   BOAT_SYSTEM_INSTANCE = "boat_system_instance",
+  UI_SYSTEM_INSTANCE = "ui_system_instance",
+  SCREEN_TOP_UI = "screen_top_ui",
 }
 
 export function getSeaConfigDefaults(

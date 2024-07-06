@@ -1,10 +1,13 @@
 import { ENTITIES_KEYS } from "@/constants/configs";
 import { RNGE_Entities, RNGE_System_Args } from "../types";
-import { IGameLoopSystem } from "./types";
+import { GAME_STATE, IGameLoopSystem } from "./types";
 
 export class GameLoopSystem implements IGameLoopSystem {
   protected _currentFrame: number;
-  constructor() {
+  protected _gameState: GAME_STATE;
+
+  constructor(gameState: GAME_STATE) {
+    this._gameState = gameState;
     this._currentFrame = 0;
   }
 
@@ -12,8 +15,12 @@ export class GameLoopSystem implements IGameLoopSystem {
     return this._currentFrame;
   }
 
+  public get gameState(): GAME_STATE {
+    return this._gameState;
+  }
+
   public systemInstance(entities: RNGE_Entities, args: RNGE_System_Args) {
-    this.update();
+    this.update(entities, args);
     return entities;
   }
 
@@ -23,7 +30,22 @@ export class GameLoopSystem implements IGameLoopSystem {
     return gameLoopSystem.systemInstance(entities, args);
   }
 
-  protected update() {
+  protected update(entities: RNGE_Entities, args: RNGE_System_Args) {
     this._currentFrame++;
+    this._checkStateEvents(args);
+  }
+
+  protected _checkStateEvents(args: RNGE_System_Args): void {
+    const events = args.events;
+    events.forEach((event) => {
+      if (event === "shipSinked") {
+        this._gameState = GAME_STATE.GAME_OVER;
+        args.dispatch("gameOver");
+      } else if (event === "startGame") {
+        this._gameState = GAME_STATE.RUNNING;
+      } else if (event === "startPreview") {
+        this._gameState = GAME_STATE.PREVIEW;
+      }
+    });
   }
 }

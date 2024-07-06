@@ -1,12 +1,14 @@
-import React, { useRef, useMemo } from "react";
+import React, {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+} from "react";
 import { StyleSheet, useWindowDimensions } from "react-native";
 import { GameEngine } from "react-native-game-engine";
-import Matter from "matter-js";
-import { Canvas, Path, Rect } from "@shopify/react-native-skia";
-import { LinearGradient, vec, Skia, Group } from "@shopify/react-native-skia";
-import { createWaveSystem } from "../../systems/waveSystems";
-import { WaveRenderer } from "../../components/Wave";
-import { EntityRenderer } from "../../components/Entity";
+import { Canvas, Rect } from "@shopify/react-native-skia";
+import { LinearGradient, vec } from "@shopify/react-native-skia";
 import { Sea } from "@/Game/Entities/Sea/Sea";
 import { ENTITIES_KEYS, getSeaConfigDefaults } from "@/constants/configs";
 import { TouchSystem } from "@/systems/TouchSystem/TouchSystem";
@@ -18,6 +20,10 @@ import { BoatSystem } from "@/systems/BoatSystem/BoatSystem";
 import { GameLoopSystem } from "@/systems/GameLoopSystem/GameLoopSystem";
 import { ShipSystem } from "@/systems/ShipSystem/ShipSystem";
 import { CollisionsSystem } from "@/systems/CollisionsSystem/CollisionsSystem";
+import { ScreenTopUI } from "@/Game/Entities/ScreenTopUI/ScreenTopUI";
+import { UISystem } from "@/systems/UISystem/UISystem";
+import { GAME_STATE } from "@/systems/GameLoopSystem/types";
+import { useGameState } from "@/store/useGameState";
 
 const RenderEntity = ({ entity, screen, layout }) => {
   if (typeof entity.renderer === "object")
@@ -76,14 +82,22 @@ const renderer = (entities, screen, layout) => {
   return <Render entities={entities} screen={screen} layout={layout} />;
 };
 
-const Game = () => {
+const Game = forwardRef((props, ref) => {
+  const { isGameRunning } = useGameState();
+  const gameEngineRef = useRef<GameEngine | null>();
+  useImperativeHandle(ref, () => ({
+    gameEngineRef,
+  }));
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
-  const gameLoopSystem = new GameLoopSystem();
+  const gameLoopSystem = new GameLoopSystem(GAME_STATE.PREVIEW);
+
+  const screenTopUI = new ScreenTopUI(0, 0);
 
   const sea = new Sea(getSeaConfigDefaults(windowWidth, windowHeight));
   const waterSurfaceY = sea.getOriginalWaterSurfaceY();
 
+  const uiSystem = new UISystem();
   const touchSystem = new TouchSystem();
   const seaSystem = new SeaSystem();
   const collisionsSystem = new CollisionsSystem();
@@ -102,11 +116,12 @@ const Game = () => {
     y: waterSurfaceY - (windowWidth * 0.1) / 2,
   });
   if (ship?.body) physicsSystem.addBodyToWorld(ship.body);
-
   return (
     <GameEngine
+      ref={(ref) => (gameEngineRef.current = ref)}
       systems={[
         gameLoopSystem.systemManger,
+        uiSystem.systemManger,
         touchSystem.systemManger,
         seaSystem.systemManger,
         collisionsSystem.systemManger,
@@ -116,8 +131,10 @@ const Game = () => {
       ]}
       renderer={renderer}
       entities={{
+        [ENTITIES_KEYS.SCREEN_TOP_UI]: screenTopUI,
         [ENTITIES_KEYS.SHIP]: ship,
         [ENTITIES_KEYS.SEA]: sea,
+        [ENTITIES_KEYS.UI_SYSTEM_INSTANCE]: uiSystem,
         [ENTITIES_KEYS.GAME_LOOP_SYSTEM]: gameLoopSystem,
         [ENTITIES_KEYS.TOUCH_SYSTEM_INSTANCE]: touchSystem,
         [ENTITIES_KEYS.SHIP_SYSTEM_INSTANCE]: shipSystem,
@@ -133,7 +150,7 @@ const Game = () => {
       style={styles.container}
     />
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

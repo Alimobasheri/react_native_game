@@ -8,6 +8,7 @@ import { BOAT_BUILDS } from "@/constants/boats";
 import { PhysicsSystem } from "../PhysicsSystem/PhysicsSystem";
 import { VEHICLE_TYPE_IDENTIFIERS } from "@/constants/vehicle";
 import { GameLoopSystem } from "../GameLoopSystem/GameLoopSystem";
+import { GAME_STATE } from "../GameLoopSystem/types";
 
 export class BoatSystem implements IBoatSystem {
   protected _boatFactory: BoatFactory;
@@ -34,16 +35,26 @@ export class BoatSystem implements IBoatSystem {
     entities: RNGE_Entities,
     args: RNGE_System_Args
   ): RNGE_Entities {
+    const gameLoopSystem: GameLoopSystem =
+      entities[ENTITIES_KEYS.GAME_LOOP_SYSTEM];
+    const { gameState } = gameLoopSystem;
     this._killedBoatsInFrame = [];
     const boats = this._findBoatsInEntities(entities);
-    if (!this.isAnyBoatAttacking(boats)) {
+    if (!this.isAnyBoatAttacking(boats) && gameState === GAME_STATE.RUNNING) {
       this.spawnBoat(entities);
     } else {
       boats.forEach((boat) => {
+        if (gameState !== GAME_STATE.RUNNING) boat.isSinked = true;
         if (this.isBoatKilled(boat)) {
           this._killedBoatsInFrame.push(boat);
         } else {
           boat.update(entities, args);
+          boat.removeAllListeners("isSinkedChange");
+          boat.addListener("isSinkedChange", (isSinked) => {
+            if (isSinked) {
+              args.dispatch("boatSinked");
+            }
+          });
         }
       });
     }
