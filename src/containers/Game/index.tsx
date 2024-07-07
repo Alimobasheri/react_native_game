@@ -24,6 +24,7 @@ import { ScreenTopUI } from "@/Game/Entities/ScreenTopUI/ScreenTopUI";
 import { UISystem } from "@/systems/UISystem/UISystem";
 import { GAME_STATE } from "@/systems/GameLoopSystem/types";
 import { useGameState } from "@/store/useGameState";
+import { MountainBackground } from "@/Game/Entities/MountainBackground/MountainBackground";
 
 const RenderEntity = ({ entity, screen, layout }) => {
   if (typeof entity.renderer === "object")
@@ -109,6 +110,8 @@ const Game = forwardRef((props, ref) => {
     originalWaterSUrfaceY: waterSurfaceY,
   });
 
+  const moutnainBackground = new MountainBackground(windowWidth, windowHeight);
+
   const shipFactory = new ShipFactory({ windowWidth });
   const ship = shipFactory.create({
     type: SHIP_BUILDS.WAR_SHIP,
@@ -132,6 +135,7 @@ const Game = forwardRef((props, ref) => {
       renderer={renderer}
       entities={{
         [ENTITIES_KEYS.SCREEN_TOP_UI]: screenTopUI,
+        [ENTITIES_KEYS.MOUNTAIN_BACKGROUND]: moutnainBackground,
         [ENTITIES_KEYS.SEA]: sea,
         [ENTITIES_KEYS.SHIP]: ship,
         [ENTITIES_KEYS.UI_SYSTEM_INSTANCE]: uiSystem,

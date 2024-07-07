@@ -1,6 +1,7 @@
 import { ENTITIES_KEYS } from "@/constants/configs";
 import { RNGE_Entities, RNGE_System_Args } from "../types";
 import { GAME_STATE, IGameLoopSystem } from "./types";
+import { MountainBackground } from "@/Game/Entities/MountainBackground/MountainBackground";
 
 export class GameLoopSystem implements IGameLoopSystem {
   protected _currentFrame: number;
@@ -33,6 +34,9 @@ export class GameLoopSystem implements IGameLoopSystem {
   protected update(entities: RNGE_Entities, args: RNGE_System_Args) {
     this._currentFrame++;
     this._checkStateEvents(args);
+    const mountainBackground: MountainBackground =
+      entities[ENTITIES_KEYS.MOUNTAIN_BACKGROUND];
+    mountainBackground.update(0.01, args.time.delta);
   }
 
   protected _checkStateEvents(args: RNGE_System_Args): void {
