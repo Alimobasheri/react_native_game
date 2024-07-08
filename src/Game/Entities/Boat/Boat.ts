@@ -133,8 +133,8 @@ export class Boat extends Vehicle implements IBoat {
 
   protected _onUpdate(entities: RNGE_Entities): void {
     if (this.isSinked) return;
-    const sea: Sea = entities[ENTITIES_KEYS.SEA];
-    const ship: Ship = entities[ENTITIES_KEYS.SHIP];
+    const sea: Sea = entities[ENTITIES_KEYS.SEA_GROUP].entities["sea"];
+    const ship: Ship = entities[ENTITIES_KEYS.SEA_GROUP].entities["ship"];
     const gameLoopSystem: GameLoopSystem =
       entities[ENTITIES_KEYS.GAME_LOOP_SYSTEM];
     const currentFrame = gameLoopSystem.currentFrame;

@@ -31,7 +31,7 @@ export const TopUIView: FC<EntityRendererProps<ScreenTopUI>> = ({
   const coinImage = useImage(require("../../../assets/coin_icon.png"));
   const destroyedBoatSize = [30, 30];
   const destroyedBoatPosition = {
-    x: 0 + destroyedBoatSize[0] * 2,
+    x: width / 2 - destroyedBoatSize[0],
     y: destroyedBoatSize[1],
   };
   const destroyedBoatImage = useImage(
@@ -39,8 +39,8 @@ export const TopUIView: FC<EntityRendererProps<ScreenTopUI>> = ({
   );
 
   const gradientShader = Skia.Shader.MakeLinearGradient(
-    { x: 0, y: 0 },
-    { x: 100, y: 0 },
+    { x: width / 2 - destroyedBoatSize[0] / 2 - 100, y: destroyedBoatSize[1] },
+    { x: width / 2 + destroyedBoatSize[0] / 2 + 100, y: destroyedBoatSize[1] },
     [Skia.Color("cyan"), Skia.Color("blue"), Skia.Color("purple")],
     null,
     TileMode.Clamp

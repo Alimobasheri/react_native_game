@@ -11,7 +11,7 @@ import { ISea, WaveSource } from "@/Game/Entities/Sea/types";
 
 export class SeaSystem implements ISeaSystem {
   systemInstance(entities: RNGE_Entities, args: RNGE_System_Args) {
-    const sea: ISea = entities[ENTITIES_KEYS.SEA];
+    const sea: ISea = entities[ENTITIES_KEYS.SEA_GROUP].entities["sea"];
     sea.update();
     return entities;
   }

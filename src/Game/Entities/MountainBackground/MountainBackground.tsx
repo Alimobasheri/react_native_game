@@ -117,7 +117,7 @@ export class MountainBackground {
 
   private generateMountain(xOffset: number): Mountain {
     const height = this.generateRandom(0.3 * screenHeight, 0.5 * screenHeight);
-    const width = this.generateRandom(0.2 * screenWidth, 0.4 * screenWidth);
+    const width = this.generateRandom(0.3 * screenWidth, 0.5 * screenWidth);
     const path = Skia.Path.Make();
     const baseY = screenHeight - screenHeight * 0.3;
 
@@ -143,6 +143,8 @@ export class MountainBackground {
       TileMode.Clamp
     );
 
+    const paint = Skia.Paint();
+    paint.setShader(gradient);
     // Add strokes along the mountain path
     const strokePath = Skia.Path.Make();
     strokePath.moveTo(xOffset, baseY);
@@ -194,7 +196,7 @@ export class MountainBackground {
 
     const mountain = {
       ...mountainPath,
-      gradient,
+      paint,
       strokePath,
       snowcapPath,
       rockyPaths,
@@ -214,66 +216,56 @@ export class MountainBackground {
     this.speed = speed;
     this.timeDelta = timeDelta;
 
+    let mountainsToRemove = [];
+    let newMountains = [];
+
     this.mountains.forEach((mountain, index) => {
       mountain.xOffset -= speed * timeDelta;
+
       if (mountain.xOffset + mountain.initialXOffset + mountain.width < 0) {
-        console.log(
-          "🚀 ~ MountainBackground ~ this.mountains.forEach ~ mountain.xOffset:",
-          mountain.xOffset
-        );
-        // Remove and add a new mountain
-        this.mountains.splice(index, 1);
+        // Mark mountain for removal and prepare a new mountain to add
+        mountainsToRemove.push(index);
         const newMountain = this.generateMountain(
           screenWidth + this.generateRandom(0, screenWidth / 2)
         );
-        this.mountains.push(newMountain);
+        newMountains.push(newMountain);
       }
     });
+
+    // Remove mountains marked for removal
+    for (let i = mountainsToRemove.length - 1; i >= 0; i--) {
+      this.mountains.splice(mountainsToRemove[i], 1);
+    }
+
+    // Add new mountains
+    this.mountains.push(...newMountains);
+    newMountains = null;
+    mountainsToRemove = null;
   }
 
-  render(): JSX.Element[] {
-    return this.mountains.map((mountain, index) => {
-      const transformedPath = mountain.path.copy();
-      transformedPath.transform(Skia.Matrix().translate(mountain.xOffset, 0));
-
-      const transformedStrokePath = mountain.strokePath.copy();
-      transformedStrokePath.transform(
-        Skia.Matrix().translate(mountain.xOffset, 0)
-      );
-
-      const transformedSnowcapPath = mountain.snowcapPath.copy();
-      transformedSnowcapPath.transform(
-        Skia.Matrix().translate(mountain.xOffset, 0)
-      );
-
-      const paint = Skia.Paint();
-      paint.setShader(mountain.gradient);
-
-      return (
-        <Group key={index}>
-          <Path
-            path={transformedStrokePath}
-            color={"#555555"}
-            strokeWidth={2}
-          />
-          <Path path={transformedPath} paint={paint} />
-          {mountain.rockyPaths.map((rockyPath, rockyIndex) => {
-            const transformedRockyPath = rockyPath.path.copy();
-            transformedRockyPath.transform(
-              Skia.Matrix().translate(mountain.xOffset, 0)
-            );
-            return (
+  render(): JSX.Element {
+    return (
+      <Group>
+        {this.mountains.map((mountain, index) => (
+          <Group key={index} transform={[{ translateX: mountain.xOffset }]}>
+            <Path
+              path={mountain.strokePath}
+              color={"#555555"}
+              strokeWidth={2}
+            />
+            <Path path={mountain.path} paint={mountain.paint} />
+            {mountain.rockyPaths.map((rockyPath, rockyIndex) => (
               <Path
                 key={rockyIndex}
-                path={transformedRockyPath}
+                path={rockyPath.path}
                 color={rockyPath.color}
               />
-            );
-          })}
-          <Path path={transformedSnowcapPath} color={"#FFFFFF"} />
-        </Group>
-      );
-    });
+            ))}
+            <Path path={mountain.snowcapPath} color={"#FFFFFF"} />
+          </Group>
+        ))}
+      </Group>
+    );
   }
 
   renderer = MountainBackgroundView;

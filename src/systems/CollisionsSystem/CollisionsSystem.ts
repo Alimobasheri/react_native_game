@@ -29,7 +29,7 @@ export class CollisionsSystem implements ICollisionsSystem {
       entities[ENTITIES_KEYS.GAME_LOOP_SYSTEM];
     const currentFrame = gameLoopSystem.currentFrame;
     const attackingBoats = this.findAttackingBoats(entities);
-    const ship: Ship = entities[ENTITIES_KEYS.SHIP];
+    const ship: Ship = entities[ENTITIES_KEYS.SEA_GROUP].entities["ship"];
     if (attackingBoats.length > 0 && !!ship?.body) {
       const collisions = this.getAttackingBoatsCollision(attackingBoats, ship);
       this.saveShipBoatCollisionsInFrame(

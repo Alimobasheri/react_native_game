@@ -36,7 +36,7 @@ export class GameLoopSystem implements IGameLoopSystem {
     this._checkStateEvents(args);
     const mountainBackground: MountainBackground =
       entities[ENTITIES_KEYS.MOUNTAIN_BACKGROUND];
-    mountainBackground.update(0.01, args.time.delta);
+    mountainBackground.update(0.005, args.time.delta);
   }
 
   protected _checkStateEvents(args: RNGE_System_Args): void {

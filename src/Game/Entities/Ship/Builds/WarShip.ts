@@ -11,9 +11,6 @@ export class WarShip extends Ship {
     this.initialize();
   }
   getSize(): number[] {
-    return [
-      this._windowWidth * 0.15,
-      this._windowWidth * 0.15 * this._shipRatio,
-    ];
+    return [this._windowWidth * 0.2, this._windowWidth * 0.2 * this._shipRatio];
   }
 }

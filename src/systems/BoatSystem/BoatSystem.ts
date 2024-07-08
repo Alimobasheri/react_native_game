@@ -62,9 +62,11 @@ export class BoatSystem implements IBoatSystem {
   }
 
   protected _findBoatsInEntities(entities: RNGE_Entities): Boat[] {
-    return Object.keys(entities)
-      .map((key) => entities[key])
+    const keys = Object.keys(entities[ENTITIES_KEYS.SEA_GROUP].entities);
+    const result = keys
+      .map((key) => entities[ENTITIES_KEYS.SEA_GROUP].entities[key])
       .filter((entitiy) => entitiy?.type === VEHICLE_TYPE_IDENTIFIERS.BOAT);
+    return result;
   }
 
   protected isBoatKilled(boat: Boat): boolean {
@@ -90,13 +92,19 @@ export class BoatSystem implements IBoatSystem {
     const killedBoatsLabels = this._killedBoatsInFrame
       .filter((boat) => !!boat.body)
       .map((boat) => boat.body?.label);
-    const newEntitiesKeys = Object.keys(entities).filter(
-      (key) => !killedBoatsLabels.includes(key)
+    const newSeaGroupEntitiesKeys = Object.keys(
+      entities[ENTITIES_KEYS.SEA_GROUP].entities
+    ).filter((key) => !killedBoatsLabels.includes(key));
+    const updatedSeaGroupEntities = newSeaGroupEntitiesKeys.reduce(
+      (acc: any, key) => {
+        acc[key] = entities[ENTITIES_KEYS.SEA_GROUP].entities[key];
+        return acc;
+      },
+      {}
     );
-    const updatedEntities = newEntitiesKeys.reduce((acc: any, key) => {
-      acc[key] = entities[key];
-      return acc;
-    }, {});
+
+    const updatedEntities = entities;
+    updatedEntities[ENTITIES_KEYS.SEA_GROUP].entities = updatedSeaGroupEntities;
     return updatedEntities;
   }
 
@@ -111,7 +119,7 @@ export class BoatSystem implements IBoatSystem {
     const boat = this.createBoat({ createdFrame: gameLoopSystem.currentFrame });
     if (boat?.body) {
       physicsSystem.addBodyToWorld(boat?.body);
-      entities[boat.label] = boat;
+      entities[ENTITIES_KEYS.SEA_GROUP].entities[boat.label] = boat;
     }
   }
 

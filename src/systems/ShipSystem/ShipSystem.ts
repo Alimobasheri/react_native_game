@@ -10,7 +10,7 @@ import { Ship } from "@/Game/Entities/Ship/Ship";
  */
 export class ShipSystem implements IShipSystem {
   systemInstance(entities: RNGE_Entities, args: RNGE_System_Args) {
-    const ship: Ship = entities[ENTITIES_KEYS.SHIP];
+    const ship: Ship = entities[ENTITIES_KEYS.SEA_GROUP].entities["ship"];
     ship.update(entities, args);
     ship.removeAllListeners("isSinkedChange");
     ship.addListener("isSinkedChange", (isSinked) => {

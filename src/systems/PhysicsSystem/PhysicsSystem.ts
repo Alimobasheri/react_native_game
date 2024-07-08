@@ -45,7 +45,7 @@ export class PhysicsSystem implements IPhysicsSystem {
     entities: RNGE_Entities,
     args: RNGE_System_Args
   ): void {
-    const sea: Sea = entities[ENTITIES_KEYS.SEA];
+    const sea: Sea = entities[ENTITIES_KEYS.SEA_GROUP].entities["sea"];
     const buoyantVehicles = this.findBuoyantVehicles(entities);
     buoyantVehicles.forEach((buoyantVehicle) => {
       if (buoyantVehicle.isSinked || !buoyantVehicle.isInitialized) return;
@@ -73,12 +73,12 @@ export class PhysicsSystem implements IPhysicsSystem {
         waterSurfaceYAtPoint
       );
 
-      const surfacePoints = this.getSurfacePoints(
-        body,
-        size,
-        submergedDepth,
-        sea
-      );
+      // const surfacePoints = this.getSurfacePoints(
+      //   body,
+      //   size,
+      //   submergedDepth,
+      //   sea
+      // );
 
       this.applyBuoyantForce(
         body,
@@ -94,8 +94,8 @@ export class PhysicsSystem implements IPhysicsSystem {
   }
 
   protected findBuoyantVehicles(entities: RNGE_Entities): Vehicle[] {
-    return Object.keys(entities)
-      .map((key) => entities[key])
+    return Object.keys(entities[ENTITIES_KEYS.SEA_GROUP].entities)
+      .map((key) => entities[ENTITIES_KEYS.SEA_GROUP].entities[key])
       .filter((entity) => entity.isBuoyant);
   }
 
@@ -157,7 +157,7 @@ export class PhysicsSystem implements IPhysicsSystem {
   }
   protected getBuoyantVehicleProps(
     buoyantVehicle: Vehicle,
-    sea: ISea,
+    sea: Sea,
     args: RNGE_System_Args
   ): BuoyantVehicleProps | undefined {
     const { body, size } = buoyantVehicle;

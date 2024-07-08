@@ -76,6 +76,10 @@ export class Sea implements ISea {
     return this._layers;
   }
 
+  get mainLayerIndex(): number {
+    return this._mainLayerIndex;
+  }
+
   update(currentFrame?: number | undefined): void {
     this._layers.forEach((layer) => {
       layer._waves.forEach((wave) => wave.update(currentFrame));
@@ -90,7 +94,7 @@ export class Sea implements ISea {
         WATER_GRADIENT_COLORS[i % WATER_GRADIENT_COLORS.length];
       const layerConfig: SeaConfig = {
         x: this._x,
-        y: this._y - (this._height / this._layersCount) * i,
+        y: this._y + this._height - (this._height / this._layersCount) * i,
         width: this._width,
         height: this._height / this._layersCount,
         gradientColors,
@@ -101,7 +105,7 @@ export class Sea implements ISea {
   }
   protected setBounds(): void {
     this._startingX = this._x - this._width / 2;
-    this._startingY = this._y + this._height / 2;
+    this._startingY = this._y - this._height / 2;
   }
   initiateWave({
     x,

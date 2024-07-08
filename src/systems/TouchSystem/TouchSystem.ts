@@ -25,7 +25,7 @@ export class TouchSystem implements ITouchSystem {
     entities: RNGE_Entities,
     { touches, time }: RNGE_System_Args
   ): RNGE_Entities {
-    const sea: ISea = entities[ENTITIES_KEYS.SEA];
+    const sea: ISea = entities[ENTITIES_KEYS.SEA_GROUP].entities["sea"];
     this._captureStartTouches(touches, time);
     this._captureEndTouches(touches, time, sea);
     return entities;

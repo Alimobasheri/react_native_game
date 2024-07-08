@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { StyleSheet, useWindowDimensions } from "react-native";
 import { GameEngine } from "react-native-game-engine";
-import { Canvas, Rect } from "@shopify/react-native-skia";
+import { Canvas, Rect, Skia, TileMode } from "@shopify/react-native-skia";
 import { LinearGradient, vec } from "@shopify/react-native-skia";
 import { Sea } from "@/Game/Entities/Sea/Sea";
 import { ENTITIES_KEYS, getSeaConfigDefaults } from "@/constants/configs";
@@ -25,6 +25,7 @@ import { UISystem } from "@/systems/UISystem/UISystem";
 import { GAME_STATE } from "@/systems/GameLoopSystem/types";
 import { useGameState } from "@/store/useGameState";
 import { MountainBackground } from "@/Game/Entities/MountainBackground/MountainBackground";
+import { SeaGroupRenderer } from "@/components/SeaGroupRenderer";
 
 const RenderEntity = ({ entity, screen, layout }) => {
   if (typeof entity.renderer === "object")
@@ -46,16 +47,55 @@ const Render = ({ entities, screen, layout }) => {
   );
 
   const background = useMemo(() => {
+    const paint = Skia.Paint();
+
+    // Colors for the gradient
+    // const colors = [
+    //   "#0000FF", // Blue
+    //   "#0044FF",
+    //   "#0088FF",
+    //   "#00CCFF",
+    //   "#00FFFF",
+    //   "#00FFCC",
+    //   "#00FF88",
+    //   "#00FF44",
+    //   "#00FF00", // Very bright green
+    // ];
+
+    const colors = [
+      "#87CEEB", // Light blue
+      "#ADD8E6",
+      "#B0E0E6",
+      "#AFEEEE",
+      "#E0FFFF",
+      "#E0FFD1",
+      "#F0E68C",
+      "#FFFFE0",
+      "#FFFFF0", // Very light green/yellow
+    ];
+
+    // Define the positions for each color
+    const positions = colors.map((_, index) => index / (colors.length - 1));
+
+    // Create the linear gradient
+    const gradient = Skia.Shader.MakeLinearGradient(
+      { x: 0, y: 0 },
+      { x: 0, y: screen.height },
+      colors.map((col) => Skia.Color(col)),
+      positions,
+      TileMode.Clamp
+    );
+
+    // Apply the gradient to the paint
+    paint.setShader(gradient);
     return (
-      <Rect x={0} y={0} width={screen.width} height={screen.height}>
-        <LinearGradient
-          start={vec(0, screen.height)}
-          end={vec(screen.width, 0)}
-          colors={["#62cff4", "#2c67f2"]}
-          transform={[{ rotate: 90 }]}
-          origin={{ x: screen.width / 2, y: screen.height / 2 }}
-        />
-      </Rect>
+      <Rect
+        x={0}
+        y={0}
+        width={screen.width}
+        height={screen.height}
+        paint={paint}
+      ></Rect>
     );
   }, [screen.width, screen.height]);
   return (
@@ -110,7 +150,7 @@ const Game = forwardRef((props, ref) => {
     originalWaterSUrfaceY: waterSurfaceY,
   });
 
-  const moutnainBackground = new MountainBackground(windowWidth, windowHeight);
+  const moutnainBackground = new MountainBackground();
 
   const shipFactory = new ShipFactory({ windowWidth });
   const ship = shipFactory.create({
@@ -119,6 +159,8 @@ const Game = forwardRef((props, ref) => {
     y: waterSurfaceY - (windowWidth * 0.1) / 2,
   });
   if (ship?.body) physicsSystem.addBodyToWorld(ship.body);
+
+  const seaGroup = { entities: { sea, ship }, renderer: SeaGroupRenderer };
   return (
     <GameEngine
       ref={(ref) => (gameEngineRef.current = ref)}
@@ -134,10 +176,8 @@ const Game = forwardRef((props, ref) => {
       ]}
       renderer={renderer}
       entities={{
-        [ENTITIES_KEYS.SCREEN_TOP_UI]: screenTopUI,
         [ENTITIES_KEYS.MOUNTAIN_BACKGROUND]: moutnainBackground,
-        [ENTITIES_KEYS.SEA]: sea,
-        [ENTITIES_KEYS.SHIP]: ship,
+        [ENTITIES_KEYS.SEA_GROUP]: seaGroup,
         [ENTITIES_KEYS.UI_SYSTEM_INSTANCE]: uiSystem,
         [ENTITIES_KEYS.GAME_LOOP_SYSTEM]: gameLoopSystem,
         [ENTITIES_KEYS.TOUCH_SYSTEM_INSTANCE]: touchSystem,
@@ -146,6 +186,7 @@ const Game = forwardRef((props, ref) => {
         [ENTITIES_KEYS.COLLISIONS_SYSTEM_INSTANCE]: collisionsSystem,
         [ENTITIES_KEYS.PHYSICS_SYSTEM_INSTANCE]: physicsSystem,
         [ENTITIES_KEYS.SEA_SYSTEM_INSTANCE]: seaSystem,
+        [ENTITIES_KEYS.SCREEN_TOP_UI]: screenTopUI,
       }}
       style={styles.container}
     />

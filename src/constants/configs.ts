@@ -7,6 +7,7 @@ export enum ENTITIES_KEYS {
   SEA = "sea",
   SHIP = "ship",
   BOAT_LABEL = "boat_",
+  SEA_GROUP = "sea_group",
   MOUNTAIN_BACKGROUND = "mountain_background",
   GAME_LOOP_SYSTEM = "game_loop_system",
   TOUCH_SYSTEM_INSTANCE = "touch_system_instance",
@@ -26,11 +27,11 @@ export function getSeaConfigDefaults(
   const width = windowWidth * 1.2;
   return {
     x: width / 2,
-    y: windowHeight - windowHeight * 0.2,
+    y: windowHeight * 0.7,
     width: width,
-    height: windowHeight * 0.2,
-    layersCount: 1,
-    mainLayerIndex: 0,
+    height: windowHeight * 0.3,
+    layersCount: 6,
+    mainLayerIndex: 2,
     gradientColors: WATER_GRADIENT_COLORS[0],
   };
 }
