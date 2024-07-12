@@ -113,4 +113,8 @@ export type VehicleConfig = {
    * Velocity / frame value.
    */
   acceleration?: number;
+  /**
+   * Used to stable the matter forces on vehicle
+   */
+  mass?: number;
 };

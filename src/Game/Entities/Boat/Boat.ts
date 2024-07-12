@@ -57,6 +57,10 @@ export class Boat extends Vehicle implements IBoat {
     return this._isBoat;
   }
 
+  public set trail(trail: BoatTrail[]) {
+    this._trail = trail;
+  }
+
   public get trail(): BoatTrail[] {
     return this._trail;
   }

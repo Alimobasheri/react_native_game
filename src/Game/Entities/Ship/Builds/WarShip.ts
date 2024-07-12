@@ -6,7 +6,7 @@ export class WarShip extends Ship {
   protected _windowWidth: number;
 
   constructor(config: commonShipBuildsConfig) {
-    super({ ...config, label: "warship" });
+    super({ ...config, mass: 20, label: "warship" });
     this._windowWidth = config.windowWidth;
     this.initialize();
   }

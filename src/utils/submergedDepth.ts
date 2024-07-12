@@ -25,6 +25,7 @@ export function getSubmergedArea(
 ): getSubmergedAreaReturnValue {
   // Calculate the submerged depth based on the boat's position relative to the wave
   const submergedDepth = bottomY - surfaceY.y;
-  const submergedArea = Math.min(submergedDepth, size[1]) * size[0]; // Cross-sectional submerged area
+  const submergedArea =
+    Math.min(submergedDepth > 0 ? submergedDepth : 0, size[1]) * size[0]; // Cross-sectional submerged area
   return { submergedDepth, submergedArea };
 }

@@ -33,6 +33,7 @@ export interface IBoat extends IVehicle {
    * @todo define trail class and interface. Trails shoudl be created inside boat class by each update of frame.
    */
   get trail(): BoatTrail[];
+  set trail(trail: BoatTrail[]);
 }
 
 export type BoatConfig = {

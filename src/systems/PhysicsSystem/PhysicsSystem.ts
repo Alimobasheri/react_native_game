@@ -37,8 +37,8 @@ export class PhysicsSystem implements IPhysicsSystem {
 
   protected update(entities: RNGE_Entities, args: RNGE_System_Args): void {
     const { time } = args;
-    this.updateBuoyantVehicles(entities, args);
     Matter.Engine.update(this._engine, time.delta);
+    this.updateBuoyantVehicles(entities, args);
   }
 
   protected updateBuoyantVehicles(
@@ -265,7 +265,13 @@ export class PhysicsSystem implements IPhysicsSystem {
         const waveHeightAtPoint = Math.sqrt(heightDiff > 0 ? heightDiff : 0);
 
         const localBuoyancyForce =
-          (buoyancyForce / vehiclePoints.length) * (1 + waveHeightAtPoint);
+          (buoyancyForce / vehiclePoints.length) *
+          (1 + waveHeightAtPoint) *
+          0.5;
+        const localBuoyancyForceX =
+          (index < pointsCount / 2 ? 1 : -1) *
+          localBuoyancyForce *
+          (0.1 + 0.1 * waveHeightAtPoint);
         // if (!body.label.startsWith(ENTITIES_KEYS.BOAT_LABEL)) {
         //   console.log(
         //     "🚀 ~ PhysicsSystem ~ vehiclePoints.forEach ~ waveHeightAtPoint:",
@@ -285,20 +291,22 @@ export class PhysicsSystem implements IPhysicsSystem {
             y: point.y + body.position.y,
           },
           {
-            x: 0,
+            x: localBuoyancyForceX,
             y: localBuoyancyForce,
           }
         );
       });
     } else if (submergedDepth > 0) {
       const positionY =
-        sea.getWaterSurfaceAndMaxHeightAtPoint(body.position.x).y - size[1] / 2;
+        sea.layers[sea.mainLayerIndex].getWaterSurfaceAndMaxHeightAtPoint(
+          body.position.x
+        ).y -
+        size[1] / 3;
 
       const position = {
         x: body.position.x,
         y: positionY,
       };
-
       Matter.Body.setPosition(body, position);
       this.applyAngleByWave(submergedDepth, body, sea);
     }
@@ -312,7 +320,7 @@ export class PhysicsSystem implements IPhysicsSystem {
   ): void {
     if (!buoyantVehicle.body) return;
     if (
-      (submergedArea >= size[1] * size[0] &&
+      (submergedArea >= size[1] * size[0] * 1.5 &&
         buoyantVehicle.body &&
         sea.getWaterSurfaceAndMaxHeightAtPoint(buoyantVehicle.body?.position.x)
           .y >= sea.getOriginalWaterSurfaceY()) ||
@@ -367,7 +375,8 @@ export class PhysicsSystem implements IPhysicsSystem {
       const diffAngle = body.angle - targetAngle;
 
       if (Math.abs(diffAngle) > 0 && Math.abs(body.angle) > 0) {
-        Matter.Body.setAngle(body, body.angle + diffAngle * 0.01);
+        if (!body.label.startsWith("boat_"))
+          Matter.Body.setAngle(body, body.angle - diffAngle * 0.01);
       }
     }
   }

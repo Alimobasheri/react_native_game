@@ -23,6 +23,7 @@ export class Vehicle extends EventEmitter implements IVehicle {
   protected _health: number;
   protected _isDestroyed: boolean = false;
   protected _size: number[] = [NaN, NaN];
+  protected _mass: number = 1;
   protected _type: VEHICLE_TYPE_IDENTIFIERS;
   protected _label: string;
   protected _maxVelocityX: number;
@@ -48,6 +49,7 @@ export class Vehicle extends EventEmitter implements IVehicle {
     label,
     maxVelocityX,
     acceleration,
+    mass,
   }: VehicleConfig) {
     super();
     this._x = x;
@@ -61,6 +63,7 @@ export class Vehicle extends EventEmitter implements IVehicle {
     this._label = label;
     this._maxVelocityX = maxVelocityX || DEFAULT_VEHICLE_MAX_VELOCITY_X;
     this._acceleration = acceleration || DEFAULT_VEHICLE_ACCELERATION;
+    this._mass = mass ?? this._mass;
   }
 
   protected initialize(): void {
@@ -162,7 +165,7 @@ export class Vehicle extends EventEmitter implements IVehicle {
       position[1],
       size[0],
       size[1],
-      { label: this._label }
+      { label: this._label, mass: this._mass }
     );
     return vehicleBody;
   }

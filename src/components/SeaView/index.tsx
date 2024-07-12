@@ -1,6 +1,7 @@
 import { Sea } from "@/Game/Entities/Sea/Sea";
 import { ISea, SurfacePointMap } from "@/Game/Entities/Sea/types";
 import { EntityRendererProps } from "@/constants/views";
+import { WATER_GRADIENT_COLORS } from "@/constants/waterConfigs";
 import { Group, Path, TileMode } from "@shopify/react-native-skia";
 import { Skia, vec, LinearGradient } from "@shopify/react-native-skia";
 import { FC } from "react";
@@ -30,7 +31,7 @@ export const SeaView: FC<EntityRendererProps<Sea>> = (props) => {
   }
 
   const endingX = startingX + width;
-  const endingY = startingY + height;
+  const endingY = startingY + height * 2;
   const combinedWavePath = Skia.Path.Make();
   combinedWavePath.moveTo(startingX, startingY); // Start the path at the left edge of the screen
 
@@ -43,20 +44,15 @@ export const SeaView: FC<EntityRendererProps<Sea>> = (props) => {
   combinedWavePath.lineTo(startingX, endingY);
   combinedWavePath.lineTo(startingX, startingY);
 
-  const paint = Skia.Paint();
-
-  const seaGradient = Skia.Shader.MakeLinearGradient(
-    vec(0, height * 0.75),
-    vec(0, height),
-    [Skia.Color("#b3e0ff"), Skia.Color("#66b2ff"), Skia.Color("#1a8cff")], // Light blue to darker blue
-    [0, 1],
-    TileMode.Clamp
-  );
-  paint.setShader(seaGradient);
-
   return (
     <Group>
-      <Path path={combinedWavePath} style={"fill"} paint={paint}></Path>
+      <Path path={combinedWavePath} style={"fill"}>
+        <LinearGradient
+          colors={entity.gradientColors || []}
+          start={{ x: 0, y: 1 }}
+          end={{ x: 1, y: 1 }}
+        />
+      </Path>
     </Group>
   );
 };

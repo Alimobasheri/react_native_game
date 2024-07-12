@@ -52,34 +52,6 @@ const SunView = () => {
   strokePaint.setStrokeWidth(3);
   strokePaint.setAntiAlias(true);
 
-  const numberOfRays = 12;
-  const rayLength = 150;
-  const angleStep = (2 * Math.PI) / numberOfRays;
-  const rays = [];
-
-  // for (let i = 0; i < numberOfRays; i++) {
-  //   const angle = i * angleStep;
-  //   const startX = centerX + sunRadius * Math.cos(angle);
-  //   const startY = centerY + sunRadius * Math.sin(angle);
-  //   const endX = centerX + (sunRadius + rayLength) * Math.cos(angle);
-  //   const endY = centerY + (sunRadius + rayLength) * Math.sin(angle);
-  //   rays.push(
-  //     <Path
-  //       key={`ray-${i}`}
-  //       path={`M${startX},${startY} L${endX},${endY}`}
-  //       paint={rayPaint}
-  //     />
-  //   );
-  // }
-
-  const strokePath = `M${centerX},${centerY - sunRadius + 10} 
-                      Q${centerX + 20},${centerY - sunRadius + 30},${
-    centerX + 10
-  },${centerY - sunRadius + 50}
-                      Q${centerX - 20},${centerY - sunRadius + 70},${centerX},${
-    centerY - sunRadius + 90
-  }`;
-
   return (
     <Group>
       <Path
@@ -90,7 +62,6 @@ const SunView = () => {
         path={Skia.Path.Make().addCircle(centerX, centerY, sunRadius)}
         paint={shinyPaint}
       />
-      {/* <Path path={strokePath} paint={strokePaint} /> */}
     </Group>
   );
 };

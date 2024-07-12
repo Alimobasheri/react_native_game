@@ -1,10 +1,10 @@
 import { Boat } from "../Boat";
 import { BoatConfig, commonBoatBuildsConfig } from "../types";
 
-export class SpeedBoat extends Boat {
-  protected _sizeRatio = 59.5 / 256;
+export class RedPirateHeadSkull extends Boat {
+  protected _sizeRatio = 308 / 512;
   protected _windowWidth: number;
-  protected _imageSource: string = "speedboat-png.png";
+  protected _imageSource: string = "skull-head-pirate-shark-red.png";
   constructor(config: commonBoatBuildsConfig) {
     super(config);
     this._windowWidth = config.windowWidth;
@@ -19,6 +19,6 @@ export class SpeedBoat extends Boat {
   }
 
   public get imageSource() {
-    return require(`../../../../../assets/speedboat-png.png`);
+    return require(`../../../../../assets/skull-head-pirate-shark-red.png`);
   }
 }

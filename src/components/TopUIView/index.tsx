@@ -41,7 +41,7 @@ export const TopUIView: FC<EntityRendererProps<ScreenTopUI>> = ({
   const gradientShader = Skia.Shader.MakeLinearGradient(
     { x: width / 2 - destroyedBoatSize[0] / 2 - 100, y: destroyedBoatSize[1] },
     { x: width / 2 + destroyedBoatSize[0] / 2 + 100, y: destroyedBoatSize[1] },
-    [Skia.Color("cyan"), Skia.Color("blue"), Skia.Color("purple")],
+    [Skia.Color("white"), Skia.Color("silver")],
     null,
     TileMode.Clamp
   );

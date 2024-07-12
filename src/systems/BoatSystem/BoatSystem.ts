@@ -1,4 +1,8 @@
-import { DIRECTION, ENTITIES_KEYS } from "@/constants/configs";
+import {
+  DIRECTION,
+  ENTITIES_KEYS,
+  TRAIL_FADE_DURATION,
+} from "@/constants/configs";
 import { RNGE_Entities, RNGE_System_Args } from "../types";
 import { BoatSystemConfig, IBoatSystem } from "./types";
 import { Boat } from "@/Game/Entities/Boat/Boat";
@@ -9,6 +13,7 @@ import { PhysicsSystem } from "../PhysicsSystem/PhysicsSystem";
 import { VEHICLE_TYPE_IDENTIFIERS } from "@/constants/vehicle";
 import { GameLoopSystem } from "../GameLoopSystem/GameLoopSystem";
 import { GAME_STATE } from "../GameLoopSystem/types";
+import { Sea } from "@/Game/Entities/Sea/Sea";
 
 export class BoatSystem implements IBoatSystem {
   protected _boatFactory: BoatFactory;
@@ -37,6 +42,7 @@ export class BoatSystem implements IBoatSystem {
   ): RNGE_Entities {
     const gameLoopSystem: GameLoopSystem =
       entities[ENTITIES_KEYS.GAME_LOOP_SYSTEM];
+    const sea: Sea = entities[ENTITIES_KEYS.SEA_GROUP].entities["sea"];
     const { gameState } = gameLoopSystem;
     this._killedBoatsInFrame = [];
     const boats = this._findBoatsInEntities(entities);
@@ -49,6 +55,7 @@ export class BoatSystem implements IBoatSystem {
           this._killedBoatsInFrame.push(boat);
         } else {
           boat.update(entities, args);
+          this.generateBoatTrailPath(boat, sea);
           boat.removeAllListeners("isSinkedChange");
           boat.addListener("isSinkedChange", (isSinked) => {
             if (isSinked) {
@@ -138,7 +145,7 @@ export class BoatSystem implements IBoatSystem {
     ]);
     const x = direction === DIRECTION.LEFT ? this._windowWidth : 0;
     const boat = this._boatFactory.create({
-      type: BOAT_BUILDS.SPEED_BOAT,
+      type: BOAT_BUILDS.RED_PIRATE_SKULL_HEAD,
       x,
       y: this._originalWaterSurfaceY,
       direction,
@@ -146,5 +153,39 @@ export class BoatSystem implements IBoatSystem {
     });
 
     return boat;
+  }
+
+  protected generateBoatTrailPath(boat: Boat, sea: Sea) {
+    const { body } = boat;
+    if (!body) return;
+    const size = boat.getSize();
+    const waterSurfaceAtX = sea.getWaterSurfaceAndMaxHeightAtPoint(
+      body.position.x
+    ).y;
+    if (
+      body.position.y <= waterSurfaceAtX + size[1] / 2 &&
+      body.position.y >= waterSurfaceAtX - size[1] / 2
+    ) {
+      const isAdjacentToWater =
+        body.position.y <= waterSurfaceAtX + size[1] / 2 &&
+        body.position.y >= waterSurfaceAtX - size[1] / 2;
+      boat.trail.push({
+        x: body.position.x,
+        y: body.position.y,
+        timestamp: Date.now(),
+        render: isAdjacentToWater,
+        velocityX: Math.abs(body.velocity.x),
+      });
+    }
+    if (boat.trail.length > 20) boat.trail.shift(); // Limit the boat.trail length
+    // Update the y-coordinate of each boat.trail point based on the water surface
+    boat.trail.forEach((trailPoint) => {
+      trailPoint.y = sea.getWaterSurfaceAndMaxHeightAtPoint(trailPoint.x).y;
+    });
+    // Remove boat.trail points that are older than TRAIL_FADE_DURATION
+    const now = Date.now();
+    boat.trail = boat.trail.filter(
+      (trailPoint) => now - trailPoint.timestamp < TRAIL_FADE_DURATION
+    );
   }
 }

@@ -9,7 +9,14 @@ import {
 } from "./types";
 import { Point2D, WaterSurfacePoint } from "@/types/globals";
 import { Wave } from "@/Game/Entities/Wave/Wave";
-import { WATER_GRADIENT_COLORS } from "@/constants/waterConfigs";
+import {
+  DEFAULT_MINIMUM_AMPLITUDE,
+  MAXIMUM_INITIAL_AMPLITUDE,
+  MAXIMUM_INITIAL_FREQUENCY,
+  MINIMUM_INITIAL_FREQUENCY,
+  WATER_GRADIENT_COLORS,
+} from "@/constants/waterConfigs";
+import Matter from "matter-js";
 
 export class Sea implements ISea {
   protected _x: number;
@@ -85,6 +92,23 @@ export class Sea implements ISea {
       layer._waves.forEach((wave) => wave.update(currentFrame));
       layer.setWaterSurfacePoints();
       layer._waves = layer._waves.filter((wave) => !wave.isExpired());
+      if (layer._waves.length < 1) {
+        layer.initiateWave({
+          x: Matter.Common.random(
+            layer._startingX,
+            layer._startingX + layer._width
+          ),
+          amplitude: Matter.Common.random(
+            DEFAULT_MINIMUM_AMPLITUDE * 3,
+            MAXIMUM_INITIAL_AMPLITUDE
+          ),
+          frequency: Matter.Common.random(
+            MINIMUM_INITIAL_FREQUENCY,
+            MAXIMUM_INITIAL_FREQUENCY
+          ),
+          source: WaveSource.DISTURBANCE,
+        });
+      }
     });
   }
 
