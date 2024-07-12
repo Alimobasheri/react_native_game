@@ -47,7 +47,6 @@ export const BoatView: FC<EntityRendererProps<Boat>> = ({
     >
       <Group
         origin={{ x: position.x - size[0] / 2, y: position.y - size[1] / 2 }}
-        transform={[{ scaleX: direction === DIRECTION.LEFT ? 1 : -1 }]}
       >
         <Image
           image={boatImage}
