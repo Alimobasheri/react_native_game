@@ -26,6 +26,9 @@ import { GAME_STATE } from "@/systems/GameLoopSystem/types";
 import { useGameState } from "@/store/useGameState";
 import { MountainBackground } from "@/Game/Entities/MountainBackground/MountainBackground";
 import { SeaGroupRenderer } from "@/components/SeaGroupRenderer";
+import { BackgroundSystem } from "@/systems/BackgroundSystem/BackgroundSystem";
+import { Moon } from "@/Game/Entities/BackgroundEntities/Moon/Moon";
+import { getDefaultMoonConfig } from "@/constants/backgrounds";
 
 const RenderEntity = ({ entity, screen, layout }) => {
   if (typeof entity.renderer === "object")
@@ -160,6 +163,7 @@ const Game = forwardRef((props, ref) => {
 
   const uiSystem = new UISystem();
   const touchSystem = new TouchSystem();
+  const backgroundSystem = new BackgroundSystem();
   const seaSystem = new SeaSystem();
   const collisionsSystem = new CollisionsSystem();
   const physicsSystem = new PhysicsSystem();
@@ -170,6 +174,7 @@ const Game = forwardRef((props, ref) => {
     originalWaterSUrfaceY: waterSurfaceY,
   });
 
+  const moon = new Moon(getDefaultMoonConfig(windowWidth, windowHeight));
   const moutnainBackground = new MountainBackground();
 
   const shipFactory = new ShipFactory({ windowWidth });
@@ -185,22 +190,25 @@ const Game = forwardRef((props, ref) => {
     <GameEngine
       ref={(ref) => (gameEngineRef.current = ref)}
       systems={[
-        gameLoopSystem.systemManger,
-        uiSystem.systemManger,
-        touchSystem.systemManger,
-        seaSystem.systemManger,
-        collisionsSystem.systemManger,
-        physicsSystem.systemManger,
-        shipSystem.systemManger,
-        boatSystem.systemManger,
+        gameLoopSystem.systemManager,
+        uiSystem.systemManager,
+        touchSystem.systemManager,
+        backgroundSystem.systemManager,
+        seaSystem.systemManager,
+        collisionsSystem.systemManager,
+        physicsSystem.systemManager,
+        shipSystem.systemManager,
+        boatSystem.systemManager,
       ]}
       renderer={renderer}
       entities={{
+        [ENTITIES_KEYS.MOON]: moon,
         [ENTITIES_KEYS.MOUNTAIN_BACKGROUND]: moutnainBackground,
         [ENTITIES_KEYS.SEA_GROUP]: seaGroup,
         [ENTITIES_KEYS.UI_SYSTEM_INSTANCE]: uiSystem,
         [ENTITIES_KEYS.GAME_LOOP_SYSTEM]: gameLoopSystem,
         [ENTITIES_KEYS.TOUCH_SYSTEM_INSTANCE]: touchSystem,
+        [ENTITIES_KEYS.BACKGROUND_SYSTEM_INSTANCE]: backgroundSystem,
         [ENTITIES_KEYS.SHIP_SYSTEM_INSTANCE]: shipSystem,
         [ENTITIES_KEYS.BOAT_SYSTEM_INSTANCE]: boatSystem,
         [ENTITIES_KEYS.COLLISIONS_SYSTEM_INSTANCE]: collisionsSystem,

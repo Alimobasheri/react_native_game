@@ -18,7 +18,7 @@ export class CollisionsSystem implements ICollisionsSystem {
     this.update(entities);
     return entities;
   }
-  public systemManger(entities: RNGE_Entities, args: RNGE_System_Args) {
+  public systemManager(entities: RNGE_Entities, args: RNGE_System_Args) {
     const collisionsSystem: CollisionsSystem =
       entities[ENTITIES_KEYS.COLLISIONS_SYSTEM_INSTANCE];
     return collisionsSystem.systemInstance(entities, args);

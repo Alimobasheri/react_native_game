@@ -11,7 +11,7 @@ export class UISystem implements IUISystem {
   ): RNGE_Entities {
     return this._update(entities, args);
   }
-  public systemManger(
+  public systemManager(
     entities: RNGE_Entities,
     args: RNGE_System_Args
   ): RNGE_Entities {

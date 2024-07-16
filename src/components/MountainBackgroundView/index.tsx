@@ -11,8 +11,6 @@ import {
 import { Dimensions, useWindowDimensions } from "react-native";
 import { MountainBackground } from "@/Game/Entities/MountainBackground/MountainBackground";
 import { EntityRendererProps } from "@/constants/views";
-import SunView from "../SunView";
-import MoonView from "../MoonView";
 import { StarsView } from "../StarsView";
 import CloudsView from "../CloudsView";
 
@@ -21,9 +19,7 @@ export const MountainBackgroundView: FC<
 > = ({ entity }) => {
   return (
     <Group>
-      {/* <SunView /> */}
       <StarsView />
-      <MoonView />
       <CloudsView />
       {entity.render()}
     </Group>

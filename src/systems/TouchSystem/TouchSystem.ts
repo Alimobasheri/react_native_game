@@ -30,7 +30,10 @@ export class TouchSystem implements ITouchSystem {
     this._captureEndTouches(touches, time, sea);
     return entities;
   }
-  systemManger(entities: RNGE_Entities, args: RNGE_System_Args): RNGE_Entities {
+  systemManager(
+    entities: RNGE_Entities,
+    args: RNGE_System_Args
+  ): RNGE_Entities {
     const touchSystemInstance: ITouchSystem =
       entities[ENTITIES_KEYS.TOUCH_SYSTEM_INSTANCE];
     return touchSystemInstance.systemInstance(entities, args);

@@ -21,7 +21,7 @@ export class PhysicsSystem implements IPhysicsSystem {
     this.update(entities, args);
     return entities;
   }
-  systemManger(entities: RNGE_Entities, args: RNGE_System_Args) {
+  systemManager(entities: RNGE_Entities, args: RNGE_System_Args) {
     const physicsSystem: IPhysicsSystem =
       entities[ENTITIES_KEYS.PHYSICS_SYSTEM_INSTANCE];
     return physicsSystem.systemInstance(entities, args);
@@ -213,7 +213,7 @@ export class PhysicsSystem implements IPhysicsSystem {
     if (
       sea.getOriginalWaterSurfaceY() -
         sea.getWaterSurfaceAndMaxHeightAtPoint(body.position.x).y >
-        5 &&
+        1 &&
       submergedDepth > -10
     ) {
       const originalWaterSurfaceY = sea.getOriginalWaterSurfaceY();
@@ -246,7 +246,7 @@ export class PhysicsSystem implements IPhysicsSystem {
       // // Adjust force scaling using logarithmic factor for better balance
       // const sizeScalingFactor = Math.log(size[0] * size[1] + 1) * 0.1;
       // const adjustedBuoyancyForce = buoyancyForceMagnitude / sizeScalingFactor;
-      const buoyancyForce = -Math.min(buoyancyForceMagnitude, 0.5);
+      const buoyancyForce = -buoyancyForceMagnitude;
       // console.log("🚀 ~ PhysicsSystem ~ buoyancyForce:", buoyancyForce);
       // Calculate points on the vehicle body
       const pointsCount = 5; // Number of points along the hull
@@ -266,12 +266,11 @@ export class PhysicsSystem implements IPhysicsSystem {
 
         const localBuoyancyForce =
           (buoyancyForce / vehiclePoints.length) *
-          (1 + waveHeightAtPoint) *
-          0.5;
+          (1 + Math.exp(waveHeightAtPoint * 0.0001));
         const localBuoyancyForceX =
           (index < pointsCount / 2 ? 1 : -1) *
           localBuoyancyForce *
-          (0.1 + 0.1 * waveHeightAtPoint);
+          (0.1 + 0.1 * Math.exp(waveHeightAtPoint * 0.0001));
         // if (!body.label.startsWith(ENTITIES_KEYS.BOAT_LABEL)) {
         //   console.log(
         //     "🚀 ~ PhysicsSystem ~ vehiclePoints.forEach ~ waveHeightAtPoint:",
@@ -330,7 +329,7 @@ export class PhysicsSystem implements IPhysicsSystem {
             buoyantVehicle.body?.position.x
           ).y -
             3 * size[1]) ||
-      Math.abs(buoyantVehicle.body.angle) > 0.5
+      Math.abs(buoyantVehicle.body.angle) > 5
     ) {
       buoyantVehicle.isSinked = true;
       // buoyantVehicle.isAttacking = false;
@@ -375,8 +374,19 @@ export class PhysicsSystem implements IPhysicsSystem {
       const diffAngle = body.angle - targetAngle;
 
       if (Math.abs(diffAngle) > 0 && Math.abs(body.angle) > 0) {
-        if (!body.label.startsWith("boat_"))
-          Matter.Body.setAngle(body, body.angle - diffAngle * 0.01);
+        // if (!body.label.startsWith("boat_"))
+        //   console.log(
+        //     targetAngle,
+        //     body.angle,
+        //     diffAngle,
+        //     body.angle +
+        //       (targetAngle > body.angle ? +diffAngle : -diffAngle) * 0.01
+        //   );
+        Matter.Body.setAngle(
+          body,
+          body.angle +
+            (targetAngle > body.angle ? +diffAngle : -diffAngle) * 0.01
+        );
       }
     }
   }

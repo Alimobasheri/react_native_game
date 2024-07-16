@@ -31,7 +31,7 @@ export class BoatSystem implements IBoatSystem {
   systemInstance(entities: RNGE_Entities, args: RNGE_System_Args) {
     return this.update(entities, args);
   }
-  systemManger(entities: RNGE_Entities, args: RNGE_System_Args) {
+  systemManager(entities: RNGE_Entities, args: RNGE_System_Args) {
     const boatSystem: IBoatSystem =
       entities[ENTITIES_KEYS.BOAT_SYSTEM_INSTANCE];
     return boatSystem.systemInstance(entities, args);

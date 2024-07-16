@@ -20,7 +20,7 @@ export class ShipSystem implements IShipSystem {
     });
     return entities;
   }
-  systemManger(entities: RNGE_Entities, args: RNGE_System_Args) {
+  systemManager(entities: RNGE_Entities, args: RNGE_System_Args) {
     const shipSystem: ShipSystem = entities[ENTITIES_KEYS.SHIP_SYSTEM_INSTANCE];
     return shipSystem.systemInstance(entities, args);
   }

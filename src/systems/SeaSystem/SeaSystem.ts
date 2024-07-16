@@ -15,7 +15,7 @@ export class SeaSystem implements ISeaSystem {
     sea.update();
     return entities;
   }
-  systemManger(entities: RNGE_Entities, args: RNGE_System_Args) {
+  systemManager(entities: RNGE_Entities, args: RNGE_System_Args) {
     const seaSystem: ISeaSystem = entities[ENTITIES_KEYS.SEA_SYSTEM_INSTANCE];
     return seaSystem.systemInstance(entities, args);
   }

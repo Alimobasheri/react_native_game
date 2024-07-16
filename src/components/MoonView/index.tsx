@@ -1,4 +1,4 @@
-import React from "react";
+import React, { FC } from "react";
 import { View, useWindowDimensions } from "react-native";
 import {
   Canvas,
@@ -9,57 +9,20 @@ import {
   TileMode,
   Group,
 } from "@shopify/react-native-skia";
+import { EntityRendererProps } from "@/constants/views";
+import { Moon } from "@/Game/Entities/BackgroundEntities/Moon/Moon";
 
-const MoonView = () => {
-  const { width, height } = useWindowDimensions();
-  const moonRadius = 50;
-  const centerX = width - width / 10 - moonRadius;
-  const centerY = 0 + moonRadius * 3;
-
-  const moonShader = Skia.Shader.MakeRadialGradient(
-    { x: centerX, y: centerY },
-    moonRadius,
-    [Skia.Color("#B0C4DE"), Skia.Color("#FFFFFF")],
-    [0, 1],
-    TileMode.Clamp
-  );
-
-  const moonPaint = Skia.Paint();
-  moonPaint.setShader(moonShader);
-  moonPaint.setAntiAlias(true);
-
-  const glowShader = Skia.Shader.MakeRadialGradient(
-    { x: centerX, y: centerY },
-    moonRadius,
-    [Skia.Color("#FFFFFF00"), Skia.Color("#F0E68C")],
-    [0.85, 1],
-    TileMode.Clamp
-  );
-
-  const glowPaint = Skia.Paint();
-  glowPaint.setShader(glowShader);
-  glowPaint.setAntiAlias(true);
-
-  const starPaint = Skia.Paint();
-  starPaint.setColor(Skia.Color("#FFFFFF"));
-  starPaint.setStyle(1);
-  starPaint.setStrokeWidth(2);
-  starPaint.setAntiAlias(true);
-
-  const strokePaint = Skia.Paint();
-  strokePaint.setColor(Skia.Color("#778899"));
-  strokePaint.setStyle(1);
-  strokePaint.setStrokeWidth(3);
-  strokePaint.setAntiAlias(true);
-
+const MoonView: FC<EntityRendererProps<Moon>> = ({
+  entity: { centerX, centerY, radius, moonPaint, glowPaint },
+}) => {
   return (
     <Group>
       <Path
-        path={Skia.Path.Make().addCircle(centerX, centerY, moonRadius)}
+        path={Skia.Path.Make().addCircle(centerX, centerY, radius)}
         paint={moonPaint}
       />
       <Path
-        path={Skia.Path.Make().addCircle(centerX, centerY, moonRadius)}
+        path={Skia.Path.Make().addCircle(centerX, centerY, radius)}
         paint={glowPaint}
       />
     </Group>

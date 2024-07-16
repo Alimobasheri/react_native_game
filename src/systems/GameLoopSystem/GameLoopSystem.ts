@@ -25,18 +25,15 @@ export class GameLoopSystem implements IGameLoopSystem {
     return entities;
   }
 
-  public systemManger(entities: RNGE_Entities, args: RNGE_System_Args) {
+  public systemManager(entities: RNGE_Entities, args: RNGE_System_Args) {
     const gameLoopSystem: GameLoopSystem =
       entities[ENTITIES_KEYS.GAME_LOOP_SYSTEM];
     return gameLoopSystem.systemInstance(entities, args);
   }
 
   protected update(entities: RNGE_Entities, args: RNGE_System_Args) {
-    this._currentFrame++;
+    this._currentFrame = this._currentFrame + args.time.delta / 16;
     this._checkStateEvents(args);
-    const mountainBackground: MountainBackground =
-      entities[ENTITIES_KEYS.MOUNTAIN_BACKGROUND];
-    mountainBackground.update(0.001, args.time.delta);
   }
 
   protected _checkStateEvents(args: RNGE_System_Args): void {
