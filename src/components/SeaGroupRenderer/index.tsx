@@ -24,11 +24,13 @@ export type SeaGroupEntities = {
 };
 export type seaGroupEntity = {
   entities: SeaGroupEntities;
+  windowWidth: number;
+  windowHeight: number;
 };
 export const SeaGroupRenderer: FC<EntityRendererProps<seaGroupEntity>> = (
   props
 ) => {
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const { windowWidth, windowHeight } = props.entity;
   const sea: Sea = props.entity.entities["sea"] as Sea;
   const layers = sea.layers;
   const bottomLayerRenders = useCallback(() => {

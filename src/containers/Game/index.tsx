@@ -31,12 +31,16 @@ import { UISystem } from "@/systems/UISystem/UISystem";
 import { GAME_STATE } from "@/systems/GameLoopSystem/types";
 import { useGameState } from "@/store/useGameState";
 import { MountainBackground } from "@/Game/Entities/MountainBackground/MountainBackground";
-import { SeaGroupRenderer } from "@/components/SeaGroupRenderer";
+import {
+  seaGroupEntity,
+  SeaGroupRenderer,
+} from "@/components/SeaGroupRenderer";
 import { BackgroundSystem } from "@/systems/BackgroundSystem/BackgroundSystem";
 import { Moon } from "@/Game/Entities/BackgroundEntities/Moon/Moon";
 import { getDefaultMoonConfig } from "@/constants/backgrounds";
 import { Clouds } from "@/Game/Entities/BackgroundEntities/Clouds/Clouds";
 import { Stars } from "@/Game/Entities/BackgroundEntities/Stars/Stars";
+import { Ship } from "@/Game/Entities/Ship/Ship";
 
 const RenderEntity = ({ entity, screen, layout }) => {
   if (typeof entity.renderer === "object")
@@ -111,7 +115,7 @@ const Render = ({ entities, screen, layout }) => {
     // Create the linear gradient
     const gradient = Skia.Shader.MakeLinearGradient(
       { x: 0, y: 0 },
-      { x: 0, y: screen.height * 0.7 },
+      { x: 0, y: entities.windowHeight * 0.7 },
       colors.map((col) => Skia.Color(col)),
       positions,
       TileMode.Clamp
@@ -123,19 +127,19 @@ const Render = ({ entities, screen, layout }) => {
       <Rect
         x={0}
         y={0}
-        width={screen.width}
-        height={screen.height}
+        width={entities.windowWidth}
+        height={entities.windowHeight}
         paint={paint}
       ></Rect>
     );
-  }, [screen.width, screen.height]);
+  }, [entities.windowWidth, entities.windowHeight]);
   return (
     <Canvas style={canvasStyle}>
       <Group
         transform={[
           { scale: 1 },
-          { translateX: -screen.width * 0 },
-          { translateY: -screen.height * 0 },
+          { translateX: screen.width * 0 },
+          { translateY: screen.height * 0 },
         ]}
       >
         {background}
@@ -168,8 +172,10 @@ const Game = forwardRef((props, ref) => {
   useImperativeHandle(ref, () => ({
     gameEngineRef,
   }));
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-
+  const { width: rawWindowWidth, height: rawWindowHeight } =
+    useWindowDimensions();
+  const windowWidth = rawWindowWidth;
+  const windowHeight = rawWindowHeight;
   const gameLoopSystem = new GameLoopSystem(GAME_STATE.PREVIEW);
 
   const screenTopUI = new ScreenTopUI(0, 0);
@@ -200,7 +206,10 @@ const Game = forwardRef((props, ref) => {
     screenWidth: windowWidth,
     screenHeight: windowHeight,
   });
-  const moutnainBackground = new MountainBackground();
+  const moutnainBackground = new MountainBackground({
+    screenWidth: windowWidth,
+    screenHeight: windowHeight,
+  });
 
   const shipFactory = new ShipFactory({ windowWidth });
   const ship = shipFactory.create({
@@ -210,7 +219,12 @@ const Game = forwardRef((props, ref) => {
   });
   if (ship?.body) physicsSystem.addBodyToWorld(ship.body);
 
-  const seaGroup = { entities: { sea, ship }, renderer: SeaGroupRenderer };
+  const seaGroup = {
+    entities: { sea, ship: ship as Ship },
+    windowWidth,
+    windowHeight,
+    renderer: SeaGroupRenderer,
+  };
   return (
     <GameEngine
       ref={(ref) => (gameEngineRef.current = ref)}
@@ -227,6 +241,8 @@ const Game = forwardRef((props, ref) => {
       ]}
       renderer={renderer}
       entities={{
+        windowWidth,
+        windowHeight,
         [ENTITIES_KEYS.STARS]: stars,
         [ENTITIES_KEYS.MOON]: moon,
         [ENTITIES_KEYS.CLOUDS]: clouds,

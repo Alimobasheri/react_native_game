@@ -1,14 +1,5 @@
 import React, { FC } from "react";
-import { View, useWindowDimensions } from "react-native";
-import {
-  Canvas,
-  Path,
-  Skia,
-  Paint,
-  Shader,
-  TileMode,
-  Group,
-} from "@shopify/react-native-skia";
+import { Path, Skia, Group } from "@shopify/react-native-skia";
 import { EntityRendererProps } from "@/constants/views";
 import { Moon } from "@/Game/Entities/BackgroundEntities/Moon/Moon";
 
