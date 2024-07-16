@@ -12,9 +12,9 @@ import {
 
 const MoonView = () => {
   const { width, height } = useWindowDimensions();
-  const moonRadius = 150;
+  const moonRadius = 50;
   const centerX = width - width / 10 - moonRadius;
-  const centerY = 0 + moonRadius * 1.5;
+  const centerY = 0 + moonRadius * 3;
 
   const moonShader = Skia.Shader.MakeRadialGradient(
     { x: centerX, y: centerY },

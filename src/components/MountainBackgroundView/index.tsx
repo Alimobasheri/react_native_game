@@ -14,6 +14,7 @@ import { EntityRendererProps } from "@/constants/views";
 import SunView from "../SunView";
 import MoonView from "../MoonView";
 import { StarsView } from "../StarsView";
+import CloudsView from "../CloudsView";
 
 export const MountainBackgroundView: FC<
   EntityRendererProps<MountainBackground>
@@ -23,6 +24,7 @@ export const MountainBackgroundView: FC<
       {/* <SunView /> */}
       <StarsView />
       <MoonView />
+      <CloudsView />
       {entity.render()}
     </Group>
   );

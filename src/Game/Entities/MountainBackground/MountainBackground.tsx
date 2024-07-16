@@ -7,6 +7,9 @@ import {
   Group,
   TileMode,
   vec,
+  Rect,
+  LinearGradient,
+  RoundedRect,
 } from "@shopify/react-native-skia";
 import { MountainBackgroundView } from "@/components/MountainBackgroundView";
 
@@ -14,11 +17,129 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
 interface Mountain {
   path: SkPath;
-  color: string;
+  paint: any;
   xOffset: number;
   width: number;
   initialXOffset: number;
+  rockyPaths: { path: SkPath; color: any }[];
+  snowcapPath: SkPath;
 }
+
+interface Mist {
+  path: SkPath;
+  paint: any;
+  xOffset: number;
+}
+
+const getRandomInt = (min: number, max: number): number =>
+  Math.floor(Math.random() * (max - min + 1)) + min;
+
+const createRandomMountainPath = (
+  numPeaks: number,
+  heightRange: { min: number; max: number },
+  width: number,
+  baseHeight: number
+): SkPath => {
+  const path = Skia.Path.Make();
+  const tallestPeakHeight = getRandomInt(heightRange.min, heightRange.max);
+  const tallesPeakIndex = Math.floor(numPeaks / 2);
+  const tallestPeakWidth = width / numPeaks;
+  const otherPeaksWidth = (width - tallestPeakWidth) / numPeaks;
+
+  path.moveTo(0, baseHeight);
+
+  // Variables to hold the last peak's coordinates
+  let lastX = 0,
+    lastY = baseHeight;
+
+  // Generate peaks and valleys with smooth cubic Bezier curves
+  for (let i = 0; i < numPeaks; i++) {
+    const x1 = lastX;
+    const y1 = lastY;
+
+    const y2 =
+      i === tallesPeakIndex
+        ? baseHeight - tallestPeakHeight
+        : baseHeight -
+          getRandomInt(
+            tallestPeakHeight - 0.4 * tallestPeakHeight,
+            tallestPeakHeight - 0.2 * tallestPeakHeight
+          );
+    let segmentWidth = y2 * 0.66;
+    const x2 = x1 + segmentWidth / 2;
+
+    const x3 = x1 + segmentWidth;
+    const y3 =
+      i === numPeaks - 1
+        ? baseHeight
+        : getRandomInt(y2 + 0.05 * y2, y2 + 0.1 * y2);
+
+    const curveStartX = x1 + 0.9 * (x2 - x1);
+    const curveStartY = y1 + 0.9 * (y2 - y1);
+    const curveEndX = x3;
+    const curveEndY = y3;
+    path.lineTo(curveStartX, curveStartY);
+    path.quadTo(x2, y2, curveEndX, curveEndY);
+    lastX = x3;
+    lastY = y3;
+  }
+
+  path.lineTo(lastX, baseHeight);
+  path.lineTo(0, baseHeight);
+  path.close();
+
+  return path;
+};
+
+const createMountainPaint = (width: number, height: number) => {
+  const mountainColors = [
+    "rgba(44, 72, 90, 1)", // Dark top color
+    "rgba(34, 52, 66, 1)", // Mid-tone color
+    "rgba(22, 32, 42, 1)", // Lighter base color
+  ].reverse();
+  const paint = Skia.Paint();
+  const shader = Skia.Shader.MakeLinearGradient(
+    vec(0, screenHeight * 0.7 - height), // Start point
+    vec(0, screenHeight * 0.7), // End point
+    mountainColors.map((col) => Skia.Color(col)),
+    [0, 0.3, 1],
+    TileMode.Clamp
+  );
+  paint.setShader(shader);
+  paint.setAntiAlias(true);
+  return paint;
+};
+
+const createRandomMountain = (xOffset: number, width: number): Mountain => {
+  const numPeaks = getRandomInt(2, Math.floor((width / screenWidth) * 10 + 3));
+  const heightRange = {
+    min: screenHeight * 0.2,
+    max: screenHeight * 0.3,
+  };
+  const baseHeight = screenHeight - screenHeight * 0.3 + 7.5;
+  const path = createRandomMountainPath(
+    numPeaks,
+    heightRange,
+    width,
+    baseHeight
+  );
+  const paint = createMountainPaint(
+    path.getBounds().width,
+    path.getBounds().height
+  );
+  const rockyPaths: { path: SkPath; color: any }[] = []; // Placeholder for rocky paths
+  const snowcapPath = Skia.Path.Make(); // Placeholder for snowcap path
+
+  return {
+    path,
+    paint,
+    xOffset,
+    initialXOffset: xOffset,
+    width,
+    rockyPaths,
+    snowcapPath,
+  };
+};
 
 export class MountainBackground {
   mountains: Mountain[] = [];
@@ -33,121 +154,22 @@ export class MountainBackground {
     return Math.random() * (max - min) + min;
   }
 
-  private generateMountain(xOffset: number): Mountain {
-    const height = this.generateRandom(0.2 * screenHeight, 0.7 * screenHeight);
-    const width = this.generateRandom(0.2 * screenWidth, 0.5 * screenWidth);
-    const path = Skia.Path.Make();
-    const baseY = screenHeight - screenHeight * 0.3 + 15;
-
-    path.moveTo(xOffset, baseY);
-    // path.lineTo();
-    const mountainPathLeftBreak = [
-      this.generateRandom(xOffset + width / 3, xOffset + width / 2),
-      this.generateRandom(baseY - height * 0.5, baseY - height * 0.8),
-    ];
-    path.lineTo(mountainPathLeftBreak[0], mountainPathLeftBreak[1]);
-    path.lineTo(xOffset + width / 2, baseY - height);
-    path.lineTo(xOffset + width, baseY);
-    path.close();
-
-    const mountainPath = {
-      path,
-      color: "#708090",
-      xOffset,
-      initialXOffset: xOffset,
-      width,
-      height,
-    };
-
-    // Add lighting and shadow gradients
-    // const gradient = Skia.Shader.MakeLinearGradient(
-    //   vec(xOffset, baseY - height), // Start point
-    //   vec(xOffset + width, baseY - height), // End point
-    //   [
-    //     Skia.Color("rgba(176, 168, 185, 1)"),
-    //     Skia.Color("rgba(53, 51, 57, 1)"),
-    //     Skia.Color("rgba(53, 51, 57, 1)"),
-    //   ], // Grey shades for lighting and shadow
-    //   [0, 0.6, 1],
-    //   TileMode.Clamp
-    // );
-
-    const paint = Skia.Paint();
-    paint.setColor(Skia.Color("rgba(41, 61, 59, 1)"));
-    // paint.setShader(gradient);
-    // Add strokes along the mountain path
-    const strokePath = Skia.Path.Make();
-    strokePath.moveTo(xOffset, baseY);
-    strokePath.lineTo(xOffset + width / 2, baseY - height);
-    strokePath.lineTo(xOffset + width, baseY);
-
-    // Add triangular lights and shadows
-    // Add rocky paths
-    const rockyPaths = [];
-
-    // First rocky path
-    const rockyPath1 = Skia.Path.Make();
-    const breakOfP1 = this.generateRandom(
-      baseY - height * 0.6,
-      baseY - height * 0.9
+  private generateMountain(xOffset: number, maxWidth?: number): Mountain {
+    const width = this.generateRandom(
+      0.2 * screenWidth,
+      maxWidth || 0.4 * screenWidth
     );
-    rockyPath1.moveTo(xOffset + width / 2, breakOfP1);
-    rockyPath1.lineTo(xOffset + width / 2, baseY - height);
-    rockyPath1.lineTo(mountainPathLeftBreak[0], mountainPathLeftBreak[1]);
-    rockyPath1.lineTo(xOffset, baseY);
-    rockyPath1.lineTo(xOffset + width / 4, baseY);
-    rockyPath1.close();
-    rockyPaths.push({
-      path: rockyPath1,
-      color: Skia.Color("rgba(200, 200, 200, 0.15)"),
-    });
-
-    // Second rocky path
-    const rockyPath2 = Skia.Path.Make();
-    const breakofP2 = this.generateRandom(
-      baseY - height * 0.6,
-      baseY - height * 0.7
-    );
-    rockyPath2.moveTo(xOffset + width / 2, baseY - height);
-    rockyPath2.lineTo(xOffset + width / 2, breakOfP1);
-    rockyPath2.lineTo(xOffset + width / 4, baseY);
-    rockyPath2.lineTo(xOffset + width / 1.5, baseY);
-    rockyPath2.lineTo(xOffset + width / 2, breakofP2);
-    rockyPath2.close();
-    rockyPaths.push({
-      path: rockyPath2,
-      color: Skia.Color("rgba(200, 200, 200, 0.075)"),
-    });
-
-    // Add snowcaps
-    const snowcapPath = Skia.Path.Make();
-
-    snowcapPath.moveTo(xOffset + width / 2, breakOfP1 + 10);
-    snowcapPath.lineTo(xOffset + width / 2, baseY - height);
-    snowcapPath.lineTo(mountainPathLeftBreak[0], mountainPathLeftBreak[1]);
-    snowcapPath.lineTo(xOffset, baseY);
-    const xOffsetBottomBreak = this.generateRandom(width / 25, width / 20);
-    snowcapPath.lineTo(xOffset + xOffsetBottomBreak, baseY);
-    snowcapPath.close();
-
-    snowcapPath.close();
-
-    const mountain = {
-      ...mountainPath,
-      paint,
-      strokePath,
-      snowcapPath,
-      rockyPaths,
-    };
-
-    return mountain;
+    return createRandomMountain(xOffset, width);
   }
 
   private generateInitialMountains(): void {
-    const numMountains = this.generateRandom(2, 5); // 3 to 4 mountains per screen width
+    const numMountains = getRandomInt(2, 4); // 2 to 5 mountains per screen width
     for (let i = 0; i < numMountains; i++) {
       this.mountains.push(
-        this.generateMountain(i * (screenWidth / numMountains - 20))
+        this.generateMountain(
+          i * (screenWidth / numMountains),
+          screenWidth / numMountains
+        )
       );
     }
   }
@@ -156,8 +178,8 @@ export class MountainBackground {
     this.speed = speed;
     this.timeDelta = timeDelta;
 
-    let mountainsToRemove = [];
-    let newMountains = [];
+    let mountainsToRemove: number[] = [];
+    let newMountains: Mountain[] = [];
 
     this.mountains.forEach((mountain, index) => {
       mountain.xOffset -= speed * timeDelta;
@@ -185,49 +207,34 @@ export class MountainBackground {
   }
 
   render(): JSX.Element {
+    Skia.Image;
     return (
       <Group>
         {this.mountains.map((mountain, index) => (
           <Group key={`mountain-group_${index}`}>
             <Group key={index} transform={[{ translateX: mountain.xOffset }]}>
               <Path path={mountain.path} paint={mountain.paint} />
-              {mountain.rockyPaths.map((rockyPath, rockyIndex) => (
-                <Path
-                  key={rockyIndex}
-                  path={rockyPath.path}
-                  color={rockyPath.color}
+              <Path path={mountain.path}>
+                <LinearGradient
+                  start={vec(
+                    mountain.path.getBounds().x,
+                    mountain.path.getBounds().y +
+                      mountain.path.getBounds().height
+                  )}
+                  end={vec(
+                    mountain.path.getBounds().x,
+                    mountain.path.getBounds().y +
+                      mountain.path.getBounds().height * 0.6
+                  )}
+                  colors={[
+                    Skia.Color("rgba(200, 200, 200, 0.8)"),
+                    Skia.Color("rgba(200, 200, 200, 0.1)"),
+                    Skia.Color("rgba(200, 200, 200, 0.1)"),
+                    Skia.Color("rgba(155, 155, 155, 0.05)"),
+                  ]}
+                  positions={[0, 0.1, 0.5, 1]}
                 />
-              ))}
-            </Group>
-            <Group
-              key={`mountain-flip-${index}`}
-              transform={[
-                { translateX: mountain.xOffset },
-                // { scaleY: -1 },
-                // {
-                //   translateY: -screenHeight / 2,
-                //   // screenHeight -
-                //   // screenHeight * 0.3 +
-                //   // 15 +
-                //   // mountain.height * 2,
-                // },
-              ]}
-            >
-              <Group
-                origin={{
-                  x: mountain.xOffset - mountain.width,
-                  y: screenHeight - (screenHeight * 0.3 + 15),
-                }}
-                transform={[
-                  { scaleY: -1 },
-                  { translateY: -screenHeight * 0.15 },
-                ]}
-              >
-                <Path
-                  path={mountain.path}
-                  color={Skia.Color("rgba(30, 30, 30, 0.5")}
-                />
-              </Group>
+              </Path>
             </Group>
           </Group>
         ))}
