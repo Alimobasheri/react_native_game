@@ -27,7 +27,7 @@ export class Vehicle extends EventEmitter implements IVehicle {
   protected _type: VEHICLE_TYPE_IDENTIFIERS;
   protected _label: string;
   protected _maxVelocityX: number;
-  protected _acceleration: number;
+  protected _acceleration: number = DEFAULT_VEHICLE_ACCELERATION;
   protected _minFramesBeforeInitialization: number =
     DEFAULT_MIN_FRAMES_BEFORE_INITIALIZATION;
   protected _previousVelocity: Matter.Vector = { x: 0, y: 0 };

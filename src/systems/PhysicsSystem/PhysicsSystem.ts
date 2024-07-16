@@ -88,8 +88,6 @@ export class PhysicsSystem implements IPhysicsSystem {
         sea,
         combinedSlope
       );
-
-      this.applyAngleByWave(submergedDepth, body, sea);
     });
   }
 
@@ -213,12 +211,16 @@ export class PhysicsSystem implements IPhysicsSystem {
     if (
       sea.getOriginalWaterSurfaceY() -
         sea.getWaterSurfaceAndMaxHeightAtPoint(body.position.x).y >
-        1 &&
+        20 &&
       submergedDepth > -10
     ) {
+      Matter.Body.setVelocity(body, {
+        x: body.velocity.x,
+        y: body.velocity.y > 0 ? 0 : body.velocity.y,
+      });
       const originalWaterSurfaceY = sea.getOriginalWaterSurfaceY();
-      const densityOfWater = 0.0001; // Lower density to achieve smaller forces
-      const sizeFactor = Math.log(size[0] * size[1] * 0.1); // Larger size results in more buoyancy force
+      const densityOfWater = 0.02; // Lower density to achieve smaller forces
+      const sizeFactor = 1 / Math.sqrt(size[0] * size[1]); // Larger size results in more buoyancy force
 
       // if (!body.label.startsWith(ENTITIES_KEYS.BOAT_LABEL)) {
       //   console.log("========");
@@ -246,8 +248,7 @@ export class PhysicsSystem implements IPhysicsSystem {
       // // Adjust force scaling using logarithmic factor for better balance
       // const sizeScalingFactor = Math.log(size[0] * size[1] + 1) * 0.1;
       // const adjustedBuoyancyForce = buoyancyForceMagnitude / sizeScalingFactor;
-      const buoyancyForce = -buoyancyForceMagnitude;
-      // console.log("🚀 ~ PhysicsSystem ~ buoyancyForce:", buoyancyForce);
+      const buoyancyForce = -Math.max(buoyancyForceMagnitude, 0.001);
       // Calculate points on the vehicle body
       const pointsCount = 5; // Number of points along the hull
       const vehiclePoints = this.calculateVehiclePoints(
@@ -266,11 +267,11 @@ export class PhysicsSystem implements IPhysicsSystem {
 
         const localBuoyancyForce =
           (buoyancyForce / vehiclePoints.length) *
-          (1 + Math.exp(waveHeightAtPoint * 0.0001));
+          (1 + Math.sqrt(waveHeightAtPoint));
         const localBuoyancyForceX =
           (index < pointsCount / 2 ? 1 : -1) *
           localBuoyancyForce *
-          (0.1 + 0.1 * Math.exp(waveHeightAtPoint * 0.0001));
+          (0.1 + 0.1 * Math.sqrt(waveHeightAtPoint));
         // if (!body.label.startsWith(ENTITIES_KEYS.BOAT_LABEL)) {
         //   console.log(
         //     "🚀 ~ PhysicsSystem ~ vehiclePoints.forEach ~ waveHeightAtPoint:",
@@ -354,6 +355,12 @@ export class PhysicsSystem implements IPhysicsSystem {
     }
   }
 
+  /**
+   * Along the x axis of body bounds, find the slope of water surface and applies it to the buoyant body's vehicle to show it rotating to water surface
+   * @param submergedDepth How much of body is merged into water
+   * @param body Matter Body of the buoyant to apply angle to
+   * @param sea The sea instance to get sea height at points
+   */
   protected applyAngleByWave(
     submergedDepth: number,
     body: Matter.Body,
@@ -366,27 +373,18 @@ export class PhysicsSystem implements IPhysicsSystem {
 
       for (let i = 0; i <= numberOfPoints; i++) {
         const pointX = body.bounds.min.x + (i * bodyLength) / numberOfPoints;
-        totalSlope += sea.getWaterSlopeAtPoint(pointX);
+        totalSlope += sea.getWaterSurfaceAndMaxHeightAtPoint(pointX).y;
       }
 
-      const averageSlope = totalSlope / (numberOfPoints + 1);
+      const x2 = body.bounds.min.x;
+      const x1 = body.bounds.max.x;
+      const y2 = sea.getWaterSurfaceAndMaxHeightAtPoint(x2).maxWaveHeight;
+      const y1 = sea.getWaterSurfaceAndMaxHeightAtPoint(x1).maxWaveHeight;
+      const averageSlope = (y2 - y1) / (x2 - x1);
       const targetAngle = Math.atan(averageSlope);
-      const diffAngle = body.angle - targetAngle;
-
-      if (Math.abs(diffAngle) > 0 && Math.abs(body.angle) > 0) {
-        // if (!body.label.startsWith("boat_"))
-        //   console.log(
-        //     targetAngle,
-        //     body.angle,
-        //     diffAngle,
-        //     body.angle +
-        //       (targetAngle > body.angle ? +diffAngle : -diffAngle) * 0.01
-        //   );
-        Matter.Body.setAngle(
-          body,
-          body.angle +
-            (targetAngle > body.angle ? +diffAngle : -diffAngle) * 0.01
-        );
+      const diffAngle = targetAngle - body.angle;
+      if (Math.abs(diffAngle) > 0.01) {
+        Matter.Body.setAngle(body, body.angle + diffAngle * 1);
       }
     }
   }

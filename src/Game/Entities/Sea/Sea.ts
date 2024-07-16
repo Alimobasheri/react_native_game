@@ -187,7 +187,7 @@ export class Sea implements ISea {
     const surfacePoints: SurfacePointMap = this.getWaterSurfacePoints();
     this._waterSurfacePoints = surfacePoints;
   }
-  protected getWaterSlopeAtPoint(x: number, layerIndex?: number): number {
+  public getWaterSlopeAtPoint(x: number, layerIndex?: number): number {
     const layer: Sea = this.getDefaultLayer(layerIndex);
     let slope = 0;
     layer._waves.forEach((wave) => {
