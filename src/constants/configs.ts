@@ -4,6 +4,7 @@ import { WATER_GRADIENT_COLORS } from "./waterConfigs";
 export const TRAIL_FADE_DURATION = 1000;
 
 export enum ENTITIES_KEYS {
+  STARS = "stars",
   MOON = "moon",
   CLOUDS = "clouds",
   SEA = "sea",

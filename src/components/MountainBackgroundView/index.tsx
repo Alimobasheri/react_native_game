@@ -17,10 +17,5 @@ import CloudsView from "../CloudsView";
 export const MountainBackgroundView: FC<
   EntityRendererProps<MountainBackground>
 > = ({ entity }) => {
-  return (
-    <Group>
-      <StarsView />
-      {entity.render()}
-    </Group>
-  );
+  return <Group>{entity.render()}</Group>;
 };

@@ -7,7 +7,13 @@ import React, {
 } from "react";
 import { StyleSheet, useWindowDimensions } from "react-native";
 import { GameEngine } from "react-native-game-engine";
-import { Canvas, Rect, Skia, TileMode } from "@shopify/react-native-skia";
+import {
+  Canvas,
+  Group,
+  Rect,
+  Skia,
+  TileMode,
+} from "@shopify/react-native-skia";
 import { LinearGradient, vec } from "@shopify/react-native-skia";
 import { Sea } from "@/Game/Entities/Sea/Sea";
 import { ENTITIES_KEYS, getSeaConfigDefaults } from "@/constants/configs";
@@ -30,6 +36,7 @@ import { BackgroundSystem } from "@/systems/BackgroundSystem/BackgroundSystem";
 import { Moon } from "@/Game/Entities/BackgroundEntities/Moon/Moon";
 import { getDefaultMoonConfig } from "@/constants/backgrounds";
 import { Clouds } from "@/Game/Entities/BackgroundEntities/Clouds/Clouds";
+import { Stars } from "@/Game/Entities/BackgroundEntities/Stars/Stars";
 
 const RenderEntity = ({ entity, screen, layout }) => {
   if (typeof entity.renderer === "object")
@@ -124,20 +131,28 @@ const Render = ({ entities, screen, layout }) => {
   }, [screen.width, screen.height]);
   return (
     <Canvas style={canvasStyle}>
-      {background}
-      {Object.keys(entities)
-        .filter((key) => entities[key].renderer)
-        .map((key) => {
-          let entity = entities[key];
-          return (
-            <RenderEntity
-              key={key}
-              entity={entity}
-              screen={screen}
-              layout={layout}
-            />
-          );
-        })}
+      <Group
+        transform={[
+          { scale: 1 },
+          { translateX: -screen.width * 0 },
+          { translateY: -screen.height * 0 },
+        ]}
+      >
+        {background}
+        {Object.keys(entities)
+          .filter((key) => entities[key].renderer)
+          .map((key) => {
+            let entity = entities[key];
+            return (
+              <RenderEntity
+                key={key}
+                entity={entity}
+                screen={screen}
+                layout={layout}
+              />
+            );
+          })}
+      </Group>
     </Canvas>
   );
 };
@@ -175,6 +190,11 @@ const Game = forwardRef((props, ref) => {
     originalWaterSUrfaceY: waterSurfaceY,
   });
 
+  const stars = new Stars({
+    screenWidth: windowWidth,
+    screenHeight: windowHeight,
+    initialStarsCount: 50,
+  });
   const moon = new Moon(getDefaultMoonConfig(windowWidth, windowHeight));
   const clouds = new Clouds({
     screenWidth: windowWidth,
@@ -207,6 +227,7 @@ const Game = forwardRef((props, ref) => {
       ]}
       renderer={renderer}
       entities={{
+        [ENTITIES_KEYS.STARS]: stars,
         [ENTITIES_KEYS.MOON]: moon,
         [ENTITIES_KEYS.CLOUDS]: clouds,
         [ENTITIES_KEYS.MOUNTAIN_BACKGROUND]: moutnainBackground,
