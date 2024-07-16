@@ -5,6 +5,7 @@ export const TRAIL_FADE_DURATION = 1000;
 
 export enum ENTITIES_KEYS {
   MOON = "moon",
+  CLOUDS = "clouds",
   SEA = "sea",
   SHIP = "ship",
   BOAT_LABEL = "boat_",

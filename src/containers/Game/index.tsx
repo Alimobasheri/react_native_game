@@ -29,6 +29,7 @@ import { SeaGroupRenderer } from "@/components/SeaGroupRenderer";
 import { BackgroundSystem } from "@/systems/BackgroundSystem/BackgroundSystem";
 import { Moon } from "@/Game/Entities/BackgroundEntities/Moon/Moon";
 import { getDefaultMoonConfig } from "@/constants/backgrounds";
+import { Clouds } from "@/Game/Entities/BackgroundEntities/Clouds/Clouds";
 
 const RenderEntity = ({ entity, screen, layout }) => {
   if (typeof entity.renderer === "object")
@@ -175,6 +176,10 @@ const Game = forwardRef((props, ref) => {
   });
 
   const moon = new Moon(getDefaultMoonConfig(windowWidth, windowHeight));
+  const clouds = new Clouds({
+    screenWidth: windowWidth,
+    screenHeight: windowHeight,
+  });
   const moutnainBackground = new MountainBackground();
 
   const shipFactory = new ShipFactory({ windowWidth });
@@ -203,6 +208,7 @@ const Game = forwardRef((props, ref) => {
       renderer={renderer}
       entities={{
         [ENTITIES_KEYS.MOON]: moon,
+        [ENTITIES_KEYS.CLOUDS]: clouds,
         [ENTITIES_KEYS.MOUNTAIN_BACKGROUND]: moutnainBackground,
         [ENTITIES_KEYS.SEA_GROUP]: seaGroup,
         [ENTITIES_KEYS.UI_SYSTEM_INSTANCE]: uiSystem,

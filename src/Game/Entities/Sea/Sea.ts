@@ -147,6 +147,7 @@ export class Sea implements ISea {
       initialFrequency: frequency,
       initialPhase: phase,
       initialTime: time,
+      source,
     };
     const wave = new Wave(waveConfig);
     layer._waves.push(wave);

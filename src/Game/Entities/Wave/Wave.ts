@@ -6,9 +6,11 @@ import {
   DEFAULT_TIME_STEP,
 } from "@/constants/waterConfigs";
 import { IWave, WaveConfig } from "./types";
+import { WaveSource } from "../Sea/types";
 
 export class Wave implements IWave {
   protected _initialConfig: WaveConfig;
+  protected _source: WaveSource;
   protected _x: number;
   protected _phase: number = 0;
   protected _time: number = 0;
@@ -43,6 +45,7 @@ export class Wave implements IWave {
     this._frequency = config.initialFrequency;
     this._phase = config.initialPhase ?? 0;
     this._time = config.initialTime ?? 0;
+    this._source = config.source;
 
     this._amplitudeMultiplier =
       config.amplitudeMultiplier ?? this._amplitudeMultiplier;
@@ -80,6 +83,10 @@ export class Wave implements IWave {
   }
   get frequency(): number {
     return this._frequency;
+  }
+
+  get source(): WaveSource {
+    return this._source;
   }
 
   update(currentFrame: number = 0) {

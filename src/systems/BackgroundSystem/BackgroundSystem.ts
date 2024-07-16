@@ -3,6 +3,7 @@ import { RNGE_Entities, RNGE_System_Args } from "../types";
 import { IBackgroundSystem } from "./types";
 import { MountainBackground } from "@/Game/Entities/MountainBackground/MountainBackground";
 import { Moon } from "@/Game/Entities/BackgroundEntities/Moon/Moon";
+import { Clouds } from "@/Game/Entities/BackgroundEntities/Clouds/Clouds";
 
 export class BackgroundSystem implements IBackgroundSystem {
   constructor() {}
@@ -28,10 +29,12 @@ export class BackgroundSystem implements IBackgroundSystem {
     args: RNGE_System_Args
   ): RNGE_Entities {
     const moon: Moon = entities[ENTITIES_KEYS.MOON];
+    const clouds: Clouds = entities[ENTITIES_KEYS.CLOUDS];
     const mountainBackground: MountainBackground =
       entities[ENTITIES_KEYS.MOUNTAIN_BACKGROUND];
 
     moon.update(0.0005, args.time.delta);
+    clouds.update(0.01, args.time.delta);
     mountainBackground.update(0.005, args.time.delta);
 
     return entities;

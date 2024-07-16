@@ -20,7 +20,6 @@ export const MountainBackgroundView: FC<
   return (
     <Group>
       <StarsView />
-      <CloudsView />
       {entity.render()}
     </Group>
   );

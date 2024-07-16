@@ -30,7 +30,7 @@ export interface IGameSystem {
     entities: RNGE_Entities,
     args: RNGE_System_Args
   ) => RNGE_Entities;
-  systemManger: (
+  systemManager: (
     entities: RNGE_Entities,
     args: RNGE_System_Args
   ) => RNGE_Entities;

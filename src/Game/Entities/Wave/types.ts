@@ -1,3 +1,5 @@
+import { WaveSource } from "../Sea/types";
+
 /**
  * Interface representing a wave.
  * Providing information about the wave for drawing purposes.
@@ -76,6 +78,10 @@ export interface IWave {
  * Initial config to create a functioning wave in sea.
  */
 export type WaveConfig = {
+  /**
+   * Used to differentiate between user made waves and other waves.
+   */
+  source: WaveSource;
   /**
    * x-coordinate of the wave's origin position.
    * @type {number}
