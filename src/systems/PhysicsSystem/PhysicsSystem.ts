@@ -197,21 +197,10 @@ export class PhysicsSystem implements IPhysicsSystem {
     sea: Sea,
     combinedSlope: number
   ): void {
-    // if (
-    //   sea.getWaterSurfaceAndMaxHeightAtPoint(body.position.x).y -
-    //     sea.getOriginalWaterSurfaceY() >
-    //   0
-    // )
-    //   console.log(
-    //     "======",
-    //     sea.getWaterSurfaceAndMaxHeightAtPoint(body.position.x).y -
-    //       sea.getOriginalWaterSurfaceY(),
-    //     submergedDepth
-    //   );
     if (
       sea.getOriginalWaterSurfaceY() -
         sea.getWaterSurfaceAndMaxHeightAtPoint(body.position.x).y >
-        20 &&
+        40 &&
       submergedDepth > -10
     ) {
       Matter.Body.setVelocity(body, {
@@ -220,34 +209,10 @@ export class PhysicsSystem implements IPhysicsSystem {
       });
       const originalWaterSurfaceY = sea.getOriginalWaterSurfaceY();
       const densityOfWater = 0.02; // Lower density to achieve smaller forces
-      const sizeFactor = 1 / Math.sqrt(size[0] * size[1]); // Larger size results in more buoyancy force
-
-      // if (!body.label.startsWith(ENTITIES_KEYS.BOAT_LABEL)) {
-      //   console.log("========");
-      //   console.log(
-      //     "🚀 ~ PhysicsSystem ~ sea.getWaterSurfaceAndMaxHeightAtPoint(body.position.x).maxWaveHeight:",
-      //     sea.getOriginalWaterSurfaceY() -
-      //       sea.getWaterSurfaceAndMaxHeightAtPoint(body.position.x).y,
-      //     sizeFactor
-      //   );
-      // }
-
-      const maxWaveHeightFactor =
-        1 +
-        Math.sqrt(
-          sea.getWaterSurfaceAndMaxHeightAtPoint(body.position.x).y -
-            sea.getOriginalWaterSurfaceY()
-        );
+      const sizeFactor = 1 / Math.sqrt(size[0] * size[1]); // Larger size results in less buoyancy force
 
       const buoyancyForceMagnitude = densityOfWater * 9.8 * sizeFactor;
-      // console.log(
-      //   "🚀 ~ PhysicsSystem ~ buoyancyForceMagnitude:",
-      //   buoyancyForceMagnitude
-      // );
 
-      // // Adjust force scaling using logarithmic factor for better balance
-      // const sizeScalingFactor = Math.log(size[0] * size[1] + 1) * 0.1;
-      // const adjustedBuoyancyForce = buoyancyForceMagnitude / sizeScalingFactor;
       const buoyancyForce = -Math.max(buoyancyForceMagnitude, 0.001);
       // Calculate points on the vehicle body
       const pointsCount = 5; // Number of points along the hull
@@ -272,18 +237,6 @@ export class PhysicsSystem implements IPhysicsSystem {
           (index < pointsCount / 2 ? 1 : -1) *
           localBuoyancyForce *
           (0.1 + 0.1 * Math.sqrt(waveHeightAtPoint));
-        // if (!body.label.startsWith(ENTITIES_KEYS.BOAT_LABEL)) {
-        //   console.log(
-        //     "🚀 ~ PhysicsSystem ~ vehiclePoints.forEach ~ waveHeightAtPoint:",
-        //     waveHeightAtPoint,
-        //     waterSurfacePoints[index],
-        //     originalWaterSurfaceY
-        //   );
-        //   console.log(
-        //     "🚀 ~ PhysicsSystem ~ vehiclePoints.forEach ~ localBuoyancyForce:",
-        //     localBuoyancyForce
-        //   );
-        // }
         Matter.Body.applyForce(
           body,
           {
