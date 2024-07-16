@@ -19,7 +19,7 @@ export class Stars {
     const stars = [];
     for (let i = 0; i < count; i++) {
       const x = Math.random() * this._screenWidth;
-      const y = Math.random() * this._screenHeight * 0.2;
+      const y = Math.random() * this._screenHeight * 0.3;
       const radius =
         Math.random() < 0.8 ? Math.random() * 1 : Math.random() * 1 + 1;
       stars.push({ x, y, radius });
