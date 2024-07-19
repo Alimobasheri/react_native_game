@@ -2,7 +2,7 @@ import { Boat } from "@/Game/Entities/Boat/Boat";
 import { Sea } from "@/Game/Entities/Sea/Sea";
 import { Ship } from "@/Game/Entities/Ship/Ship";
 import { EntityRendererProps } from "@/constants/views";
-import { FC, useCallback, useMemo } from "react";
+import { FC, memo, useCallback, useMemo } from "react";
 import { SeaView } from "../SeaView";
 import { ENTITIES_KEYS, TRAIL_FADE_DURATION } from "@/constants/configs";
 import { ShipView } from "../ShipView";

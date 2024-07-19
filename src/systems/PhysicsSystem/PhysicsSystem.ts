@@ -163,9 +163,9 @@ export class PhysicsSystem implements IPhysicsSystem {
 
     const { bottomY: buoyantVehicleBottomY } = getVerticleBounds(body, size);
 
-    const { waterSurfacePoints } = sea;
-
-    let waterSurfaceYAtPoint = waterSurfacePoints.get(body.position.x);
+    let waterSurfaceYAtPoint = sea.getWaterSurfaceAndMaxHeightAtPoint(
+      body.position.x
+    );
     if (!waterSurfaceYAtPoint)
       waterSurfaceYAtPoint = sea.getWaterSurfaceAndMaxHeightAtPoint(
         body.position.x

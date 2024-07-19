@@ -33,9 +33,9 @@ export class BackgroundSystem implements IBackgroundSystem {
     const mountainBackground: MountainBackground =
       entities[ENTITIES_KEYS.MOUNTAIN_BACKGROUND];
 
-    moon.update(0.0005, args.time.delta);
-    clouds.update(0.01, args.time.delta);
-    mountainBackground.update(0.005, args.time.delta);
+    moon?.update(0.0005, args.time.delta);
+    clouds?.update(0.01, args.time.delta);
+    mountainBackground?.update(0.005, args.time.delta);
 
     return entities;
   }

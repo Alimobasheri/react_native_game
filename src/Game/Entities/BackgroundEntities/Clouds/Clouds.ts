@@ -10,7 +10,7 @@ export class Clouds {
   constructor({ screenWidth, screenHeight }: CloudsConfig) {
     this._screenWidth = screenWidth;
     this._screenHeight = screenHeight;
-    this._clouds = this.generateClouds(10);
+    this._clouds = this.generateClouds(5);
   }
 
   public get clouds(): Cloud[] {

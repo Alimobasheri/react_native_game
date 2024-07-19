@@ -55,7 +55,7 @@ export class Sea implements ISea {
     this.setBounds();
     if (this._layersCount > 1) this.createLayers();
     else this._layers[0] = this;
-    this.setWaterSurfacePoints();
+    // this.setWaterSurfacePoints();
   }
 
   get width(): number {
@@ -90,24 +90,26 @@ export class Sea implements ISea {
   update(currentFrame?: number | undefined): void {
     this._layers.forEach((layer) => {
       layer._waves.forEach((wave) => wave.update(currentFrame));
-      layer.setWaterSurfacePoints();
+      // layer.setWaterSurfacePoints();
       layer._waves = layer._waves.filter((wave) => !wave.isExpired());
       if (layer._waves.length < 1) {
-        layer.initiateWave({
-          x: Matter.Common.random(
-            layer._startingX,
-            layer._startingX + layer._width
-          ),
-          amplitude: Matter.Common.random(
-            DEFAULT_MINIMUM_AMPLITUDE * 3,
-            MAXIMUM_INITIAL_AMPLITUDE
-          ),
-          frequency: Matter.Common.random(
-            MINIMUM_INITIAL_FREQUENCY,
-            MAXIMUM_INITIAL_FREQUENCY
-          ),
-          source: WaveSource.DISTURBANCE,
-        });
+        const addWave = Matter.Common.random() < 0.01;
+        if (addWave)
+          layer.initiateWave({
+            x: Matter.Common.random(
+              layer._startingX,
+              layer._startingX + layer._width
+            ),
+            amplitude: Matter.Common.random(
+              DEFAULT_MINIMUM_AMPLITUDE * 3,
+              MAXIMUM_INITIAL_AMPLITUDE
+            ),
+            frequency: Matter.Common.random(
+              MINIMUM_INITIAL_FREQUENCY,
+              MAXIMUM_INITIAL_FREQUENCY
+            ),
+            source: WaveSource.DISTURBANCE,
+          });
       }
     });
   }

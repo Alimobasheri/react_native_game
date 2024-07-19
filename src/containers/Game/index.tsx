@@ -1,4 +1,5 @@
 import React, {
+  createContext,
   forwardRef,
   useEffect,
   useImperativeHandle,
@@ -250,11 +251,11 @@ const Game = forwardRef((props, ref) => {
         [ENTITIES_KEYS.SEA_GROUP]: seaGroup,
         [ENTITIES_KEYS.UI_SYSTEM_INSTANCE]: uiSystem,
         [ENTITIES_KEYS.GAME_LOOP_SYSTEM]: gameLoopSystem,
+        [ENTITIES_KEYS.COLLISIONS_SYSTEM_INSTANCE]: collisionsSystem,
         [ENTITIES_KEYS.TOUCH_SYSTEM_INSTANCE]: touchSystem,
         [ENTITIES_KEYS.BACKGROUND_SYSTEM_INSTANCE]: backgroundSystem,
         [ENTITIES_KEYS.SHIP_SYSTEM_INSTANCE]: shipSystem,
         [ENTITIES_KEYS.BOAT_SYSTEM_INSTANCE]: boatSystem,
-        [ENTITIES_KEYS.COLLISIONS_SYSTEM_INSTANCE]: collisionsSystem,
         [ENTITIES_KEYS.PHYSICS_SYSTEM_INSTANCE]: physicsSystem,
         [ENTITIES_KEYS.SEA_SYSTEM_INSTANCE]: seaSystem,
         [ENTITIES_KEYS.SCREEN_TOP_UI]: screenTopUI,

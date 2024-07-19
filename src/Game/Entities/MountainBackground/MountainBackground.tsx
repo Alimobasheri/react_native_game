@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { memo, useEffect, useRef } from "react";
 import { View, Dimensions } from "react-native";
 import {
   Skia,
@@ -13,6 +13,8 @@ import {
 } from "@shopify/react-native-skia";
 import { MountainBackgroundView } from "@/components/MountainBackgroundView";
 import { MountainBackgroundConfig } from "./types";
+import { useSharedValue } from "react-native-reanimated";
+import Matter from "matter-js";
 
 interface Mountain {
   path: SkPath;
@@ -80,7 +82,12 @@ export class MountainBackground {
     this.mountains.forEach((mountain, index) => {
       mountain.xOffset -= speed * timeDelta;
 
-      if (mountain.xOffset + mountain.initialXOffset + mountain.width < 0) {
+      if (
+        mountain.xOffset +
+          mountain.initialXOffset +
+          mountain.path.getBounds().width <
+        0
+      ) {
         // Mark mountain for removal and prepare a new mountain to add
         mountainsToRemove.push(index);
         const newMountain = this.generateMountain(
@@ -181,7 +188,7 @@ export class MountainBackground {
   createRandomMountain = (xOffset: number, width: number): Mountain => {
     const numPeaks = getRandomInt(
       2,
-      Math.floor((width / this.screenWidth) * 10 + 3)
+      Math.floor((width / this.screenWidth) * 10 + 1)
     );
     const heightRange = {
       min: this.screenHeight * 0.2,
@@ -209,44 +216,42 @@ export class MountainBackground {
       width,
       rockyPaths,
       snowcapPath,
+      id: Matter.Common.random(10 ** 6, 10 ** 9),
     };
   };
 
-  render(): JSX.Element {
-    Skia.Image;
-    return (
-      <Group>
-        {this.mountains.map((mountain, index) => (
-          <Group key={`mountain-group_${index}`}>
-            <Group key={index} transform={[{ translateX: mountain.xOffset }]}>
-              <Path path={mountain.path} paint={mountain.paint} />
-              <Path path={mountain.path}>
-                <LinearGradient
-                  start={vec(
-                    mountain.path.getBounds().x,
-                    mountain.path.getBounds().y +
-                      mountain.path.getBounds().height
-                  )}
-                  end={vec(
-                    mountain.path.getBounds().x,
-                    mountain.path.getBounds().y +
-                      mountain.path.getBounds().height * 0.6
-                  )}
-                  colors={[
-                    Skia.Color("rgba(200, 200, 200, 0.8)"),
-                    Skia.Color("rgba(200, 200, 200, 0.1)"),
-                    Skia.Color("rgba(200, 200, 200, 0.1)"),
-                    Skia.Color("rgba(155, 155, 155, 0.05)"),
-                  ]}
-                  positions={[0, 0.1, 0.5, 1]}
-                />
-              </Path>
-            </Group>
-          </Group>
-        ))}
-      </Group>
-    );
-  }
-
   renderer = MountainBackgroundView;
 }
+
+export const MountainViewComponent = ({ mountain }: { mountain: Mountain }) => {
+  const path = useSharedValue(mountain.path);
+  const paint = useSharedValue(mountain.paint);
+  const translateX = useSharedValue(mountain.xOffset);
+  useEffect(() => {
+    translateX.value = mountain.xOffset;
+  }, [mountain.xOffset]);
+  return (
+    <Group transform={[{ translateX: translateX.value }]}>
+      <Path path={path} paint={paint} />
+      <Path path={path}>
+        <LinearGradient
+          start={vec(
+            mountain.path.getBounds().x,
+            mountain.path.getBounds().y + mountain.path.getBounds().height
+          )}
+          end={vec(
+            mountain.path.getBounds().x,
+            mountain.path.getBounds().y + mountain.path.getBounds().height * 0.6
+          )}
+          colors={[
+            Skia.Color("rgba(200, 200, 200, 0.8)"),
+            Skia.Color("rgba(200, 200, 200, 0.1)"),
+            Skia.Color("rgba(200, 200, 200, 0.1)"),
+            Skia.Color("rgba(155, 155, 155, 0.05)"),
+          ]}
+          positions={[0, 0.1, 0.5, 1]}
+        />
+      </Path>
+    </Group>
+  );
+};

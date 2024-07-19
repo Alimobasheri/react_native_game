@@ -15,7 +15,7 @@ export class CollisionsSystem implements ICollisionsSystem {
   }
 
   public systemInstance(entities: RNGE_Entities, args: RNGE_System_Args) {
-    this.update(entities);
+    this.update(entities, args);
     return entities;
   }
   public systemManager(entities: RNGE_Entities, args: RNGE_System_Args) {
@@ -24,7 +24,7 @@ export class CollisionsSystem implements ICollisionsSystem {
     return collisionsSystem.systemInstance(entities, args);
   }
 
-  protected update(entities: RNGE_Entities): void {
+  protected update(entities: RNGE_Entities, args: RNGE_System_Args): void {
     const gameLoopSystem: GameLoopSystem =
       entities[ENTITIES_KEYS.GAME_LOOP_SYSTEM];
     const currentFrame = gameLoopSystem.currentFrame;
@@ -32,6 +32,7 @@ export class CollisionsSystem implements ICollisionsSystem {
     const ship: Ship = entities[ENTITIES_KEYS.SEA_GROUP].entities["ship"];
     if (attackingBoats.length > 0 && !!ship?.body) {
       const collisions = this.getAttackingBoatsCollision(attackingBoats, ship);
+      if (collisions.length > 0) args.dispatch("gameOver");
       this.saveShipBoatCollisionsInFrame(
         entities,
         collisions,
@@ -77,10 +78,6 @@ export class CollisionsSystem implements ICollisionsSystem {
           collision.bodyA.label === ship.label
             ? collision.bodyB
             : collision.bodyA;
-        // Matter.Body.setAngularVelocity(boatBody, 0.1);
-        const boat: Boat = entities[boatBody.label];
-        // boat.isSinked = true;
-        // boat.isAttacking = false;
         this._collisionsInFrame.push({
           frame,
           boatLabel: boatBody.label,
@@ -91,8 +88,8 @@ export class CollisionsSystem implements ICollisionsSystem {
   }
 
   protected findAttackingBoats(entities: RNGE_Entities): Boat[] {
-    return Object.keys(entities)
-      .map((key) => entities[key])
+    return Object.keys(entities[ENTITIES_KEYS.SEA_GROUP].entities)
+      .map((key) => entities[ENTITIES_KEYS.SEA_GROUP].entities[key])
       .filter(
         (entity) =>
           entity?.type === VEHICLE_TYPE_IDENTIFIERS.BOAT && entity.isAttacking
