@@ -12,10 +12,11 @@ export class RedPirateHeadSkull extends Boat {
     this._acceleration = 2.3;
   }
   public getSize(): number[] {
-    return [
+    const size = [
       this._windowWidth * 0.08,
       this._windowWidth * 0.08 * this._sizeRatio,
     ];
+    return size;
   }
 
   public get imageSource() {

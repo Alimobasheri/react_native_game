@@ -1,0 +1,43 @@
+npm ERR! code ERESOLVE
+npm ERR! ERESOLVE could not resolve
+npm ERR! 
+npm ERR! While resolving: @react-native-community/datetimepicker@8.2.0
+npm ERR! Found: expo@49.0.23
+npm ERR! node_modules/expo
+npm ERR!   peer expo@"*" from expo-application@5.3.1
+npm ERR!   node_modules/expo-application
+npm ERR!     expo-application@"~5.3.0" from expo@49.0.23
+npm ERR!   peer expo@"*" from expo-constants@14.4.2
+npm ERR!   node_modules/expo-constants
+npm ERR!     expo-constants@"~14.4.2" from expo@49.0.23
+npm ERR!     expo-constants@"~14.4.2" from expo-asset@8.10.1
+npm ERR!     node_modules/expo-asset
+npm ERR!       expo-asset@"~8.10.1" from expo@49.0.23
+npm ERR!   11 more (expo-dev-client, expo-dev-launcher, expo-dev-menu, ...)
+npm ERR! 
+npm ERR! Could not resolve dependency:
+npm ERR! peerOptional expo@">=50.0.0" from @react-native-community/datetimepicker@8.2.0
+npm ERR! node_modules/@react-native-community/datetimepicker
+npm ERR!   dev @react-native-community/datetimepicker@"^8.2.0" from the root project
+npm ERR!   peer @react-native-community/datetimepicker@"*" from @storybook/addon-ondevice-controls@7.6.20
+npm ERR!   node_modules/@storybook/addon-ondevice-controls
+npm ERR!     dev @storybook/addon-ondevice-controls@"^7.6.20" from the root project
+npm ERR! 
+npm ERR! Conflicting peer dependency: expo@51.0.21
+npm ERR! node_modules/expo
+npm ERR!   peerOptional expo@">=50.0.0" from @react-native-community/datetimepicker@8.2.0
+npm ERR!   node_modules/@react-native-community/datetimepicker
+npm ERR!     dev @react-native-community/datetimepicker@"^8.2.0" from the root project
+npm ERR!     peer @react-native-community/datetimepicker@"*" from @storybook/addon-ondevice-controls@7.6.20
+npm ERR!     node_modules/@storybook/addon-ondevice-controls
+npm ERR!       dev @storybook/addon-ondevice-controls@"^7.6.20" from the root project
+npm ERR! 
+npm ERR! Fix the upstream dependency conflict, or retry
+npm ERR! this command with --force or --legacy-peer-deps
+npm ERR! to accept an incorrect (and potentially broken) dependency resolution.
+npm ERR! 
+npm ERR! 
+npm ERR! For a full report see:
+npm ERR! /Users/mirali/.npm/_logs/2024-07-19T12_40_59_161Z-eresolve-report.txt
+
+npm ERR! A complete log of this run can be found in: /Users/mirali/.npm/_logs/2024-07-19T12_40_59_161Z-debug-0.log

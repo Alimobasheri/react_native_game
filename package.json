@@ -6,10 +6,14 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "storybook-generate": "sb-rn-get-stories",
+    "storybook": "cross-env STORYBOOK_ENABLED='true' expo start --offline --clear",
+    "storybook:ios": "cross-env STORYBOOK_ENABLED='true' expo ios",
+    "storybook:android": "cross-env STORYBOOK_ENABLED='true' expo android"
   },
   "dependencies": {
-    "@react-native-async-storage/async-storage": "^1.18.2",
+    "@react-native-async-storage/async-storage": "1.18.2",
     "@shopify/react-native-skia": "0.1.196",
     "cross-env": "^7.0.3",
     "expo": "^49.0.23",
@@ -17,7 +21,9 @@
     "expo-linear-gradient": "~12.3.0",
     "expo-status-bar": "~1.6.0",
     "matter-js": "^0.18.0",
+    "punycode": "^2.3.1",
     "react": "18.2.0",
+    "react-dom": "18.2.0",
     "react-native": "0.72.10",
     "react-native-game-engine": "^1.2.0",
     "react-native-gesture-handler": "~2.12.0",
@@ -27,6 +33,11 @@
   },
   "devDependencies": {
     "@babel/core": "^7.12.9",
+    "@storybook/addon-ondevice-actions": "^7.6.20",
+    "@storybook/addon-ondevice-backgrounds": "^7.6.20",
+    "@storybook/addon-ondevice-controls": "^7.6.20",
+    "@storybook/addon-ondevice-notes": "^7.6.20",
+    "@storybook/react-native": "^7.6.20",
     "@types/matter-js": "^0.19.6",
     "@types/react": "^18.3.3",
     "@types/react-native": "^0.73.0",

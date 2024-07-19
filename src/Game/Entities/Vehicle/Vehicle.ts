@@ -108,7 +108,7 @@ export class Vehicle extends EventEmitter implements IVehicle {
   }
 
   public get size(): number[] {
-    return this._size;
+    return this.getSize();
   }
 
   public get label(): string {

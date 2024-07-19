@@ -16,9 +16,10 @@ import { DIRECTION, TRAIL_FADE_DURATION } from "../../constants/configs";
 import { EntityRendererProps } from "@/constants/views";
 import { Boat } from "@/Game/Entities/Boat/Boat";
 
-export const BoatView: FC<EntityRendererProps<Boat>> = ({
-  entity: { body, size, direction, trail, imageSource },
-}) => {
+export const BoatView: FC<EntityRendererProps<Boat>> = (props) => {
+  const {
+    entity: { body, size, direction, trail, imageSource },
+  } = props;
   if (!body) return;
   const { position } = body;
   const boatImage = useImage(imageSource);
