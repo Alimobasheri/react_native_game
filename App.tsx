@@ -12,7 +12,7 @@ function App() {
     <SafeAreaProvider style={{ flex: 1 }}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <View style={[styles.container]}>
-          <StatusBar style="auto" />
+          <StatusBar hidden />
 
           <Overlay />
         </View>
