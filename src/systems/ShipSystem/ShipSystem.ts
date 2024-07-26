@@ -3,6 +3,7 @@ import { IShipSystem } from "./types";
 import { RNGE_Entities, RNGE_System_Args } from "../types";
 import { IShip } from "@/Game/Entities/Ship/types";
 import { Ship } from "@/Game/Entities/Ship/Ship";
+import { Entities, Entity } from "@/containers/ReactNativeSkiaGameEngine";
 
 /**
  * The ship system is responsible for keeping the main sheep stable.
@@ -23,5 +24,19 @@ export class ShipSystem implements IShipSystem {
   systemManager(entities: RNGE_Entities, args: RNGE_System_Args) {
     const shipSystem: ShipSystem = entities[ENTITIES_KEYS.SHIP_SYSTEM_INSTANCE];
     return shipSystem.systemInstance(entities, args);
+  }
+
+  systemInstanceRNSGE(
+    entities: Entities,
+    args: RNGE_System_Args,
+    ship: Entity<Ship>
+  ) {
+    ship.data.update(entities, args);
+    ship.data.removeAllListeners("isSinkedChange");
+    ship.addListener("isSinkedChange", (isSinked) => {
+      if (isSinked) {
+        args.dispatch("shipSinked");
+      }
+    });
   }
 }

@@ -11,7 +11,6 @@ export type RNGE_Time = {
   current: number;
   previous: number;
   delta: number;
-  previousDelta: number;
 };
 
 export type RNGE_System_Args = {
@@ -24,6 +23,11 @@ export type RNGE_System_Args = {
 };
 
 export type RNGE_Entities = Record<string, any>;
+
+export enum ENGINES {
+  RNGE = "rnge",
+  RNSGE = "rnsge",
+}
 
 export interface IGameSystem {
   systemInstance: (

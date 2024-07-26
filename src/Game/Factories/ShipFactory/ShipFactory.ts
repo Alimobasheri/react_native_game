@@ -10,6 +10,7 @@ export type ShipFactoryCreatorConfig = {
   type: SHIP_BUILDS;
   x: number;
   y: number;
+  createdTime: number;
 };
 
 export class ShipFactory {

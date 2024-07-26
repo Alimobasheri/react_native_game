@@ -82,6 +82,10 @@ export type VehicleConfig = {
    */
   isBuoyant: boolean;
   /**
+   * Timestamp of when this boat was created.
+   */
+  createdTime: number;
+  /**
    * At what frame number was this vehicle created?
    * @type {number | undefined}
    */

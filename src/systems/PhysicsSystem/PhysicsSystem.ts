@@ -1,4 +1,4 @@
-import { ENTITIES_KEYS } from "@/constants/configs";
+import { BUOYANTS_GROUP, ENTITIES_KEYS } from "@/constants/configs";
 import { RNGE_Entities, RNGE_System_Args } from "../types";
 import { BuoyantVehicleProps, IPhysicsSystem } from "./types";
 import { Vehicle } from "@/Game/Entities/Vehicle/Vehicle";
@@ -10,6 +10,7 @@ import { Point2D, WaterSurfacePoint } from "@/types/globals";
 import { VEHICLE_TYPE_IDENTIFIERS } from "@/constants/vehicle";
 import { Sea } from "@/Game/Entities/Sea/Sea";
 import { GameLoopSystem } from "../GameLoopSystem/GameLoopSystem";
+import { Entities, Entity } from "@/containers/ReactNativeSkiaGameEngine";
 
 export class PhysicsSystem implements IPhysicsSystem {
   protected _engine: Matter.Engine;
@@ -20,6 +21,9 @@ export class PhysicsSystem implements IPhysicsSystem {
   systemInstance(entities: RNGE_Entities, args: RNGE_System_Args) {
     this.update(entities, args);
     return entities;
+  }
+  systemInstanceRNSGE(entities: Entities, args: RNGE_System_Args) {
+    this.update(entities, args);
   }
   systemManager(entities: RNGE_Entities, args: RNGE_System_Args) {
     const physicsSystem: IPhysicsSystem =
@@ -35,19 +39,24 @@ export class PhysicsSystem implements IPhysicsSystem {
     Matter.World.remove(this._engine.world, body);
   }
 
-  protected update(entities: RNGE_Entities, args: RNGE_System_Args): void {
+  protected update(entities: Entities, args: RNGE_System_Args): void {
     const { time } = args;
     Matter.Engine.update(this._engine, time.delta);
     this.updateBuoyantVehicles(entities, args);
   }
 
   protected updateBuoyantVehicles(
-    entities: RNGE_Entities,
+    entities: Entities,
     args: RNGE_System_Args
   ): void {
-    const sea: Sea = entities[ENTITIES_KEYS.SEA_GROUP].entities["sea"];
+    const seaEntity: Entity<Sea> | undefined = entities.getEntityByLabel(
+      ENTITIES_KEYS.SEA
+    );
+    if (!seaEntity) return;
     const buoyantVehicles = this.findBuoyantVehicles(entities);
-    buoyantVehicles.forEach((buoyantVehicle) => {
+    buoyantVehicles.forEach((buoyantVehicleEntity) => {
+      const buoyantVehicle = buoyantVehicleEntity.data;
+      const sea = seaEntity.data;
       if (buoyantVehicle.isSinked || !buoyantVehicle.isInitialized) return;
       const props = this.getBuoyantVehicleProps(buoyantVehicle, sea, args);
 
@@ -91,10 +100,8 @@ export class PhysicsSystem implements IPhysicsSystem {
     });
   }
 
-  protected findBuoyantVehicles(entities: RNGE_Entities): Vehicle[] {
-    return Object.keys(entities[ENTITIES_KEYS.SEA_GROUP].entities)
-      .map((key) => entities[ENTITIES_KEYS.SEA_GROUP].entities[key])
-      .filter((entity) => entity.isBuoyant);
+  protected findBuoyantVehicles(entities: Entities): Entity<Vehicle>[] {
+    return entities.getEntitiesByGroup(BUOYANTS_GROUP);
   }
 
   protected calculateVehiclePoints(
@@ -118,7 +125,7 @@ export class PhysicsSystem implements IPhysicsSystem {
   }
 
   protected getWaterSurfacePoints(
-    sea: ISea,
+    sea: Sea,
     vehiclePoints: Matter.Vector[]
   ): { heights: number[]; submersion: boolean[] } {
     const heights: number[] = [];

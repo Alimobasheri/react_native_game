@@ -15,4 +15,5 @@ export type ShipConfig = Omit<VehicleConfig, "isBuoyant" | "type">;
 export type commonShipBuildsConfig = {
   x: number;
   y: number;
+  createdTime: number;
 } & Pick<IGameConfig, "windowWidth">;

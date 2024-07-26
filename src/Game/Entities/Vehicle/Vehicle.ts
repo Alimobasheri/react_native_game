@@ -2,6 +2,7 @@ import Matter from "matter-js";
 import { IVehicle, VehicleConfig } from "./types";
 import {
   DEFAULT_MIN_FRAMES_BEFORE_INITIALIZATION,
+  DEFAULT_MIN_TIME_BEFORE_INITIALIZATION,
   DEFAULT_VEHICLE_ACCELERATION,
   DEFAULT_VEHICLE_HEALTH,
   DEFAULT_VEHICLE_MAX_VELOCITY_X,
@@ -11,12 +12,14 @@ import { RNGE_Entities, RNGE_System_Args } from "@/systems/types";
 import { GameLoopSystem } from "@/systems/GameLoopSystem/GameLoopSystem";
 import { ENTITIES_KEYS } from "@/constants/configs";
 import EventEmitter from "react-native/Libraries/vendor/emitter/EventEmitter";
+import { Entities } from "@/containers/ReactNativeSkiaGameEngine";
 
 export class Vehicle extends EventEmitter implements IVehicle {
   protected _x: number;
   protected _y: number;
   protected _isBuoyant: boolean;
   protected _createdFrame: number = 0;
+  protected _createdTime: number;
   protected _isSinked: boolean | undefined;
   protected _isInitialized: boolean = false;
   protected _body: Matter.Body | null = null;
@@ -30,6 +33,8 @@ export class Vehicle extends EventEmitter implements IVehicle {
   protected _acceleration: number = DEFAULT_VEHICLE_ACCELERATION;
   protected _minFramesBeforeInitialization: number =
     DEFAULT_MIN_FRAMES_BEFORE_INITIALIZATION;
+  protected _minTimeBeforeInitialization: number =
+    DEFAULT_MIN_TIME_BEFORE_INITIALIZATION;
   protected _previousVelocity: Matter.Vector = { x: 0, y: 0 };
   protected _currentAcceleration: Matter.Vector = { x: 0, y: 0 };
 
@@ -50,6 +55,7 @@ export class Vehicle extends EventEmitter implements IVehicle {
     maxVelocityX,
     acceleration,
     mass,
+    createdTime,
   }: VehicleConfig) {
     super();
     this._x = x;
@@ -64,6 +70,7 @@ export class Vehicle extends EventEmitter implements IVehicle {
     this._maxVelocityX = maxVelocityX || DEFAULT_VEHICLE_MAX_VELOCITY_X;
     this._acceleration = acceleration || DEFAULT_VEHICLE_ACCELERATION;
     this._mass = mass ?? this._mass;
+    this._createdTime = createdTime;
   }
 
   protected initialize(): void {
@@ -115,10 +122,10 @@ export class Vehicle extends EventEmitter implements IVehicle {
     return this._label;
   }
 
-  public update(entities: RNGE_Entities, { time }: RNGE_System_Args): void {
+  public update(entities: Entities, { time }: RNGE_System_Args): void {
     const { delta } = time;
-    const gameLoopSystem: GameLoopSystem =
-      entities[ENTITIES_KEYS.GAME_LOOP_SYSTEM];
+    // const gameLoopSystem: GameLoopSystem =
+    //   entities[ENTITIES_KEYS.GAME_LOOP_SYSTEM];
     this._size = this.getSize();
     if (!!this._body) {
       this._currentAcceleration = {
@@ -129,8 +136,8 @@ export class Vehicle extends EventEmitter implements IVehicle {
     if (!this._isInitialized && !!this._body) {
       this.keepBodyStable();
       if (
-        gameLoopSystem.currentFrame - this._createdFrame >=
-        this._minFramesBeforeInitialization
+        time.current - this._createdTime >=
+        this._minTimeBeforeInitialization
       ) {
         this._isInitialized = true;
       }

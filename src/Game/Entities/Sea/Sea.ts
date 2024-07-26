@@ -88,12 +88,12 @@ export class Sea implements ISea {
   }
 
   update(currentFrame?: number | undefined): void {
-    this._layers.forEach((layer) => {
+    this._layers.forEach((layer, idx) => {
       layer._waves.forEach((wave) => wave.update(currentFrame));
       // layer.setWaterSurfacePoints();
       layer._waves = layer._waves.filter((wave) => !wave.isExpired());
       if (layer._waves.length < 1) {
-        const addWave = Matter.Common.random() < 0.01;
+        const addWave = Matter.Common.random() < 0.1;
         if (addWave)
           layer.initiateWave({
             x: Matter.Common.random(

@@ -24,6 +24,9 @@ export enum ENTITIES_KEYS {
   SCREEN_TOP_UI = "screen_top_ui",
 }
 
+export const VEHICLES_GROUP = "vehicles";
+export const BUOYANTS_GROUP = "buoyants";
+
 export function getSeaConfigDefaults(
   windowWidth: number,
   windowHeight: number

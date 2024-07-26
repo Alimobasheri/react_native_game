@@ -1,8 +1,8 @@
-export const DEFAULT_PHASE_STEP = 0.2;
+export const DEFAULT_PHASE_STEP = 0.1;
 export const DEFAULT_TIME_STEP = 1;
 export const DEFAULT_AMPLITUDE_MULTIPLIER = 0.95;
 export const DEFAULT_FREQUEMCY_MULTIPLIER = 1.01;
-export const DEFAULT_MINIMUM_AMPLITUDE = 5;
+export const DEFAULT_MINIMUM_AMPLITUDE = 1;
 
 export const MAXIMUM_INITIAL_AMPLITUDE = 100;
 
