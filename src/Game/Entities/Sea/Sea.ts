@@ -87,14 +87,31 @@ export class Sea implements ISea {
     return this._mainLayerIndex;
   }
 
-  update(currentFrame?: number | undefined): void {
+  update(deltaTime?: number | undefined): void {
+    let addedWavesLength = 0;
+    let existingWavesLength = 0;
     this._layers.forEach((layer, idx) => {
-      layer._waves.forEach((wave) => wave.update(currentFrame));
+      layer._waves.forEach((wave) => wave.update(deltaTime));
       // layer.setWaterSurfacePoints();
       layer._waves = layer._waves.filter((wave) => !wave.isExpired());
-      if (layer._waves.length < 1) {
+      if (layer._waves.length > 0) existingWavesLength++;
+      if (
+        layer._waves.length < 1 &&
+        addedWavesLength < 1
+        // existingWavesLength < 2
+      ) {
         const addWave = Matter.Common.random() < 0.1;
-        if (addWave)
+        if (addWave) addedWavesLength++;
+        if (addWave) {
+          const firstRandomForce = Matter.Common.random(1, 10);
+          const secondRandomForce =
+            firstRandomForce < 5
+              ? firstRandomForce
+              : Matter.Common.random(1, 10);
+          const frequency = Matter.Common.random(
+            MINIMUM_INITIAL_FREQUENCY,
+            MAXIMUM_INITIAL_FREQUENCY
+          );
           layer.initiateWave({
             x: Matter.Common.random(
               layer._startingX,
@@ -104,12 +121,11 @@ export class Sea implements ISea {
               DEFAULT_MINIMUM_AMPLITUDE * 3,
               MAXIMUM_INITIAL_AMPLITUDE
             ),
-            frequency: Matter.Common.random(
-              MINIMUM_INITIAL_FREQUENCY,
-              MAXIMUM_INITIAL_FREQUENCY
-            ),
+            frequency,
+            initialForce: secondRandomForce,
             source: WaveSource.DISTURBANCE,
           });
+        }
       }
     });
   }
@@ -139,6 +155,8 @@ export class Sea implements ISea {
     frequency,
     phase,
     time,
+    speed,
+    initialForce,
     source,
     layerIndex,
   }: InitiateWaveConfig): IWave {
@@ -150,6 +168,8 @@ export class Sea implements ISea {
       initialPhase: phase,
       initialTime: time,
       source,
+      speed,
+      initialForce,
     };
     const wave = new Wave(waveConfig);
     layer._waves.push(wave);

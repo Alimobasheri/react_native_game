@@ -3,3 +3,4 @@ export * from "./Entity";
 export * from "./Frames";
 export * from "./Systems";
 export * from "./EventDispatcher";
+export * from "./TouchHandler";

@@ -7,3 +7,6 @@ export * from "./useSystems";
 export * from "./useFrameMemo";
 export * from "./useEntityInstance";
 export * from "./useEntityMemoizedValue";
+export * from "./useTouchHandler";
+export * from "./useTouchService";
+export * from "./useCanvasDimensions";

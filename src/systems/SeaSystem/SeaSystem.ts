@@ -27,7 +27,7 @@ export class SeaSystem implements ISeaSystem {
     return seaSystem.systemInstance(entities, args);
   }
 
-  systemInstanceRNSGE(seaEntity: Entity<Sea>) {
-    seaEntity.data.update();
+  systemInstanceRNSGE(seaEntity: Entity<Sea>, args: RNGE_System_Args) {
+    seaEntity.data.update(args.time.delta);
   }
 }

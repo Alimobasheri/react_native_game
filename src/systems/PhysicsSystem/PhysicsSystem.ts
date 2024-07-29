@@ -41,8 +41,8 @@ export class PhysicsSystem implements IPhysicsSystem {
 
   protected update(entities: Entities, args: RNGE_System_Args): void {
     const { time } = args;
-    Matter.Engine.update(this._engine, time.delta);
     this.updateBuoyantVehicles(entities, args);
+    Matter.Engine.update(this._engine, time.delta);
   }
 
   protected updateBuoyantVehicles(
@@ -167,7 +167,6 @@ export class PhysicsSystem implements IPhysicsSystem {
   ): BuoyantVehicleProps | undefined {
     const { body, size } = buoyantVehicle;
     if (!body) return;
-
     const { bottomY: buoyantVehicleBottomY } = getVerticleBounds(body, size);
 
     let waterSurfaceYAtPoint = sea.getWaterSurfaceAndMaxHeightAtPoint(
@@ -210,6 +209,7 @@ export class PhysicsSystem implements IPhysicsSystem {
         40 &&
       submergedDepth > -10
     ) {
+      console.log(body.position.y);
       Matter.Body.setVelocity(body, {
         x: body.velocity.x,
         y: body.velocity.y > 0 ? 0 : body.velocity.y,
@@ -239,7 +239,7 @@ export class PhysicsSystem implements IPhysicsSystem {
 
         const localBuoyancyForce =
           (buoyancyForce / vehiclePoints.length) *
-          (1 + Math.sqrt(waveHeightAtPoint));
+          (1 + Math.sqrt(0.000001 * waveHeightAtPoint));
         const localBuoyancyForceX =
           (index < pointsCount / 2 ? 1 : -1) *
           localBuoyancyForce *
@@ -261,7 +261,7 @@ export class PhysicsSystem implements IPhysicsSystem {
         sea.layers[sea.mainLayerIndex].getWaterSurfaceAndMaxHeightAtPoint(
           body.position.x
         ).y -
-        size[1] / 3;
+        size[1] / 2;
 
       const position = {
         x: body.position.x,
@@ -344,7 +344,7 @@ export class PhysicsSystem implements IPhysicsSystem {
       const targetAngle = Math.atan(averageSlope);
       const diffAngle = targetAngle - body.angle;
       if (Math.abs(diffAngle) > 0.01) {
-        Matter.Body.setAngle(body, body.angle + diffAngle * 1);
+        Matter.Body.setAngle(body, body.angle + diffAngle * 0.1);
       }
     }
   }

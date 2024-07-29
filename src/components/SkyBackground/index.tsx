@@ -1,8 +1,9 @@
+import { useCanvasDimensions } from "@/containers/ReactNativeSkiaGameEngine";
 import { Rect, Skia, TileMode } from "@shopify/react-native-skia";
 import { useWindowDimensions } from "react-native";
 
 export const SkyBackground = () => {
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useCanvasDimensions();
   const paint = Skia.Paint();
 
   // Colors for the gradient

@@ -2,7 +2,7 @@ import { Boat } from "@/Game/Entities/Boat/Boat";
 import { Sea } from "@/Game/Entities/Sea/Sea";
 import { Ship } from "@/Game/Entities/Ship/Ship";
 import { EntityRendererProps } from "@/constants/views";
-import { FC, memo, useCallback, useMemo } from "react";
+import { FC, memo, useCallback, useMemo, useRef } from "react";
 import {
   ENTITIES_KEYS,
   getSeaConfigDefaults,
@@ -24,6 +24,7 @@ import { useWindowDimensions } from "react-native";
 import {
   Entities,
   useAddEntity,
+  useCanvasDimensions,
   useEntityValue,
   useSystem,
 } from "@/containers/ReactNativeSkiaGameEngine";
@@ -41,14 +42,14 @@ export type seaGroupEntity = {
   windowHeight: number;
 };
 export const SeaGroup: FC<{}> = (props) => {
-  const { width, height } = useWindowDimensions();
+  const { width, height } = useCanvasDimensions();
+  console.log("🚀 ~ height:", height);
   const seaEntity = useAddEntity(new Sea(getSeaConfigDefaults(width, height)), {
     label: ENTITIES_KEYS.SEA,
   });
-  const seaSystem = new SeaSystem(ENGINES.RNSGE);
-  const seaSystemEntity = useAddEntity(seaSystem);
-  useSystem(() => {
-    seaSystemEntity.data.systemInstanceRNSGE(seaEntity);
+  const seaSystem = useRef<SeaSystem>(new SeaSystem(ENGINES.RNSGE));
+  useSystem((entities, args) => {
+    seaSystem.current.systemInstanceRNSGE(seaEntity, args);
   });
   const layersCount = useEntityMemoizedValue<Sea, number>(
     seaEntity.id,
@@ -64,7 +65,7 @@ export const SeaGroup: FC<{}> = (props) => {
     "mainLayerIndex"
   );
   const bottomLayerRenders = useCallback(() => {
-    if (!mainLayerIndex || !layersCount) return null;
+    if ((!mainLayerIndex && mainLayerIndex !== 0) || !layersCount) return null;
     const renderLayers: React.JSX.Element[] = [];
     for (let i = 0; i <= mainLayerIndex; i++) {
       renderLayers.push(
@@ -74,7 +75,7 @@ export const SeaGroup: FC<{}> = (props) => {
     return renderLayers;
   }, [layersCount, mainLayerIndex]);
   const topLayerRenders = useCallback(() => {
-    if (!mainLayerIndex || !layersCount) return null;
+    if ((!mainLayerIndex && mainLayerIndex !== 0) || !layersCount) return null;
     const renderLayers: React.JSX.Element[] = [];
     for (let i = mainLayerIndex + 1; i < layersCount; i++) {
       renderLayers.push(

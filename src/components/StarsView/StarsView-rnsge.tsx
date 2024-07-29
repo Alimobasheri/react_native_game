@@ -5,12 +5,13 @@ import { EntityRendererProps } from "@/constants/views";
 import { Stars } from "@/Game/Entities/BackgroundEntities/Stars/Stars";
 import {
   useAddEntity,
+  useCanvasDimensions,
   useEntityMemoizedValue,
 } from "@/containers/ReactNativeSkiaGameEngine";
 import { Star } from "@/Game/Entities/BackgroundEntities/Stars/types";
 
 export const StarsView: FC<{}> = () => {
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useCanvasDimensions();
   const starsData = useRef(
     new Stars({ screenWidth, screenHeight, initialStarsCount: 100 })
   );

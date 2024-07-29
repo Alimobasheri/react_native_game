@@ -17,6 +17,8 @@ export type InitiateWaveConfig = {
   frequency: number;
   phase?: number;
   time?: number;
+  speed?: number;
+  initialForce?: number;
   source: WaveSource;
   layerIndex?: number;
 };

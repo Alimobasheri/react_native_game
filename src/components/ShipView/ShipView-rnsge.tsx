@@ -12,12 +12,15 @@ import { EntityRendererProps } from "@/constants/views";
 import {
   Entity,
   useAddEntity,
+  useCanvasDimensions,
   useEntityInstance,
   useEntityMemoizedValue,
   useEntityValue,
   useSystem,
 } from "@/containers/ReactNativeSkiaGameEngine";
+import { useFrameEffect } from "@/containers/ReactNativeSkiaGameEngine/hooks/useFrameEffect";
 import { useReRenderCount } from "@/hooks/useReRenderCount";
+import { PhysicsSystem } from "@/systems/PhysicsSystem/PhysicsSystem";
 import { ShipSystem } from "@/systems/ShipSystem/ShipSystem";
 import {
   Group,
@@ -28,7 +31,7 @@ import {
   useImage,
 } from "@shopify/react-native-skia";
 import Matter from "matter-js";
-import { FC, memo, useMemo, useRef } from "react";
+import { FC, memo, MutableRefObject, useMemo, useRef } from "react";
 import { TranslateXTransform, useWindowDimensions } from "react-native";
 import { SharedValue, useDerivedValue } from "react-native-reanimated";
 
@@ -46,15 +49,23 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
   const renderCount = useReRenderCount();
   console.log("🚀 ~ renderCount:", renderCount);
 
-  const seaEntityInstance = useEntityInstance<Sea>(seaEntityId) as Entity<Sea>;
+  const { entity: seaEntityInstance } = useEntityInstance<Sea>(seaEntityId) as {
+    entity: MutableRefObject<Entity<Sea>>;
+  };
 
-  const { width: windowWidth } = useWindowDimensions();
+  const { entity: physicsSystemInstance, found } = useEntityInstance<
+    MutableRefObject<PhysicsSystem>
+  >({ label: ENTITIES_KEYS.PHYSICS_SYSTEM_INSTANCE });
+  const addedBodyToWorld = useRef<boolean>(false);
+  console.log("🚀 ~ seaEntityInstance:", seaEntityInstance);
+
+  const { width: windowWidth } = useCanvasDimensions();
 
   const shipFactoryRef = useRef<ShipFactory>(new ShipFactory({ windowWidth }));
 
   const initialX = useMemo(() => windowWidth / 2, [windowWidth]);
   const initialY = useMemo(
-    () => seaEntityInstance.data.getOriginalWaterSurfaceY(),
+    () => seaEntityInstance.current.data.getOriginalWaterSurfaceY(),
     []
   );
 
@@ -121,6 +132,15 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
   useSystem((entities, args) => {
     shipSystem.systemInstanceRNSGE(entities, args, shipEntity);
   });
+
+  useFrameEffect(() => {
+    if (!found) return;
+    if (addedBodyToWorld.current) return;
+    physicsSystemInstance.current?.data.current.addBodyToWorld(
+      shipEntity.data.body
+    );
+    addedBodyToWorld.current = true;
+  }, [found]);
 
   if (!size.value) return null;
 

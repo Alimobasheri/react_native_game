@@ -68,10 +68,10 @@ export interface IWave {
   /**
    * Given a frame number, updates the wave's phase, time, amplitude, and frquency.
    * After the update, surface points and distances and expirations are calculated based on new values.
-   * @param {number | undefined} currentFrame The current frame number to update the wave positions according to.
+   * @param {number | undefined} deltaTime Time passed since last animation frame.
    * @returns {void}
    */
-  update: (currentFrame?: number) => void;
+  update: (deltaTime?: number) => void;
 }
 
 /**
@@ -97,6 +97,11 @@ export type WaveConfig = {
    * @type {number}
    */
   initialFrequency: number;
+  initialForce?: number;
+  /**
+   * speed of wave based on force
+   */
+  speed?: number;
   /**
    * At what frame was this wave created at.
    * @type {number | undefined}

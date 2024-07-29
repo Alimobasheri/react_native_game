@@ -12,7 +12,8 @@ import { useReRenderCount } from "@/hooks/useReRenderCount";
 import { Canvas } from "@shopify/react-native-skia";
 import { SkyBackground } from "@/components/SkyBackground";
 import { StarsView } from "@/components/StarsView/StarsView-rnsge";
-import { ApplyPhysics } from "@/components/ApplyPhysics";
+import { Physics } from "@/components/Physics";
+import { Swipe } from "@/components/Swipe";
 
 const SubComponent: FC<{}> = (props) => {
   const renderCount = useReRenderCount();
@@ -65,11 +66,21 @@ type Story = StoryObj<typeof meta>;
 export const Basic: Story = {
   args: {},
   render: (args: any) => (
-    <ReactNativeSkiaGameEngine {...args}>
-      <SkyBackground />
-      <StarsView />
-      <SeaGroup />
-      <ApplyPhysics />
-    </ReactNativeSkiaGameEngine>
+    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+      <View
+        style={{
+          width: 800,
+          height: 300,
+        }}
+      >
+        <ReactNativeSkiaGameEngine {...args}>
+          <SkyBackground />
+          <StarsView />
+          <SeaGroup />
+          <Physics />
+          <Swipe />
+        </ReactNativeSkiaGameEngine>
+      </View>
+    </View>
   ),
 };

@@ -31,6 +31,14 @@ export class Entities extends EventEmitter {
     return this._entities;
   }
 
+  public get mapLabelToEntityId(): Map<string, string> {
+    return this._mapLabelToEntityId;
+  }
+
+  public get mapGroupIdToEntities(): Map<string, Entity<any>[]> {
+    return this._mapGroupIdToEntities;
+  }
+
   public addEntity(entity: Entity<any>, options?: IEntityOptions) {
     this._entities.set(entity.id, entity);
     if (options?.label) {
@@ -44,7 +52,7 @@ export class Entities extends EventEmitter {
         this._mapGroupIdToEntities.get(group)?.push(entity);
       }
     }
-    setTimeout(() => this.emit(AddEntityEvent, entity.id));
+    setTimeout(() => this.emit(AddEntityEvent, { entity }));
   }
 
   public getEntityByLabel(label: string): Entity<any> | undefined {

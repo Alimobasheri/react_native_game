@@ -1,11 +1,56 @@
-import { useContext } from "react";
+import {
+  MutableRefObject,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { RNSGEContext } from "../context";
-import { Entity } from "../services";
+import { AddEntityEvent, Entity } from "../services";
+import { useFrameEffect } from "./useFrameEffect";
+
+export type entityIdentifier = {
+  label?: string;
+  group?: string;
+};
 
 export const useEntityInstance = <T>(
-  entityId: string
-): Entity<T> | undefined => {
+  entityId: string | entityIdentifier
+): {
+  entity: MutableRefObject<Entity<T> | Entity<T>[] | undefined>;
+  found: MutableRefObject<boolean>;
+} => {
   const rnsgeContext = useContext(RNSGEContext);
 
-  return rnsgeContext.entities.current.entities.get(entityId);
+  const found = useRef(true);
+
+  const findEntityAndReturn = useCallback(() => {
+    if (typeof entityId === "string") {
+      found.current;
+      return rnsgeContext.entities.current.entities.get(entityId);
+    } else if (typeof entityId === "object") {
+      const { label, group } = entityId;
+      if (label) {
+        if (rnsgeContext.entities.current.mapLabelToEntityId.has(label)) {
+          found.current = true;
+          return rnsgeContext.entities.current.getEntityByLabel(label);
+        }
+      } else if (group) {
+        if (rnsgeContext.entities.current.mapGroupIdToEntities.has(group)) {
+          found.current = true;
+          return rnsgeContext.entities.current.getEntitiesByGroup(group);
+        }
+      }
+    }
+    found.current = false;
+  }, [entityId]);
+
+  const instance = useRef(findEntityAndReturn());
+
+  useFrameEffect(() => {
+    instance.current = findEntityAndReturn();
+  }, []);
+
+  return { entity: instance, found: found };
 };

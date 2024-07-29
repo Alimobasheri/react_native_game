@@ -7,6 +7,8 @@ import { useEntityMemoizedValue } from "@/containers/ReactNativeSkiaGameEngine/h
 import { useFrameEffect } from "@/containers/ReactNativeSkiaGameEngine/hooks/useFrameEffect";
 import { useReRenderCount } from "@/hooks/useReRenderCount";
 import {
+  CornerPathEffect,
+  DiscretePathEffect,
   Group,
   Paint,
   Path,
@@ -28,14 +30,16 @@ export interface ISeaViewProps {
 }
 export const SeaView: FC<ISeaViewProps> = (props) => {
   const renderCount = useReRenderCount();
-  console.log("🚀 ~ SeaView ~ renderCount:", renderCount);
-  const seaEntityInstance = useEntityInstance<Sea>(props.entityId);
+  console.log("🚀 ~ SeaView ~ renderCount:", props.entityId);
+  const { entity: seaEntityInstance, found } = useEntityInstance<Sea>(
+    props.entityId
+  );
   const { height, width, startingX, startingY, layers, gradientColors } =
     useEntityMemoizedValue<Sea, any>(props.entityId, "layers", {
       processor: (layers: Sea["layers"] | undefined) => {
         const layer = layers?.[props.layerIndex];
         if (!layer) return {};
-        if (layer)
+        if (layer) {
           return {
             height: layer.height,
             width: layer.width,
@@ -43,8 +47,14 @@ export const SeaView: FC<ISeaViewProps> = (props) => {
             startingY: layer.startingY - 20,
             gradientColors: layer.gradientColors,
           };
+        }
       },
     });
+  console.log("=======", props.layerIndex);
+  console.log("🚀 ~ startingY:", startingY, startingY + height * 2);
+  console.log("🚀 ~ startingX:", startingX);
+  console.log("🚀 ~ width:", width);
+  console.log("🚀 ~ height:", height);
   const wavePath = useSharedValue<SkPath>(Skia.Path.Make());
 
   const linearGradientMemo = useMemo(() => {
@@ -60,23 +70,26 @@ export const SeaView: FC<ISeaViewProps> = (props) => {
 
   useFrameEffect(
     () => {
+      if (!found.current) return;
       const createWavePath = () => {
         const combinedWavePath = Skia.Path.Make();
-        if (!seaEntityInstance?.data?.getWaterSurfaceAndMaxHeightAtPoint)
+        if (
+          !seaEntityInstance.current?.data.layers[props.layerIndex]
+            .getWaterSurfaceAndMaxHeightAtPoint
+        )
           return combinedWavePath;
 
         const endingX = startingX + width;
-        const endingY = startingY + height * 2;
+        const endingY = startingY + height * 3;
         combinedWavePath.moveTo(startingX, startingY); // Start the path at the left edge of the screen
         const whiteCaps = [];
 
         let lastpy = startingY;
         for (let x = startingX; x < endingX; x++) {
           let pointY =
-            seaEntityInstance.data.getWaterSurfaceAndMaxHeightAtPoint(
-              x,
+            seaEntityInstance.current.data.layers[
               props.layerIndex
-            ).y;
+            ].getWaterSurfaceAndMaxHeightAtPoint(x).y;
           if (lastpy === pointY) {
             if (x < endingX - 1) continue;
           }
@@ -115,14 +128,16 @@ export const SeaView: FC<ISeaViewProps> = (props) => {
       width,
       height,
       props.layerIndex,
-      seaEntityInstance?.data?.getWaterSurfaceAndMaxHeightAtPoint,
+      seaEntityInstance.current?.data.layers[props.layerIndex]
+        .getWaterSurfaceAndMaxHeightAtPoint,
     ],
-    35
+    0
   );
 
   return (
     <Group>
       <Path path={wavePath} style={"fill"} color={"black"}>
+        {/* <DiscretePathEffect deviation={1} length={5} /> */}
         {linearGradientMemo}
       </Path>
       {/* {whiteCaps.map((cap, index) => (
