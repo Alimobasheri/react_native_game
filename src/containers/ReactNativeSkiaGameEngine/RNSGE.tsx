@@ -23,7 +23,6 @@ export const ReactNativeSkiaGameEngine: FC<PropsWithChildren> = memo(
     const systems = useSystems();
     const dispatcher = useDispatcher();
     const touchService = useTouchService();
-    console.log("🚀 ~ touchService:", touchService);
     const { frames } = useGameLoop(entities, systems, dispatcher);
     const [dimensions, setDimensions] = useState<{
       width: number | null;

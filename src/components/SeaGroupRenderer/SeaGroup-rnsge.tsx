@@ -43,7 +43,6 @@ export type seaGroupEntity = {
 };
 export const SeaGroup: FC<{}> = (props) => {
   const { width, height } = useCanvasDimensions();
-  console.log("🚀 ~ height:", height);
   const seaEntity = useAddEntity(new Sea(getSeaConfigDefaults(width, height)), {
     label: ENTITIES_KEYS.SEA,
   });

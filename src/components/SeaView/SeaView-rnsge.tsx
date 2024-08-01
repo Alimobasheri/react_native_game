@@ -29,8 +29,6 @@ export interface ISeaViewProps {
   layerIndex: number;
 }
 export const SeaView: FC<ISeaViewProps> = (props) => {
-  const renderCount = useReRenderCount();
-  console.log("🚀 ~ SeaView ~ renderCount:", props.entityId);
   const { entity: seaEntityInstance, found } = useEntityInstance<Sea>(
     props.entityId
   );
@@ -50,11 +48,6 @@ export const SeaView: FC<ISeaViewProps> = (props) => {
         }
       },
     });
-  console.log("=======", props.layerIndex);
-  console.log("🚀 ~ startingY:", startingY, startingY + height * 2);
-  console.log("🚀 ~ startingX:", startingX);
-  console.log("🚀 ~ width:", width);
-  console.log("🚀 ~ height:", height);
   const wavePath = useSharedValue<SkPath>(Skia.Path.Make());
 
   const linearGradientMemo = useMemo(() => {

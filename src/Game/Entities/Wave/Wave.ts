@@ -184,7 +184,7 @@ export class Wave implements IWave {
     this._phase = this._phaseValueUpdater(this._phase, deltaTime);
     this._time = this._timeValueUpdater(this._time, deltaTime);
     this._frequency = Math.min(
-      0.1,
+      0.08,
       this._frequencyValueUpdater(this._frequency, deltaTime)
     );
   }

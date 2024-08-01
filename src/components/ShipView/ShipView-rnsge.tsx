@@ -41,14 +41,10 @@ export interface IShipViewProps {
 
 const ShipImage = memo((props: SkiaProps<ImageProps>) => {
   const renderCount = useReRenderCount();
-  console.log("🚀 ~ ShipImage ~ renderCount:", renderCount);
   return <Image {...props} />;
 });
 
 export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
-  const renderCount = useReRenderCount();
-  console.log("🚀 ~ renderCount:", renderCount);
-
   const { entity: seaEntityInstance } = useEntityInstance<Sea>(seaEntityId) as {
     entity: MutableRefObject<Entity<Sea>>;
   };
@@ -57,7 +53,6 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
     MutableRefObject<PhysicsSystem>
   >({ label: ENTITIES_KEYS.PHYSICS_SYSTEM_INSTANCE });
   const addedBodyToWorld = useRef<boolean>(false);
-  console.log("🚀 ~ seaEntityInstance:", seaEntityInstance);
 
   const { width: windowWidth } = useCanvasDimensions();
 
