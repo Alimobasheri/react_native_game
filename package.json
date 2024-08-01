@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "1.18.2",
+    "@react-native-community/datetimepicker": "^7.7.0",
     "@shopify/react-native-skia": "0.1.196",
     "cross-env": "^7.0.3",
     "expo": "^49.0.23",
