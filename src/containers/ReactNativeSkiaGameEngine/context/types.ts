@@ -8,7 +8,7 @@ import {
 } from "../services";
 import { ComposedGesture, GestureType } from "react-native-gesture-handler";
 
-interface ICanvasDimensions {
+export interface ICanvasDimensions {
   width: number | null;
   height: number | null;
 }

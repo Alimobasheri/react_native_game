@@ -37,8 +37,8 @@ export function getSeaConfigDefaults(
     y: windowHeight * 0.7,
     width: width,
     height: windowHeight * 0.3,
-    layersCount: 6,
-    mainLayerIndex: 2,
+    layersCount: 3,
+    mainLayerIndex: 1,
     gradientColors: WATER_GRADIENT_COLORS[0],
   };
 }

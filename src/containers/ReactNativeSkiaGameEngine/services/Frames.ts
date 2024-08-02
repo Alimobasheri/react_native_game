@@ -15,6 +15,6 @@ export class Frames extends EventEmitter {
 
   public updateFrame(fps: number, delta: number) {
     this._currentFrame += Math.floor(1 / fps / delta);
-    this.emit(FrameUpdateEvent, this._currentFrame);
+    this.emit(FrameUpdateEvent, delta);
   }
 }

@@ -2,19 +2,22 @@ import { useCallback, useContext, useEffect, useRef } from "react";
 import { RNSGEContext } from "../context";
 import { FrameUpdateEvent } from "../services";
 
-const useThrottle = (callback: () => any, limit: number) => {
+const useThrottle = (callback: (...args: any[]) => any, limit: number) => {
   const lastCall = useRef(0);
-  return useCallback(() => {
-    const now = Date.now();
-    if (now - lastCall.current >= limit) {
-      lastCall.current = now;
-      callback();
-    }
-  }, [callback, limit]);
+  return useCallback(
+    (...args: any[]) => {
+      const now = Date.now();
+      if (now - lastCall.current >= limit) {
+        lastCall.current = now;
+        callback(...args);
+      }
+    },
+    [callback, limit]
+  );
 };
 
 export const useFrameEffect = (
-  callback: () => any,
+  callback: (...args: any[]) => any,
   deps: any[],
   throttleMs: number = 0
 ) => {

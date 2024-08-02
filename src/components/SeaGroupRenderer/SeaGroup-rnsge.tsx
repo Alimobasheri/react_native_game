@@ -32,6 +32,7 @@ import { SeaSystem } from "@/systems/SeaSystem/SeaSystem";
 import { ENGINES } from "@/systems/types";
 import { useEntityMemoizedValue } from "@/containers/ReactNativeSkiaGameEngine/hooks/useEntityMemoizedValue";
 import { SeaView } from "../SeaView/SeaView-rnsge";
+import { SeaViewShader } from "../SeaView/SeaView-rnsge-shader";
 
 export type SeaGroupEntities = {
   [key: string]: Sea | Ship | Boat;
@@ -68,7 +69,11 @@ export const SeaGroup: FC<{}> = (props) => {
     const renderLayers: React.JSX.Element[] = [];
     for (let i = 0; i <= mainLayerIndex; i++) {
       renderLayers.push(
-        <SeaView key={i.toString()} entityId={seaEntity.id} layerIndex={i} />
+        <SeaViewShader
+          key={i.toString()}
+          entityId={seaEntity.id}
+          layerIndex={i}
+        />
       );
     }
     return renderLayers;
@@ -78,7 +83,11 @@ export const SeaGroup: FC<{}> = (props) => {
     const renderLayers: React.JSX.Element[] = [];
     for (let i = mainLayerIndex + 1; i < layersCount; i++) {
       renderLayers.push(
-        <SeaView key={i.toString()} entityId={seaEntity.id} layerIndex={i} />
+        <SeaViewShader
+          key={i.toString()}
+          entityId={seaEntity.id}
+          layerIndex={i}
+        />
       );
     }
     return renderLayers;
