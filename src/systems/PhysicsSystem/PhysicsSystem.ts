@@ -206,10 +206,13 @@ export class PhysicsSystem implements IPhysicsSystem {
     if (
       sea.getOriginalWaterSurfaceY() -
         sea.getWaterSurfaceAndMaxHeightAtPoint(body.position.x).y >
-        40 &&
-      submergedDepth > -10
+        20 &&
+      submergedDepth > -1
     ) {
-      console.log(body.position.y);
+      const res =
+        sea.getOriginalWaterSurfaceY() -
+        sea.getWaterSurfaceAndMaxHeightAtPoint(body.position.x).y;
+      console.log(res, submergedDepth);
       Matter.Body.setVelocity(body, {
         x: body.velocity.x,
         y: body.velocity.y > 0 ? 0 : body.velocity.y,
@@ -234,16 +237,16 @@ export class PhysicsSystem implements IPhysicsSystem {
         this.getWaterSurfacePoints(sea, vehiclePoints);
       // Apply forces at each submerged point
       vehiclePoints.forEach((point, index) => {
-        const heightDiff = originalWaterSurfaceY - waterSurfacePoints[index];
+        const heightDiff = waterSurfacePoints[index] - originalWaterSurfaceY;
         const waveHeightAtPoint = Math.sqrt(heightDiff > 0 ? heightDiff : 0);
 
         const localBuoyancyForce =
           (buoyancyForce / vehiclePoints.length) *
-          (1 + Math.sqrt(0.000001 * waveHeightAtPoint));
+          (1 + Math.exp(0.01 * waveHeightAtPoint));
         const localBuoyancyForceX =
           (index < pointsCount / 2 ? 1 : -1) *
           localBuoyancyForce *
-          (0.1 + 0.1 * Math.sqrt(waveHeightAtPoint));
+          (0.1 + 0.1 * Math.exp(waveHeightAtPoint));
         Matter.Body.applyForce(
           body,
           {
@@ -256,12 +259,11 @@ export class PhysicsSystem implements IPhysicsSystem {
           }
         );
       });
-    } else if (submergedDepth > 0) {
-      const positionY =
-        sea.layers[sea.mainLayerIndex].getWaterSurfaceAndMaxHeightAtPoint(
-          body.position.x
-        ).y -
-        size[1] / 2;
+    } else if (submergedDepth > -size[1] * 0.3) {
+      const seaY = sea.layers[
+        sea.mainLayerIndex
+      ].getWaterSurfaceAndMaxHeightAtPoint(body.position.x).y;
+      const positionY = seaY - size[1] * 0.6;
 
       const position = {
         x: body.position.x,

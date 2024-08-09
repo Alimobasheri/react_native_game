@@ -7,9 +7,11 @@ import {
 } from "@/constants/waterConfigs";
 import { IWave, WaveConfig } from "./types";
 import { WaveSource } from "../Sea/types";
+import { ICanvasDimensions } from "@/containers/ReactNativeSkiaGameEngine";
 
 export class Wave implements IWave {
   protected _initialConfig: WaveConfig;
+  protected _dimensions: ICanvasDimensions;
   protected _source: WaveSource;
   protected _x: number;
   protected _phase: number = -Math.PI / 2;
@@ -27,7 +29,7 @@ export class Wave implements IWave {
   protected _velocity: number = 0; // New property for wave velocity
   protected _acceleration: number = 0; // New property for wave acceleration
   protected _gravity: number = 0.98; // Gravity constant
-  protected _friction: number = 0.1; // Friction constant
+  protected _friction: number = 0.2; // Friction constant
   protected _phaseValueUpdater = (
     prevPhase: number,
     deltaTime: number
@@ -114,18 +116,23 @@ export class Wave implements IWave {
 
   constructor(config: WaveConfig) {
     this._initialConfig = config;
+    this._dimensions = config.dimensions;
+
     this._x = config.x;
     this._maxAmplitude = config.initialAmplitude;
-    this._amplitude = config.initialAmplitude / 20;
+    this._amplitude =
+      config.source === WaveSource.FLOW ? config.initialAmplitude : 0;
+
     this._frequency = config.initialFrequency;
     // this._phase = config.initialPhase ?? 0;
     this._time = config.initialTime ?? 0;
-    this._speed = config.speed ?? 1;
+    this._speed = config.speed ?? 0.01;
     this._source = config.source;
 
     // New property for force
     this._initialForce = config.initialForce ?? 1;
-    this._velocity = this._initialForce; // Initial velocity based on the force
+    this._acceleration = config.initialForce ?? 0;
+    this._velocity = config.speed ?? 0; // Initial velocity based on the force
 
     this._amplitudeMultiplier =
       config.amplitudeMultiplier ?? this._amplitudeMultiplier;
@@ -165,31 +172,56 @@ export class Wave implements IWave {
     return this._frequency;
   }
 
+  get speed(): number {
+    return this._speed;
+  }
+
   get source(): WaveSource {
     return this._source;
   }
 
   // Modified update method to simulate physics
-  update(deltaTime: number) {
-    // Update acceleration with gravity and friction
-    this._acceleration =
-      -(this._gravity * Math.exp(this._amplitude * 0.01)) - this._friction;
+  update(deltaTime?: number) {
+    if (!deltaTime) return;
 
-    // Update velocity with acceleration
-    this._velocity += (this._acceleration * deltaTime) / 100;
+    // Convert deltaTime to seconds
+    const deltaSeconds = deltaTime / 1000;
 
-    // Update amplitude with velocity
-    this._amplitude += (this._velocity * deltaTime) / 100;
+    // Update time
+    this._time += deltaSeconds;
 
-    this._phase = this._phaseValueUpdater(this._phase, deltaTime);
-    this._time = this._timeValueUpdater(this._time, deltaTime);
-    this._frequency = Math.min(
-      0.08,
-      this._frequencyValueUpdater(this._frequency, deltaTime)
-    );
+    if (this._source === WaveSource.FLOW) return;
+
+    // Update acceleration due to gravity and friction
+    this._acceleration -= -this._gravity * deltaSeconds;
+    this._velocity += this._acceleration * deltaSeconds;
+    this._velocity *= 1 - this._friction;
+
+    // Initial quick rise phase for amplitude
+    const riseTime = 0.5; // 1 second for quick rise
+    const initialDecayFactor = 0.9; // Quick decay factor for initial rise
+    const smoothDecayFactor = 0.92; // Smooth decay factor for gradual decay
+
+    if (this._time < riseTime) {
+      const progress = this._time / riseTime;
+      this._amplitude = this._maxAmplitude * progress * progress * 2;
+    } else {
+      // Gradual decay phase
+      this._amplitude *= smoothDecayFactor;
+    }
+
+    if (this._time > riseTime && this._frequency < 30) {
+      // Smooth frequency update
+      const frequencyDecayFactor = 1.01; // A decay factor for smoother frequency changes
+      this._frequency = this._frequency * frequencyDecayFactor;
+    }
+    if (this._time > riseTime && this._speed < 0.6) {
+      this._speed *= 1.01;
+    }
   }
+
   isExpired(): boolean {
-    return this._amplitude < this._minimumAmplitude;
+    return this._amplitude < 0.005;
   }
   /**
    * Retrieves the decay factor at a given distance.
@@ -198,16 +230,40 @@ export class Wave implements IWave {
    * @return {number} the calculated decay factor
    */
   protected getDecayFactorAtDistance(distance: number): number {
-    return Math.exp(-0.01 * Math.abs(distance));
+    return Math.exp(-10 * Math.abs(distance));
+  }
+  smoothstep(edge0: number, edge1: number, x: number): number {
+    let t = (x - edge0) / (edge1 - edge0);
+
+    t = Math.max(0, Math.min(1, t));
+
+    return t * t * (3 - 2 * t);
   }
   getSurfaceAtPosition(x: number): number {
-    const distance = x - this._x;
-    const decayFactor = this.getDecayFactorAtDistance(distance);
+    if (!this._dimensions) return 0;
+    let xPosition = x / (this._dimensions.width || 1);
+
+    xPosition = xPosition + this._time * this._speed * 0.4;
+    let distance = xPosition - this._x / (this._dimensions.width || 1);
+    let decayFactor = 1;
+    if (this._source !== WaveSource.FLOW)
+      decayFactor = this.getDecayFactorAtDistance(distance);
+    let phase = 0;
+    if (this._source !== WaveSource.FLOW) phase = this._phase;
     const surface =
       -this.amplitude *
+      0.05 *
       decayFactor *
-      Math.cos((x - this._x) * this.frequency + this.phase);
-    return surface;
+      Math.sin(distance * this.frequency * 0.5 + 0.5);
+    return surface * (this._dimensions.height || 1);
+  }
+  getUniformsForShader() {
+    return {
+      amplitude: this._amplitude,
+      frequency: this._frequency,
+      phase: this._phase,
+      x: this._x,
+    };
   }
   getDistanceFromSurfaceAtPosition(x: number, y: number) {
     return y - this.getSurfaceAtPosition(x);

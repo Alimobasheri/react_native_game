@@ -6,8 +6,26 @@ export const DEFAULT_MINIMUM_AMPLITUDE = 5;
 
 export const MAXIMUM_INITIAL_AMPLITUDE = 150;
 
-export const MINIMUM_INITIAL_FREQUENCY = 0.005;
-export const MAXIMUM_INITIAL_FREQUENCY = 0.1;
+export const MINIMUM_INITIAL_FREQUENCY = 5;
+export const MAXIMUM_INITIAL_FREQUENCY = 10;
+
+export const layerFlowConfigs = [
+  {
+    flowAmplitude: 0.6,
+    flowFrequency: 30,
+    flowSpeed: 0.9,
+  },
+  {
+    flowAmplitude: 0.8,
+    flowFrequency: 24,
+    flowSpeed: 0.4,
+  },
+  {
+    flowAmplitude: 0.4,
+    flowFrequency: 10,
+    flowSpeed: 0.2,
+  },
+];
 
 // export const WATER_GRADIENT_COLORS = [
 //   [

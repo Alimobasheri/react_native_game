@@ -38,6 +38,10 @@ export interface IWave {
    */
   get frequency(): number;
   /**
+   * What source caused this wave
+   */
+  get source(): WaveSource;
+  /**
    * Checks if based on current amplitude,the wave is no longer useful to draw.
    * @returns {boolean} true if wave is expired
    */
@@ -78,6 +82,10 @@ export interface IWave {
  * Initial config to create a functioning wave in sea.
  */
 export type WaveConfig = {
+  /**
+   * Dimensions to normalize the wave.
+   */
+  dimensions: { width: number; height: number };
   /**
    * Used to differentiate between user made waves and other waves.
    */

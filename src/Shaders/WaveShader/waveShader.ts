@@ -1,31 +1,58 @@
 import { ICanvasDimensions } from "@/containers/ReactNativeSkiaGameEngine";
 import { Skia } from "@shopify/react-native-skia";
-import { useDerivedValue } from "react-native-reanimated";
+import { SharedValue, useDerivedValue } from "react-native-reanimated";
+import { shaderNoiseFuncWithRandom } from "../common";
 
 export const waveShaderUniforms = `
+  float M_PI = 3.1415926535897932384626433832795;
+  float wave_x = 0;
   uniform float iTime;
   uniform float height;
   uniform float heightOffset;
-  uniform float frequency1;
-  uniform float frequency2;
-  uniform float frequency3;
-  uniform float amplitude1;
-  uniform float amplitude2;
-  uniform float amplitude3;
-  uniform float speed1;
-  uniform float speed2;
-  uniform float speed3;
+  uniform float frequency;
+  uniform float amplitude;
+  uniform float speed;
+  uniform float dynamicWaveX;
+  uniform vec4 dynamicWave;
   uniform float heightOffsetFreq;
   uniform float heightOffsetAmp;
   uniform vec3 waterColor;
   uniform vec2 canvasSize;
 `;
 
+export const waveShaderFoamIntensityFunc = `
+  // Function to calculate foam intensity based on height and noise
+  float foamIntensity(float noiseValue, float height) {
+      return smoothstep(0.0, 1., noiseValue + height);
+  }
+`;
+
+export const waveShaderGetDecayFunc = `
+  float getDecayFactorAtDistance(float distance) {
+    return exp(-10. * abs(distance));
+  }
+`;
+
+export const waveShaderYPosition = `
+  vec2 YPosition(vec2 uv, float h, float t, float i, float freq) {
+    vec2 st = uv;
+    vec2 dynamic_st = st;
+    st.x += t;
+    float d = st.x - (wave_x / canvasSize.x);
+    st.y += -sin((d * (freq))* 0.5 + 0.5) * i;
+
+    dynamic_st.x += dynamicWave.z * dynamicWave.w;
+    float dynamicDistance = dynamic_st.x - (dynamicWaveX / canvasSize.x);
+    float decayFactor = getDecayFactorAtDistance(dynamicDistance);
+    st.y += -sin((dynamicDistance * dynamicWave.y)* 0.5 + 0.5) * dynamicWave.x * 0.05 * decayFactor;
+
+    return st;
+  }
+`;
+
 export const waveShaderWaveMaskFunc = `
   float WaveMask(vec2 uv, float h, float t, float i, float freq) {
-    vec2 st = uv;
-    st.x += t;
-    st.y += (sin(st.x * freq) * 0.5 + 0.5) * i;
+    vec2 st = YPosition(uv, h, t, i, freq);
 
     float softness = 0.001;
     float c = smoothstep(h + softness, h, st.y);
@@ -34,10 +61,10 @@ export const waveShaderWaveMaskFunc = `
 `;
 
 export const waveShaderWaterMaskFunc = `
-  float WaterMask(vec2 uv, float h, float t, float i, float freq1, float freq2, float freq3) {
-    float waterMask1 = WaveMask(uv, h, t * speed1, i * amplitude1, freq1);
-    float waterMask2 = WaveMask(uv, h, -t * speed2, i * amplitude2, freq2);
-    float waterMask3 = WaveMask(uv, h, t * speed3, i * amplitude3, freq3);
+  float WaterMask(vec2 uv, float h, float t, float i, float freq) {
+    float waterMask1 = WaveMask(uv, h, t * 0.4, i * 0.05, freq);
+    float waterMask2 = WaveMask(uv, h, -t * 0.5, i * 0.05, freq);
+    float waterMask3 = WaveMask(uv, h, t * 0.3, i * 0.05, freq);
 
     float waterMask = mix(waterMask1, waterMask2, .5);
     waterMask = mix(waterMask, waterMask3, .5);
@@ -45,25 +72,38 @@ export const waveShaderWaterMaskFunc = `
   }
 `;
 
-export const waveShaderMainFunc = () => `
+export const waveShaderMainFunc = `
   half4 main(vec2 fragCoord) {
-    vec2 uv = 1. - fragCoord / canvasSize;
-    float h = height;
+    vec2 uv = fragCoord / canvasSize;
+    uv.y = 1. - uv.y;
+    float h = height + heightOffset;
+    
+    float w = WaterMask(uv,  h, iTime * speed, amplitude, frequency);
 
-    float o1 = -sin(iTime * heightOffsetFreq) * heightOffsetAmp;
+    vec2 wavePosition = YPosition(uv, h, iTime * speed * 0.4, amplitude * 0.05, frequency);
+
+    float foamNoise = noise(wavePosition * 5. * speed * frequency * amplitude);
+    float clampedW = clamp(1. - w, 0., 1.);
+    float foam = 1. - foamIntensity(foamNoise,clampedW)*3.;
+    float clampedFoam = clamp(foam, 0., 1.);
+
+    float whiteCap = 1./ exp(smoothstep(h, h+0.01,wavePosition.y*1.1)*5.);
+    vec3 waterMix = w*waterColor+vec3(1.)*clampedFoam;
     
-    float w = WaterMask(uv,  h + heightOffset, iTime * 0.25, 1.0, frequency1, frequency2, frequency3);
-    
-    return vec4(w * waterColor, w*1.);
+    return vec4(waterMix, w*whiteCap*1.);
   }
 `;
 
 export const createWaveShader = () => {
   return Skia.RuntimeEffect.Make(`
     ${waveShaderUniforms}
+    ${shaderNoiseFuncWithRandom}
+    ${waveShaderGetDecayFunc}
+    ${waveShaderFoamIntensityFunc}
+    ${waveShaderYPosition}
     ${waveShaderWaveMaskFunc}
     ${waveShaderWaterMaskFunc}
-    ${waveShaderMainFunc()}
+    ${waveShaderMainFunc}
   `)!;
 };
 
@@ -72,36 +112,27 @@ export const useWaveShaderUniforms = (
   time: any,
   height: number,
   heightOffset: number,
-  freq1: number,
-  amp1: number,
-  speed1: number,
-  freq2: number,
-  amp2: number,
-  speed2: number,
-  freq3: number,
-  amp3: number,
-  speed3: number,
+  frequency: number,
+  speed: number,
+  amplitude: number,
+  dynamicWaveX: SharedValue<number>,
+  dynamicWave: SharedValue<[number, number, number, number]>,
   heightOffsetFreq: number,
   heightOffsetAmp: number,
   waterColor: [number, number, number]
 ) => {
-  console.log("🚀 ~ heightOffset:", heightOffset);
   return useDerivedValue(() => {
     return {
       iTime: time.value,
       height: dimensions.height ? height / dimensions.height : 0,
       heightOffset,
-      frequency1: freq1,
-      amplitude1: amp1,
-      speed1: speed1,
-      frequency2: freq2,
-      amplitude2: amp2,
-      speed2: speed2,
-      frequency3: freq3,
-      amplitude3: amp3,
-      speed3: speed3,
+      frequency: frequency,
+      amplitude: amplitude,
+      speed: speed,
       heightOffsetFreq,
       heightOffsetAmp,
+      dynamicWaveX: dynamicWaveX.value,
+      dynamicWave: dynamicWave.value,
       waterColor: waterColor.map((color) => color / 255) as [
         number,
         number,
@@ -113,16 +144,12 @@ export const useWaveShaderUniforms = (
     time.value,
     height,
     dimensions.height,
-    freq1,
-    amp1,
-    speed1,
-    freq2,
-    amp2,
-    speed2,
-    freq3,
-    amp3,
-    speed3,
+    frequency,
+    amplitude,
+    speed,
     waterColor,
+    dynamicWaveX.value,
+    dynamicWave.value,
   ]);
 };
 

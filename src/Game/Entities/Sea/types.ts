@@ -9,6 +9,7 @@ export type SurfacePointMap = Map<number, WaterSurfacePoint>;
 export enum WaveSource {
   TOUCH = "touch",
   DISTURBANCE = "disturbance",
+  FLOW = "FLOW",
 }
 
 export type InitiateWaveConfig = {
@@ -99,6 +100,8 @@ export type SeaConfig = {
    * Height of the sea rendered.
    */
   height: number;
+  windowWidth: number;
+  windowHeight: number;
   /**
    * How many layers this sea item contains.
    */
@@ -108,4 +111,7 @@ export type SeaConfig = {
    */
   mainLayerIndex?: number;
   gradientColors?: string[];
+  flowAmplitude?: number;
+  flowFrequency?: number;
+  flowSpeed?: number;
 };

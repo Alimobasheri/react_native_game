@@ -40,6 +40,8 @@ export function getSeaConfigDefaults(
     layersCount: 3,
     mainLayerIndex: 1,
     gradientColors: WATER_GRADIENT_COLORS[0],
+    windowWidth,
+    windowHeight,
   };
 }
 
