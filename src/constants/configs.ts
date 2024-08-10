@@ -11,6 +11,7 @@ export enum ENTITIES_KEYS {
   SHIP = "ship",
   BOAT_LABEL = "boat_",
   SEA_GROUP = "sea_group",
+  BOAT_GROUP = "boat_group",
   MOUNTAIN_BACKGROUND = "mountain_background",
   GAME_LOOP_SYSTEM = "game_loop_system",
   TOUCH_SYSTEM_INSTANCE = "touch_system_instance",

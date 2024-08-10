@@ -15,6 +15,7 @@ export type BoatFactoryCreatorConfig = {
   y: number;
   direction: DIRECTION;
   label: string;
+  createdTime: number;
 };
 
 export class BoatFactory {

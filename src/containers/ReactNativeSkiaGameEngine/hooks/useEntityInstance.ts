@@ -27,7 +27,10 @@ export const useEntityInstance = <T>(
 
   const findEntityAndReturn = useCallback(() => {
     if (typeof entityId === "string") {
-      found.current;
+      if (!rnsgeContext.entities.current.entities.has(entityId)) {
+        found.current = false;
+        return;
+      }
       return rnsgeContext.entities.current.entities.get(entityId);
     } else if (typeof entityId === "object") {
       const { label, group } = entityId;

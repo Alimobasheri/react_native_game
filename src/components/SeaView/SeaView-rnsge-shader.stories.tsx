@@ -3,14 +3,17 @@ import { Text, View } from "react-native";
 import { FC, useCallback, useEffect, useMemo, useRef } from "react";
 import { SeaViewShader } from "./SeaView-rnsge-shader";
 import { Sea } from "@/Game/Entities/Sea/Sea";
-import { getSeaConfigDefaults } from "@/constants/configs";
+import { ENTITIES_KEYS, getSeaConfigDefaults } from "@/constants/configs";
 import {
   ReactNativeSkiaGameEngine,
   useAddEntity,
   useCanvasDimensions,
+  useSystem,
 } from "@/containers/ReactNativeSkiaGameEngine";
 import { WATER_GRADIENT_COLORS } from "@/constants/waterConfigs";
 import { Blend, Fill, Group, Rect } from "@shopify/react-native-skia";
+import { SeaSystem } from "@/systems/SeaSystem/SeaSystem";
+import { ENGINES } from "@/systems/types";
 
 const meta = {
   title: "Sea View Shader",
@@ -41,6 +44,21 @@ const SeaGroupComponent: FC<{}> = (props) => {
   }, [dimensions.width, dimensions.height]);
   const seaEntitiy = useAddEntity<Sea>(new Sea(config), {
     label: "sea",
+  });
+
+  const seaSystem = useRef(new SeaSystem(ENGINES.RNSGE));
+
+  useAddEntity(seaSystem, {
+    label: ENTITIES_KEYS.SEA_SYSTEM_INSTANCE,
+  });
+
+  useSystem((entities, args) => {
+    const seaSystem = entities.getEntityByLabel(
+      ENTITIES_KEYS.SEA_SYSTEM_INSTANCE
+    );
+    const sea = entities.getEntityByLabel(ENTITIES_KEYS.SEA);
+    if (!sea || !seaSystem) return;
+    seaSystem.data.current.systemInstanceRNSGE(sea, args);
   });
 
   return null;

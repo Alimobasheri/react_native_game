@@ -55,6 +55,34 @@ export class Entities extends EventEmitter {
     setTimeout(() => this.emit(AddEntityEvent, { entity }));
   }
 
+  public removeEntity(entityId: string | { label?: string; group?: string[] }) {
+    if (typeof entityId === "string") {
+      this._entities.delete(entityId);
+      this._mapLabelToEntityId.forEach((id, label) => {
+        if (id === entityId) this._mapLabelToEntityId.delete(label);
+      });
+      this._mapGroupIdToEntities.forEach((entities, group) => {
+        const index = entities.findIndex((entity) => entity.id === entityId);
+        if (index !== -1) {
+          entities.splice(index, 1);
+          if (entities.length === 0) this._mapGroupIdToEntities.delete(group);
+        }
+      });
+    } else if (entityId.label) {
+      const entity = this._mapLabelToEntityId.get(entityId.label);
+      if (entity) this.removeEntity(entity);
+    } else if (entityId.group) {
+      entityId.group.forEach((group) => {
+        const entities = this._mapGroupIdToEntities.get(group);
+        if (entities) {
+          entities.forEach((entity) => {
+            this.removeEntity(entity.id);
+          });
+        }
+      });
+    }
+  }
+
   public getEntityByLabel(label: string): Entity<any> | undefined {
     const entityId = this._mapLabelToEntityId.get(label);
     if (!entityId) return;

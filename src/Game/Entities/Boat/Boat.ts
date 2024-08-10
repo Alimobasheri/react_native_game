@@ -10,6 +10,7 @@ import { BoatView } from "@/components/BoatView";
 import { CollisionsSystem } from "@/systems/CollisionsSystem/CollisionsSystem";
 import { GameLoopSystem } from "@/systems/GameLoopSystem/GameLoopSystem";
 import { Sea } from "../Sea/Sea";
+import { Entities, Entity } from "@/containers/ReactNativeSkiaGameEngine";
 
 export class Boat extends Vehicle implements IBoat {
   protected _isAttacking: boolean = false;
@@ -30,6 +31,7 @@ export class Boat extends Vehicle implements IBoat {
     isAttacking,
     direction,
     label,
+    createdTime,
   }: BoatConfig) {
     super({
       x,
@@ -40,6 +42,7 @@ export class Boat extends Vehicle implements IBoat {
       isInitialized,
       type: VEHICLE_TYPE_IDENTIFIERS.BOAT,
       label,
+      createdTime,
     });
     this._isAttacking = isAttacking ?? this._isAttacking;
     this._direction = direction;
@@ -135,20 +138,25 @@ export class Boat extends Vehicle implements IBoat {
     }
   }
 
-  protected _onUpdate(entities: RNGE_Entities): void {
+  protected _onUpdate(entities: Entities): void {
     if (this.isSinked) return;
-    const sea: Sea = entities[ENTITIES_KEYS.SEA_GROUP].entities["sea"];
-    const ship: Ship = entities[ENTITIES_KEYS.SEA_GROUP].entities["ship"];
-    const gameLoopSystem: GameLoopSystem =
-      entities[ENTITIES_KEYS.GAME_LOOP_SYSTEM];
-    const currentFrame = gameLoopSystem.currentFrame;
-    const collisionsSystem: CollisionsSystem =
-      entities[ENTITIES_KEYS.COLLISIONS_SYSTEM_INSTANCE];
-    const shipBoatCollisionsInFrame = collisionsSystem.collisionsInFrame;
-    const hasThisBoatCollided = shipBoatCollisionsInFrame.find(
-      (collision) =>
-        collision.frame === currentFrame && collision.boatLabel === this._label
+    const sea: Entity<Sea> | undefined = entities.getEntityByLabel(
+      ENTITIES_KEYS.SEA
     );
+    const ship: Entity<Ship> | undefined = entities.getEntityByLabel(
+      ENTITIES_KEYS.SHIP
+    );
+    // const gameLoopSystem: GameLoopSystem =
+    //   entities[ENTITIES_KEYS.GAME_LOOP_SYSTEM];
+    // const currentFrame = gameLoopSystem.currentFrame;
+    // const collisionsSystem: CollisionsSystem =
+    //   entities[ENTITIES_KEYS.COLLISIONS_SYSTEM_INSTANCE];
+    // const shipBoatCollisionsInFrame = collisionsSystem.collisionsInFrame;
+    const hasThisBoatCollided = false;
+    // shipBoatCollisionsInFrame.find(
+    //   (collision) =>
+    //     collision.frame === currentFrame && collision.boatLabel === this._label
+    // );
     // console.log(
     //   "🚀 ~ Boat ~ _onUpdate ~ this._body.velocity.y:",
     //   this._body?.velocity.y
@@ -158,7 +166,7 @@ export class Boat extends Vehicle implements IBoat {
       this.isSinked = true;
       this._isAttacking = false;
     } else if (!!ship) {
-      this._attackShip(ship, sea);
+      this._attackShip(ship!.data, sea!.data);
       this._isAttacking = true;
     }
   }

@@ -10,3 +10,4 @@ export * from "./useEntityMemoizedValue";
 export * from "./useTouchHandler";
 export * from "./useTouchService";
 export * from "./useCanvasDimensions";
+export * from "./useEntityState";

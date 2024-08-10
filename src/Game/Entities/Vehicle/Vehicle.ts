@@ -133,6 +133,13 @@ export class Vehicle extends EventEmitter implements IVehicle {
         y: (this._body.velocity.y - this._previousVelocity.y) / delta,
       };
     }
+    // if (this._type === VEHICLE_TYPE_IDENTIFIERS.BOAT) {
+    //   console.log(
+    //     "=====",
+    //     this._createdTime,
+    //     this._minTimeBeforeInitialization
+    //   );
+    // }
     if (!this._isInitialized && !!this._body) {
       this.keepBodyStable();
       if (

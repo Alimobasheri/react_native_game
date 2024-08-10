@@ -1,6 +1,7 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { Entity, Frames, FrameUpdateEvent } from "../services";
 import { RNSGEContext } from "../context";
+import { deepEqual } from "../utils/deepEqual";
 
 export type GetValue<E, T> = (
   entity: Entity<E> | undefined,
@@ -9,40 +10,6 @@ export type GetValue<E, T> = (
 export type Factory<T> = () => T;
 export type Comparator = (prevDeps: any, nextDeps: any) => boolean;
 export type Dep<E> = [string, keyof E];
-
-const deepEqual = (obj1: any, obj2: any): boolean => {
-  if (typeof obj1 !== "object") {
-    if (obj1 !== obj2) {
-      return false;
-    }
-  }
-  if (obj1 === obj2) {
-    return true;
-  }
-
-  if (typeof obj1 !== typeof obj2) {
-    return false;
-  }
-
-  if (typeof obj1 === "object" && obj1 !== null && obj2 !== null) {
-    const keys1 = Object.keys(obj1);
-    const keys2 = Object.keys(obj2);
-
-    if (keys1.length !== keys2.length) {
-      return false;
-    }
-
-    for (const key of keys1) {
-      if (!deepEqual(obj1[key], obj2[key])) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  return false;
-};
 
 const deepComparator: Comparator = (prevDep, nextDep) => {
   if (!deepEqual(prevDep, nextDep)) {

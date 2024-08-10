@@ -23,7 +23,7 @@ export const waveShaderUniforms = `
 export const waveShaderFoamIntensityFunc = `
   // Function to calculate foam intensity based on height and noise
   float foamIntensity(float noiseValue, float height) {
-      return smoothstep(0.0, 1., noiseValue + height);
+      return smoothstep(0.0, 1., noiseValue * 2. + height);
   }
 `;
 
@@ -66,8 +66,8 @@ export const waveShaderWaterMaskFunc = `
     float waterMask2 = WaveMask(uv, h, -t * 0.5, i * 0.05, freq);
     float waterMask3 = WaveMask(uv, h, t * 0.3, i * 0.05, freq);
 
-    float waterMask = mix(waterMask1, waterMask2, .5);
-    waterMask = mix(waterMask, waterMask3, .5);
+    float waterMask = mix(waterMask1, waterMask2, .3);
+    waterMask = mix(waterMask, waterMask3, .2);
     return waterMask;
   }
 `;
@@ -80,15 +80,15 @@ export const waveShaderMainFunc = `
     
     float w = WaterMask(uv,  h, iTime * speed, amplitude, frequency);
 
-    vec2 wavePosition = YPosition(uv, h, iTime * speed * 0.4, amplitude * 0.05, frequency);
+    vec2 wavePosition = YPosition(uv, h, iTime * speed * 0.2, amplitude * 0.05, frequency);
 
-    float foamNoise = noise(wavePosition * 5. * speed * frequency * amplitude);
+    float foamNoise = noise(wavePosition * 2. * frequency);
     float clampedW = clamp(1. - w, 0., 1.);
     float foam = 1. - foamIntensity(foamNoise,clampedW)*3.;
     float clampedFoam = clamp(foam, 0., 1.);
 
-    float whiteCap = 1./ exp(smoothstep(h, h+0.01,wavePosition.y*1.1)*5.);
-    vec3 waterMix = w*waterColor+vec3(1.)*clampedFoam;
+    float whiteCap = 1./ exp(smoothstep(h, h+0.01,wavePosition.y*1.)*.5);
+    vec3 waterMix = mix(vec3(1.)*clampedFoam,w*waterColor, 0.9);
     
     return vec4(waterMix, w*whiteCap*1.);
   }

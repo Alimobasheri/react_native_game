@@ -33,6 +33,7 @@ import { ENGINES } from "@/systems/types";
 import { useEntityMemoizedValue } from "@/containers/ReactNativeSkiaGameEngine/hooks/useEntityMemoizedValue";
 import { SeaView } from "../SeaView/SeaView-rnsge";
 import { SeaViewShader } from "../SeaView/SeaView-rnsge-shader";
+import { Boats } from "../Boats";
 
 export type SeaGroupEntities = {
   [key: string]: Sea | Ship | Boat;
@@ -78,6 +79,10 @@ export const SeaGroup: FC<{}> = (props) => {
     }
     return renderLayers;
   }, [layersCount, mainLayerIndex]);
+
+  const boats = useCallback(() => {
+    return <Boats />;
+  }, []);
   const topLayerRenders = useCallback(() => {
     if ((!mainLayerIndex && mainLayerIndex !== 0) || !layersCount) return null;
     const renderLayers: React.JSX.Element[] = [];
@@ -96,6 +101,7 @@ export const SeaGroup: FC<{}> = (props) => {
     <Group>
       {topLayerRenders()}
       <ShipView key="ship" seaEntityId={seaEntity.id} />
+      {boats()}
       {bottomLayerRenders()}
     </Group>
   );

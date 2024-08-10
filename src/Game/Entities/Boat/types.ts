@@ -47,6 +47,7 @@ export type BoatConfig = {
    * @todo should reimplement this, by letting the boat trace the ship, instead of hardcoding the behavior.
    */
   direction: DIRECTION;
+  createdTime: number;
 } & Omit<VehicleConfig, "isBuoyant" | "type">;
 
 export type commonBoatBuildsConfig = {
@@ -54,4 +55,5 @@ export type commonBoatBuildsConfig = {
   y: number;
   direction: DIRECTION;
   label: string;
+  createdTime: number;
 } & Pick<IGameConfig, "windowWidth">;
