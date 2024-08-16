@@ -1,4 +1,4 @@
-import { WaterSurfacePoint } from "@/types/globals";
+import { WaterSurfacePoint } from '@/types/globals';
 
 export type getSubmergedAreaReturnValue = {
   /**

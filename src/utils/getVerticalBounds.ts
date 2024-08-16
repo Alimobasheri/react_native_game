@@ -1,4 +1,4 @@
-import Matter from "matter-js";
+import Matter from 'matter-js';
 
 export type verticleBoundsResult = {
   /**
@@ -15,7 +15,9 @@ export function getVerticleBounds(
   body: Matter.Body,
   size: number[]
 ): verticleBoundsResult {
+  const bounds = Matter.Bounds.create(body.vertices);
+  // console.log('🚀 ~ bounds:', bounds);
   const bottomY = body.position.y + (size[1] / 2) * Math.cos(body.angle);
   const topY = body.position.y - (size[1] / 2) * Math.cos(body.angle);
-  return { bottomY, topY };
+  return { bottomY: bounds.max.y, topY: bounds.min.y };
 }

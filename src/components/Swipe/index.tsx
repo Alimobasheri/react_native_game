@@ -1,21 +1,21 @@
-import { ENTITIES_KEYS } from "@/constants/configs";
+import { ENTITIES_KEYS } from '@/constants/configs';
 import {
   MAXIMUM_INITIAL_AMPLITUDE,
   MAXIMUM_INITIAL_FREQUENCY,
   MINIMUM_INITIAL_FREQUENCY,
-} from "@/constants/waterConfigs";
+} from '@/constants/waterConfigs';
 import {
   Entity,
   useCanvasDimensions,
   useEntityInstance,
   useTouchHandler,
-} from "@/containers/ReactNativeSkiaGameEngine";
-import { useFrameEffect } from "@/containers/ReactNativeSkiaGameEngine/hooks/useFrameEffect";
-import { Sea } from "@/Game/Entities/Sea/Sea";
-import { WaveSource } from "@/Game/Entities/Sea/types";
-import { FC, useEffect, useMemo, useRef } from "react";
-import { Gesture } from "react-native-gesture-handler";
-import { runOnJS } from "react-native-reanimated";
+} from '@/containers/ReactNativeSkiaGameEngine';
+import { useFrameEffect } from '@/containers/ReactNativeSkiaGameEngine/hooks/useFrameEffect';
+import { Sea } from '@/Game/Entities/Sea/Sea';
+import { WaveSource } from '@/Game/Entities/Sea/types';
+import { FC, useEffect, useMemo, useRef } from 'react';
+import { Gesture } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 
 const normalize = (
   value: number,
@@ -71,14 +71,14 @@ const normalizeSwipeData = (
 
   // Mapping the normalized values to the desired output range for wave parameters
   const waveVelocity = normalize(clampedVelocityY, 0, 1, 0.0, 0.2);
-  const waveFrequency = normalize(clampedVelocityY, 0, 1, 0, 12);
+  const waveFrequency = normalize(clampedVelocityY, 0, 1, 0, 20);
   const waveAcceleration = normalize(clampedAccelerationY, 0, 1, 0, 0.01);
-  const waveAmplitude = normalize(clampedTranslationY, 0, 1, 0, 10);
+  const waveAmplitude = normalize(clampedTranslationY, 0, 1, 0, 20);
 
   console.log(`Wave Velocity: ${waveVelocity}`);
   console.log(`Wave Frequency: ${waveFrequency}`);
   console.log(`Wave Acceleration: ${waveAcceleration}`);
-  console.log(`Wave Acceleration: ${waveAmplitude}`);
+  console.log(`Wave Amplitude: ${waveAmplitude}`);
 
   return { waveVelocity, waveFrequency, waveAcceleration, waveAmplitude };
 };

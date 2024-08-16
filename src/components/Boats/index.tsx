@@ -1,21 +1,20 @@
-import { ENTITIES_KEYS } from "@/constants/configs";
+import { ENTITIES_KEYS } from '@/constants/configs';
 import {
   useSystem,
   useAddEntity,
   useCanvasDimensions,
   useEntityInstance,
   useEntityState,
-} from "@/containers/ReactNativeSkiaGameEngine";
-import { Boat } from "@/Game/Entities/Boat/Boat";
-import { BoatSystem } from "@/systems/BoatSystem/BoatSystem";
-import { PhysicsSystem } from "@/systems/PhysicsSystem/PhysicsSystem";
-import { FC, MutableRefObject, useRef } from "react";
-import { BoatView } from "../BoatView/BoatView-rnsge";
-import { Sea } from "@/Game/Entities/Sea/Sea";
+} from '@/containers/ReactNativeSkiaGameEngine';
+import { Boat } from '@/Game/Entities/Boat/Boat';
+import { BoatSystem } from '@/systems/BoatSystem/BoatSystem';
+import { PhysicsSystem } from '@/systems/PhysicsSystem/PhysicsSystem';
+import { FC, MutableRefObject, useRef } from 'react';
+import { BoatView } from '../BoatView/BoatView-rnsge';
+import { Sea } from '@/Game/Entities/Sea/Sea';
 
 export const Boats: FC<{}> = () => {
   const dimensions = useCanvasDimensions();
-  console.log("🚀 ~ dimensions:", dimensions);
   const { entity: seaInstance, found: seaFound } = useEntityInstance<Sea>({
     label: ENTITIES_KEYS.SEA,
   });

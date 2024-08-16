@@ -4,10 +4,10 @@ import {
   DEFAULT_MINIMUM_AMPLITUDE,
   DEFAULT_PHASE_STEP,
   DEFAULT_TIME_STEP,
-} from "@/constants/waterConfigs";
-import { IWave, WaveConfig } from "./types";
-import { WaveSource } from "../Sea/types";
-import { ICanvasDimensions } from "@/containers/ReactNativeSkiaGameEngine";
+} from '@/constants/waterConfigs';
+import { IWave, WaveConfig } from './types';
+import { WaveSource } from '../Sea/types';
+import { ICanvasDimensions } from '@/containers/ReactNativeSkiaGameEngine';
 
 export class Wave implements IWave {
   protected _initialConfig: WaveConfig;
@@ -121,7 +121,7 @@ export class Wave implements IWave {
     this._x = config.x;
     this._maxAmplitude = config.initialAmplitude;
     this._amplitude =
-      config.source === WaveSource.FLOW ? config.initialAmplitude : 0;
+      config.source === WaveSource.FLOW ? config.initialAmplitude : 0.006;
 
     this._frequency = config.initialFrequency;
     // this._phase = config.initialPhase ?? 0;
@@ -139,16 +139,16 @@ export class Wave implements IWave {
     this._frequencyMultiplier =
       config.frequencyMultiplier ?? this._frequencyMultiplier;
 
-    if (typeof config.phaseValueUpdater === "function") {
+    if (typeof config.phaseValueUpdater === 'function') {
       this._phaseValueUpdater = config.phaseValueUpdater;
     }
-    if (typeof config.timeValueUpdater === "function") {
+    if (typeof config.timeValueUpdater === 'function') {
       this._timeValueUpdater = config.timeValueUpdater;
     }
-    if (typeof config.amplitudeValueUpdater === "function") {
+    if (typeof config.amplitudeValueUpdater === 'function') {
       this._amplitudeValueUpdater = config.amplitudeValueUpdater;
     }
-    if (typeof config.frequencyValueUpdater === "function") {
+    if (typeof config.frequencyValueUpdater === 'function') {
       this._frequencyValueUpdater = config.frequencyValueUpdater;
     }
   }
@@ -192,36 +192,36 @@ export class Wave implements IWave {
 
     if (this._source === WaveSource.FLOW) return;
 
-    // Update acceleration due to gravity and friction
-    this._acceleration -= -this._gravity * deltaSeconds;
-    this._velocity += this._acceleration * deltaSeconds;
-    this._velocity *= 1 - this._friction;
+    // // Update acceleration due to gravity and friction
+    // this._acceleration -= -this._gravity * deltaSeconds;
+    // this._velocity += this._acceleration * deltaSeconds;
+    // this._velocity *= 1 - this._friction;
 
     // Initial quick rise phase for amplitude
-    const riseTime = 0.5; // 1 second for quick rise
+    const riseTime = 0.2; // 1 second for quick rise
     const initialDecayFactor = 0.9; // Quick decay factor for initial rise
     const smoothDecayFactor = 0.92; // Smooth decay factor for gradual decay
 
     if (this._time < riseTime) {
       const progress = this._time / riseTime;
-      this._amplitude = this._maxAmplitude * progress * progress * 2;
+      this._amplitude = 1 + this._maxAmplitude * Math.pow(progress, 3);
     } else {
-      // Gradual decay phase
+      const smoothDecayFactor = 0.98; // Adjust this value to control the speed of decay
       this._amplitude *= smoothDecayFactor;
     }
 
-    if (this._time > riseTime && this._frequency < 30) {
+    if (this._time > riseTime / 3 && this._frequency < 60) {
       // Smooth frequency update
-      const frequencyDecayFactor = 1.01; // A decay factor for smoother frequency changes
+      const frequencyDecayFactor = 1.005; // A decay factor for smoother frequency changes
       this._frequency = this._frequency * frequencyDecayFactor;
     }
-    if (this._time > riseTime && this._speed < 0.6) {
-      this._speed *= 1.01;
+    if (this._time > riseTime / 3 && this._speed < 1.1) {
+      this._speed *= 1.005;
     }
   }
 
   isExpired(): boolean {
-    return this._amplitude < 0.005;
+    return this._amplitude < 1;
   }
   /**
    * Retrieves the decay factor at a given distance.

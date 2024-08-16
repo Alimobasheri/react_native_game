@@ -1,5 +1,5 @@
-import Matter from "matter-js";
-import { IVehicle, VehicleConfig } from "./types";
+import Matter from 'matter-js';
+import { IVehicle, VehicleConfig } from './types';
 import {
   DEFAULT_MIN_FRAMES_BEFORE_INITIALIZATION,
   DEFAULT_MIN_TIME_BEFORE_INITIALIZATION,
@@ -7,12 +7,12 @@ import {
   DEFAULT_VEHICLE_HEALTH,
   DEFAULT_VEHICLE_MAX_VELOCITY_X,
   VEHICLE_TYPE_IDENTIFIERS,
-} from "@/constants/vehicle";
-import { RNGE_Entities, RNGE_System_Args } from "@/systems/types";
-import { GameLoopSystem } from "@/systems/GameLoopSystem/GameLoopSystem";
-import { ENTITIES_KEYS } from "@/constants/configs";
-import EventEmitter from "react-native/Libraries/vendor/emitter/EventEmitter";
-import { Entities } from "@/containers/ReactNativeSkiaGameEngine";
+} from '@/constants/vehicle';
+import { RNGE_Entities, RNGE_System_Args } from '@/systems/types';
+import { GameLoopSystem } from '@/systems/GameLoopSystem/GameLoopSystem';
+import { ENTITIES_KEYS } from '@/constants/configs';
+import EventEmitter from 'react-native/Libraries/vendor/emitter/EventEmitter';
+import { Entities } from '@/containers/ReactNativeSkiaGameEngine';
 
 export class Vehicle extends EventEmitter implements IVehicle {
   protected _x: number;
@@ -104,14 +104,14 @@ export class Vehicle extends EventEmitter implements IVehicle {
   }
 
   public get isSinked(): boolean {
-    if (typeof this._isSinked === "undefined") return false;
+    if (typeof this._isSinked === 'undefined') return false;
     return this._isSinked;
   }
 
   public set isSinked(value: boolean) {
     if (this._isSinked === value) return;
     this._isSinked = value;
-    this.emit("isSinkedChange", value);
+    this.emit('isSinkedChange', value);
   }
 
   public get size(): number[] {
@@ -179,7 +179,7 @@ export class Vehicle extends EventEmitter implements IVehicle {
       position[1],
       size[0],
       size[1],
-      { label: this._label, mass: this._mass }
+      { label: this._label }
     );
     return vehicleBody;
   }

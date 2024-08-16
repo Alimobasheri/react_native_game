@@ -14,6 +14,7 @@ import { WATER_GRADIENT_COLORS } from "@/constants/waterConfigs";
 import { Blend, Fill, Group, Rect } from "@shopify/react-native-skia";
 import { SeaSystem } from "@/systems/SeaSystem/SeaSystem";
 import { ENGINES } from "@/systems/types";
+import { Swipe } from "../Swipe";
 
 const meta = {
   title: "Sea View Shader",
@@ -81,6 +82,7 @@ export const Basic: Story = {
             <SeaViewShader {...args} layerIndex={1} />
             <SeaViewShader {...args} layerIndex={0} />
           </Group>
+          <Swipe />
         </ReactNativeSkiaGameEngine>
       </View>
     </View>
