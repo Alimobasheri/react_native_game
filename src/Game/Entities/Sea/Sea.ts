@@ -1,14 +1,14 @@
-import { SeaView } from "@/components/SeaView";
-import { IWave, WaveConfig } from "../Wave/types";
+import { SeaView } from '@/components/SeaView';
+import { IWave, WaveConfig } from '../Wave/types';
 import {
   ISea,
   InitiateWaveConfig,
   SeaConfig,
   SurfacePointMap,
   WaveSource,
-} from "./types";
-import { Point2D, WaterSurfacePoint } from "@/types/globals";
-import { Wave } from "@/Game/Entities/Wave/Wave";
+} from './types';
+import { Point2D, WaterSurfacePoint } from '@/types/globals';
+import { Wave } from '@/Game/Entities/Wave/Wave';
 import {
   DEFAULT_MINIMUM_AMPLITUDE,
   layerFlowConfigs,
@@ -16,8 +16,8 @@ import {
   MAXIMUM_INITIAL_FREQUENCY,
   MINIMUM_INITIAL_FREQUENCY,
   WATER_GRADIENT_COLORS,
-} from "@/constants/waterConfigs";
-import Matter from "matter-js";
+} from '@/constants/waterConfigs';
+import Matter from 'matter-js';
 
 export class Sea implements ISea {
   protected _x: number;
@@ -60,7 +60,7 @@ export class Sea implements ISea {
     this._windowHeight = windowHeight;
     this.gradientColors = gradientColors;
     if (!!layersCount) this._layersCount = layersCount;
-    if (typeof mainLayerIndex !== "undefined")
+    if (typeof mainLayerIndex !== 'undefined')
       this._mainLayerIndex = mainLayerIndex;
     this.setBounds();
     if (this._layersCount > 1) {
@@ -185,6 +185,27 @@ export class Sea implements ISea {
       if (waveSurface > maxWaveHeight) maxWaveHeight = waveSurface;
     });
     return { x, y: surface, maxWaveHeight };
+  }
+  getForceAtPoint(x: number, layerIndex?: number): Matter.Vector {
+    const layer: Sea = this.getDefaultLayer(layerIndex);
+    const force = Matter.Vector.create(0, 0);
+    layer._waves.forEach((wave, index) => {
+      if (index !== 0) {
+        const maxAmplitude = wave.maxAmplitude;
+        const distance = wave.getDistance(x);
+        const decayFactor = wave.getDecayFactorAtDistance(distance);
+
+        const xAcceleration = wave.getXAcceleration();
+
+        const yForce =
+          ((maxAmplitude * decayFactor * Math.sin(distance * wave.frequency)) /
+            0.2) *
+          0.001;
+        if (yForce > 0) force.y -= yForce;
+        force.x += xAcceleration * decayFactor * 0.001;
+      }
+    });
+    return force;
   }
   getWaterSurfacePoints(layerIndex?: number): SurfacePointMap {
     const layer: Sea = this.getDefaultLayer(layerIndex);

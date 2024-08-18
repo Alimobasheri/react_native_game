@@ -1,14 +1,14 @@
-import { Sea } from "@/Game/Entities/Sea/Sea";
-import { Ship } from "@/Game/Entities/Ship/Ship";
-import { IShip } from "@/Game/Entities/Ship/types";
-import { ShipFactory } from "@/Game/Factories/ShipFactory/ShipFactory";
+import { Sea } from '@/Game/Entities/Sea/Sea';
+import { Ship } from '@/Game/Entities/Ship/Ship';
+import { IShip } from '@/Game/Entities/Ship/types';
+import { ShipFactory } from '@/Game/Factories/ShipFactory/ShipFactory';
 import {
   BUOYANTS_GROUP,
   ENTITIES_KEYS,
   VEHICLES_GROUP,
-} from "@/constants/configs";
-import { SHIP_BUILDS } from "@/constants/ships";
-import { EntityRendererProps } from "@/constants/views";
+} from '@/constants/configs';
+import { SHIP_BUILDS } from '@/constants/ships';
+import { EntityRendererProps } from '@/constants/views';
 import {
   Entity,
   useAddEntity,
@@ -17,11 +17,11 @@ import {
   useEntityMemoizedValue,
   useEntityValue,
   useSystem,
-} from "@/containers/ReactNativeSkiaGameEngine";
-import { useFrameEffect } from "@/containers/ReactNativeSkiaGameEngine/hooks/useFrameEffect";
-import { useReRenderCount } from "@/hooks/useReRenderCount";
-import { PhysicsSystem } from "@/systems/PhysicsSystem/PhysicsSystem";
-import { ShipSystem } from "@/systems/ShipSystem/ShipSystem";
+} from '@/containers/ReactNativeSkiaGameEngine';
+import { useFrameEffect } from '@/containers/ReactNativeSkiaGameEngine/hooks/useFrameEffect';
+import { useReRenderCount } from '@/hooks/useReRenderCount';
+import { PhysicsSystem } from '@/systems/PhysicsSystem/PhysicsSystem';
+import { ShipSystem } from '@/systems/ShipSystem/ShipSystem';
 import {
   Group,
   Image,
@@ -29,11 +29,11 @@ import {
   SkiaProps,
   Transforms2d,
   useImage,
-} from "@shopify/react-native-skia";
-import Matter from "matter-js";
-import { FC, memo, MutableRefObject, useMemo, useRef } from "react";
-import { TranslateXTransform, useWindowDimensions } from "react-native";
-import { SharedValue, useDerivedValue } from "react-native-reanimated";
+} from '@shopify/react-native-skia';
+import Matter from 'matter-js';
+import { FC, memo, MutableRefObject, useMemo, useRef } from 'react';
+import { TranslateXTransform, useWindowDimensions } from 'react-native';
+import { SharedValue, useDerivedValue } from 'react-native-reanimated';
 
 export interface IShipViewProps {
   seaEntityId: string;
@@ -79,21 +79,21 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
     groups: [VEHICLES_GROUP, BUOYANTS_GROUP],
   }) as Entity<Ship>;
 
-  const x = useEntityValue<Ship, number>(shipEntity.id, "body", {
+  const x = useEntityValue<Ship, number>(shipEntity.id, 'body', {
     processor: (body: Matter.Body | undefined) => {
       if (!body) return NaN;
       return body.position.x;
     },
   }) as SharedValue<number>;
 
-  const y = useEntityValue<Ship, number>(shipEntity.id, "body", {
+  const y = useEntityValue<Ship, number>(shipEntity.id, 'body', {
     processor: (body: Matter.Body | undefined) => {
       if (!body) return NaN;
       return body.position.y;
     },
   }) as SharedValue<number>;
 
-  const angle = useEntityValue<Ship, number>(shipEntity.id, "body", {
+  const angle = useEntityValue<Ship, number>(shipEntity.id, 'body', {
     processor: (body: Matter.Body | undefined) => {
       if (!body) return NaN;
       return body.angle;
@@ -120,7 +120,7 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
     ];
   }, [angle.value, translateX.value, translateY.value]);
 
-  const size = useEntityValue<Ship, [number, number]>(shipEntity.id, "size");
+  const size = useEntityValue<Ship, [number, number]>(shipEntity.id, 'size');
 
   const shipSystem = new ShipSystem();
 
@@ -139,7 +139,7 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
 
   if (!size.value) return null;
 
-  const boatImage = useImage(require("../../../assets/warship.png"));
+  const boatImage = useImage(require('../../../assets/warship.png'));
   if (!boatImage) return null;
 
   return (

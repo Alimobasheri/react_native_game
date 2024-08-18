@@ -204,12 +204,35 @@ export class PhysicsSystem implements IPhysicsSystem {
     combinedSlope: number
   ): void {
     if (submergedArea > 0) {
-      const force = Matter.Vector.create(
-        0,
-        -1 * 0.001 * body.mass - (submergedArea / body.area) * body.mass * 0.001
-      );
-      Matter.Body.applyForce(body, body.position, force);
-      this.applyAngleByWave(submergedDepth, body, sea);
+      // this.applyAngleByWave(submergedDepth, body, sea);
+      // this.applyAngleByWave(submergedDepth, body, sea);
+      // if (submergedArea < size[1] * size[0] * 0.1) {
+      //   for (let i = 0; i <= 5; i++) {
+      //     const x = i * (size[0] / 5) + body.bounds.min.x;
+      //     if (x > body.bounds.max.x) break;
+      //     const force = Matter.Vector.div(sea.getForceAtPoint(x), 5);
+      //     const y = sea.getWaterSurfaceAndMaxHeightAtPoint(x).y;
+      //     const seaForce = { force, position: { x, y } };
+      //     Matter.Body.applyForce(body, seaForce.position, seaForce.force);
+      //   }
+      // }
+      if (Math.abs(body.angle) < 0.3) {
+        const buoyancyForce = Matter.Vector.create(
+          0,
+          -1 * 0.001 * body.mass -
+            (submergedArea / body.area) * body.mass * 0.001
+        );
+        for (let i = 0; i <= 20; i++) {
+          const x = i * (size[0] / 20) + body.bounds.min.x;
+          if (x > body.bounds.max.x) break;
+          const localBuoyancyForce = Matter.Vector.div(buoyancyForce, 20);
+          const y = sea.getWaterSurfaceAndMaxHeightAtPoint(x).y;
+          if (y > body.bounds.max.y) break;
+          const seaForce = { force: localBuoyancyForce, position: { x, y } };
+          Matter.Body.applyForce(body, seaForce.position, seaForce.force);
+        }
+      }
+      // Matter.Body.applyForce(body, body.position, buoyancyForce);
     }
   }
 

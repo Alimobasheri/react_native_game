@@ -20,6 +20,7 @@ export class Wave implements IWave {
   protected _maxAmplitude: number;
   protected _frequency: number;
   protected _speed: number = 1;
+  protected _prevSpeed: number = 0;
   protected _phaseStep: number = DEFAULT_PHASE_STEP;
   protected _timeStep: number = DEFAULT_TIME_STEP;
   protected _minimumAmplitude: number = DEFAULT_MINIMUM_AMPLITUDE;
@@ -168,6 +169,10 @@ export class Wave implements IWave {
   get amplitude(): number {
     return this._amplitude;
   }
+
+  get maxAmplitude(): number {
+    return this._maxAmplitude;
+  }
   get frequency(): number {
     return this._frequency;
   }
@@ -192,11 +197,6 @@ export class Wave implements IWave {
 
     if (this._source === WaveSource.FLOW) return;
 
-    // // Update acceleration due to gravity and friction
-    // this._acceleration -= -this._gravity * deltaSeconds;
-    // this._velocity += this._acceleration * deltaSeconds;
-    // this._velocity *= 1 - this._friction;
-
     // Initial quick rise phase for amplitude
     const riseTime = 0.2; // 1 second for quick rise
     const initialDecayFactor = 0.9; // Quick decay factor for initial rise
@@ -216,6 +216,7 @@ export class Wave implements IWave {
       this._frequency = this._frequency * frequencyDecayFactor;
     }
     if (this._time > riseTime / 3 && this._speed < 1.1) {
+      this._prevSpeed = this._speed;
       this._speed *= 1.005;
     }
   }
@@ -223,13 +224,17 @@ export class Wave implements IWave {
   isExpired(): boolean {
     return this._amplitude < 1;
   }
+
+  getXAcceleration(): number {
+    return this._speed - this._prevSpeed;
+  }
   /**
    * Retrieves the decay factor at a given distance.
    * A wave decays at a rate of 0.01 per pixel.
    * @param {number} distance - the distance for which to calculate the decay factor
    * @return {number} the calculated decay factor
    */
-  protected getDecayFactorAtDistance(distance: number): number {
+  getDecayFactorAtDistance(distance: number): number {
     return Math.exp(-10 * Math.abs(distance));
   }
   smoothstep(edge0: number, edge1: number, x: number): number {
@@ -239,12 +244,18 @@ export class Wave implements IWave {
 
     return t * t * (3 - 2 * t);
   }
-  getSurfaceAtPosition(x: number): number {
-    if (!this._dimensions) return 0;
+
+  getDistance(x: number): number {
     let xPosition = x / (this._dimensions.width || 1);
 
     xPosition = xPosition + this._time * this._speed * 0.4;
     let distance = xPosition - this._x / (this._dimensions.width || 1);
+    return distance;
+  }
+  getSurfaceAtPosition(x: number): number {
+    if (!this._dimensions) return 0;
+
+    let distance = this.getDistance(x);
     let decayFactor = 1;
     if (this._source !== WaveSource.FLOW)
       decayFactor = this.getDecayFactorAtDistance(distance);

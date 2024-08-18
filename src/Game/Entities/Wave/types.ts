@@ -1,4 +1,4 @@
-import { WaveSource } from "../Sea/types";
+import { WaveSource } from '../Sea/types';
 
 /**
  * Interface representing a wave.
@@ -33,6 +33,10 @@ export interface IWave {
    */
   get amplitude(): number;
   /**
+   * Maximum amplitude the wave is gonna reach in initial x.
+   */
+  get maxAmplitude(): number;
+  /**
    * Current frequency value in latest frame the wave is updated at.
    * @type {number}
    */
@@ -46,6 +50,9 @@ export interface IWave {
    * @returns {boolean} true if wave is expired
    */
   isExpired: () => boolean;
+  getDecayFactorAtDistance: (distance: number) => number;
+  getDistance: (x: number) => number;
+  getXAcceleration: () => number;
   /**
    * Given an x coordinate, calculate the y coordinate of the water surface.
    * Uses x to determine horizontal distance from original starting position of this wave.

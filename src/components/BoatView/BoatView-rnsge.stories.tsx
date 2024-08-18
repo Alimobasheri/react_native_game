@@ -12,7 +12,7 @@ import {
   useCanvasDimensions,
   useSystem,
 } from '@/containers/ReactNativeSkiaGameEngine';
-import { FC, useRef } from 'react';
+import { FC, useMemo, useRef } from 'react';
 import Matter from 'matter-js';
 
 const { width: windowWidth, height: windowHeight } = Dimensions.get('window');
@@ -38,42 +38,44 @@ const BoatsViewComponent: FC<{
     createdTime: global.nativePerformanceNow(),
   }) as Boat;
   const boatEntity = useAddEntity<Boat>(boat, boat);
-  const staticFloor = useAddEntity<any>(
-    Matter.Bodies.rectangle(0, 0, windowWidth, 10, {
-      isStatic: true,
-      label: 'static-floor',
-    })
-  );
+  // const staticFloor = useAddEntity<any>(
+  //   Matter.Bodies.rectangle(0, 0, windowWidth, 10, {
+  //     isStatic: true,
+  //     label: 'static-floor',
+  //   })
+  // );
   const engine = useRef(Matter.Engine.create());
   Matter.World.addBody(engine.current.world, boatEntity.data.body);
-  Matter.World.addBody(engine.current.world, staticFloor.data.body);
+  // Matter.World.addBody(engine.current.world, staticFloor.data.body);
 
   const now = global.nativePerformanceNow();
 
   useSystem((entities, args) => {
     if (!boatEntity.data.body) return;
+    const body = boatEntity.data.body;
+    Matter.Body.setAngle(body, 0.5);
     let appliedForce = false;
-    forces.forEach((force) => {
-      if (!boatEntity.data.body) return;
-      const { x, y, at_time } = force;
-      if (args.time.current - now < at_time) return;
-      const body = boatEntity.data.body;
-      const forcePosition = Matter.Vector.create(
-        body.position.x + x,
-        body.position.y + y
-      );
-      const forceVector = Matter.Vector.create(10, 10);
-      Matter.Body.applyForce(body, forcePosition, forceVector);
-      appliedForce = true;
-    });
-    if (!appliedForce) {
-      Matter.Body.setVelocity(boatEntity.data.body, { x: 0, y: 0 });
-      Matter.Body.setPosition(boatEntity.data.body, {
-        x: windowWidth / 2,
-        y: windowHeight / 2,
-      });
-    }
-    Matter.Engine.update(engine.current, args.time.delta);
+    // forces.forEach((force) => {
+    //   if (!boatEntity.data.body) return;
+    //   const { x, y, at_time } = force;
+    //   if (args.time.current - now < at_time) return;
+    //   const body = boatEntity.data.body;
+    //   const forcePosition = Matter.Vector.create(
+    //     body.position.x + x,
+    //     body.position.y + y
+    //   );
+    //   const forceVector = Matter.Vector.create(10, 10);
+    //   Matter.Body.applyForce(body, forcePosition, forceVector);
+    //   appliedForce = true;
+    // });
+    // if (!appliedForce) {
+    //   Matter.Body.setVelocity(boatEntity.data.body, { x: 0, y: 0 });
+    //   Matter.Body.setPosition(boatEntity.data.body, {
+    //     x: windowWidth / 2,
+    //     y: windowHeight / 2,
+    //   });
+    // }
+    // Matter.Engine.update(engine.current, args.time.delta);
   });
 
   return (
