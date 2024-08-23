@@ -1,21 +1,18 @@
+import { FC, memo, PropsWithChildren, useMemo, useState } from 'react';
 import {
-  FC,
-  memo,
-  PropsWithChildren,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import { useEntities, useGameLoop, useSystems, useTouchService } from "./hooks";
-import { RNSGEContext } from "./context";
-import { MemoizedContainer } from "./components/MemoizedContainer";
-import { Canvas } from "@shopify/react-native-skia";
-import { EventDispatcher } from "./services";
-import { useDispatcher } from "./hooks/useDispatcher";
+  useEntities,
+  useGameLoop,
+  useSystems,
+  useTouchService,
+  useDispatcher,
+} from './hooks';
+import { RNSGEContext } from './context';
+import { MemoizedContainer } from './components/MemoizedContainer';
+import { Canvas } from '@shopify/react-native-skia';
 import {
   GestureDetector,
   GestureHandlerRootView,
-} from "react-native-gesture-handler";
+} from 'react-native-gesture-handler';
 
 export const ReactNativeSkiaGameEngine: FC<PropsWithChildren> = memo(
   ({ children }) => {

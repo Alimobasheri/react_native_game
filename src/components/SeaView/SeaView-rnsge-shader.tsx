@@ -1,41 +1,19 @@
-import { Sea } from "@/Game/Entities/Sea/Sea";
-import { ISea, SurfacePointMap } from "@/Game/Entities/Sea/types";
+import { Sea } from '@/Game/Entities/Sea/Sea';
 import createWaveShader, {
-  createLayerConfig,
   useWaveShaderUniforms,
-} from "@/Shaders/WaveShader/waveShader";
-import { ENTITIES_KEYS } from "@/constants/configs";
-import { EntityRendererProps } from "@/constants/views";
-import { WATER_GRADIENT_COLORS } from "@/constants/waterConfigs";
+} from '@/Shaders/WaveShader/waveShader';
+import { ENTITIES_KEYS } from '@/constants/configs';
 import {
   useCanvasDimensions,
   useEntityInstance,
   useEntityValue,
-} from "@/containers/ReactNativeSkiaGameEngine";
-import { useEntityMemoizedValue } from "@/containers/ReactNativeSkiaGameEngine/hooks/useEntityMemoizedValue";
-import { useFrameEffect } from "@/containers/ReactNativeSkiaGameEngine/hooks/useFrameEffect";
-import { useReRenderCount } from "@/hooks/useReRenderCount";
-import {
-  CornerPathEffect,
-  DiscretePathEffect,
-  Fill,
-  Group,
-  Paint,
-  Path,
-  rect,
-  Shader,
-  SkPath,
-  TileMode,
-} from "@shopify/react-native-skia";
-import { Skia, vec, LinearGradient } from "@shopify/react-native-skia";
-import { FC, useCallback, useEffect, useLayoutEffect, useMemo } from "react";
-import { useWindowDimensions } from "react-native";
-import {
-  useAnimatedProps,
-  useDerivedValue,
-  useSharedValue,
-} from "react-native-reanimated";
-const WHITE_CAP_THRESHOLD = 50;
+} from '@/containers/ReactNativeSkiaGameEngine';
+import { useEntityMemoizedValue } from '@/containers/ReactNativeSkiaGameEngine/hooks/useEntityMemoizedValue';
+import { useFrameEffect } from '@/containers/ReactNativeSkiaGameEngine/hooks/useFrameEffect';
+import { Fill, Shader, SkPath } from '@shopify/react-native-skia';
+import { Skia, LinearGradient } from '@shopify/react-native-skia';
+import { FC, useMemo } from 'react';
+import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
 export interface ISeaViewProps {
   entityId: string;
   layerIndex: number;
@@ -47,29 +25,14 @@ export const SeaViewShader: FC<ISeaViewProps> = (props) => {
   const { entity: seaEntityInstance, found } = useEntityInstance<Sea>({
     label: ENTITIES_KEYS.SEA,
   });
-  const {
-    height,
-    width,
-    startingX,
-    startingY,
-    layers,
-    gradientColors,
-    amplitude,
-    frequency,
-    speed,
-  } = useEntityMemoizedValue<Sea, any>(
-    seaEntityInstance.current?.id,
-    "layers",
-    {
-      processor: (layers: Sea["layers"] | undefined) => {
+  const { height, gradientColors, amplitude, frequency, speed } =
+    useEntityMemoizedValue<Sea, any>(seaEntityInstance.current?.id, 'layers', {
+      processor: (layers: Sea['layers'] | undefined) => {
         const layer = layers?.[props.layerIndex];
         if (!layer) return {};
         if (layer) {
           return {
             height: layer.height,
-            width: layer.width,
-            startingX: layer.startingX,
-            startingY: layer.startingY - 20,
             gradientColors: layer.gradientColors,
             amplitude: layer.waves[0].amplitude,
             frequency: layer.waves[0].frequency,
@@ -77,14 +40,13 @@ export const SeaViewShader: FC<ISeaViewProps> = (props) => {
           };
         }
       },
-    }
-  );
+    });
 
   const flowTime = useEntityValue<Sea, number>(
     seaEntityInstance.current?.id,
-    "layers",
+    'layers',
     {
-      processor: (layers: Sea["layers"] | undefined) => {
+      processor: (layers: Sea['layers'] | undefined) => {
         const layer = layers?.[props.layerIndex];
         if (!layer) return 1;
         if (layer) return layer.waves[0]?.time ?? 0;
@@ -94,9 +56,9 @@ export const SeaViewShader: FC<ISeaViewProps> = (props) => {
 
   const dynamicWaveX = useEntityValue<Sea, number>(
     seaEntityInstance.current?.id,
-    "layers",
+    'layers',
     {
-      processor: (layers: Sea["layers"] | undefined) => {
+      processor: (layers: Sea['layers'] | undefined) => {
         const layer = layers?.[props.layerIndex];
         if (!layer) return 1;
         if (layer) return layer.waves[1]?.x ?? 0;
@@ -106,9 +68,9 @@ export const SeaViewShader: FC<ISeaViewProps> = (props) => {
 
   const dynamicWaveAmplitude = useEntityValue<Sea, number>(
     seaEntityInstance.current?.id,
-    "layers",
+    'layers',
     {
-      processor: (layers: Sea["layers"] | undefined) => {
+      processor: (layers: Sea['layers'] | undefined) => {
         const layer = layers?.[props.layerIndex];
         if (!layer) return 1;
         if (layer) return layer.waves[1]?.amplitude ?? 0;
@@ -118,9 +80,9 @@ export const SeaViewShader: FC<ISeaViewProps> = (props) => {
 
   const dynamicWaveFrequency = useEntityValue<Sea, number>(
     seaEntityInstance.current?.id,
-    "layers",
+    'layers',
     {
-      processor: (layers: Sea["layers"] | undefined) => {
+      processor: (layers: Sea['layers'] | undefined) => {
         const layer = layers?.[props.layerIndex];
         if (!layer) return 1;
         if (layer) return layer.waves[1]?.frequency ?? 1;
@@ -130,9 +92,9 @@ export const SeaViewShader: FC<ISeaViewProps> = (props) => {
 
   const dynamicWaveSpeed = useEntityValue<Sea, number>(
     seaEntityInstance.current?.id,
-    "layers",
+    'layers',
     {
-      processor: (layers: Sea["layers"] | undefined) => {
+      processor: (layers: Sea['layers'] | undefined) => {
         const layer = layers?.[props.layerIndex];
         if (!layer) return 1;
         if (layer) return layer.waves[1]?.speed ?? 1;
@@ -142,9 +104,9 @@ export const SeaViewShader: FC<ISeaViewProps> = (props) => {
 
   const dynamicWaveTime = useEntityValue<Sea, number>(
     seaEntityInstance.current?.id,
-    "layers",
+    'layers',
     {
-      processor: (layers: Sea["layers"] | undefined) => {
+      processor: (layers: Sea['layers'] | undefined) => {
         const layer = layers?.[props.layerIndex];
         if (!layer) return 1;
         if (layer) return layer.waves[1]?.time ?? 1;
@@ -205,7 +167,7 @@ export const SeaViewShader: FC<ISeaViewProps> = (props) => {
   }
 
   return (
-    <Fill blendMode={"multiply"}>
+    <Fill blendMode={'multiply'}>
       <Shader source={source} uniforms={uniforms} />
     </Fill>
   );

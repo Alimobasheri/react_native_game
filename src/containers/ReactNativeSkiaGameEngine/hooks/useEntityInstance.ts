@@ -5,17 +5,17 @@ import {
   useEffect,
   useMemo,
   useRef,
-} from "react";
-import { RNSGEContext } from "../context";
-import { AddEntityEvent, Entity } from "../services";
-import { useFrameEffect } from "./useFrameEffect";
+} from 'react';
+import { RNSGEContext } from '../context';
+import { AddEntityEvent, Entity } from '../services';
+import { useFrameEffect } from './useFrameEffect';
 
 export type entityIdentifier = {
   label?: string;
   group?: string;
 };
 
-export const useEntityInstance = <T>(
+export const useEntityInstance = <T extends Record<string, any>>(
   entityId: string | entityIdentifier
 ): {
   entity: MutableRefObject<Entity<T> | Entity<T>[] | undefined>;
@@ -26,13 +26,13 @@ export const useEntityInstance = <T>(
   const found = useRef(true);
 
   const findEntityAndReturn = useCallback(() => {
-    if (typeof entityId === "string") {
+    if (typeof entityId === 'string') {
       if (!rnsgeContext.entities.current.entities.has(entityId)) {
         found.current = false;
         return;
       }
       return rnsgeContext.entities.current.entities.get(entityId);
-    } else if (typeof entityId === "object") {
+    } else if (typeof entityId === 'object') {
       const { label, group } = entityId;
       if (label) {
         if (rnsgeContext.entities.current.mapLabelToEntityId.has(label)) {
