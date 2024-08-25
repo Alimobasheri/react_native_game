@@ -179,7 +179,7 @@ export class Vehicle extends EventEmitter implements IVehicle {
       position[1],
       size[0],
       size[1],
-      { label: this._label }
+      { label: this._label, density: 0.004, restitution: 0.5 }
     );
     return vehicleBody;
   }

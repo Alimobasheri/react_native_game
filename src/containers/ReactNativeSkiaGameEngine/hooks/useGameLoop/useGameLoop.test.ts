@@ -20,6 +20,9 @@ describe('useGameLoop', () => {
     dispatcher = { current: new EventDispatcher() };
 
     mockRequestAnimationFrame();
+
+    // @ts-ignore
+    global.nativePerformanceNow = jest.fn(() => 0);
   });
 
   afterEach(() => {

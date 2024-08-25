@@ -4,20 +4,20 @@ import {
   ENTITIES_KEYS,
   TRAIL_FADE_DURATION,
   VEHICLES_GROUP,
-} from "@/constants/configs";
-import { RNGE_Entities, RNGE_System_Args } from "../types";
-import { BoatSystemConfig, IBoatSystem } from "./types";
-import { Boat } from "@/Game/Entities/Boat/Boat";
-import Matter from "matter-js";
-import { BoatFactory } from "@/Game/Factories/BoatFactory/BoatFactory";
-import { BOAT_BUILDS } from "@/constants/boats";
-import { PhysicsSystem } from "../PhysicsSystem/PhysicsSystem";
-import { VEHICLE_TYPE_IDENTIFIERS } from "@/constants/vehicle";
-import { GameLoopSystem } from "../GameLoopSystem/GameLoopSystem";
-import { GAME_STATE } from "../GameLoopSystem/types";
-import { Sea } from "@/Game/Entities/Sea/Sea";
-import { Entities, Entity } from "@/containers/ReactNativeSkiaGameEngine";
-import { MutableRefObject } from "react";
+} from '@/constants/configs';
+import { RNGE_Entities, RNGE_System_Args } from '../types';
+import { BoatSystemConfig, IBoatSystem } from './types';
+import { Boat } from '@/Game/Entities/Boat/Boat';
+import Matter from 'matter-js';
+import { BoatFactory } from '@/Game/Factories/BoatFactory/BoatFactory';
+import { BOAT_BUILDS } from '@/constants/boats';
+import { PhysicsSystem } from '../PhysicsSystem/PhysicsSystem';
+import { VEHICLE_TYPE_IDENTIFIERS } from '@/constants/vehicle';
+import { GameLoopSystem } from '../GameLoopSystem/GameLoopSystem';
+import { GAME_STATE } from '../GameLoopSystem/types';
+import { Sea } from '@/Game/Entities/Sea/Sea';
+import { Entities, Entity } from '@/containers/ReactNativeSkiaGameEngine';
+import { MutableRefObject } from 'react';
 
 export class BoatSystem implements IBoatSystem {
   protected _boatFactory: BoatFactory;
@@ -61,10 +61,10 @@ export class BoatSystem implements IBoatSystem {
         } else {
           boat.data.update(entities, args);
           this.generateBoatTrailPath(boat.data, sea);
-          boat.removeAllListeners("isSinkedChange");
-          boat.addListener("isSinkedChange", (isSinked) => {
+          boat.removeAllListeners('isSinkedChange');
+          boat.addListener('isSinkedChange', (isSinked) => {
             if (isSinked) {
-              args.dispatch.emit("boatSinked");
+              args.dispatch.emit('boatSinked');
             }
           });
         }
@@ -123,7 +123,7 @@ export class BoatSystem implements IBoatSystem {
   }
 
   protected createBoat({ createdTime }: { createdTime: number }): Boat | null {
-    console.log("🚀 ~ BoatSystem ~ createBoat ~ createdTime:", createdTime);
+    console.log('🚀 ~ BoatSystem ~ createBoat ~ createdTime:', createdTime);
     const label = `${ENTITIES_KEYS.BOAT_LABEL}${Matter.Common.random(
       10 ** 6,
       10 ** 20
@@ -141,6 +141,12 @@ export class BoatSystem implements IBoatSystem {
       label,
       createdTime,
     });
+    console.log(
+      '🚀 ~ BoatSystem ~ createBoat ~ boat:',
+      boat?.body?.density,
+      boat?.body?.restitution,
+      boat?.body?.frictionAir
+    );
 
     return boat;
   }

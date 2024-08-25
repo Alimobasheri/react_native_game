@@ -200,9 +200,10 @@ export class Sea implements ISea {
         const yForce =
           ((maxAmplitude * decayFactor * Math.sin(distance * wave.frequency)) /
             0.2) *
-          0.001;
+          0.01 *
+          0.01;
         if (yForce > 0) force.y -= yForce;
-        force.x += xAcceleration * decayFactor * 0.001;
+        force.x += xAcceleration * decayFactor * 0.001 * 0.01;
       }
     });
     return force;

@@ -12,16 +12,16 @@ export const MAXIMUM_INITIAL_FREQUENCY = 10;
 export const layerFlowConfigs = [
   {
     flowAmplitude: 0.6,
-    flowFrequency: 30,
-    flowSpeed: 0.9,
+    flowFrequency: 22,
+    flowSpeed: 0.6,
   },
   {
     flowAmplitude: 0.8,
     flowFrequency: 24,
-    flowSpeed: 0.4,
+    flowSpeed: 0.3,
   },
   {
-    flowAmplitude: 0.4,
+    flowAmplitude: 0.2,
     flowFrequency: 10,
     flowSpeed: 0.2,
   },
@@ -71,10 +71,10 @@ export const layerFlowConfigs = [
 // ].reverse();
 
 export const WATER_GRADIENT_COLORS = [
-  ["rgba(26, 66, 93, 0.8)"], // Dark version of #B3E5FC
-  ["rgba(19, 61, 85, 0.8)"], // Dark version of #81D4FA
-  ["rgba(11, 56, 77, 0.8)"], // Dark version of #4FC3F7
-  ["rgba(7, 50, 73, 0.8)"], // Dark version of #29B6F6
-  ["rgba(0, 45, 65, 0.8)"], // Dark version of #03A9F4
-  ["rgba(0, 34, 52, 0.8)"], // Dark version of #0288D1
+  ['rgba(26, 66, 93, 0.8)'], // Dark version of #B3E5FC
+  ['rgba(19, 61, 85, 0.8)'], // Dark version of #81D4FA
+  ['rgba(11, 56, 77, 0.8)'], // Dark version of #4FC3F7
+  ['rgba(7, 50, 73, 0.8)'], // Dark version of #29B6F6
+  ['rgba(0, 45, 65, 0.8)'], // Dark version of #03A9F4
+  ['rgba(0, 34, 52, 0.8)'], // Dark version of #0288D1
 ].reverse();

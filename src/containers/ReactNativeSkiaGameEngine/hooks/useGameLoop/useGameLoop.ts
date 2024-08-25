@@ -32,6 +32,7 @@ export function useGameLoop(
   const events = useRef<string[]>([]);
 
   useEffect(() => {
+    const globalStartTime = global.nativePerformanceNow();
     // Add a listener to capture all events dispatched during the game loop
     const listener = dispatcher.current.addListenerToAllEvents((data) => {
       events.current.push(data);
@@ -42,7 +43,12 @@ export function useGameLoop(
       systems.current.update(entities.current, {
         events: events.current,
         dispatch: dispatcher.current,
-        time: { delta: deltaTime, current: now, previous: then },
+        time: {
+          delta: deltaTime,
+          current: now,
+          previous: then,
+          globalStartTime,
+        },
         touches: [],
         screen: {},
         layout: {},

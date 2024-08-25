@@ -100,9 +100,13 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
     },
   }) as SharedValue<number>;
 
+  const size = useEntityValue<Ship, [number, number]>(shipEntity.id, 'size', {
+    defaultValue: [0, 0],
+  }) as SharedValue<[number, number]>;
+
   const origin = useDerivedValue(() => {
-    return { x: initialX, y: initialY };
-  }, []);
+    return { x: x.value - size.value[0] / 2, y: y.value - size.value[1] / 2 };
+  }, [size.value]);
 
   const translateX = useDerivedValue<number>(() => {
     return x.value - initialX;
@@ -120,12 +124,14 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
     ];
   }, [angle.value, translateX.value, translateY.value]);
 
-  const size = useEntityValue<Ship, [number, number]>(shipEntity.id, 'size');
-
   const shipSystem = new ShipSystem();
 
   useSystem((entities, args) => {
     shipSystem.systemInstanceRNSGE(entities, args, shipEntity);
+  });
+
+  useSystem((entities, args) => {
+    const ship = entities.entities.get(shipEntity.id) as Entity<Ship>;
   });
 
   useFrameEffect(() => {

@@ -5,7 +5,7 @@ import { Vehicle } from '@/Game/Entities/Vehicle/Vehicle';
 import { ISea, SurfacePointMap } from '@/Game/Entities/Sea/types';
 import Matter from 'matter-js';
 import { getVerticleBounds } from '@/utils/getVerticalBounds';
-import { getSubmergedArea } from '@/utils/submergedDepth';
+import { getSubmergedArea, getSubmergedDepthAtX } from '@/utils/submergedDepth';
 import { Point2D, WaterSurfacePoint } from '@/types/globals';
 import { VEHICLE_TYPE_IDENTIFIERS } from '@/constants/vehicle';
 import { Sea } from '@/Game/Entities/Sea/Sea';
@@ -179,7 +179,7 @@ export class PhysicsSystem implements IPhysicsSystem {
     const combinedSlope = sea.getWaterSlopeAtPoint(body.position.x);
 
     const { submergedDepth, submergedArea } = getSubmergedArea(
-      buoyantVehicleBottomY,
+      body,
       size,
       waterSurfaceYAtPoint
     );
@@ -204,35 +204,31 @@ export class PhysicsSystem implements IPhysicsSystem {
     combinedSlope: number
   ): void {
     if (submergedArea > 0) {
-      // this.applyAngleByWave(submergedDepth, body, sea);
-      // this.applyAngleByWave(submergedDepth, body, sea);
-      // if (submergedArea < size[1] * size[0] * 0.1) {
-      //   for (let i = 0; i <= 5; i++) {
-      //     const x = i * (size[0] / 5) + body.bounds.min.x;
-      //     if (x > body.bounds.max.x) break;
-      //     const force = Matter.Vector.div(sea.getForceAtPoint(x), 5);
-      //     const y = sea.getWaterSurfaceAndMaxHeightAtPoint(x).y;
-      //     const seaForce = { force, position: { x, y } };
-      //     Matter.Body.applyForce(body, seaForce.position, seaForce.force);
-      //   }
-      // }
-      if (Math.abs(body.angle) < 0.3) {
-        const buoyancyForce = Matter.Vector.create(
-          0,
-          -1 * 0.001 * body.mass -
-            (submergedArea / body.area) * body.mass * 0.001
-        );
-        for (let i = 0; i <= 20; i++) {
-          const x = i * (size[0] / 20) + body.bounds.min.x;
-          if (x > body.bounds.max.x) break;
-          const localBuoyancyForce = Matter.Vector.div(buoyancyForce, 20);
-          const y = sea.getWaterSurfaceAndMaxHeightAtPoint(x).y;
-          if (y > body.bounds.max.y) break;
-          const seaForce = { force: localBuoyancyForce, position: { x, y } };
-          Matter.Body.applyForce(body, seaForce.position, seaForce.force);
-        }
+      this.applyAngleByWave(submergedDepth, body, sea);
+      for (let i = 0; i <= 100; i++) {
+        const x = i * (size[0] / 100) + body.bounds.min.x;
+        if (x > body.bounds.max.x) break;
+        const force = sea.getForceAtPoint(x);
+        const y = sea.getWaterSurfaceAndMaxHeightAtPoint(x).y;
+        if (y > body.bounds.max.y) break;
+        const pointWidth = (body.bounds.max.x - body.bounds.min.x) / 100;
+        force.y = force.y * pointWidth;
+        const seaForce = { force, position: { x, y } };
+        Matter.Body.applyForce(body, seaForce.position, seaForce.force);
       }
-      // Matter.Body.applyForce(body, body.position, buoyancyForce);
+      const xAcceleration = sea.getForceAtPoint(body.position.x).x;
+
+      const clampedSubmergedArea = Matter.Common.clamp(
+        Math.exp(submergedArea / (body.area * 0.25)),
+        0,
+        1.5
+      );
+
+      const antiGravityForce = Matter.Vector.create(
+        0,
+        -1 * body.mass * clampedSubmergedArea * 0.001
+      );
+      Matter.Body.applyForce(body, body.position, antiGravityForce);
     }
   }
 
@@ -244,7 +240,7 @@ export class PhysicsSystem implements IPhysicsSystem {
   ): void {
     if (!buoyantVehicle.body) return;
     if (
-      (submergedArea >= size[1] * size[0] * 1.5 &&
+      (buoyantVehicle.body.bounds.min.y >= size[1] * size[0] * 1.5 &&
         buoyantVehicle.body &&
         sea.getWaterSurfaceAndMaxHeightAtPoint(buoyantVehicle.body?.position.x)
           .y >= sea.getOriginalWaterSurfaceY()) ||
@@ -256,6 +252,7 @@ export class PhysicsSystem implements IPhysicsSystem {
             3 * size[1]) ||
       Math.abs(buoyantVehicle.body.angle) > 5
     ) {
+      console.log('====sinked', buoyantVehicle.body.label);
       buoyantVehicle.isSinked = true;
       // buoyantVehicle.isAttacking = false;
     }
@@ -268,6 +265,7 @@ export class PhysicsSystem implements IPhysicsSystem {
     submergedArea: number,
     waterSurfaceYAtPoint: WaterSurfacePoint
   ): void {
+    if (!body) return;
     if (submergedArea > 0) {
       Matter.Body.set(body, 'frictionAir', 0.05);
     } else if (body.position.y < waterSurfaceYAtPoint.y - (size[1] / 2) * 8) {
@@ -308,7 +306,7 @@ export class PhysicsSystem implements IPhysicsSystem {
       const targetAngle = Math.atan(averageSlope);
       const diffAngle = targetAngle - body.angle;
       if (Math.abs(diffAngle) > 0.01) {
-        Matter.Body.setAngle(body, body.angle + diffAngle * 0.1);
+        Matter.Body.setAngle(body, body.angle + diffAngle * 0.5);
       }
     }
   }

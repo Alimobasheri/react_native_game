@@ -67,7 +67,10 @@ export const BoatView: FC<{ entityId: string }> = ({ entityId }) => {
   }) as SharedValue<number>;
 
   const origin = useDerivedValue(() => {
-    return { x: initialX, y: initialY };
+    return {
+      x: x.value - (size?.[0] || 0) / 2,
+      y: y.value - (size?.[1] || 0) / 2,
+    };
   }, []);
 
   const translateX = useDerivedValue<number>(() => {
