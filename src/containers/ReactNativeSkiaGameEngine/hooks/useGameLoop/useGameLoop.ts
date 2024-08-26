@@ -42,7 +42,7 @@ export function useGameLoop(
     const update = (deltaTime: number, now: number, then: number) => {
       systems.current.update(entities.current, {
         events: events.current,
-        dispatch: dispatcher.current,
+        dispatcher: dispatcher.current,
         time: {
           delta: deltaTime,
           current: now,

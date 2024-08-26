@@ -14,6 +14,7 @@ import { SkyBackground } from "@/components/SkyBackground";
 import { StarsView } from "@/components/StarsView/StarsView-rnsge";
 import { Physics } from "@/components/Physics";
 import { Swipe } from "@/components/Swipe";
+import { Collisions } from "@/components/Collisions";
 
 const SubComponent: FC<{}> = (props) => {
   const renderCount = useReRenderCount();
@@ -78,6 +79,7 @@ export const Basic: Story = {
           <StarsView />
           <SeaGroup />
           <Physics />
+          <Collisions />
           <Swipe />
         </ReactNativeSkiaGameEngine>
       </View>
