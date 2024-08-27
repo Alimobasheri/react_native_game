@@ -235,7 +235,7 @@ export class Wave implements IWave {
    * @return {number} the calculated decay factor
    */
   getDecayFactorAtDistance(distance: number): number {
-    return Math.exp(-5 * Math.abs(distance));
+    return Math.exp(-8 * Math.abs(distance));
   }
   smoothstep(edge0: number, edge1: number, x: number): number {
     let t = (x - edge0) / (edge1 - edge0);

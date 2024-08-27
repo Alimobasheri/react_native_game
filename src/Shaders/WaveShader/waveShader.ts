@@ -29,7 +29,7 @@ export const waveShaderFoamIntensityFunc = `
 
 export const waveShaderGetDecayFunc = `
   float getDecayFactorAtDistance(float distance) {
-    return exp(-10. * abs(distance));
+    return exp(-8. * abs(distance));
   }
 `;
 

@@ -1,3 +1,5 @@
+import { EventDispatcher } from "@/containers/ReactNativeSkiaGameEngine";
+
 /**
  * Represents a single touch event with its coordinates.
  */
@@ -32,7 +34,7 @@ export type RNGE_System_Args = {
   screen: any; // Screen information, typically including dimensions and orientation
   layout: any; // Layout information, which may include positioning, size, and other layout-related details
   events: any[]; // A list of custom events that might be relevant to the current frame
-  dispatch: any; // A function to dispatch actions or events, often used to trigger state changes or events
+  dispatcher: EventDispatcher; // A function to dispatch actions or events, often used to trigger state changes or events
   time: RNGE_Time; // Timing information, including the current time, previous time, and time delta
 };
 

@@ -1,11 +1,10 @@
 import { ENTITIES_KEYS } from "@/constants/configs";
 import { RNGE_Entities, RNGE_System_Args } from "../types";
 import { ICollisionsSystem, ShipBoatCollisionList } from "./types";
-import { VEHICLE_TYPE_IDENTIFIERS } from "@/constants/vehicle";
 import { Boat } from "@/Game/Entities/Boat/Boat";
 import { Ship } from "@/Game/Entities/Ship/Ship";
 import Matter from "matter-js";
-import { GameLoopSystem } from "../GameLoopSystem/GameLoopSystem";
+import { Entities, Entity } from "ouput-gameEngine";
 
 export class CollisionsSystem implements ICollisionsSystem {
   protected _collisionsInFrame: ShipBoatCollisionList = [];
@@ -18,38 +17,34 @@ export class CollisionsSystem implements ICollisionsSystem {
     this.update(entities, args);
     return entities;
   }
+
+  systemInstanceRNSGE(entities: Entities, args: RNGE_System_Args) {
+    this.update(entities, args);
+  }
+
   public systemManager(entities: RNGE_Entities, args: RNGE_System_Args) {
     const collisionsSystem: CollisionsSystem =
       entities[ENTITIES_KEYS.COLLISIONS_SYSTEM_INSTANCE];
     return collisionsSystem.systemInstance(entities, args);
   }
 
-  protected update(entities: RNGE_Entities, args: RNGE_System_Args): void {
-    const gameLoopSystem: GameLoopSystem =
-      entities[ENTITIES_KEYS.GAME_LOOP_SYSTEM];
-    const currentFrame = gameLoopSystem.currentFrame;
+  protected update(entities: Entities, args: RNGE_System_Args): void {
     const attackingBoats = this.findAttackingBoats(entities);
-    const ship: Ship = entities[ENTITIES_KEYS.SEA_GROUP].entities["ship"];
-    if (attackingBoats.length > 0 && !!ship?.body) {
-      const collisions = this.getAttackingBoatsCollision(attackingBoats, ship);
-      if (collisions.length > 0) args.dispatch("gameOver");
-      this.saveShipBoatCollisionsInFrame(
-        entities,
-        collisions,
-        ship,
-        currentFrame
-      );
+    const ship: Entity<Ship> = entities.getEntityByLabel(ENTITIES_KEYS.SHIP);
+    if (attackingBoats.length > 0 && !!ship?.data.body) {
+      const collisions = this.getAttackingBoatsCollision(attackingBoats, ship.data);
+      if (collisions.length > 0) args.dispatcher.emitEvent("gameOver");
     }
   }
 
   protected getAttackingBoatsCollision(
-    attackingBoats: Boat[],
+    attackingBoats: Entity<Boat>[],
     ship: Ship
   ): Matter.Collision[] {
     const attackingBoatsWithBodies: any[] = [];
     for (let i = 0; i < attackingBoats.length; i++) {
-      if (attackingBoats[i].body !== null)
-        attackingBoatsWithBodies.push(attackingBoats[i].body);
+      if (attackingBoats[i].data.body !== null)
+        attackingBoatsWithBodies.push(attackingBoats[i].data.body);
     }
     const collisionsDetector = Matter.Detector.create({
       bodies: [
@@ -87,12 +82,7 @@ export class CollisionsSystem implements ICollisionsSystem {
     });
   }
 
-  protected findAttackingBoats(entities: RNGE_Entities): Boat[] {
-    return Object.keys(entities[ENTITIES_KEYS.SEA_GROUP].entities)
-      .map((key) => entities[ENTITIES_KEYS.SEA_GROUP].entities[key])
-      .filter(
-        (entity) =>
-          entity?.type === VEHICLE_TYPE_IDENTIFIERS.BOAT && entity.isAttacking
-      );
+  protected findAttackingBoats(entities: Entities): Entity<Boat>[] {
+    return entities.getEntitiesByGroup(ENTITIES_KEYS.BOAT_GROUP)
   }
 }
