@@ -3,6 +3,7 @@ import { Entities } from '../../services/Entities';
 import { Systems } from '../../services/Systems';
 import { Frames } from '../../services/Frames';
 import { EventDispatcher } from '../../services';
+import { OnEventListeners } from '../../types/Events';
 
 /**
  * A React hook that manages the game loop, responsible for updating entities and systems
@@ -26,10 +27,11 @@ import { EventDispatcher } from '../../services';
 export function useGameLoop(
   entities: MutableRefObject<Entities>,
   systems: MutableRefObject<Systems>,
-  dispatcher: MutableRefObject<EventDispatcher>
+  dispatcher: MutableRefObject<EventDispatcher>,
+  onEventListeners?: OnEventListeners
 ) {
   const frames = useRef<Frames>(new Frames());
-  const events = useRef<string[]>([]);
+  const events = useRef<any[]>([]);
 
   useEffect(() => {
     const globalStartTime = global.nativePerformanceNow();
@@ -52,6 +54,11 @@ export function useGameLoop(
         touches: [],
         screen: {},
         layout: {},
+      });
+      events.current.forEach((event) => {
+        if (onEventListeners && onEventListeners[event.type]) {
+          onEventListeners[event.type](event);
+        }
       });
       events.current = []; // Clear events after processing
       frames.current.updateFrame(60, deltaTime); // Update the frame counter

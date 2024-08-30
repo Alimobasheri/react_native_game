@@ -1,6 +1,7 @@
 import { EventDispatcher } from './EventDispatcher';
 import { uid } from './Entity';
 import { EmitterSubscription } from 'react-native';
+import { GameEvent } from '../types/Events';
 
 let mockUidCounter = 0;
 
@@ -10,6 +11,8 @@ jest.mock('./Entity', () => ({
 
 describe('EventDispatcher', () => {
   let eventDispatcher: EventDispatcher;
+
+  let testEvent: GameEvent = { type: 'TestEvent', data: { key: 'value' } };
 
   beforeEach(() => {
     eventDispatcher = new EventDispatcher();
@@ -24,20 +27,20 @@ describe('EventDispatcher', () => {
     const eventListener = jest.fn();
     eventDispatcher.addListener('TestEvent', eventListener);
 
-    eventDispatcher.emitEvent('TestEvent', { key: 'value' });
+    eventDispatcher.emitEvent(testEvent);
 
     expect(eventListener).toHaveBeenCalledTimes(1);
-    expect(eventListener).toHaveBeenCalledWith({ key: 'value' });
+    expect(eventListener).toHaveBeenCalledWith(testEvent);
   });
 
   test('should emit an event and trigger global listeners', () => {
     const globalListener = jest.fn();
     eventDispatcher.addListenerToAllEvents(globalListener);
 
-    eventDispatcher.emitEvent('TestEvent', { key: 'value' });
+    eventDispatcher.emitEvent(testEvent);
 
     expect(globalListener).toHaveBeenCalledTimes(1);
-    expect(globalListener).toHaveBeenCalledWith({ key: 'value' });
+    expect(globalListener).toHaveBeenCalledWith(testEvent);
   });
 
   test('should trigger both specific and global listeners', () => {
@@ -46,12 +49,12 @@ describe('EventDispatcher', () => {
     eventDispatcher.addListener('TestEvent', eventListener);
     eventDispatcher.addListenerToAllEvents(globalListener);
 
-    eventDispatcher.emitEvent('TestEvent', { key: 'value' });
+    eventDispatcher.emitEvent(testEvent);
 
     expect(eventListener).toHaveBeenCalledTimes(1);
     expect(globalListener).toHaveBeenCalledTimes(1);
-    expect(eventListener).toHaveBeenCalledWith({ key: 'value' });
-    expect(globalListener).toHaveBeenCalledWith({ key: 'value' });
+    expect(eventListener).toHaveBeenCalledWith(testEvent);
+    expect(globalListener).toHaveBeenCalledWith(testEvent);
   });
 
   test('should add a global listener and return a unique ID', () => {
@@ -88,12 +91,17 @@ describe('EventDispatcher', () => {
     eventDispatcher.addListenerToAllEvents(globalListener1);
     eventDispatcher.addListenerToAllEvents(globalListener2);
 
-    eventDispatcher.emitEvent('GlobalTestEvent', { key: 'value' });
+    const mockGlobalEvent: GameEvent = {
+      type: 'GlobalTestEvent',
+      data: { key: 'value' },
+    };
+
+    eventDispatcher.emitEvent(mockGlobalEvent);
 
     expect(globalListener1).toHaveBeenCalledTimes(1);
     expect(globalListener2).toHaveBeenCalledTimes(1);
-    expect(globalListener1).toHaveBeenCalledWith({ key: 'value' });
-    expect(globalListener2).toHaveBeenCalledWith({ key: 'value' });
+    expect(globalListener1).toHaveBeenCalledWith(mockGlobalEvent);
+    expect(globalListener2).toHaveBeenCalledWith(mockGlobalEvent);
   });
 
   test('should handle emitting events without data', () => {
@@ -102,12 +110,12 @@ describe('EventDispatcher', () => {
     eventDispatcher.addListener('NoDataEvent', eventListener);
     eventDispatcher.addListenerToAllEvents(globalListener);
 
-    eventDispatcher.emitEvent('NoDataEvent');
+    eventDispatcher.emitEvent({ type: 'NoDataEvent' });
 
     expect(eventListener).toHaveBeenCalledTimes(1);
-    expect(eventListener).toHaveBeenCalledWith(undefined);
+    expect(eventListener).toHaveBeenCalledWith({ type: 'NoDataEvent' });
     expect(globalListener).toHaveBeenCalledTimes(1);
-    expect(globalListener).toHaveBeenCalledWith(undefined);
+    expect(globalListener).toHaveBeenCalledWith({ type: 'NoDataEvent' });
   });
 
   test('should return an EmitterSubscription when adding a listener', () => {
@@ -128,7 +136,7 @@ describe('EventDispatcher', () => {
     );
 
     subscription.remove();
-    eventDispatcher.emitEvent('TestEvent', { key: 'value' });
+    eventDispatcher.emitEvent({ type: 'TestEvent', data: { key: 'value' } });
 
     expect(eventListener).not.toHaveBeenCalled();
   });
@@ -140,7 +148,7 @@ describe('EventDispatcher', () => {
     eventDispatcher.addListener('TestEvent', eventListener2);
 
     eventDispatcher.removeAllListenersForEvent('TestEvent');
-    eventDispatcher.emitEvent('TestEvent', { key: 'value' });
+    eventDispatcher.emitEvent({ type: 'TestEvent', data: { key: 'value' } });
 
     expect(eventListener1).not.toHaveBeenCalled();
     expect(eventListener2).not.toHaveBeenCalled();
@@ -153,7 +161,7 @@ describe('EventDispatcher', () => {
     eventDispatcher.addListener('TestEvent', eventListener2);
 
     eventDispatcher.removeAllListenersForEvent('TestEvent');
-    eventDispatcher.emitEvent('TestEvent', { key: 'value' });
+    eventDispatcher.emitEvent({ type: 'TestEvent', data: { key: 'value' } });
 
     expect(eventListener1).not.toHaveBeenCalled();
     expect(eventListener2).not.toHaveBeenCalled();
@@ -165,11 +173,16 @@ describe('EventDispatcher', () => {
     eventDispatcher.addListener('MultiEvent', eventListener1);
     eventDispatcher.addListener('MultiEvent', eventListener2);
 
-    eventDispatcher.emitEvent('MultiEvent', { key: 'value' });
+    const mockMultiEvent: GameEvent = {
+      type: 'MultiEvent',
+      data: { key: 'value' },
+    };
+
+    eventDispatcher.emitEvent(mockMultiEvent);
 
     expect(eventListener1).toHaveBeenCalledTimes(1);
     expect(eventListener2).toHaveBeenCalledTimes(1);
-    expect(eventListener1).toHaveBeenCalledWith({ key: 'value' });
-    expect(eventListener2).toHaveBeenCalledWith({ key: 'value' });
+    expect(eventListener1).toHaveBeenCalledWith(mockMultiEvent);
+    expect(eventListener2).toHaveBeenCalledWith(mockMultiEvent);
   });
 });

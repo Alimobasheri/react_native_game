@@ -1,6 +1,7 @@
 import { renderHook } from '@testing-library/react-native';
 import { useDispatcher } from './useDispatcher';
 import { EventDispatcher } from '../../services';
+import { GameEvent } from '../../types/Events';
 
 describe('useDispatcher', () => {
   test('should return a reference to an EventDispatcher instance', () => {
@@ -32,12 +33,14 @@ describe('useDispatcher', () => {
     // Add a listener to the dispatcher
     dispatcher.addListener('TestEvent', mockListener);
 
+    const testEvent: GameEvent = { type: 'TestEvent', data: { key: 'value' } };
+
     // Dispatch an event
-    dispatcher.emitEvent('TestEvent', { key: 'value' });
+    dispatcher.emitEvent(testEvent);
 
     // The listener should have been called with the correct event data
     expect(mockListener).toHaveBeenCalledTimes(1);
-    expect(mockListener).toHaveBeenCalledWith({ key: 'value' });
+    expect(mockListener).toHaveBeenCalledWith(testEvent);
   });
 
   test('should allow adding and removing global listeners using EventDispatcher', () => {
@@ -49,18 +52,28 @@ describe('useDispatcher', () => {
     // Add a global listener
     const listenerId = dispatcher.addListenerToAllEvents(mockGlobalListener);
 
+    const anotherEventOne: GameEvent = {
+      type: 'AnotherEvent',
+      data: { foo: 'bar' },
+    };
+
+    const anotherEventtwo: GameEvent = {
+      type: 'AnotherEvent',
+      data: { foo: 'baz' },
+    };
+
     // Dispatch an event
-    dispatcher.emitEvent('AnotherEvent', { foo: 'bar' });
+    dispatcher.emitEvent(anotherEventOne);
 
     // The global listener should have been called with the event data
     expect(mockGlobalListener).toHaveBeenCalledTimes(1);
-    expect(mockGlobalListener).toHaveBeenCalledWith({ foo: 'bar' });
+    expect(mockGlobalListener).toHaveBeenCalledWith(anotherEventOne);
 
     // Remove the global listener
     dispatcher.removeListenerToAllEvents(listenerId);
 
     // Dispatch another event
-    dispatcher.emitEvent('AnotherEvent', { foo: 'baz' });
+    dispatcher.emitEvent(anotherEventtwo);
 
     // The global listener should not be called again
     expect(mockGlobalListener).toHaveBeenCalledTimes(1); // Still 1, as it was removed

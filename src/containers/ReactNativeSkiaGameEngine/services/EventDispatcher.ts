@@ -2,6 +2,7 @@ import EventEmitter, {
   EmitterSubscription,
 } from 'react-native/Libraries/vendor/emitter/EventEmitter';
 import { uid } from './Entity';
+import { GameEvent, GameEventListener } from '../types/Events';
 
 /**
  * A global event dispatcher for the game engine, allowing events to be emitted and listened to from any part of the game.
@@ -15,25 +16,24 @@ export class EventDispatcher extends EventEmitter {
    * A map of subscriber IDs to callback functions for listeners that subscribe to all events.
    * This allows any part of the game to respond to global events.
    *
-   * @type {Map<string, (data: any) => void>}
+   * @type {Map<string, GameEventListener>}
    * @private
    */
-  private _subscribersToAllEvents: Map<string, (data: any) => void> = new Map<
+  private _subscribersToAllEvents: Map<string, GameEventListener> = new Map<
     string,
-    (data: any) => void
+    GameEventListener
   >();
 
   /**
-   * Emits a global event to all listeners subscribed to the specific event and to those subscribed to all events.
+   * Emits a global event to all listeners subscribed to the specific event type and to those subscribed to all events.
    * This method allows events to be dispatched from any part of the game and received by any other part.
    *
-   * @param {string} event - The name of the event to emit.
-   * @param {any} [data] - Optional data to pass to the event listeners.
+   * @param {GameEvent} event - The event with type and data to emit.
    */
-  public emitEvent(event: string, data?: any) {
-    this.emit(event, data);
+  public emitEvent(event: GameEvent) {
+    this.emit(event.type, event);
     for (const [_, callback] of this._subscribersToAllEvents) {
-      callback(data);
+      callback(event);
     }
   }
 
@@ -41,10 +41,10 @@ export class EventDispatcher extends EventEmitter {
    * Adds a listener that will be called whenever any event is emitted within the game.
    * This allows for global event handling, where a single listener can respond to all events.
    *
-   * @param {(data: any) => void} callback - The callback function to execute when any event is emitted.
+   * @param {GameEventListener} callback - The callback function to execute when any event is emitted.
    * @returns {string} The unique ID of the listener, which can be used to remove the listener later.
    */
-  public addListenerToAllEvents(callback: (data: any) => void): string {
+  public addListenerToAllEvents(callback: GameEventListener): string {
     const id = uid();
     this._subscribersToAllEvents.set(id, callback);
     return id;
@@ -64,26 +64,26 @@ export class EventDispatcher extends EventEmitter {
    * Adds a listener for a specific event.
    * This wraps the `EventEmitter`'s `addListener` method and returns an EmitterSubscription.
    *
-   * @param {string} event - The name of the event to listen to.
-   * @param {(data: any) => void} listener - The callback function to execute when the event is emitted.
+   * @param {string} eventType - The name of the event to listen to.
+   * @param {GameEventListener} listener - The callback function to execute when the event is emitted.
    * @param {any} [context] - Optional context to bind the listener function to.
    * @returns {EmitterSubscription} An EmitterSubscription object that can be used to remove the listener.
    */
   public addListener(
-    event: string,
-    listener: (data: any) => void,
+    eventType: string,
+    listener: GameEventListener,
     context?: any
   ): EmitterSubscription {
-    return super.addListener(event, listener, context);
+    return super.addListener(eventType, listener, context);
   }
 
   /**
    * Removes all listeners for a specific event.
    * This method will remove all callbacks for a given event.
    *
-   * @param {string} event - The name of the event to remove listeners for.
+   * @param {string} eventType - The name of the event to remove listeners for.
    */
-  public removeAllListenersForEvent(event: string): void {
-    this.removeAllListeners(event);
+  public removeAllListenersForEvent(eventType: string): void {
+    this.removeAllListeners(eventType);
   }
 }
