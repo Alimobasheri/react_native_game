@@ -1,10 +1,11 @@
-import { ENTITIES_KEYS } from "@/constants/configs";
-import { RNGE_Entities, RNGE_System_Args } from "../types";
-import { ICollisionsSystem, ShipBoatCollisionList } from "./types";
-import { Boat } from "@/Game/Entities/Boat/Boat";
-import { Ship } from "@/Game/Entities/Ship/Ship";
-import Matter from "matter-js";
-import { Entities, Entity } from "ouput-gameEngine";
+import { ENTITIES_KEYS } from '@/constants/configs';
+import { RNGE_Entities, RNGE_System_Args } from '../types';
+import { ICollisionsSystem, ShipBoatCollisionList } from './types';
+import { Boat } from '@/Game/Entities/Boat/Boat';
+import { Ship } from '@/Game/Entities/Ship/Ship';
+import Matter from 'matter-js';
+import { GAME_OVER_EVENT } from '@/constants/events';
+import { Entities, Entity } from '@/containers/ReactNativeSkiaGameEngine';
 
 export class CollisionsSystem implements ICollisionsSystem {
   protected _collisionsInFrame: ShipBoatCollisionList = [];
@@ -30,10 +31,15 @@ export class CollisionsSystem implements ICollisionsSystem {
 
   protected update(entities: Entities, args: RNGE_System_Args): void {
     const attackingBoats = this.findAttackingBoats(entities);
-    const ship: Entity<Ship> = entities.getEntityByLabel(ENTITIES_KEYS.SHIP);
+    const ship: Entity<Ship> | undefined = entities.getEntityByLabel(
+      ENTITIES_KEYS.SHIP
+    );
     if (attackingBoats.length > 0 && !!ship?.data.body) {
-      const collisions = this.getAttackingBoatsCollision(attackingBoats, ship.data);
-      if (collisions.length > 0) args.dispatcher.emitEvent("gameOver");
+      const collisions = this.getAttackingBoatsCollision(
+        attackingBoats,
+        ship.data
+      );
+      if (collisions.length > 0) args.dispatcher.emitEvent(GAME_OVER_EVENT);
     }
   }
 
@@ -83,6 +89,6 @@ export class CollisionsSystem implements ICollisionsSystem {
   }
 
   protected findAttackingBoats(entities: Entities): Entity<Boat>[] {
-    return entities.getEntitiesByGroup(ENTITIES_KEYS.BOAT_GROUP)
+    return entities.getEntitiesByGroup(ENTITIES_KEYS.BOAT_GROUP);
   }
 }

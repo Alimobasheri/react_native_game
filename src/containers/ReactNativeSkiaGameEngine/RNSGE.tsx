@@ -13,14 +13,24 @@ import {
   GestureDetector,
   GestureHandlerRootView,
 } from 'react-native-gesture-handler';
+import { OnEventListeners } from './types/Events';
 
-export const ReactNativeSkiaGameEngine: FC<PropsWithChildren> = memo(
-  ({ children }) => {
+interface RNSGEProps extends PropsWithChildren {
+  onEventListeners?: OnEventListeners;
+}
+
+export const ReactNativeSkiaGameEngine: FC<RNSGEProps> = memo(
+  ({ children, onEventListeners }) => {
     const entities = useEntities();
     const systems = useSystems();
     const dispatcher = useDispatcher();
     const touchService = useTouchService();
-    const { frames } = useGameLoop(entities, systems, dispatcher);
+    const { frames } = useGameLoop(
+      entities,
+      systems,
+      dispatcher,
+      onEventListeners
+    );
     const [dimensions, setDimensions] = useState<{
       width: number | null;
       height: number | null;

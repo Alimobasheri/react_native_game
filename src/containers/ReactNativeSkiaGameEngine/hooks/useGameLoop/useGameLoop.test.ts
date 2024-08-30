@@ -8,6 +8,7 @@ import {
   mockRequestAnimationFrame,
   resetTestTimers,
 } from '../../utils/testUtils';
+import { GameEvent } from '../../types/Events';
 
 describe('useGameLoop', () => {
   let entities: { current: Entities };
@@ -71,7 +72,7 @@ describe('useGameLoop', () => {
     expect(mockUpdate).toHaveBeenCalledTimes(1);
     expect(mockUpdate).toHaveBeenCalledWith(entities.current, {
       events: [],
-      dispatch: dispatcher.current,
+      dispatcher: dispatcher.current,
       time: expect.objectContaining({
         delta: expect.any(Number),
         current: expect.any(Number),
@@ -95,10 +96,10 @@ describe('useGameLoop', () => {
       useGameLoop(entities, systems, dispatcher)
     );
 
-    const mockEvent = { type: 'TEST_EVENT' };
+    const mockEvent: GameEvent = { type: 'TEST_EVENT' };
 
     act(() => {
-      dispatcher.current.emitEvent('TEST_EVENT', mockEvent);
+      dispatcher.current.emitEvent(mockEvent);
       advanceTime(1000 / 60);
     });
 
@@ -152,8 +153,8 @@ describe('useGameLoop', () => {
     const mockEvent2 = { type: 'EVENT_2' };
 
     act(() => {
-      dispatcher.current.emitEvent('EVENT_1', mockEvent1);
-      dispatcher.current.emitEvent('EVENT_2', mockEvent2);
+      dispatcher.current.emitEvent(mockEvent1);
+      dispatcher.current.emitEvent(mockEvent2);
       advanceTime(1000 / 60);
     });
 
@@ -210,5 +211,74 @@ describe('useGameLoop', () => {
     unmount();
 
     expect(removeListenerSpy).toHaveBeenCalled();
+  });
+
+  test('should handle onEventListeners correctly', () => {
+    const mockListener = jest.fn();
+    const mockEvent: GameEvent = { type: 'TestEvent', data: { key: 'value' } };
+
+    const onEventListeners = {
+      TestEvent: mockListener,
+    };
+
+    renderHook(() =>
+      useGameLoop(entities, systems, dispatcher, onEventListeners)
+    );
+
+    act(() => {
+      dispatcher.current.emitEvent(mockEvent);
+      advanceTime(16.7);
+    });
+
+    expect(mockListener).toHaveBeenCalledTimes(1);
+    expect(mockListener).toHaveBeenCalledWith(mockEvent);
+  });
+
+  test('should process multiple events and clear them after update', () => {
+    const mockListener1 = jest.fn();
+    const mockListener2 = jest.fn();
+
+    const mockEvent1: GameEvent = { type: 'Event1', data: { key: 'value1' } };
+    const mockEvent2: GameEvent = { type: 'Event2', data: { key: 'value2' } };
+
+    const onEventListeners = {
+      Event1: mockListener1,
+      Event2: mockListener2,
+    };
+
+    renderHook(() =>
+      useGameLoop(entities, systems, dispatcher, onEventListeners)
+    );
+
+    act(() => {
+      dispatcher.current.emitEvent(mockEvent1);
+      dispatcher.current.emitEvent(mockEvent2);
+      advanceTime(16.7);
+    });
+
+    expect(mockListener1).toHaveBeenCalledTimes(1);
+    expect(mockListener1).toHaveBeenCalledWith(mockEvent1);
+    expect(mockListener2).toHaveBeenCalledTimes(1);
+    expect(mockListener2).toHaveBeenCalledWith(mockEvent2);
+  });
+
+  test('should not call listeners for events not present in onEventListeners', () => {
+    const mockListener = jest.fn();
+    const mockEvent: GameEvent = { type: 'TestEvent', data: { key: 'value' } };
+
+    const onEventListeners = {
+      DifferentEvent: mockListener,
+    };
+
+    renderHook(() =>
+      useGameLoop(entities, systems, dispatcher, onEventListeners)
+    );
+
+    act(() => {
+      dispatcher.current.emitEvent(mockEvent);
+      advanceTime(16.7);
+    });
+
+    expect(mockListener).not.toHaveBeenCalled();
   });
 });

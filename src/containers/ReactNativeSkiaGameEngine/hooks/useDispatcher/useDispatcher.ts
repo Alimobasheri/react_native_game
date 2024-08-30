@@ -17,16 +17,16 @@ import { EventDispatcher } from '../../services';
  * const eventDispatcher = dispatcher.current;
  *
  * // Dispatch an event:
- * eventDispatcher.emitEvent('MyEvent', { key: 'value' });
+ * eventDispatcher.emitEvent({type: 'MyEvent', data: { key: 'value' }});
  *
- * // Add a listener to a global event:
- * eventDispatcher.addListener('MyEvent', (data) => {
- *   console.log(data);
+ * // Add a listener to a specific event:
+ * eventDispatcher.addListener('MyEvent', (event: GameEvent) => {
+ *   console.log(event.type, event.data);
  * });
  *
  * // Remove the listener:
- * const listenerId = eventDispatcher.addListenerToAllEvents((data) => {
- *   console.log('Global Event:', data);
+ * const listenerId = eventDispatcher.addListenerToAllEvents((event: GameEvent) => {
+ *   console.log('Global Event:', event);
  * });
  * eventDispatcher.removeListenerToAllEvents(listenerId);
  */
