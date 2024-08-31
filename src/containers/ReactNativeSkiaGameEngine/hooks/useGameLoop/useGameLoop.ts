@@ -1,9 +1,24 @@
-import { MutableRefObject, useEffect, useRef } from 'react';
+import { MutableRefObject, useCallback, useEffect, useRef } from 'react';
 import { Entities } from '../../services/Entities';
 import { Systems } from '../../services/Systems';
 import { Frames } from '../../services/Frames';
 import { EventDispatcher } from '../../services';
 import { OnEventListeners } from '../../types/Events';
+
+/**
+ * Options for the useGameLoop hook
+ * @property {boolean} [initialRunning=true] whether the game loop should be running initially
+ */
+export type UseGameLoopOptions = {
+  initialRunning?: boolean;
+};
+
+/**
+ * Default options for the useGameLoop hook
+ */
+export const DEFAULT_USE_GAME_LOOP_OPTIONS: UseGameLoopOptions = {
+  initialRunning: true,
+};
 
 /**
  * A React hook that manages the game loop, responsible for updating entities and systems
@@ -13,6 +28,8 @@ import { OnEventListeners } from '../../types/Events';
  * @param {MutableRefObject<Entities>} entities - A reference to the Entities instance managing all game entities.
  * @param {MutableRefObject<Systems>} systems - A reference to the Systems instance managing all game systems.
  * @param {MutableRefObject<EventDispatcher>} dispatcher - A reference to the EventDispatcher instance for handling events.
+ * @param {OnEventListeners} onEventListeners - An object containing event listeners to be added to the dispatcher.
+ * @param {UseGameLoopOptions} [options={}] - Options for the useGameLoop hook.
  *
  * @returns {{
  *   frames: MutableRefObject<Frames>
@@ -28,20 +45,16 @@ export function useGameLoop(
   entities: MutableRefObject<Entities>,
   systems: MutableRefObject<Systems>,
   dispatcher: MutableRefObject<EventDispatcher>,
-  onEventListeners?: OnEventListeners
+  onEventListeners: OnEventListeners,
+  options: UseGameLoopOptions = DEFAULT_USE_GAME_LOOP_OPTIONS
 ) {
   const frames = useRef<Frames>(new Frames());
   const events = useRef<any[]>([]);
 
-  useEffect(() => {
-    const globalStartTime = global.nativePerformanceNow();
-    // Add a listener to capture all events dispatched during the game loop
-    const listener = dispatcher.current.addListenerToAllEvents((data) => {
-      events.current.push(data);
-    });
+  const running = useRef<boolean>(options.initialRunning ?? false);
 
-    // Update function that runs on every frame
-    const update = (deltaTime: number, now: number, then: number) => {
+  const update = useCallback((deltaTime: number, now: number, then: number) => {
+    if (running.current) {
       systems.current.update(entities.current, {
         events: events.current,
         dispatcher: dispatcher.current,
@@ -49,7 +62,6 @@ export function useGameLoop(
           delta: deltaTime,
           current: now,
           previous: then,
-          globalStartTime,
         },
         touches: [],
         screen: {},
@@ -60,19 +72,33 @@ export function useGameLoop(
           onEventListeners[event.type](event);
         }
       });
-      events.current = []; // Clear events after processing
-      frames.current.updateFrame(60, deltaTime); // Update the frame counter
-    };
 
-    // Game loop function driven by requestAnimationFrame
-    const gameLoop = (now: number, then: number) => {
-      const deltaTime = now - then; // Calculate time difference between frames
-      update(deltaTime, now, then); // Run the update
-      requestAnimationFrame((nextTime) => gameLoop(nextTime, now)); // Loop
-    };
+      events.current = [];
+      frames.current.updateFrame(60, deltaTime);
+    }
+  }, []);
 
-    // Start the game loop
-    requestAnimationFrame((nextTime) => gameLoop(nextTime, nextTime));
+  const gameLoop = useCallback((now: number, then: number) => {
+    const deltaTime = now - then; // Calculate time difference between frames
+    update(deltaTime, now, then); // Run the update
+    requestAnimationFrame((nextTime) => gameLoop(nextTime, now)); // Loop
+  }, []);
+
+  const start = useCallback(() => {
+    if (!running.current) {
+      running.current = true;
+    }
+  }, []);
+
+  const stop = useCallback(() => {
+    running.current = false;
+  }, []);
+
+  useEffect(() => {
+    // Add a listener to capture all events dispatched during the game loop
+    const listener = dispatcher.current.addListenerToAllEvents((data) => {
+      events.current.push(data);
+    });
 
     // Cleanup function to remove event listeners when component unmounts
     return () => {
@@ -80,5 +106,9 @@ export function useGameLoop(
     };
   }, [entities, systems, dispatcher]);
 
-  return { frames };
+  useEffect(() => {
+    requestAnimationFrame((nextTime) => gameLoop(nextTime, nextTime));
+  }, []);
+
+  return { frames, start, stop };
 }

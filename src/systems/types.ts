@@ -1,4 +1,4 @@
-import { EventDispatcher } from "@/containers/ReactNativeSkiaGameEngine";
+import { EventDispatcher } from '@/containers/ReactNativeSkiaGameEngine';
 
 /**
  * Represents a single touch event with its coordinates.
@@ -23,7 +23,6 @@ export type RNGE_Time = {
   current: number; // The current time (timestamp)
   previous: number; // The previous time recorded
   delta: number; // The time difference between the current and previous frame, in milliseconds
-  globalStartTime: number; // The global start time of the game, in milliseconds
 };
 
 /**

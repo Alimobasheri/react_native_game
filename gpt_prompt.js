@@ -53,6 +53,9 @@ function concatenateFiles(directory) {
 
   processDirectory(directory);
 
+  // Minify the output by removing whitespaces and newlines
+  outputData = outputData.replace(/\s+/g, ' ').trim();
+
   // Copy to clipboard depending on the OS
   const platform = process.platform;
   try {
