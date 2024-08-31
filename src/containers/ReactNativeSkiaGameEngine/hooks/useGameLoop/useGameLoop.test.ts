@@ -33,7 +33,7 @@ describe('useGameLoop', () => {
 
   test('should initialize frames correctly', () => {
     const { result } = renderHook(() =>
-      useGameLoop(entities, systems, dispatcher)
+      useGameLoop(entities, systems, dispatcher, {})
     );
 
     expect(result.current.frames.current.currentFrame).toBe(0);
@@ -41,7 +41,7 @@ describe('useGameLoop', () => {
 
   test('should start the game loop and update frames on each iteration', () => {
     const { result } = renderHook(() =>
-      useGameLoop(entities, systems, dispatcher)
+      useGameLoop(entities, systems, dispatcher, {})
     );
 
     // Simulate the first frame
@@ -62,7 +62,7 @@ describe('useGameLoop', () => {
   test('should call system update with correct parameters on each loop iteration', () => {
     const mockUpdate = jest.spyOn(systems.current, 'update');
     const { result } = renderHook(() =>
-      useGameLoop(entities, systems, dispatcher)
+      useGameLoop(entities, systems, dispatcher, {})
     );
 
     act(() => {
@@ -93,7 +93,7 @@ describe('useGameLoop', () => {
   test('should correctly accumulate and clear events between frames', () => {
     const mockUpdate = jest.spyOn(systems.current, 'update');
     const { result } = renderHook(() =>
-      useGameLoop(entities, systems, dispatcher)
+      useGameLoop(entities, systems, dispatcher, {})
     );
 
     const mockEvent: GameEvent = { type: 'TEST_EVENT' };
@@ -133,7 +133,7 @@ describe('useGameLoop', () => {
     );
 
     const { unmount } = renderHook(() =>
-      useGameLoop(entities, systems, dispatcher)
+      useGameLoop(entities, systems, dispatcher, {})
     );
 
     expect(addListenerSpy).toHaveBeenCalledTimes(1);
@@ -146,7 +146,7 @@ describe('useGameLoop', () => {
   test('should handle multiple event emissions within a single frame', () => {
     const mockUpdate = jest.spyOn(systems.current, 'update');
     const { result } = renderHook(() =>
-      useGameLoop(entities, systems, dispatcher)
+      useGameLoop(entities, systems, dispatcher, {})
     );
 
     const mockEvent1 = { type: 'EVENT_1' };
@@ -169,7 +169,7 @@ describe('useGameLoop', () => {
   test('should correctly calculate deltaTime and update time in system', () => {
     const mockUpdate = jest.spyOn(systems.current, 'update');
     const { result } = renderHook(() =>
-      useGameLoop(entities, systems, dispatcher)
+      useGameLoop(entities, systems, dispatcher, {})
     );
 
     act(() => {
@@ -194,7 +194,7 @@ describe('useGameLoop', () => {
       window,
       'requestAnimationFrame'
     );
-    renderHook(() => useGameLoop(entities, systems, dispatcher));
+    renderHook(() => useGameLoop(entities, systems, dispatcher, {}));
 
     expect(requestAnimationFrameSpy).toHaveBeenCalled();
   });
@@ -205,7 +205,7 @@ describe('useGameLoop', () => {
       'removeListenerToAllEvents'
     );
     const { unmount } = renderHook(() =>
-      useGameLoop(entities, systems, dispatcher)
+      useGameLoop(entities, systems, dispatcher, {})
     );
 
     unmount();
@@ -280,5 +280,126 @@ describe('useGameLoop', () => {
     });
 
     expect(mockListener).not.toHaveBeenCalled();
+  });
+
+  test('should start the game loop if initialRunning is true', () => {
+    const { result } = renderHook(() =>
+      useGameLoop(entities, systems, dispatcher, {}, { initialRunning: true })
+    );
+
+    // Initially, the frame count should be 0
+    expect(result.current.frames.current.currentFrame).toBe(0);
+
+    // Simulate time passing for several frames
+    act(() => {
+      advanceTime(16.7);
+      advanceTime(16.7);
+      advanceTime(16.7);
+    });
+
+    // Expect the frame count to have advanced (e.g., to 2)
+    expect(result.current.frames.current.currentFrame).toBe(2);
+  });
+
+  test('should not start the game loop if initialRunning is false', () => {
+    const { result } = renderHook(() =>
+      useGameLoop(entities, systems, dispatcher, {}, { initialRunning: false })
+    );
+
+    // Initially, the frame count should be 0
+    expect(result.current.frames.current.currentFrame).toBe(0);
+
+    // Simulate time passing for several frames
+    act(() => {
+      advanceTime(16.7); // Simulate three frames
+      advanceTime(16.7);
+      advanceTime(16.7);
+    });
+
+    // The frame count should still be 0 because the loop has not started
+    expect(result.current.frames.current.currentFrame).toBe(0);
+
+    // Start the game loop manually
+    act(() => {
+      result.current.start();
+    });
+
+    // Simulate more time passing
+    act(() => {
+      advanceTime(16.7); // Simulate three more frames
+      advanceTime(16.7);
+      advanceTime(16.7);
+    });
+
+    // Now the frame count should have advanced
+    expect(result.current.frames.current.currentFrame).toBe(3);
+  });
+
+  test('should start the game loop when start is called', () => {
+    const { result } = renderHook(() =>
+      useGameLoop(entities, systems, dispatcher, {}, { initialRunning: false })
+    );
+
+    // Initially, the frame count should be 0
+    expect(result.current.frames.current.currentFrame).toBe(0);
+
+    // Simulate time passing without starting the loop
+    act(() => {
+      advanceTime(16.7);
+      advanceTime(16.7);
+      advanceTime(16.7); // Simulate a third frame
+    });
+
+    // Frame count should still be 0 since the loop hasn't started
+    expect(result.current.frames.current.currentFrame).toBe(0);
+
+    // Now start the game loop
+    act(() => {
+      result.current.start();
+    });
+
+    // Simulate more time passing
+    act(() => {
+      advanceTime(16.7);
+      advanceTime(16.7);
+      advanceTime(16.7); // Simulate a third frame
+    });
+
+    // Now the frame count should have advanced
+    expect(result.current.frames.current.currentFrame).toBe(3);
+  });
+
+  test('should stop the game loop when stop is called', () => {
+    const { result } = renderHook(() =>
+      useGameLoop(entities, systems, dispatcher, {}, { initialRunning: true })
+    );
+
+    // Initially, the frame count should be 0
+    expect(result.current.frames.current.currentFrame).toBe(0);
+
+    // Simulate time passing to advance frames
+    act(() => {
+      advanceTime(16.7);
+      advanceTime(16.7);
+      advanceTime(16.7);
+    });
+
+    // Frame count should have advanced
+    expect(result.current.frames.current.currentFrame).toBe(2);
+
+    // Now stop the game loop
+    act(() => {
+      result.current.stop();
+    });
+
+    // Simulate more time passing
+    act(() => {
+      advanceTime(16.7);
+      advanceTime(16.7);
+      advanceTime(16.7);
+    });
+
+    // Frame count should not have changed after stopping
+    expect(result.current.frames.current.currentFrame).toBe(2);
   });
 });

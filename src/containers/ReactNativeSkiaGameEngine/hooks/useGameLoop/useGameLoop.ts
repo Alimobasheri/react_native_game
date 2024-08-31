@@ -51,7 +51,7 @@ export function useGameLoop(
   const frames = useRef<Frames>(new Frames());
   const events = useRef<any[]>([]);
 
-  const running = useRef<boolean>(options.initialRunning ?? true);
+  const running = useRef<boolean>(options.initialRunning ?? false);
 
   const update = useCallback((deltaTime: number, now: number, then: number) => {
     if (running.current) {
