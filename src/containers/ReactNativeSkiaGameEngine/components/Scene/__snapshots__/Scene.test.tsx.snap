@@ -1,0 +1,14 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Scene should match the snapshot for a nested active scene 1`] = `
+[
+  <Text>
+    Nested Scene Content
+  </Text>,
+  <Text>
+    Parent Scene Content
+  </Text>,
+]
+`;
+
+exports[`Scene should match the snapshot for a nested inactive scene 1`] = `null`;
