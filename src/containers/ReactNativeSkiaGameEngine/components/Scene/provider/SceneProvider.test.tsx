@@ -25,7 +25,7 @@ describe('SceneProvider', () => {
   });
   test('should provide the correct context value', () => {
     const { getByTestId } = render(
-      <SceneProvider defaultSceneName={defaultSceneName}>
+      <SceneProvider>
         <SceneContext.Consumer>
           {(value) => (
             <React.Fragment>
@@ -45,21 +45,11 @@ describe('SceneProvider', () => {
 
   test('should render children components', () => {
     const { getByText } = render(
-      <SceneProvider defaultSceneName={defaultSceneName}>
+      <SceneProvider>
         <Text>Test Child Component</Text>
       </SceneProvider>
     );
 
     expect(getByText('Test Child Component')).toBeTruthy();
-  });
-
-  test('should call useSceneProvider with the correct default scene name', () => {
-    render(
-      <SceneProvider defaultSceneName={defaultSceneName}>
-        <Text>Test Child Component</Text>
-      </SceneProvider>
-    );
-
-    expect(mockUseSceneProvider).toHaveBeenCalledWith({ defaultSceneName });
   });
 });

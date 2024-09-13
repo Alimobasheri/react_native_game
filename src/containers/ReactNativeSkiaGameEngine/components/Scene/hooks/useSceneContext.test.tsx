@@ -11,6 +11,9 @@ describe('useSceneContext', () => {
       activeScenes: { testScene: true },
       enableScene: jest.fn(),
       disableScene: jest.fn(),
+      registerScene: jest.fn(),
+      goBack: jest.fn(),
+      switchScene: jest.fn(),
     };
   });
 
@@ -21,17 +24,16 @@ describe('useSceneContext', () => {
   );
 
   test('should return true if the scene is active', () => {
-    const { result } = renderHook(
-      () => useSceneContext({ defaultSceneName: 'testScene' }),
-      { wrapper }
-    );
+    const { result } = renderHook(() => useSceneContext('testScene', true), {
+      wrapper,
+    });
 
     expect(result.current.isActive).toBe(true);
   });
 
   test('should return false if the scene is not active', () => {
     const { result } = renderHook(
-      () => useSceneContext({ defaultSceneName: 'inactiveScene' }),
+      () => useSceneContext('inactiveScene', false),
       { wrapper }
     );
 
@@ -42,8 +44,8 @@ describe('useSceneContext', () => {
     jest.spyOn(console, 'error').mockImplementation(jest.fn());
 
     // Expect the function to throw an error
-    expect(() =>
-      renderHook(() => useSceneContext({ defaultSceneName: 'testScene' }))
-    ).toThrow('useSceneContext must be used within a SceneProvider');
+    expect(() => renderHook(() => useSceneContext('testScene', true))).toThrow(
+      'useSceneContext must be used within a SceneProvider'
+    );
   });
 });
