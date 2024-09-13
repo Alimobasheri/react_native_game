@@ -23,6 +23,7 @@ import {
   GestureHandlerRootView,
 } from 'react-native-gesture-handler';
 import { OnEventListeners } from './types/Events';
+import { SceneProvider } from './components/Scene/provider';
 
 /**
  * This is the handle for the `ReactNativeSkiaGameEngine` component. Use this to control the game engine.
@@ -93,9 +94,11 @@ export const ReactNativeSkiaGameEngine = forwardRef<RNSGEHandle, RNSGEProps>(
               }) => setDimensions({ width, height })}
             >
               <RNSGEContext.Provider value={value}>
-                {dimensions.width !== null && dimensions.height !== null && (
-                  <MemoizedContainer>{children}</MemoizedContainer>
-                )}
+                <SceneProvider>
+                  {dimensions.width !== null && dimensions.height !== null && (
+                    <MemoizedContainer>{children}</MemoizedContainer>
+                  )}
+                </SceneProvider>
               </RNSGEContext.Provider>
             </Canvas>
           </GestureDetector>
