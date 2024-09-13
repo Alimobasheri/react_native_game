@@ -20,6 +20,25 @@ export interface IScenContextValue {
    * @returns {void}
    */
   disableScene: (name: string) => void;
+  /**
+   * Function to switch to a scene.
+   * @param name - Name of the scene.
+   * @param options - Options for preserving the history.
+   * @returns {void}
+   */
+  switchScene: (name: string, options?: { preserveHistory: boolean }) => void;
+  /**
+   * Function to go back to the previous scene.
+   * @returns {void}
+   */
+  goBack: () => void;
+  /**
+   * Function to register a scene.
+   * @param name - Name of the scene.
+   * @param isActive - Whether the scene is active.
+   * @returns {void}
+   */
+  registerScene: (name: string, isActive: boolean) => void;
 }
 
 export const SceneContext = createContext<IScenContextValue | null>(null);

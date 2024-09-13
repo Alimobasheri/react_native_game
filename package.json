@@ -58,7 +58,8 @@
     ],
     "setupFiles": [
       "@shopify/react-native-skia/jestSetup.js",
-      "./node_modules/react-native-gesture-handler/jestSetup.js"
+      "./node_modules/react-native-gesture-handler/jestSetup.js",
+      "./jestSetup.js"
     ],
     "moduleNameMapper": {
       "@/(.*)": "<rootDir>/src/$1"

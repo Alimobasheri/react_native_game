@@ -1,43 +1,79 @@
-import { useValue } from '@shopify/react-native-skia';
-import { useDerivedValue, withTiming, Easing } from 'react-native-reanimated';
+import { useEffect } from 'react';
+import {
+  useDerivedValue,
+  withTiming,
+  Easing,
+  useSharedValue,
+} from 'react-native-reanimated';
 
 interface TransitionConfig {
   duration?: number;
 }
 
+/**
+ * Hook that manages scene transitions (enter and exit animations) for a scene.
+ * It provides animation properties that can be applied to the scene's root component.
+ *
+ * @param {boolean} isActive - Whether the scene is currently active.
+ * @param {'fade'|'slide'|'zoom'} enter - The transition effect when the scene enters.
+ * @param {'fade'|'slide'|'zoom'} exit - The transition effect when the scene exits.
+ * @param {Object} config - Configuration for transition durations.
+ * @param {number} [config.duration=500] - Default duration for transitions.
+ * @param {number} [config.enterDuration] - Specific duration for the enter transition (overrides `duration`).
+ * @param {number} [config.exitDuration] - Specific duration for the exit transition (overrides `duration`).
+ *
+ * @returns {Object} props - The animation properties for the scene.
+ * @returns {Object} props.opacity - Animated opacity value.
+ * @returns {Object} props.transform - Animated transformation (e.g., translateY for slide).
+ *
+ * @example
+ * const { props } = useSceneTransition(true, 'fade', 'slide', { duration: 300 });
+ * <Rect {...props}>Scene Content</Rect>
+ */
 export const useSceneTransition = (
   isActive: boolean,
-  enter: 'fade' | 'slide' | 'zoom' = 'fade',
-  exit: 'fade' | 'slide' | 'zoom' = 'fade',
-  config: TransitionConfig = { duration: 500 }
+  enter: 'fade' | 'slide' | 'zoom' | null = null,
+  exit: 'fade' | 'slide' | 'zoom' | null = null,
+  config: {
+    duration?: number;
+    enterDuration?: number;
+    exitDuration?: number;
+  } = { duration: 500 }
 ) => {
-  const progress = useValue(isActive ? 1 : 0); // Shared progress value
+  const enterDuration = config.enterDuration ?? config.duration ?? 500;
+  const exitDuration = config.exitDuration ?? config.duration ?? 500;
+  const duration = isActive ? enterDuration : exitDuration;
 
-  // Animate progress when isActive changes
-  progress.current = withTiming(isActive ? 1 : 0, {
-    duration: config.duration || 500,
-    easing: Easing.inOut(Easing.ease),
-  });
+  const progress = useSharedValue(isActive ? 0 : 1);
 
-  // Derived values for each property based on transition type
+  useEffect(() => {
+    if (duration === 0) {
+      progress.value = isActive ? 1 : 0;
+    } else {
+      progress.value = withTiming(isActive ? 1 : 0, {
+        duration,
+        easing: Easing.inOut(Easing.ease),
+      });
+    }
+  }, [isActive]);
+
   const opacity = useDerivedValue(() => {
     if (enter === 'fade' || exit === 'fade') {
-      return progress.current; // Only change opacity in fade transitions
+      return progress.value;
     }
-    return 1; // Keep opacity constant in non-fade transitions
+    return 1;
   });
 
   const transform = useDerivedValue(() => {
     if (enter === 'slide' || exit === 'slide') {
-      return [{ translateY: progress.current * 300 }]; // Slide vertically by 300 units
+      return [{ translateY: (1 - progress.value) * 300 }];
     }
     if (enter === 'zoom' || exit === 'zoom') {
-      return [{ scale: 1 + progress.current * 0.5 }]; // Zoom from scale 1 to 1.5
+      return [{ scale: 1 + (1 - progress.value) * 0.5 }];
     }
-    return [{ translateY: 0 }]; // Default no transform for other transitions
+    return [{ translateY: 0 }];
   });
 
-  // Return animated props to be spread into the component
   return {
     props: {
       opacity,
