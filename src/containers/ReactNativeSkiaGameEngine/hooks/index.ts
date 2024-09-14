@@ -12,3 +12,4 @@ export * from './useTouchService';
 export * from './useCanvasDimensions';
 export * from './useEntityState';
 export * from './useDispatcher';
+export * from './useAnimations';

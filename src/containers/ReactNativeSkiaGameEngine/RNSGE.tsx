@@ -14,6 +14,7 @@ import {
   useTouchService,
   useDispatcher,
   UseGameLoopOptions,
+  useAnimations,
 } from './hooks';
 import { RNSGEContext } from './context';
 import { MemoizedContainer } from './components/MemoizedContainer';
@@ -54,10 +55,12 @@ export const ReactNativeSkiaGameEngine = forwardRef<RNSGEHandle, RNSGEProps>(
       const systems = useSystems();
       const dispatcher = useDispatcher();
       const touchService = useTouchService();
+      const animations = useAnimations();
       const { frames, start, stop } = useGameLoop(
         entities,
         systems,
         dispatcher,
+        animations,
         onEventListeners,
         gameLoopOptions
       );
@@ -70,6 +73,7 @@ export const ReactNativeSkiaGameEngine = forwardRef<RNSGEHandle, RNSGEProps>(
           entities: entities,
           systems: systems,
           frames: frames,
+          animations: animations,
           dispatcher,
           touchService,
           dimensions,

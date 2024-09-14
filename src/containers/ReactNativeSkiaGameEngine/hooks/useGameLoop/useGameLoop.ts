@@ -4,6 +4,7 @@ import { Systems } from '../../services/Systems';
 import { Frames } from '../../services/Frames';
 import { EventDispatcher } from '../../services';
 import { OnEventListeners } from '../../types/Events';
+import Animations from '../../services/Animations';
 
 /**
  * Options for the useGameLoop hook
@@ -45,6 +46,7 @@ export function useGameLoop(
   entities: MutableRefObject<Entities>,
   systems: MutableRefObject<Systems>,
   dispatcher: MutableRefObject<EventDispatcher>,
+  animations: MutableRefObject<Animations>,
   onEventListeners: OnEventListeners,
   options: UseGameLoopOptions = DEFAULT_USE_GAME_LOOP_OPTIONS
 ) {
@@ -67,6 +69,8 @@ export function useGameLoop(
         screen: {},
         layout: {},
       });
+
+      animations.current.updateAnimations();
       events.current.forEach((event) => {
         if (onEventListeners && onEventListeners[event.type]) {
           onEventListeners[event.type](event);
