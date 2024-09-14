@@ -7,12 +7,17 @@ export interface AnimationConfig {
   loop?: number;
   yoyo?: boolean;
   retainFinalValue?: boolean;
-  label?: string; // Optional label for animation
-  groups?: string[]; // Optional groups for the animation
+  label?: string;
+  groups?: string[];
+  removeOnComplete?: boolean;
 }
 
 export interface Animation {
-  update: (sharedValue: SharedValue<any>, progress: number) => boolean;
+  update: (
+    sharedValue: SharedValue<any>,
+    progress: number,
+    isBackward: boolean
+  ) => boolean;
 }
 
 export interface AnimationFilter {
@@ -22,7 +27,7 @@ export interface AnimationFilter {
 }
 
 export interface ActiveAnimation {
-  id: string; // Unique ID for each animation
+  id: string;
   sharedValue: SharedValue<any>;
   originalValue: any;
   animation: Animation;
@@ -35,6 +40,7 @@ export interface ActiveAnimation {
 }
 
 class Animations {
+  private allAnimations: Map<string, ActiveAnimation> = new Map();
   private activeAnimations: Map<string, ActiveAnimation> = new Map(); // Store animations by ID
   private mapLabelToAnimationId: Map<string, string> = new Map(); // Store label -> animation ID
   private mapGroupToAnimations: Map<string, ActiveAnimation[]> = new Map(); // Store group -> animations
@@ -62,7 +68,10 @@ class Animations {
       loopCount: 0,
     };
 
-    this.activeAnimations.set(id, newAnimation);
+    this.allAnimations.set(id, newAnimation);
+    if (isRunning) {
+      this.activeAnimations.set(id, newAnimation);
+    }
 
     // If the animation has a label, associate it with the animation ID
     if (config.label) {
@@ -100,6 +109,7 @@ class Animations {
   private removeAnimationFromMaps(animationObj: ActiveAnimation) {
     // Remove from activeAnimations
     this.activeAnimations.delete(animationObj.id);
+    this.allAnimations.delete(animationObj.id);
 
     // Remove from label map
     if (animationObj.config.label) {
@@ -133,11 +143,13 @@ class Animations {
         if (animationObj.isRunning) {
           animationObj.isRunning = false;
           animationObj.accumulatedTime += now - animationObj.startTime; // Accumulate elapsed time
+          this.activeAnimations.delete(animationObj.id);
         }
       });
     } else if (animations && animations.isRunning) {
       animations.isRunning = false;
       animations.accumulatedTime += now - animations.startTime;
+      this.activeAnimations.delete(animations.id);
     }
   }
 
@@ -151,11 +163,13 @@ class Animations {
         if (!animationObj.isRunning) {
           animationObj.isRunning = true;
           animationObj.startTime = now; // Set the new start time but progress from accumulatedTime
+          this.activeAnimations.set(animationObj.id, animationObj);
         }
       });
     } else if (animations && !animations.isRunning) {
       animations.isRunning = true;
       animations.startTime = now;
+      this.activeAnimations.set(animations.id, animations);
     }
   }
 
@@ -166,11 +180,13 @@ class Animations {
     if (Array.isArray(animations)) {
       animations.forEach((animationObj) => {
         animationObj.sharedValue.value = animationObj.originalValue; // Reset to original value
-        this.removeAnimationFromMaps(animationObj); // Unregister the animation and remove from maps
+        animationObj.isRunning = false;
+        this.activeAnimations.delete(animationObj.id);
       });
     } else if (animations) {
       animations.sharedValue.value = animations.originalValue; // Reset to original value
-      this.removeAnimationFromMaps(animations); // Unregister the animation and remove from maps
+      animations.isRunning = false;
+      this.activeAnimations.delete(animations.id);
     }
   }
 
@@ -198,6 +214,7 @@ class Animations {
         loop = 1,
         yoyo = false,
         retainFinalValue = true,
+        removeOnComplete = true,
       } = config;
       const elapsed = accumulatedTime + (now - startTime); // Total time elapsed, including paused time
 
@@ -212,14 +229,18 @@ class Animations {
         progress = 1 - progress; // Reverse the progress if in backward mode (yoyo)
       }
 
-      const done = animation.update(sharedValue, progress);
+      const done = animation.update(sharedValue, progress, direction === -1);
 
       // Handle completion of one animation cycle
       if (done) {
-        animationObj.loopCount += 1; // Increment loop count
+        if (direction === 1) animationObj.loopCount += 1; // Increment loop count
 
         // Handle looping
-        if (loop === -1 || animationObj.loopCount < loop) {
+        if (
+          loop === -1 ||
+          animationObj.loopCount < loop ||
+          (animationObj.loopCount === loop && yoyo)
+        ) {
           // If yoyo is enabled, reverse the direction for the next loop
           if (yoyo) {
             animationObj.direction = animationObj.direction === 1 ? -1 : 1;
@@ -232,8 +253,11 @@ class Animations {
           // Handle end of animation after all loops
           if (!retainFinalValue) {
             sharedValue.value = animationObj.originalValue; // Revert to original value if needed
+            this.stopAnimation({ id: animationObj.id });
           }
-          this.stopAnimation({ id: animationObj.id }); // Stop and remove animation
+          if (removeOnComplete) {
+            this.removeAnimationFromMaps(animationObj);
+          }
         }
       }
     });
@@ -242,7 +266,7 @@ class Animations {
   // Getters for retrieving animations by ID, label, or group
 
   getAnimationById(id: string): ActiveAnimation | undefined {
-    return this.activeAnimations.get(id);
+    return this.allAnimations.get(id);
   }
 
   getAnimationByLabel(label: string): ActiveAnimation | undefined {

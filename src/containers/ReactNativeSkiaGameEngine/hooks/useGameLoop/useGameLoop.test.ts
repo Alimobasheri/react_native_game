@@ -9,16 +9,19 @@ import {
   resetTestTimers,
 } from '../../utils/testUtils';
 import { GameEvent } from '../../types/Events';
+import Animations from '../../services/Animations';
 
 describe('useGameLoop', () => {
   let entities: { current: Entities };
   let systems: { current: Systems };
   let dispatcher: { current: EventDispatcher };
+  let animations: { current: Animations };
 
   beforeEach(() => {
     entities = { current: new Entities() };
     systems = { current: new Systems() };
     dispatcher = { current: new EventDispatcher() };
+    animations = { current: new Animations() };
 
     mockRequestAnimationFrame();
 
@@ -33,7 +36,7 @@ describe('useGameLoop', () => {
 
   test('should initialize frames correctly', () => {
     const { result } = renderHook(() =>
-      useGameLoop(entities, systems, dispatcher, {})
+      useGameLoop(entities, systems, dispatcher, animations, {})
     );
 
     expect(result.current.frames.current.currentFrame).toBe(0);
@@ -41,7 +44,7 @@ describe('useGameLoop', () => {
 
   test('should start the game loop and update frames on each iteration', () => {
     const { result } = renderHook(() =>
-      useGameLoop(entities, systems, dispatcher, {})
+      useGameLoop(entities, systems, dispatcher, animations, {})
     );
 
     // Simulate the first frame
@@ -62,7 +65,7 @@ describe('useGameLoop', () => {
   test('should call system update with correct parameters on each loop iteration', () => {
     const mockUpdate = jest.spyOn(systems.current, 'update');
     const { result } = renderHook(() =>
-      useGameLoop(entities, systems, dispatcher, {})
+      useGameLoop(entities, systems, dispatcher, animations, {})
     );
 
     act(() => {
@@ -93,7 +96,7 @@ describe('useGameLoop', () => {
   test('should correctly accumulate and clear events between frames', () => {
     const mockUpdate = jest.spyOn(systems.current, 'update');
     const { result } = renderHook(() =>
-      useGameLoop(entities, systems, dispatcher, {})
+      useGameLoop(entities, systems, dispatcher, animations, {})
     );
 
     const mockEvent: GameEvent = { type: 'TEST_EVENT' };
@@ -133,7 +136,7 @@ describe('useGameLoop', () => {
     );
 
     const { unmount } = renderHook(() =>
-      useGameLoop(entities, systems, dispatcher, {})
+      useGameLoop(entities, systems, dispatcher, animations, {})
     );
 
     expect(addListenerSpy).toHaveBeenCalledTimes(1);
@@ -146,7 +149,7 @@ describe('useGameLoop', () => {
   test('should handle multiple event emissions within a single frame', () => {
     const mockUpdate = jest.spyOn(systems.current, 'update');
     const { result } = renderHook(() =>
-      useGameLoop(entities, systems, dispatcher, {})
+      useGameLoop(entities, systems, dispatcher, animations, {})
     );
 
     const mockEvent1 = { type: 'EVENT_1' };
@@ -169,7 +172,7 @@ describe('useGameLoop', () => {
   test('should correctly calculate deltaTime and update time in system', () => {
     const mockUpdate = jest.spyOn(systems.current, 'update');
     const { result } = renderHook(() =>
-      useGameLoop(entities, systems, dispatcher, {})
+      useGameLoop(entities, systems, dispatcher, animations, {})
     );
 
     act(() => {
@@ -194,7 +197,9 @@ describe('useGameLoop', () => {
       window,
       'requestAnimationFrame'
     );
-    renderHook(() => useGameLoop(entities, systems, dispatcher, {}));
+    renderHook(() =>
+      useGameLoop(entities, systems, dispatcher, animations, {})
+    );
 
     expect(requestAnimationFrameSpy).toHaveBeenCalled();
   });
@@ -205,7 +210,7 @@ describe('useGameLoop', () => {
       'removeListenerToAllEvents'
     );
     const { unmount } = renderHook(() =>
-      useGameLoop(entities, systems, dispatcher, {})
+      useGameLoop(entities, systems, dispatcher, animations, {})
     );
 
     unmount();
@@ -222,7 +227,7 @@ describe('useGameLoop', () => {
     };
 
     renderHook(() =>
-      useGameLoop(entities, systems, dispatcher, onEventListeners)
+      useGameLoop(entities, systems, dispatcher, animations, onEventListeners)
     );
 
     act(() => {
@@ -247,7 +252,7 @@ describe('useGameLoop', () => {
     };
 
     renderHook(() =>
-      useGameLoop(entities, systems, dispatcher, onEventListeners)
+      useGameLoop(entities, systems, dispatcher, animations, onEventListeners)
     );
 
     act(() => {
@@ -271,7 +276,7 @@ describe('useGameLoop', () => {
     };
 
     renderHook(() =>
-      useGameLoop(entities, systems, dispatcher, onEventListeners)
+      useGameLoop(entities, systems, dispatcher, animations, onEventListeners)
     );
 
     act(() => {
@@ -284,7 +289,14 @@ describe('useGameLoop', () => {
 
   test('should start the game loop if initialRunning is true', () => {
     const { result } = renderHook(() =>
-      useGameLoop(entities, systems, dispatcher, {}, { initialRunning: true })
+      useGameLoop(
+        entities,
+        systems,
+        dispatcher,
+        animations,
+        {},
+        { initialRunning: true }
+      )
     );
 
     // Initially, the frame count should be 0
@@ -303,7 +315,14 @@ describe('useGameLoop', () => {
 
   test('should not start the game loop if initialRunning is false', () => {
     const { result } = renderHook(() =>
-      useGameLoop(entities, systems, dispatcher, {}, { initialRunning: false })
+      useGameLoop(
+        entities,
+        systems,
+        dispatcher,
+        animations,
+        {},
+        { initialRunning: false }
+      )
     );
 
     // Initially, the frame count should be 0
@@ -337,7 +356,14 @@ describe('useGameLoop', () => {
 
   test('should start the game loop when start is called', () => {
     const { result } = renderHook(() =>
-      useGameLoop(entities, systems, dispatcher, {}, { initialRunning: false })
+      useGameLoop(
+        entities,
+        systems,
+        dispatcher,
+        animations,
+        {},
+        { initialRunning: false }
+      )
     );
 
     // Initially, the frame count should be 0
@@ -371,7 +397,14 @@ describe('useGameLoop', () => {
 
   test('should stop the game loop when stop is called', () => {
     const { result } = renderHook(() =>
-      useGameLoop(entities, systems, dispatcher, {}, { initialRunning: true })
+      useGameLoop(
+        entities,
+        systems,
+        dispatcher,
+        animations,
+        {},
+        { initialRunning: true }
+      )
     );
 
     // Initially, the frame count should be 0
