@@ -24,9 +24,6 @@ describe('useGameLoop', () => {
     animations = { current: new Animations() };
 
     mockRequestAnimationFrame();
-
-    // @ts-ignore
-    global.nativePerformanceNow = jest.fn(() => 0);
   });
 
   afterEach(() => {
@@ -434,5 +431,216 @@ describe('useGameLoop', () => {
 
     // Frame count should not have changed after stopping
     expect(result.current.frames.current.currentFrame).toBe(2);
+  });
+
+  test('should trigger animations update on each frame', () => {
+    const spyUpdateAnimations = jest.spyOn(
+      animations.current,
+      'updateAnimations'
+    );
+
+    renderHook(() =>
+      useGameLoop(entities, systems, dispatcher, animations, {})
+    );
+
+    act(() => {
+      advanceTime(1000 / 60); // Simulate a frame
+    });
+
+    expect(spyUpdateAnimations).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      advanceTime(1000 / 60); // Simulate another frame
+    });
+
+    expect(spyUpdateAnimations).toHaveBeenCalledTimes(2);
+  });
+
+  test('should pause animations when stopped and resume when started', () => {
+    const spyUpdateAnimations = jest.spyOn(
+      animations.current,
+      'updateAnimations'
+    );
+
+    const { result } = renderHook(() =>
+      useGameLoop(entities, systems, dispatcher, animations, {})
+    );
+
+    act(() => {
+      advanceTime(1000 / 60); // Simulate first frame
+    });
+    expect(spyUpdateAnimations).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      result.current.stop();
+      advanceTime(1000 / 60); // Simulate another frame
+    });
+    expect(spyUpdateAnimations).toHaveBeenCalledTimes(1); // Should not update since loop is stopped
+
+    act(() => {
+      result.current.start();
+      advanceTime(1000 / 60); // Simulate another frame
+    });
+    expect(spyUpdateAnimations).toHaveBeenCalledTimes(2); // Should update after resuming
+  });
+
+  test('should update animation progress based on time', () => {
+    const sharedValue = { value: 0 };
+    const mockAnimation = {
+      update: jest.fn((sharedValue, progress) => {
+        sharedValue.value = progress * 100;
+        return progress >= 1;
+      }),
+    };
+
+    const config = { duration: 500 };
+    animations.current.registerAnimation(sharedValue, mockAnimation, config);
+
+    renderHook(() =>
+      useGameLoop(entities, systems, dispatcher, animations, {})
+    );
+
+    act(() => {
+      advanceTime(250); // Halfway through animation
+    });
+
+    expect(sharedValue.value).toBe(50); // Animation is halfway
+
+    act(() => {
+      advanceTime(250); // Complete the animation
+    });
+
+    expect(sharedValue.value).toBe(100); // Animation completed
+  });
+
+  test('should handle looping animations', () => {
+    const sharedValue = { value: 0 };
+    const mockAnimation = {
+      update: jest.fn((sharedValue, progress) => {
+        sharedValue.value = progress * 100;
+        return progress >= 1;
+      }),
+    };
+
+    const config = { duration: 500, loop: 2 };
+    animations.current.registerAnimation(sharedValue, mockAnimation, config);
+
+    renderHook(() =>
+      useGameLoop(entities, systems, dispatcher, animations, {})
+    );
+
+    act(() => {
+      advanceTime(500); // First loop completes
+    });
+    expect(sharedValue.value).toBe(100);
+
+    act(() => {
+      advanceTime(500); // Second loop completes
+    });
+    expect(sharedValue.value).toBe(100); // End of second loop
+  });
+
+  test('should handle infinite looping animations', () => {
+    const sharedValue = { value: 0 };
+    const mockAnimation = {
+      update: jest.fn((sharedValue, progress) => {
+        sharedValue.value = progress * 100;
+        return progress >= 1;
+      }),
+    };
+
+    const config = { duration: 500, loop: -1 };
+    animations.current.registerAnimation(sharedValue, mockAnimation, config);
+
+    renderHook(() =>
+      useGameLoop(entities, systems, dispatcher, animations, {})
+    );
+
+    for (let i = 0; i < 5; i++) {
+      act(() => {
+        advanceTime(500); // Keep looping infinitely
+      });
+      expect(sharedValue.value).toBe(100); // Each loop should complete
+    }
+  });
+
+  test('should stop and remove animations upon completion if configured', () => {
+    const sharedValue = { value: 0 };
+    const mockAnimation = {
+      update: jest.fn((sharedValue, progress) => {
+        sharedValue.value = progress * 100;
+        return progress >= 1;
+      }),
+    };
+
+    const config = { duration: 500, removeOnComplete: true };
+    animations.current.registerAnimation(sharedValue, mockAnimation, config);
+
+    renderHook(() =>
+      useGameLoop(entities, systems, dispatcher, animations, {})
+    );
+
+    act(() => {
+      advanceTime(500); // Animation completes
+    });
+
+    expect(
+      animations.current.getAnimationById('unique-id-mock1')
+    ).toBeUndefined(); // Should be removed
+  });
+
+  test('should retain final value after completion if retainFinalValue is true', () => {
+    const sharedValue = { value: 0 };
+    const mockAnimation = {
+      update: jest.fn((sharedValue, progress) => {
+        sharedValue.value = progress * 100;
+        return progress >= 1;
+      }),
+    };
+
+    const config = { duration: 500, retainFinalValue: true };
+    animations.current.registerAnimation(sharedValue, mockAnimation, config);
+
+    renderHook(() =>
+      useGameLoop(entities, systems, dispatcher, animations, {})
+    );
+
+    act(() => {
+      advanceTime(500); // Animation completes
+    });
+
+    expect(sharedValue.value).toBe(100); // Final value retained
+  });
+
+  test('should handle yoyo animations correctly', () => {
+    const sharedValue = { value: 0 };
+    const mockAnimation = {
+      update: jest.fn((sharedValue, progress, isBackward) => {
+        sharedValue.value = progress * 100;
+        return isBackward ? progress <= 0 : progress >= 1;
+      }),
+    };
+
+    const config = { duration: 500, loop: 2, yoyo: true };
+    animations.current.registerAnimation(sharedValue, mockAnimation, config);
+
+    renderHook(() =>
+      useGameLoop(entities, systems, dispatcher, animations, {})
+    );
+
+    act(() => {
+      advanceTime(500); // First forward pass
+    });
+    expect(sharedValue.value).toBe(100);
+
+    act(() => {
+      advanceTime(500); // First backward pass
+    });
+    expect(sharedValue.value).toBe(0);
+
+    act(() => {
+      advanceTime(500); // Second forward pass
+    });
+    expect(sharedValue.value).toBe(100);
   });
 });
