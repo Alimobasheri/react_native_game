@@ -1,16 +1,19 @@
 import { Animation } from '../../services/Animations';
+import { linear } from '../easings';
 
 export function createTimingAnimation(
   startValue: number,
   targetValue: number,
-  duration: number, // total animation duration
-  easing: (progress: number) => number = (t) => t // optional easing function
+  duration: number,
+  easing: (progress: number) => number = linear
 ): Animation {
-  const startTime = Date.now();
+  //@ts-ignore
+  const startTime = global.nativePerformanceNow();
 
   return {
     update: (sharedValue, progress, isBackward) => {
-      const currentTime = Date.now();
+      //@ts-ignore
+      const currentTime = global.nativePerformanceNow();
       const elapsedTime = (currentTime - startTime) / 1000; // seconds
       const progressValue = Math.min(elapsedTime / duration, 1);
 
