@@ -4,6 +4,7 @@ import { Systems } from '../../services/Systems';
 import { Frames } from '../../services/Frames';
 import { EventDispatcher } from '../../services';
 import { OnEventListeners } from '../../types/Events';
+import Animations from '../../services/Animations';
 
 /**
  * Options for the useGameLoop hook
@@ -28,6 +29,7 @@ export const DEFAULT_USE_GAME_LOOP_OPTIONS: UseGameLoopOptions = {
  * @param {MutableRefObject<Entities>} entities - A reference to the Entities instance managing all game entities.
  * @param {MutableRefObject<Systems>} systems - A reference to the Systems instance managing all game systems.
  * @param {MutableRefObject<EventDispatcher>} dispatcher - A reference to the EventDispatcher instance for handling events.
+ * @param {MutableRefObject<Animations>} animations - A reference to the Animations instance managing all game animations.
  * @param {OnEventListeners} onEventListeners - An object containing event listeners to be added to the dispatcher.
  * @param {UseGameLoopOptions} [options={}] - Options for the useGameLoop hook.
  *
@@ -45,6 +47,7 @@ export function useGameLoop(
   entities: MutableRefObject<Entities>,
   systems: MutableRefObject<Systems>,
   dispatcher: MutableRefObject<EventDispatcher>,
+  animations: MutableRefObject<Animations>,
   onEventListeners: OnEventListeners,
   options: UseGameLoopOptions = DEFAULT_USE_GAME_LOOP_OPTIONS
 ) {
@@ -67,6 +70,8 @@ export function useGameLoop(
         screen: {},
         layout: {},
       });
+
+      animations.current.updateAnimations();
       events.current.forEach((event) => {
         if (onEventListeners && onEventListeners[event.type]) {
           onEventListeners[event.type](event);
