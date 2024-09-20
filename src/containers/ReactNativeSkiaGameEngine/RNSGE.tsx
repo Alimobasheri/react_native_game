@@ -48,8 +48,8 @@ interface RNSGEProps extends PropsWithChildren {
   gameLoopOptions?: UseGameLoopOptions;
 }
 
-export const ReactNativeSkiaGameEngine = forwardRef<RNSGEHandle, RNSGEProps>(
-  memo(
+export const ReactNativeSkiaGameEngine = memo(
+  forwardRef<RNSGEHandle, RNSGEProps>(
     ({ children, onEventListeners = {}, gameLoopOptions }: RNSGEProps, ref) => {
       const entities = useEntities();
       const systems = useSystems();
