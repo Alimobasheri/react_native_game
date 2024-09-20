@@ -1,0 +1,41 @@
+import { SCENES } from '@/constants/scenes';
+import { useCanvasDimensions } from '@/containers/ReactNativeSkiaGameEngine';
+import { Scene } from '@/containers/ReactNativeSkiaGameEngine/components/Scene/Scene';
+import { Group, useFont } from '@shopify/react-native-skia';
+import { FC, PropsWithChildren } from 'react';
+import { SwipeToPlay } from './components/SwipeToPlay';
+
+export const StartingScene: FC<PropsWithChildren> = ({ children }) => {
+  const dimensions = useCanvasDimensions();
+  const font = useFont(
+    require('../../../../assets/fonts/Montserrat-SemiBold.ttf'),
+    16
+  );
+  const text = 'SWIPE UP TO START';
+  if (!dimensions?.width || !dimensions?.height) return null;
+  return (
+    <Scene
+      defaultSceneName={SCENES.START}
+      isActive
+      x={0}
+      y={0}
+      width={dimensions.width}
+      height={dimensions.height}
+    >
+      <Group
+        origin={{ x: dimensions.width / 2, y: dimensions.height - 20 }}
+        transform={[{ translateX: -(text.length * 10) / 2 }]}
+      >
+        <SwipeToPlay
+          text={text}
+          x={dimensions.width / 2}
+          y={dimensions.height - 20}
+          width={dimensions.width}
+          height={dimensions.height}
+          font={font}
+        />
+        {children}
+      </Group>
+    </Scene>
+  );
+};

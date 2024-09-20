@@ -2,6 +2,7 @@ import React, { FC, PropsWithChildren } from 'react';
 import { useSceneContext } from './hooks/useSceneContext';
 import { useSceneTransition } from './hooks/useSceneTransition';
 import { SceneProvider } from './provider';
+import { Group, rect } from '@shopify/react-native-skia';
 
 export interface ISceneProps extends PropsWithChildren {
   defaultSceneName: string;
@@ -72,7 +73,7 @@ export interface ISceneProps extends PropsWithChildren {
  * @param {number} [props.y=0] - Y-coordinate for scene positioning.
  * @param {number} [props.width=300] - Width of the scene.
  * @param {number} [props.height=300] - Height of the scene.
- * @param {React.ComponentType} [props.rootComponent='Rect'] - Component to be used as the root of the scene (default is Rect).
+ * @param {React.ComponentType} [props.rootComponent=Group] - Component to be used as the root of the scene (default is Rect).
  * @param {Object} [props.rootComponentProps={}] - Props to pass to the root component.
  * @param {boolean} [props.isActive=false] - Whether the scene is active (i.e., visible). If `false`, the scene and its children will not be rendered.
  *
@@ -91,7 +92,7 @@ export const Scene: FC<ISceneProps> = ({
   y = 0,
   width = 300,
   height = 300,
-  rootComponent: RootComponent = 'Rect',
+  rootComponent: RootComponent = Group,
   rootComponentProps = {},
   isActive = false,
 }) => {
@@ -110,10 +111,7 @@ export const Scene: FC<ISceneProps> = ({
   return currentIsActive ? (
     <SceneProvider>
       <RootComponent
-        x={x}
-        y={y}
-        width={width}
-        height={height}
+        clip={rect(x, y, width, height)}
         {...rootComponentProps}
         {...props}
       >
