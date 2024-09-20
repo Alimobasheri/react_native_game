@@ -1,5 +1,8 @@
+import { runOnJS } from 'react-native-reanimated';
 import { Animation } from '../../services/Animations';
 import { linear } from '../easings';
+
+const log = (value: any) => console.log(value);
 
 export function createTimingAnimation(
   startValue: number,
@@ -11,13 +14,12 @@ export function createTimingAnimation(
   const startTime = global.nativePerformanceNow();
 
   return {
-    update: (sharedValue, progress, isBackward) => {
+    update: (now, sharedValue, progress, isBackward, onAnimate) => {
+      'worklet';
       //@ts-ignore
-      const currentTime = global.nativePerformanceNow();
-      const elapsedTime = (currentTime - startTime) / 1000; // seconds
-      const progressValue = Math.min(elapsedTime / duration, 1);
+      const elapsedTime = now - startTime;
 
-      const easedProgress = easing(progressValue);
+      const easedProgress = easing(progress);
       const directionMultiplier = isBackward ? -1 : 1;
 
       // Update the shared value
@@ -25,8 +27,10 @@ export function createTimingAnimation(
         startValue +
         easedProgress * directionMultiplier * (targetValue - startValue);
 
+      const done = isBackward ? progress <= 0 : progress >= 1;
+
       // Return true if animation is done
-      return progressValue >= 1;
+      runOnJS(onAnimate)(done);
     },
   };
 }

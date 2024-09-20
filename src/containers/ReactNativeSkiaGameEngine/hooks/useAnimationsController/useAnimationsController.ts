@@ -3,6 +3,7 @@ import { useCallback, useContext } from 'react';
 import { RNSGEContext } from '../../context';
 import { SharedValue } from 'react-native-reanimated';
 import {
+  ActiveAnimation,
   Animation,
   AnimationConfig,
   AnimationFilter,
@@ -24,7 +25,7 @@ export const useAnimationsController = () => {
       animation: Animation,
       config?: AnimationConfig
     ) => {
-      context.animations.current.registerAnimation(
+      return context.animations.current.registerAnimation(
         sharedValue,
         animation,
         config
@@ -36,7 +37,7 @@ export const useAnimationsController = () => {
   // Pause an animation by ID, label, or group
   const pauseAnimation = useCallback(
     (filter: AnimationFilter) => {
-      context.animations.current.pauseAnimation(filter);
+      return context.animations.current.pauseAnimation(filter);
     },
     [context]
   );
@@ -44,7 +45,7 @@ export const useAnimationsController = () => {
   // Resume an animation by ID, label, or group
   const resumeAnimation = useCallback(
     (filter: AnimationFilter) => {
-      context.animations.current.resumeAnimation(filter);
+      return context.animations.current.resumeAnimation(filter);
     },
     [context]
   );
@@ -52,7 +53,14 @@ export const useAnimationsController = () => {
   // Stop an animation by ID, label, or group and reset it to its original value
   const stopAnimation = useCallback(
     (filter: AnimationFilter) => {
-      context.animations.current.stopAnimation(filter);
+      return context.animations.current.stopAnimation(filter);
+    },
+    [context]
+  );
+
+  const removeAnimation = useCallback(
+    (animation: ActiveAnimation) => {
+      return context.animations.current.removeAnimationFromMaps(animation);
     },
     [context]
   );
@@ -62,5 +70,6 @@ export const useAnimationsController = () => {
     pauseAnimation,
     resumeAnimation,
     stopAnimation,
+    removeAnimation,
   };
 };

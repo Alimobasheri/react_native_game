@@ -1,5 +1,6 @@
-import { SharedValue } from 'react-native-reanimated';
+import { runOnUI, SharedValue } from 'react-native-reanimated';
 import { v4 as uuidv4 } from 'uuid';
+import { uid } from './Entity';
 
 export interface AnimationConfig {
   duration?: number;
@@ -10,14 +11,17 @@ export interface AnimationConfig {
   label?: string;
   groups?: string[];
   removeOnComplete?: boolean;
+  throttle?: number;
 }
 
 export interface Animation {
   update: (
+    currentTime: number,
     sharedValue: SharedValue<any>,
     progress: number,
-    isBackward: boolean
-  ) => boolean;
+    isBackward: boolean,
+    onAnimate: (done: boolean) => void
+  ) => void;
 }
 
 export interface AnimationFilter {
@@ -37,6 +41,7 @@ export interface ActiveAnimation {
   config: AnimationConfig;
   direction: 1 | -1;
   loopCount: number;
+  lastUpdateTime: number;
 }
 
 class Animations {
@@ -52,7 +57,7 @@ class Animations {
     config: AnimationConfig = {},
     isRunning = true
   ) {
-    const id = uuidv4(); // Generate a unique ID for the animation
+    const id = uid(); // Generate a unique ID for the animation
     const now = global.nativePerformanceNow();
 
     const newAnimation: ActiveAnimation = {
@@ -66,6 +71,7 @@ class Animations {
       config,
       direction: 1,
       loopCount: 0,
+      lastUpdateTime: now,
     };
 
     this.allAnimations.set(id, newAnimation);
@@ -87,6 +93,8 @@ class Animations {
         this.mapGroupToAnimations.get(group)?.push(newAnimation);
       });
     }
+
+    return newAnimation;
   }
 
   private findAnimations(
@@ -106,7 +114,7 @@ class Animations {
   }
 
   // Helper method to remove an animation from all maps (activeAnimations, labels, groups)
-  private removeAnimationFromMaps(animationObj: ActiveAnimation) {
+  public removeAnimationFromMaps(animationObj: ActiveAnimation) {
     // Remove from activeAnimations
     this.activeAnimations.delete(animationObj.id);
     this.allAnimations.delete(animationObj.id);
@@ -203,7 +211,14 @@ class Animations {
         config,
         direction,
         loopCount,
+        lastUpdateTime,
       } = animationObj;
+
+      // Throttle check
+      const { throttle } = config;
+      if (throttle && now - lastUpdateTime < throttle) {
+        return; // Skip update if within throttle time
+      }
 
       if (!isRunning) {
         return; // Skip if the animation is paused
@@ -229,37 +244,46 @@ class Animations {
         progress = 1 - progress; // Reverse the progress if in backward mode (yoyo)
       }
 
-      const done = animation.update(sharedValue, progress, direction === -1);
+      const onAnimateDone = (done: boolean) => {
+        // Handle completion of one animation cycle
+        if (done) {
+          if (direction === 1) animationObj.loopCount += 1; // Increment loop count
 
-      // Handle completion of one animation cycle
-      if (done) {
-        if (direction === 1) animationObj.loopCount += 1; // Increment loop count
+          // Handle looping
+          if (
+            loop === -1 ||
+            animationObj.loopCount < loop ||
+            (animationObj.loopCount === loop && yoyo)
+          ) {
+            // If yoyo is enabled, reverse the direction for the next loop
+            if (yoyo) {
+              animationObj.direction = animationObj.direction === 1 ? -1 : 1;
+            }
 
-        // Handle looping
-        if (
-          loop === -1 ||
-          animationObj.loopCount < loop ||
-          (animationObj.loopCount === loop && yoyo)
-        ) {
-          // If yoyo is enabled, reverse the direction for the next loop
-          if (yoyo) {
-            animationObj.direction = animationObj.direction === 1 ? -1 : 1;
-          }
-
-          // Reset the start time for the next loop
-          animationObj.startTime = global.nativePerformanceNow();
-          animationObj.accumulatedTime = 0; // Reset accumulated time
-        } else {
-          // Handle end of animation after all loops
-          if (!retainFinalValue) {
-            sharedValue.value = animationObj.originalValue; // Revert to original value if needed
-            this.stopAnimation({ id: animationObj.id });
-          }
-          if (removeOnComplete) {
-            this.removeAnimationFromMaps(animationObj);
+            // Reset the start time for the next loop
+            animationObj.startTime = now;
+            animationObj.accumulatedTime = 0; // Reset accumulated time
+          } else {
+            // Handle end of animation after all loops
+            if (!retainFinalValue) {
+              sharedValue.value = animationObj.originalValue; // Revert to original value if needed
+              this.stopAnimation({ id: animationObj.id });
+            }
+            if (removeOnComplete) {
+              this.removeAnimationFromMaps(animationObj);
+            }
           }
         }
-      }
+      };
+
+      runOnUI(animation.update)(
+        now,
+        sharedValue,
+        progress,
+        direction === -1,
+        onAnimateDone
+      );
+      animationObj.lastUpdateTime = now;
     });
   }
 
