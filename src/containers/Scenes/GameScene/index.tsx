@@ -4,6 +4,7 @@ import { Scene } from '@/containers/ReactNativeSkiaGameEngine/components/Scene/S
 import { Group, useFont } from '@shopify/react-native-skia';
 import { FC, PropsWithChildren } from 'react';
 import { SwipeToPlay } from './components/SwipeToPlay';
+import { Title } from './components/Title';
 
 export const StartingScene: FC<PropsWithChildren> = ({ children }) => {
   const dimensions = useCanvasDimensions();
@@ -13,6 +14,7 @@ export const StartingScene: FC<PropsWithChildren> = ({ children }) => {
   );
   const text = 'SWIPE UP TO START';
   if (!dimensions?.width || !dimensions?.height) return null;
+  const titleWidth = Math.min(dimensions.width * 0.2, 100);
   return (
     <Scene
       defaultSceneName={SCENES.START}
@@ -22,6 +24,12 @@ export const StartingScene: FC<PropsWithChildren> = ({ children }) => {
       width={dimensions.width}
       height={dimensions.height}
     >
+      <Title
+        x={dimensions.width / 2 - titleWidth / 2}
+        y={20}
+        width={titleWidth}
+        height={titleWidth * 0.5}
+      />
       <Group
         origin={{ x: dimensions.width / 2, y: dimensions.height - 20 }}
         transform={[{ translateX: -(text.length * 10) / 2 }]}
