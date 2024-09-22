@@ -101,14 +101,14 @@ export const Scene: FC<ISceneProps> = ({
     isActive
   );
 
-  const { props } = useSceneTransition(
+  const { props, isTransitioning } = useSceneTransition(
     currentIsActive,
     enter,
     exit,
     transitionConfig
   );
 
-  return currentIsActive ? (
+  return currentIsActive || isTransitioning ? (
     <SceneProvider>
       <RootComponent
         clip={rect(x, y, width, height)}
