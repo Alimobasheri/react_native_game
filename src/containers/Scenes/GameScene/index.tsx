@@ -36,7 +36,15 @@ export const StartingScene: FC<PropsWithChildren> = ({ children }) => {
       exit={'fade'}
       transitionConfig={{ duration: 1000 }}
     >
-      <StartSwipe />
+      <SwipeToPlay
+        text={text}
+        x={dimensions.width / 2}
+        y={dimensions.height - 20}
+        width={dimensions.width}
+        height={dimensions.height}
+        font={font}
+      />
+      {children}
       <Title
         x={dimensions.width / 2 - titleWidth / 2}
         y={20}
@@ -47,15 +55,7 @@ export const StartingScene: FC<PropsWithChildren> = ({ children }) => {
         origin={{ x: dimensions.width / 2, y: dimensions.height - 20 }}
         transform={[{ translateX: -(text.length * 10) / 2 }]}
       >
-        <SwipeToPlay
-          text={text}
-          x={dimensions.width / 2}
-          y={dimensions.height - 20}
-          width={dimensions.width}
-          height={dimensions.height}
-          font={font}
-        />
-        {children}
+        <StartSwipe />
       </Group>
     </Scene>
   );

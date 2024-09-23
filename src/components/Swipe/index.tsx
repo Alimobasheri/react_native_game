@@ -13,7 +13,8 @@ import {
 import { useFrameEffect } from '@/containers/ReactNativeSkiaGameEngine/hooks/useFrameEffect';
 import { Sea } from '@/Game/Entities/Sea/Sea';
 import { WaveSource } from '@/Game/Entities/Sea/types';
-import { FC, useEffect, useMemo, useRef } from 'react';
+import { State } from '@/Game/Entities/State/State';
+import { FC, MutableRefObject, useEffect, useMemo, useRef } from 'react';
 import { Gesture } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 
@@ -92,6 +93,11 @@ export const Swipe: FC<{}> = () => {
   const { entity: seaEntityInstance, found } = useEntityInstance<Sea>({
     label: ENTITIES_KEYS.SEA,
   });
+
+  const { entity: stateEntityInstance, found: foundState } =
+    useEntityInstance<State>({
+      label: ENTITIES_KEYS.STATE,
+    });
   const registered = useRef(false);
   const prevAcceleration = useRef(0);
   const currentAcceleration = useRef(0);
@@ -100,10 +106,22 @@ export const Swipe: FC<{}> = () => {
     () =>
       Gesture.Pan()
         .onChange((event) => {
+          if (
+            !Array.isArray(stateEntityInstance.current) &&
+            !!stateEntityInstance.current &&
+            !stateEntityInstance.current.data.isRunning
+          )
+            return;
           prevAcceleration.current = currentAcceleration.current;
           currentAcceleration.current = event.velocityY;
         })
         .onEnd((event) => {
+          if (
+            !Array.isArray(stateEntityInstance.current) &&
+            !!stateEntityInstance.current &&
+            !stateEntityInstance.current.data.isRunning
+          )
+            return;
           if (!found.current) return;
           const amplitude = Math.min(
             -event.translationY,
@@ -146,6 +164,12 @@ export const Swipe: FC<{}> = () => {
   );
 
   useFrameEffect(() => {
+    if (
+      !Array.isArray(stateEntityInstance.current) &&
+      !!stateEntityInstance.current &&
+      !stateEntityInstance.current.data.isRunning
+    )
+      return;
     if (registered.current) return;
     if (found.current) {
       touchHandler.addGesture(gesture);
