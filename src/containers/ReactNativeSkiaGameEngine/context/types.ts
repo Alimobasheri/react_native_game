@@ -8,6 +8,7 @@ import {
 } from '../services';
 import { ComposedGesture, GestureType } from 'react-native-gesture-handler';
 import Animations from '../services/Animations';
+import { useTouchService } from '../hooks';
 
 export interface ICanvasDimensions {
   width: number | null;
@@ -20,9 +21,6 @@ export interface IRNSGEContextValue {
   frames: MutableRefObject<Frames>;
   animations: MutableRefObject<Animations>;
   dispatcher: MutableRefObject<EventDispatcher>;
-  touchService: {
-    gestures: ComposedGesture;
-    addGesture: (gesture: GestureType) => void;
-  };
+  touchService: ReturnType<typeof useTouchService>;
   dimensions: ICanvasDimensions;
 }
