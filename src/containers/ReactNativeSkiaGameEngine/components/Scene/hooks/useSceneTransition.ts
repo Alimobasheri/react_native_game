@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   useDerivedValue,
   withTiming,
@@ -49,10 +49,12 @@ export const useSceneTransition = (
 
   const progress = useSharedValue(isActive ? 0 : 1);
 
+  const isInitialRender = useRef<boolean>(true);
+
   useEffect(() => {
     if (duration === 0) {
       progress.value = isActive ? 1 : 0;
-    } else {
+    } else if (!isInitialRender.current || isActive) {
       setIsTransitioning(true);
       progress.value = withTiming(
         isActive ? 1 : 0,
@@ -67,6 +69,8 @@ export const useSceneTransition = (
         }
       );
     }
+
+    isInitialRender.current = false;
   }, [isActive]);
 
   const opacity = useDerivedValue(() => {
