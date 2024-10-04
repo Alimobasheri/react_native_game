@@ -1,4 +1,4 @@
-import { renderHook, act } from '@testing-library/react-native';
+import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { useGameLoop } from './useGameLoop';
 import { Entities } from '../../services/Entities';
 import { Systems } from '../../services/Systems';
@@ -9,7 +9,15 @@ import {
   resetTestTimers,
 } from '../../utils/testUtils';
 import { GameEvent } from '../../types/Events';
-import Animations from '../../services/Animations';
+import Animations, { Animation } from '../../services/Animations';
+import { runOnJS, runOnUI } from 'react-native-reanimated';
+
+jest.mock('react-native-reanimated', () => {
+  return {
+    ...jest.requireActual('react-native-reanimated'),
+    runOnUI: jest.fn((fn) => fn),
+  };
+});
 
 describe('useGameLoop', () => {
   let entities: { current: Entities };
@@ -484,42 +492,57 @@ describe('useGameLoop', () => {
     expect(spyUpdateAnimations).toHaveBeenCalledTimes(2); // Should update after resuming
   });
 
-  test('should update animation progress based on time', () => {
+  test('should update animation progress based on time', async () => {
     const sharedValue = { value: 0 };
-    const mockAnimation = {
-      update: jest.fn((sharedValue, progress) => {
-        sharedValue.value = progress * 100;
-        return progress >= 1;
-      }),
+    const mockAnimation: Animation = {
+      update: jest.fn(
+        (now, sharedValue, progress, isBackward, onAnimateDone) => {
+          'worklet';
+          sharedValue.value = progress * 100;
+          const done = progress >= 1;
+          runOnJS(onAnimateDone)(done);
+        }
+      ),
     };
+
+    const { rerender } = renderHook(() =>
+      useGameLoop(entities, systems, dispatcher, animations, {})
+    );
 
     const config = { duration: 500 };
     animations.current.registerAnimation(sharedValue, mockAnimation, config);
 
-    renderHook(() =>
-      useGameLoop(entities, systems, dispatcher, animations, {})
-    );
-
+    advanceTime(250); // Halfway through animation
     act(() => {
-      advanceTime(250); // Halfway through animation
+      rerender({});
     });
 
-    expect(sharedValue.value).toBe(50); // Animation is halfway
+    expect(mockAnimation.update).toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(sharedValue.value).toBe(50); // Animation is halfway
+    });
 
     act(() => {
       advanceTime(250); // Complete the animation
     });
 
-    expect(sharedValue.value).toBe(100); // Animation completed
+    await waitFor(() => {
+      expect(sharedValue.value).toBe(100); // Animation completed
+    });
   });
 
-  test('should handle looping animations', () => {
+  test('should handle looping animations', async () => {
     const sharedValue = { value: 0 };
     const mockAnimation = {
-      update: jest.fn((sharedValue, progress) => {
-        sharedValue.value = progress * 100;
-        return progress >= 1;
-      }),
+      update: jest.fn(
+        (now, sharedValue, progress, isBackward, onAnimateDone) => {
+          'worklet';
+          sharedValue.value = progress * 100;
+          const done = progress >= 1;
+          runOnJS(onAnimateDone)(done);
+        }
+      ),
     };
 
     const config = { duration: 500, loop: 2 };
@@ -532,21 +555,29 @@ describe('useGameLoop', () => {
     act(() => {
       advanceTime(500); // First loop completes
     });
-    expect(sharedValue.value).toBe(100);
+    await waitFor(() => {
+      expect(sharedValue.value).toBe(100);
+    });
 
     act(() => {
       advanceTime(500); // Second loop completes
     });
-    expect(sharedValue.value).toBe(100); // End of second loop
+    await waitFor(() => {
+      expect(sharedValue.value).toBe(100); // End of second loop
+    });
   });
 
-  test('should handle infinite looping animations', () => {
+  test('should handle infinite looping animations', async () => {
     const sharedValue = { value: 0 };
     const mockAnimation = {
-      update: jest.fn((sharedValue, progress) => {
-        sharedValue.value = progress * 100;
-        return progress >= 1;
-      }),
+      update: jest.fn(
+        (now, sharedValue, progress, isBackward, onAnimateDone) => {
+          'worklet';
+          sharedValue.value = progress * 100;
+          const done = progress >= 1;
+          runOnJS(onAnimateDone)(done);
+        }
+      ),
     };
 
     const config = { duration: 500, loop: -1 };
@@ -560,17 +591,22 @@ describe('useGameLoop', () => {
       act(() => {
         advanceTime(500); // Keep looping infinitely
       });
-      expect(sharedValue.value).toBe(100); // Each loop should complete
+      await waitFor(() => {
+        expect(sharedValue.value).toBe(100); // Each loop should complete
+      });
     }
   });
 
   test('should stop and remove animations upon completion if configured', () => {
     const sharedValue = { value: 0 };
     const mockAnimation = {
-      update: jest.fn((sharedValue, progress) => {
-        sharedValue.value = progress * 100;
-        return progress >= 1;
-      }),
+      update: jest.fn(
+        (now, sharedValue, progress, isBackward, onAnimateDone) => {
+          sharedValue.value = progress * 100;
+          const done = progress >= 1;
+          runOnJS(onAnimateDone)(done);
+        }
+      ),
     };
 
     const config = { duration: 500, removeOnComplete: true };
@@ -589,13 +625,16 @@ describe('useGameLoop', () => {
     ).toBeUndefined(); // Should be removed
   });
 
-  test('should retain final value after completion if retainFinalValue is true', () => {
+  test('should retain final value after completion if retainFinalValue is true', async () => {
     const sharedValue = { value: 0 };
     const mockAnimation = {
-      update: jest.fn((sharedValue, progress) => {
-        sharedValue.value = progress * 100;
-        return progress >= 1;
-      }),
+      update: jest.fn(
+        (now, sharedValue, progress, isBackward, onAnimateDone) => {
+          sharedValue.value = progress * 100;
+          const done = progress >= 1;
+          runOnJS(onAnimateDone)(done);
+        }
+      ),
     };
 
     const config = { duration: 500, retainFinalValue: true };
@@ -609,16 +648,21 @@ describe('useGameLoop', () => {
       advanceTime(500); // Animation completes
     });
 
-    expect(sharedValue.value).toBe(100); // Final value retained
+    await waitFor(() => {
+      expect(sharedValue.value).toBe(100); // Final value retained
+    });
   });
 
-  test('should handle yoyo animations correctly', () => {
+  test('should handle yoyo animations correctly', async () => {
     const sharedValue = { value: 0 };
     const mockAnimation = {
-      update: jest.fn((sharedValue, progress, isBackward) => {
-        sharedValue.value = progress * 100;
-        return isBackward ? progress <= 0 : progress >= 1;
-      }),
+      update: jest.fn(
+        (now, sharedValue, progress, isBackward, onAnimateDone) => {
+          sharedValue.value = progress * 100;
+          const done = isBackward ? progress <= 0 : progress >= 1;
+          runOnJS(onAnimateDone)(done);
+        }
+      ),
     };
 
     const config = { duration: 500, loop: 2, yoyo: true };
@@ -631,16 +675,22 @@ describe('useGameLoop', () => {
     act(() => {
       advanceTime(500); // First forward pass
     });
-    expect(sharedValue.value).toBe(100);
+    await waitFor(() => {
+      expect(sharedValue.value).toBe(100);
+    });
 
     act(() => {
       advanceTime(500); // First backward pass
     });
-    expect(sharedValue.value).toBe(0);
+    await waitFor(() => {
+      expect(sharedValue.value).toBe(0);
+    });
 
     act(() => {
       advanceTime(500); // Second forward pass
     });
-    expect(sharedValue.value).toBe(100);
+    await waitFor(() => {
+      expect(sharedValue.value).toBe(100);
+    });
   });
 });
