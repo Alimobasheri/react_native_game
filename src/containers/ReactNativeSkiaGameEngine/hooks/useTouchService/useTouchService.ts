@@ -1,10 +1,6 @@
 import { useRef, useCallback, useState } from 'react';
-import {
-  ComposedGesture,
-  Gesture,
-  GestureType,
-} from 'react-native-gesture-handler';
 import { uid } from '../../services';
+import { GestureItem } from '../../types/gestures';
 
 interface IGestureOptions {
   label?: string;
@@ -19,53 +15,49 @@ interface IGestureOptions {
  * them into a single gesture that can be used in the game engine or other components.
  *
  * @returns {{
- *   gestures: ComposedGesture;
- *   addGesture: (gesture: GestureType, options?: IGestureOptions) => string;
+ *   gestures: GestureItem[];
+ *   addGesture: (gesture: GestureItem, options?: IGestureOptions) => string;
  *   removeGesture: (identifier: string | { label?: string; groups?: string[] }) => void;
- *   updateGesture: (id: string, gesture: GestureType) => void;
+ *   updateGesture: (id: string, gesture: GestureItem) => void;
  * }} - An object containing the composed gesture and functions to add, update, and remove gestures.
  *
  * @example
  * const { gestures, addGesture, removeGesture, updateGesture } = useTouchService();
  *
  * // Add a new gesture:
- * const gestureId = addGesture(Gesture.Tap().onEnd(() => {
+ * const gestureId = addGesture({gesture: Gesture.Tap().onEnd(() => {
  *   console.log('Tap gesture detected');
- * }), { label: 'tapGesture', groups: ['group1'] });
+ * }), bound: {x: 0, y: 0, width: 100, height:100}}, { label: 'tapGesture', groups: ['group1'] });
  *
  * // Remove a gesture:
  * removeGesture({ label: 'tapGesture' });
+
  *
- * // Update a gesture:
- * updateGesture(gestureId, Gesture.Swipe().onEnd(() => {
- *   console.log('Swipe gesture detected');
- * }));
- *
- * // Use the composed gesture in a GestureDetector component:
- * <GestureDetector gesture={gestures}>
+ * // Use each gesture in a GestureDetector component:
+ * <GestureDetector gesture={gestures[0]}>
  *   <View>
  *     // Your components here
  *   </View>
  * </GestureDetector>
  */
 export const useTouchService = () => {
-  const gesturesMap = useRef<Map<string, GestureType>>(new Map());
+  const gesturesMap = useRef<Map<string, GestureItem>>(new Map());
   const labelToGestureIdMap = useRef<Map<string, string>>(new Map());
   const groupToGestureMap = useRef<Map<string, string[]>>(new Map());
 
-  const [gestures, setGestures] = useState<ComposedGesture>(Gesture.Race());
+  const [gestures, setGestures] = useState<GestureItem[]>([]);
 
   const composeGestures = useCallback(() => {
     const gestureList = Array.from(gesturesMap.current.values());
     if (gestureList.length > 0) {
-      setGestures(Gesture.Race(...gestureList));
+      setGestures(gestureList);
     } else {
-      setGestures(Gesture.Race());
+      setGestures([]);
     }
   }, []);
 
   const addGesture = useCallback(
-    (gesture: GestureType, options?: IGestureOptions): string => {
+    (gesture: GestureItem, options?: IGestureOptions): string => {
       const id = uid(); // Generate unique ID
       gesturesMap.current.set(id, gesture);
 
@@ -129,7 +121,7 @@ export const useTouchService = () => {
   );
 
   const updateGesture = useCallback(
-    (id: string, gesture: GestureType) => {
+    (id: string, gesture: GestureItem) => {
       if (gesturesMap.current.has(id)) {
         gesturesMap.current.set(id, gesture);
         composeGestures();

@@ -25,6 +25,7 @@ import {
 } from 'react-native-gesture-handler';
 import { OnEventListeners } from './types/Events';
 import { SceneProvider } from './components/Scene/provider';
+import { TouchDOM } from './components/TouchDOM/TouchDOM';
 
 /**
  * This is the handle for the `ReactNativeSkiaGameEngine` component. Use this to control the game engine.
@@ -88,24 +89,23 @@ export const ReactNativeSkiaGameEngine = memo(
 
       return (
         <GestureHandlerRootView style={{ flex: 1 }}>
-          <GestureDetector gesture={touchService.gestures}>
-            <Canvas
-              style={{ flex: 1 }}
-              onLayout={({
-                nativeEvent: {
-                  layout: { width, height },
-                },
-              }) => setDimensions({ width, height })}
-            >
-              <RNSGEContext.Provider value={value}>
-                <SceneProvider>
-                  {dimensions.width !== null && dimensions.height !== null && (
-                    <MemoizedContainer>{children}</MemoizedContainer>
-                  )}
-                </SceneProvider>
-              </RNSGEContext.Provider>
-            </Canvas>
-          </GestureDetector>
+          <Canvas
+            style={{ flex: 1 }}
+            onLayout={({
+              nativeEvent: {
+                layout: { width, height },
+              },
+            }) => setDimensions({ width, height })}
+          >
+            <RNSGEContext.Provider value={value}>
+              <SceneProvider>
+                {dimensions.width !== null && dimensions.height !== null && (
+                  <MemoizedContainer>{children}</MemoizedContainer>
+                )}
+              </SceneProvider>
+            </RNSGEContext.Provider>
+          </Canvas>
+          <TouchDOM gestures={touchService.gestures} />
         </GestureHandlerRootView>
       );
     }
