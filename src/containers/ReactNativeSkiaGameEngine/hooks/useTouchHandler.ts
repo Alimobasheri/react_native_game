@@ -1,9 +1,15 @@
 import { useCallback, useContext, useEffect } from 'react';
 import { RNSGEContext } from '../context/RNSGEContext';
-import { GestureType } from 'react-native-gesture-handler';
+import { GestureItem } from '../types/gestures';
 
-export const useTouchHandler = (gesture?: GestureType) => {
-  const { touchService } = useContext(RNSGEContext);
+export const useTouchHandler = (gesture?: GestureItem) => {
+  const rnsgeContext = useContext(RNSGEContext);
+
+  if (!rnsgeContext) {
+    throw new Error('useTouchHandler must be used within a RNSGEProvider');
+  }
+
+  const { touchService } = rnsgeContext;
 
   useEffect(() => {
     if (gesture) {
@@ -12,7 +18,7 @@ export const useTouchHandler = (gesture?: GestureType) => {
   }, [gesture, touchService]);
 
   const addGesture = useCallback(
-    (gesture: GestureType) => {
+    (gesture: GestureItem) => {
       return touchService.addGesture(gesture);
     },
     [touchService]
@@ -26,7 +32,7 @@ export const useTouchHandler = (gesture?: GestureType) => {
   );
 
   const updateGesture = useCallback(
-    (id: string, gesture: GestureType) => {
+    (id: string, gesture: GestureItem) => {
       touchService.updateGesture(id, gesture);
     },
     [touchService]
