@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   useDerivedValue,
   withTiming,
   Easing,
   useSharedValue,
+  runOnJS,
 } from 'react-native-reanimated';
 
 interface TransitionConfig {
@@ -44,17 +45,32 @@ export const useSceneTransition = (
   const exitDuration = config.exitDuration ?? config.duration ?? 500;
   const duration = isActive ? enterDuration : exitDuration;
 
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
   const progress = useSharedValue(isActive ? 0 : 1);
+
+  const isInitialRender = useRef<boolean>(true);
 
   useEffect(() => {
     if (duration === 0) {
       progress.value = isActive ? 1 : 0;
-    } else {
-      progress.value = withTiming(isActive ? 1 : 0, {
-        duration,
-        easing: Easing.inOut(Easing.ease),
-      });
+    } else if (!isInitialRender.current || isActive) {
+      setIsTransitioning(true);
+      progress.value = withTiming(
+        isActive ? 1 : 0,
+        {
+          duration,
+          easing: Easing.inOut(Easing.ease),
+        },
+        (done) => {
+          if (done) {
+            runOnJS(setIsTransitioning)(false);
+          }
+        }
+      );
     }
+
+    isInitialRender.current = false;
   }, [isActive]);
 
   const opacity = useDerivedValue(() => {
@@ -79,5 +95,6 @@ export const useSceneTransition = (
       opacity,
       transform,
     },
+    isTransitioning,
   };
 };

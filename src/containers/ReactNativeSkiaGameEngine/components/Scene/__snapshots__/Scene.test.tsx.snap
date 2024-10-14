@@ -1,8 +1,15 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Scene should match the snapshot for a nested active scene 1`] = `
-<Rect
-  height={300}
+<skGroup
+  clip={
+    {
+      "height": 300,
+      "width": 300,
+      "x": 0,
+      "y": 0,
+    }
+  }
   opacity={
     {
       "_isReanimatedSharedValue": true,
@@ -31,12 +38,16 @@ exports[`Scene should match the snapshot for a nested active scene 1`] = `
       ],
     }
   }
-  width={300}
-  x={0}
-  y={0}
 >
-  <Rect
-    height={300}
+  <skGroup
+    clip={
+      {
+        "height": 300,
+        "width": 300,
+        "x": 0,
+        "y": 0,
+      }
+    }
     opacity={
       {
         "_isReanimatedSharedValue": true,
@@ -65,18 +76,15 @@ exports[`Scene should match the snapshot for a nested active scene 1`] = `
         ],
       }
     }
-    width={300}
-    x={0}
-    y={0}
   >
     <Text>
       Nested Scene Content
     </Text>
-  </Rect>
+  </skGroup>
   <Text>
     Parent Scene Content
   </Text>
-</Rect>
+</skGroup>
 `;
 
 exports[`Scene should match the snapshot for a nested inactive scene 1`] = `null`;

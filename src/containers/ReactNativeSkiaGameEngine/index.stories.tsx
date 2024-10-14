@@ -23,6 +23,8 @@ import { Collisions } from '@/components/Collisions';
 import { useCanvasDimensions, useTouchHandler } from './hooks';
 import { Gesture } from 'react-native-gesture-handler';
 import { useFrameEffect } from './hooks/useFrameEffect';
+import { StateEntity } from '@/components/State';
+import { StartingScene } from '../Scenes/GameScene';
 
 const SubComponent: FC<{}> = (props) => {
   const renderCount = useReRenderCount();
@@ -76,19 +78,16 @@ export const Basic: Story = {
   args: {},
   render: (args: any) => (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <View
-        style={{
-          width: 800,
-          height: 300,
-        }}
-      >
+      <View style={{ flex: 1, width: '100%', height: '100%' }}>
         <ReactNativeSkiaGameEngine {...args}>
+          <StateEntity isRunning={false} />
           <SkyBackground />
           <StarsView />
           <SeaGroup />
           <Physics />
           <Collisions />
           <Swipe />
+          <StartingScene />
         </ReactNativeSkiaGameEngine>
       </View>
     </View>
@@ -174,22 +173,4 @@ const Gestures = () => {
   }, [touchHandler, gesture1, gesture2]);
 
   return <Rect x={x} y={y} height={height} width={width} color="blue" />;
-};
-
-export const updateTouches: Story = {
-  args: {},
-  render: (args: any) => (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <View
-        style={{
-          width: 800,
-          height: 300,
-        }}
-      >
-        <ReactNativeSkiaGameEngine {...args}>
-          <Gestures />
-        </ReactNativeSkiaGameEngine>
-      </View>
-    </View>
-  ),
 };

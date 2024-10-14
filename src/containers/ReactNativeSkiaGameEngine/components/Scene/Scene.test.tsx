@@ -35,6 +35,11 @@ describe('Scene', () => {
     ));
     mockUseSceneContext.mockReturnValue({ isActive: true });
     (useSceneContext as jest.Mock).mockImplementation(mockUseSceneContext);
+    jest
+      .spyOn(require('@shopify/react-native-skia'), 'rect')
+      .mockImplementation(() => {
+        return { x: 0, y: 0, width: 300, height: 300 };
+      });
   });
 
   afterEach(() => {
