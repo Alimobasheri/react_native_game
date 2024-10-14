@@ -16,7 +16,7 @@ import { WaveSource } from '@/Game/Entities/Sea/types';
 import { State } from '@/Game/Entities/State/State';
 import { FC, MutableRefObject, useEffect, useMemo, useRef } from 'react';
 import { Gesture } from 'react-native-gesture-handler';
-import { runOnJS } from 'react-native-reanimated';
+import { runOnJS, useSharedValue } from 'react-native-reanimated';
 
 const normalize = (
   value: number,
@@ -87,6 +87,12 @@ const normalizeSwipeData = (
 export const Swipe: FC<{}> = () => {
   const dimensions = useCanvasDimensions();
   const dimensionsRef = useRef(dimensions);
+
+  const x = useSharedValue<number>(0);
+  const y = useSharedValue<number>(0);
+  const width = useSharedValue<number>(dimensions.width || 0);
+  const height = useSharedValue<number>(dimensions.height || 0);
+
   useEffect(() => {
     dimensionsRef.current = dimensions;
   }, [dimensions]);
@@ -98,13 +104,13 @@ export const Swipe: FC<{}> = () => {
     useEntityInstance<State>({
       label: ENTITIES_KEYS.STATE,
     });
-  const registered = useRef(false);
+  const registered = useRef<false | string>(false);
   const prevAcceleration = useRef(0);
   const currentAcceleration = useRef(0);
   const touchHandler = useTouchHandler();
   const gesture = useMemo(
-    () =>
-      Gesture.Pan()
+    () => ({
+      gesture: Gesture.Pan()
         .onChange((event) => {
           if (
             !Array.isArray(stateEntityInstance.current) &&
@@ -160,6 +166,13 @@ export const Swipe: FC<{}> = () => {
           currentAcceleration.current = 0;
         })
         .runOnJS(true),
+      rect: {
+        x,
+        y,
+        width,
+        height,
+      },
+    }),
     []
   );
 
@@ -170,11 +183,19 @@ export const Swipe: FC<{}> = () => {
       !stateEntityInstance.current.data.isRunning
     )
       return;
+
     if (registered.current) return;
     if (found.current) {
-      touchHandler.addGesture(gesture);
-      registered.current = true;
+      registered.current = touchHandler.addGesture(gesture);
     }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (registered.current) {
+        touchHandler.removeGesture(registered.current);
+      }
+    };
   }, []);
   return null;
 };

@@ -12,9 +12,10 @@ import {
   TextPath,
 } from '@shopify/react-native-skia';
 import { FC, useCallback, useEffect } from 'react';
+import { Platform } from 'react-native';
 import { runOnUI, SharedValue, useSharedValue } from 'react-native-reanimated';
 
-interface ISwipeToPlayProps {
+export interface ISwipeToPlayProps {
   text: string;
   font: AnimatedProp<SkFont | null, any>;
   x: number;
@@ -54,7 +55,7 @@ export const SwipeToPlay: FC<ISwipeToPlayProps> = ({
 
   const initalPath = Skia.Path.Make();
   initalPath.moveTo(x, y);
-  initalPath.lineTo(0, 0);
+  initalPath.lineTo(width, y);
 
   const path = useSharedValue(initalPath);
 
@@ -86,6 +87,7 @@ export const SwipeToPlay: FC<ISwipeToPlayProps> = ({
 
   useFrameEffect(
     () => {
+      if (Platform.OS === 'android') return;
       runOnUI(updatePath)(width, height, path, wavePhase, amplitude, frequency);
     },
     [wavePhase.value, width, height, path.value],
