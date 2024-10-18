@@ -2,7 +2,9 @@ import React, { FC, PropsWithChildren } from 'react';
 import { useSceneContext } from './hooks/useSceneContext';
 import { useSceneTransition } from './hooks/useSceneTransition';
 import { SceneProvider } from './provider';
-import { Group, rect } from '@shopify/react-native-skia';
+import { Group, rect, SkRect } from '@shopify/react-native-skia';
+import { useCreateCamera } from '../../hooks/useCreateCamera';
+import { useDerivedValue } from 'react-native-reanimated';
 
 export interface ISceneProps extends PropsWithChildren {
   defaultSceneName: string;
@@ -101,19 +103,42 @@ export const Scene: FC<ISceneProps> = ({
     isActive
   );
 
-  const { props, isTransitioning } = useSceneTransition(
-    currentIsActive,
+  const { camera: defaultCamera, resetCamera: resetDefaultCamera } =
+    useCreateCamera({
+      x,
+      y,
+      width,
+      height,
+    });
+
+  const { isTransitioning } = useSceneTransition({
+    isActive: currentIsActive,
+    camera: defaultCamera,
     enter,
     exit,
-    transitionConfig
-  );
+    config: transitionConfig,
+  });
+
+  const defaultCameraClip = useDerivedValue<SkRect>(() => {
+    return {
+      x: defaultCamera.x.value,
+      y: defaultCamera.y.value,
+      width: defaultCamera.width.value,
+      height: defaultCamera.height.value,
+    };
+  }, [
+    defaultCamera.x,
+    defaultCamera.y,
+    defaultCamera.width,
+    defaultCamera.height,
+  ]);
 
   return currentIsActive || isTransitioning ? (
     <SceneProvider>
       <RootComponent
-        clip={rect(x, y, width, height)}
+        clip={defaultCameraClip}
+        transform={defaultCamera.transform}
         {...rootComponentProps}
-        {...props}
       >
         {children}
       </RootComponent>

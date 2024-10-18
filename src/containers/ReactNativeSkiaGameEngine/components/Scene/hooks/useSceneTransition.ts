@@ -1,14 +1,26 @@
+import { useAnimationsController } from '@/containers/ReactNativeSkiaGameEngine/hooks/useAnimationsController/useAnimationsController';
+import { ActiveAnimation } from '@/containers/ReactNativeSkiaGameEngine/services/Animations';
+import { Camera } from '@/containers/ReactNativeSkiaGameEngine/types';
+import { createTimingAnimation } from '@/containers/ReactNativeSkiaGameEngine/utils';
 import { useEffect, useRef, useState } from 'react';
 import {
-  useDerivedValue,
-  withTiming,
-  Easing,
   useSharedValue,
   runOnJS,
+  useAnimatedReaction,
 } from 'react-native-reanimated';
 
-interface TransitionConfig {
+interface ITransitionConfig {
   duration?: number;
+  enterDuration?: number;
+  exitDuration?: number;
+}
+
+interface IUseSceneTransitionProps {
+  isActive: boolean;
+  camera: Camera;
+  enter: 'fade' | 'slide' | 'zoom' | null;
+  exit: 'fade' | 'slide' | 'zoom' | null;
+  config: ITransitionConfig;
 }
 
 /**
@@ -23,27 +35,27 @@ interface TransitionConfig {
  * @param {number} [config.enterDuration] - Specific duration for the enter transition (overrides `duration`).
  * @param {number} [config.exitDuration] - Specific duration for the exit transition (overrides `duration`).
  *
- * @returns {Object} props - The animation properties for the scene.
- * @returns {Object} props.opacity - Animated opacity value.
- * @returns {Object} props.transform - Animated transformation (e.g., translateY for slide).
+ * @returns {object} returnObject
+ * @returns {boolean} returnObject.isTransitioning - Whether the scene is currently transitioning.
  *
  * @example
  * const { props } = useSceneTransition(true, 'fade', 'slide', { duration: 300 });
  * <Rect {...props}>Scene Content</Rect>
  */
-export const useSceneTransition = (
-  isActive: boolean,
-  enter: 'fade' | 'slide' | 'zoom' | null = null,
-  exit: 'fade' | 'slide' | 'zoom' | null = null,
-  config: {
-    duration?: number;
-    enterDuration?: number;
-    exitDuration?: number;
-  } = { duration: 500 }
-) => {
+export const useSceneTransition = ({
+  isActive,
+  camera,
+  enter = null,
+  exit = null,
+  config = { duration: 500 },
+}: IUseSceneTransitionProps) => {
   const enterDuration = config.enterDuration ?? config.duration ?? 500;
   const exitDuration = config.exitDuration ?? config.duration ?? 500;
   const duration = isActive ? enterDuration : exitDuration;
+
+  const { registerAnimation, removeAnimation } = useAnimationsController();
+
+  let animation = useRef<ActiveAnimation | null>(null);
 
   const [isTransitioning, setIsTransitioning] = useState(false);
 
@@ -56,45 +68,52 @@ export const useSceneTransition = (
       progress.value = isActive ? 1 : 0;
     } else if (!isInitialRender.current || isActive) {
       setIsTransitioning(true);
-      progress.value = withTiming(
-        isActive ? 1 : 0,
+      registerAnimation(
+        progress,
+        createTimingAnimation(progress.value, isActive ? 1 : 0, duration),
         {
-          duration,
-          easing: Easing.inOut(Easing.ease),
-        },
-        (done) => {
-          if (done) {
+          removeOnComplete: true,
+          onDone: () => {
             runOnJS(setIsTransitioning)(false);
-          }
+          },
         }
       );
     }
 
     isInitialRender.current = false;
+
+    return () => {
+      if (animation.current) {
+        removeAnimation(animation.current);
+      }
+    };
   }, [isActive]);
 
-  const opacity = useDerivedValue(() => {
-    if (enter === 'fade' || exit === 'fade') {
+  useAnimatedReaction(
+    () => {
       return progress.value;
+    },
+    (progress) => {
+      if (enter === 'fade' || exit === 'fade') {
+        camera.opacity.value = progress;
+      } else {
+        camera.opacity.value = 1;
+      }
+      if (enter === 'slide' || exit === 'slide') {
+        camera.translateY.value = (1 - progress) * 300;
+      }
+      if (enter === 'zoom' || exit === 'zoom') {
+        camera.scaleX.value = 1 + (1 - progress) * 0.5;
+        camera.scaleY.value = 1 + (1 - progress) * 0.5;
+      } else {
+        camera.scaleX.value = 1;
+        camera.scaleY.value = 1;
+        camera.translateY.value = 0;
+      }
     }
-    return 1;
-  });
-
-  const transform = useDerivedValue(() => {
-    if (enter === 'slide' || exit === 'slide') {
-      return [{ translateY: (1 - progress.value) * 300 }];
-    }
-    if (enter === 'zoom' || exit === 'zoom') {
-      return [{ scale: 1 + (1 - progress.value) * 0.5 }];
-    }
-    return [{ translateY: 0 }];
-  });
+  );
 
   return {
-    props: {
-      opacity,
-      transform,
-    },
     isTransitioning,
   };
 };
