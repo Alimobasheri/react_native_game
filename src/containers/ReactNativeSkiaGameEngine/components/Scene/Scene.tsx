@@ -133,11 +133,26 @@ export const Scene: FC<ISceneProps> = ({
     defaultCamera.height,
   ]);
 
+  const defaultCameraTransform = useDerivedValue(() => {
+    return [
+      { translateX: defaultCamera.translateX.value },
+      { translateY: defaultCamera.translateY.value },
+      { scaleX: defaultCamera.scaleX.value },
+      { scaleY: defaultCamera.scaleY.value },
+    ];
+  }, [
+    defaultCamera.translateX,
+    defaultCamera.translateY,
+    defaultCamera.scaleX,
+    defaultCamera.scaleY,
+  ]);
+
   return currentIsActive || isTransitioning ? (
     <SceneProvider>
       <RootComponent
         clip={defaultCameraClip}
-        transform={defaultCamera.transform}
+        transform={defaultCameraTransform}
+        opacity={defaultCamera.opacity}
         {...rootComponentProps}
       >
         {children}

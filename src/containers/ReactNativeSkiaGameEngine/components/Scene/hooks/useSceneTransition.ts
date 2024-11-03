@@ -68,7 +68,7 @@ export const useSceneTransition = ({
       progress.value = isActive ? 1 : 0;
     } else if (!isInitialRender.current || isActive) {
       setIsTransitioning(true);
-      registerAnimation(
+      animation.current = registerAnimation(
         progress,
         createTimingAnimation(progress.value, isActive ? 1 : 0, duration),
         {
@@ -124,9 +124,7 @@ export const useSceneTransition = ({
       }
       if (enter === 'zoom' || exit === 'zoom') {
         camera.scaleX.value = 1 + (1 - progress) * 0.5;
-        console.log('🚀 ~ camera.scaleX.value:', camera.scaleX.value);
         camera.scaleY.value = 1 + (1 - progress) * 0.5;
-        console.log('🚀 ~ camera.scaleY.value:', camera.scaleY.value);
       } else {
         camera.scaleX.value = 1;
         camera.scaleY.value = 1;
