@@ -20,13 +20,22 @@ import { StarsView } from '@/components/StarsView/StarsView-rnsge';
 import { Physics } from '@/components/Physics';
 import { Swipe } from '@/components/Swipe';
 import { Collisions } from '@/components/Collisions';
-import { useCanvasDimensions, useTouchHandler } from './hooks';
+import {
+  useCanvasDimensions,
+  useEntityInstance,
+  useTouchHandler,
+} from './hooks';
 import { Gesture } from 'react-native-gesture-handler';
 import { useFrameEffect } from './hooks/useFrameEffect';
 import { StateEntity } from '@/components/State';
 import { StartingScene } from '../Scenes/GameScene';
 import { Scene } from './components/Scene/Scene';
 import { useSceneCamera } from './hooks/useSceneCamera/useSceneCamera';
+import { ENTITIES_KEYS } from '@/constants/configs';
+import { Ship } from '@/Game/Entities/Ship/Ship';
+import { useAnimationsController } from './hooks/useAnimationsController/useAnimationsController';
+import { ActiveAnimation } from './services/Animations';
+import { createTimingAnimation, easeInOutQuad } from './utils';
 
 const SubComponent: FC<{}> = (props) => {
   const renderCount = useReRenderCount();
@@ -210,53 +219,38 @@ export const GesturesRenderer: Story = {
 };
 
 const CameraControlView = () => {
-  const { width: canvasWidth, height: canvasHeight } = useCanvasDimensions();
-  const touchHandler = useTouchHandler();
   const { camera } = useSceneCamera();
-  const xTranslation = useSharedValue(0);
-  const yTranslation = useSharedValue(0);
+  const { registerAnimation, removeAnimation } = useAnimationsController();
+  const registeredAnimation = useSharedValue<ActiveAnimation | null>(null);
 
-  const cameraGesture = useMemo(() => {
-    if (!camera || !canvasWidth || !canvasHeight) return null;
-    return {
-      gesture: Gesture.Pan()
-        .onUpdate((e) => {
-          let updatedTranslationX =
-            camera.translateX.value + e.translationX / 10;
-          let updatedTranslationY = camera.translateY.value + e.translationY;
+  const { entity: shipEntity } = useEntityInstance<Ship>({
+    label: ENTITIES_KEYS.SHIP,
+  });
 
-          camera.translateX.value = Math.min(
-            Math.max(updatedTranslationX, -canvasWidth / 20),
-            canvasWidth / 20
-          );
+  const shipAngle = useEntityValue<Ship, number>(
+    shipEntity?.current.id as string,
+    'body',
+    { processor: (value) => value?.angle ?? 0 }
+  );
 
-          camera.translateY.value = Math.min(
-            Math.max(updatedTranslationY, -canvasHeight / 20),
-            canvasHeight / 20
-          );
-          xTranslation.value = e.translationX;
-          yTranslation.value = e.translationY;
-        })
-        .onEnd(() => {
-          xTranslation.value = 0;
-          yTranslation.value = 0;
-        }),
-      rect: {
-        x: camera?.x,
-        y: camera?.y,
-        width: camera?.width,
-        height: camera?.height,
-      },
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!cameraGesture || !camera) return;
-    const touch = touchHandler.addGesture(cameraGesture);
-    return () => {
-      touchHandler.removeGesture(touch);
-    };
-  }, []);
+  useFrameEffect(
+    () => {
+      if (!camera || !shipAngle) return;
+      if (registeredAnimation.value) removeAnimation(registeredAnimation.value);
+      registeredAnimation.value = registerAnimation(
+        camera.rotate,
+        createTimingAnimation(
+          camera.rotate.value,
+          -(shipAngle.value || 0) / 2,
+          60,
+          easeInOutQuad
+        ),
+        { duration: 60, removeOnComplete: true }
+      );
+    },
+    [shipAngle, camera],
+    100
+  );
 
   return null;
 };
@@ -284,6 +278,7 @@ const GameWithCameraControlScene = () => {
       <SeaGroup />
       <Physics />
       <Collisions />
+      <Swipe />
       <CameraControlView />
     </Scene>
   );

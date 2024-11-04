@@ -2,7 +2,7 @@ import React, { FC, PropsWithChildren } from 'react';
 import { useSceneContext } from './hooks/useSceneContext';
 import { useSceneTransition } from './hooks/useSceneTransition';
 import { SceneProvider } from './provider';
-import { Group, rect, SkRect } from '@shopify/react-native-skia';
+import { Group, Paint, rect, SkRect } from '@shopify/react-native-skia';
 import {
   ICreateCameraOptions,
   useCreateCamera,
@@ -145,6 +145,7 @@ export const Scene: FC<ISceneProps> = ({
       { translateY: height / 2 },
       { scaleX: defaultCamera.scaleX.value },
       { scaleY: defaultCamera.scaleY.value },
+      { rotate: defaultCamera.rotate.value },
       { translateX: -width / 2 },
       { translateY: -height / 2 },
       { translateX: defaultCamera.translateX.value },
@@ -155,6 +156,7 @@ export const Scene: FC<ISceneProps> = ({
     defaultCamera.translateY,
     defaultCamera.scaleX,
     defaultCamera.scaleY,
+    defaultCamera.rotate,
   ]);
 
   return currentIsActive || isTransitioning ? (

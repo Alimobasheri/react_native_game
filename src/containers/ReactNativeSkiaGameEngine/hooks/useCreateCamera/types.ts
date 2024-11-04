@@ -8,4 +8,5 @@ export interface ICreateCameraOptions {
   translateY?: number;
   scaleX?: number;
   scaleY?: number;
+  rotate?: number;
 }

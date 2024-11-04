@@ -17,6 +17,7 @@ export const useCreateCamera = (options: ICreateCameraOptions) => {
     translateY: options.translateY || 0,
     scaleX: options.scaleX || 1,
     scaleY: options.scaleY || 1,
+    rotate: options.rotate || 0,
   });
 
   const x = useSharedValue(initialValues.x);
@@ -28,6 +29,7 @@ export const useCreateCamera = (options: ICreateCameraOptions) => {
   const translateY = useSharedValue(initialValues.translateY);
   const scaleX = useSharedValue(initialValues.scaleX);
   const scaleY = useSharedValue(initialValues.scaleY);
+  const rotate = useSharedValue(initialValues.rotate);
 
   const cameraTransform = useDerivedValue(() => {
     return [
@@ -49,6 +51,7 @@ export const useCreateCamera = (options: ICreateCameraOptions) => {
       translateY,
       scaleX,
       scaleY,
+      rotate,
       transform: cameraTransform,
     };
   }, [x, y, width, height, opacity]);
@@ -63,6 +66,7 @@ export const useCreateCamera = (options: ICreateCameraOptions) => {
     translateY.value = initialValues.translateY;
     scaleX.value = initialValues.scaleX;
     scaleY.value = initialValues.scaleY;
+    rotate.value = initialValues.rotate;
   }, [
     x,
     y,
@@ -74,6 +78,7 @@ export const useCreateCamera = (options: ICreateCameraOptions) => {
     translateY,
     scaleX,
     scaleY,
+    rotate,
   ]);
 
   return {

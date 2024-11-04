@@ -11,5 +11,6 @@ export type Camera = {
   translateY: SharedValue<number>;
   scaleX: SharedValue<number>;
   scaleY: SharedValue<number>;
+  rotate: SharedValue<number>;
   transform: DerivedValue<Transforms2d>;
 };
