@@ -1,3 +1,4 @@
+import { Camera } from '@/containers/ReactNativeSkiaGameEngine/types';
 import { createContext } from 'react';
 
 /**
@@ -39,6 +40,10 @@ export interface IScenContextValue {
    * @returns {void}
    */
   registerScene: (name: string, isActive: boolean) => void;
+  /**
+   * Reference Of the camera registered for the current Scene.
+   */
+  sceneCamera: Camera | null;
 }
 
 export const SceneContext = createContext<IScenContextValue | null>(null);

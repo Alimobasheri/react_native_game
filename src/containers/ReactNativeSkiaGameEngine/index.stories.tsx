@@ -25,6 +25,8 @@ import { Gesture } from 'react-native-gesture-handler';
 import { useFrameEffect } from './hooks/useFrameEffect';
 import { StateEntity } from '@/components/State';
 import { StartingScene } from '../Scenes/GameScene';
+import { Scene } from './components/Scene/Scene';
+import { useSceneCamera } from './hooks/useSceneCamera/useSceneCamera';
 
 const SubComponent: FC<{}> = (props) => {
   const renderCount = useReRenderCount();
@@ -74,6 +76,31 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
+const GameScene = () => {
+  const dimensions = useCanvasDimensions();
+  if (!dimensions?.width || !dimensions?.height) return null;
+  return (
+    <Scene
+      defaultSceneName={'gameScene'}
+      isActive={true}
+      x={0}
+      y={0}
+      width={dimensions.width}
+      height={dimensions.height}
+      exit={'fade'}
+      transitionConfig={{ duration: 1000 }}
+    >
+      <SkyBackground />
+      <StarsView />
+      <SeaGroup />
+      <Physics />
+      <Collisions />
+      <Swipe />
+      <StartingScene />
+    </Scene>
+  );
+};
+
 export const Basic: Story = {
   args: {},
   render: (args: any) => (
@@ -81,13 +108,7 @@ export const Basic: Story = {
       <View style={{ flex: 1, width: '100%', height: '100%' }}>
         <ReactNativeSkiaGameEngine {...args}>
           <StateEntity isRunning={false} />
-          <SkyBackground />
-          <StarsView />
-          <SeaGroup />
-          <Physics />
-          <Collisions />
-          <Swipe />
-          <StartingScene />
+          <GameScene />
         </ReactNativeSkiaGameEngine>
       </View>
     </View>
@@ -173,4 +194,111 @@ const Gestures = () => {
   }, [touchHandler, gesture1, gesture2]);
 
   return <Rect x={x} y={y} height={height} width={width} color="blue" />;
+};
+
+export const GesturesRenderer: Story = {
+  args: {},
+  render: (args: any) => (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ flex: 1, width: '100%', height: '100%' }}>
+        <ReactNativeSkiaGameEngine {...args}>
+          <Gestures />
+        </ReactNativeSkiaGameEngine>
+      </View>
+    </View>
+  ),
+};
+
+const CameraControlView = () => {
+  const { width: canvasWidth, height: canvasHeight } = useCanvasDimensions();
+  const touchHandler = useTouchHandler();
+  const { camera } = useSceneCamera();
+  const xTranslation = useSharedValue(0);
+  const yTranslation = useSharedValue(0);
+
+  const cameraGesture = useMemo(() => {
+    if (!camera || !canvasWidth || !canvasHeight) return null;
+    return {
+      gesture: Gesture.Pan()
+        .onUpdate((e) => {
+          let updatedTranslationX =
+            camera.translateX.value + e.translationX / 10;
+          let updatedTranslationY = camera.translateY.value + e.translationY;
+
+          camera.translateX.value = Math.min(
+            Math.max(updatedTranslationX, -canvasWidth / 20),
+            canvasWidth / 20
+          );
+
+          camera.translateY.value = Math.min(
+            Math.max(updatedTranslationY, -canvasHeight / 20),
+            canvasHeight / 20
+          );
+          xTranslation.value = e.translationX;
+          yTranslation.value = e.translationY;
+        })
+        .onEnd(() => {
+          xTranslation.value = 0;
+          yTranslation.value = 0;
+        }),
+      rect: {
+        x: camera?.x,
+        y: camera?.y,
+        width: camera?.width,
+        height: camera?.height,
+      },
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!cameraGesture || !camera) return;
+    const touch = touchHandler.addGesture(cameraGesture);
+    return () => {
+      touchHandler.removeGesture(touch);
+    };
+  }, []);
+
+  return null;
+};
+
+const GameWithCameraControlScene = () => {
+  const dimensions = useCanvasDimensions();
+  if (!dimensions?.width || !dimensions?.height) return null;
+  return (
+    <Scene
+      defaultSceneName={'gameScene'}
+      isActive={true}
+      x={0}
+      y={0}
+      width={dimensions.width}
+      height={dimensions.height}
+      exit={'fade'}
+      transitionConfig={{ duration: 1000 }}
+      defaultCameraProps={{
+        scaleX: 1.2,
+        scaleY: 1.2,
+      }}
+    >
+      <SkyBackground />
+      <StarsView />
+      <SeaGroup />
+      <Physics />
+      <Collisions />
+      <CameraControlView />
+    </Scene>
+  );
+};
+
+export const CameraControl: Story = {
+  args: {},
+  render: (args: any) => (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ flex: 1, width: '100%', height: '100%' }}>
+        <ReactNativeSkiaGameEngine {...args}>
+          <StateEntity isRunning={true} />
+          <GameWithCameraControlScene />
+        </ReactNativeSkiaGameEngine>
+      </View>
+    </View>
+  ),
 };

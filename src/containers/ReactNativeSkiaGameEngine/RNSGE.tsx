@@ -26,6 +26,7 @@ import {
 import { OnEventListeners } from './types/Events';
 import { SceneProvider } from './components/Scene/provider';
 import { TouchDOM } from './components/TouchDOM/TouchDOM';
+import { useCreateCamera } from './hooks/useCreateCamera';
 
 /**
  * This is the handle for the `ReactNativeSkiaGameEngine` component. Use this to control the game engine.

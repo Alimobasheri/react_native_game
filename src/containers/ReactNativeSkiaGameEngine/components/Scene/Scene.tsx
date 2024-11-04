@@ -3,7 +3,10 @@ import { useSceneContext } from './hooks/useSceneContext';
 import { useSceneTransition } from './hooks/useSceneTransition';
 import { SceneProvider } from './provider';
 import { Group, rect, SkRect } from '@shopify/react-native-skia';
-import { useCreateCamera } from '../../hooks/useCreateCamera';
+import {
+  ICreateCameraOptions,
+  useCreateCamera,
+} from '../../hooks/useCreateCamera';
 import { useDerivedValue } from 'react-native-reanimated';
 
 export interface ISceneProps extends PropsWithChildren {
@@ -22,6 +25,7 @@ export interface ISceneProps extends PropsWithChildren {
   rootComponent?: React.ComponentType<any>;
   rootComponentProps?: Record<string, any>;
   isActive?: boolean;
+  defaultCameraProps?: ICreateCameraOptions;
 }
 
 /**
@@ -97,6 +101,7 @@ export const Scene: FC<ISceneProps> = ({
   rootComponent: RootComponent = Group,
   rootComponentProps = {},
   isActive = false,
+  defaultCameraProps = {},
 }) => {
   const { isActive: currentIsActive } = useSceneContext(
     defaultSceneName,
@@ -109,6 +114,7 @@ export const Scene: FC<ISceneProps> = ({
       y,
       width,
       height,
+      ...defaultCameraProps,
     });
 
   const { isTransitioning } = useSceneTransition({
@@ -135,10 +141,14 @@ export const Scene: FC<ISceneProps> = ({
 
   const defaultCameraTransform = useDerivedValue(() => {
     return [
-      { translateX: defaultCamera.translateX.value },
-      { translateY: defaultCamera.translateY.value },
+      { translateX: width / 2 },
+      { translateY: height / 2 },
       { scaleX: defaultCamera.scaleX.value },
       { scaleY: defaultCamera.scaleY.value },
+      { translateX: -width / 2 },
+      { translateY: -height / 2 },
+      { translateX: defaultCamera.translateX.value },
+      { translateY: defaultCamera.translateY.value },
     ];
   }, [
     defaultCamera.translateX,
@@ -148,7 +158,7 @@ export const Scene: FC<ISceneProps> = ({
   ]);
 
   return currentIsActive || isTransitioning ? (
-    <SceneProvider>
+    <SceneProvider camera={defaultCamera}>
       <RootComponent
         clip={defaultCameraClip}
         transform={defaultCameraTransform}

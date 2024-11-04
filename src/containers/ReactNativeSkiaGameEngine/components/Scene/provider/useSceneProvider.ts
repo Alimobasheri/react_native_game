@@ -1,4 +1,9 @@
-import { useCallback, useState } from 'react';
+import { Camera } from '@/containers/ReactNativeSkiaGameEngine/types';
+import { useCallback, useEffect, useState } from 'react';
+
+export interface IUseSceneProviderArgs {
+  camera?: Camera;
+}
 
 /**
  * Hook that provides scene management functionality, such as enabling/disabling scenes,
@@ -19,9 +24,10 @@ import { useCallback, useState } from 'react';
  * enableScene('level1');
  * disableScene('level2');
  */
-export const useSceneProvider = () => {
+export const useSceneProvider = ({ camera }: IUseSceneProviderArgs) => {
   const [activeScenes, setActiveScenes] = useState<Record<string, boolean>>({});
   const [sceneHistory, setSceneHistory] = useState<string[]>([]);
+  const [sceneCamera, setSceneCamera] = useState<Camera | null>(camera || null);
 
   const enableScene = useCallback(
     (name: string) => setActiveScenes((prev) => ({ ...prev, [name]: true })),
@@ -79,8 +85,13 @@ export const useSceneProvider = () => {
     }
   }, []);
 
+  useEffect(() => {
+    setSceneCamera(camera || null);
+  }, [sceneCamera]);
+
   return {
     activeScenes,
+    sceneCamera,
     enableScene,
     disableScene,
     switchScene,

@@ -85,8 +85,6 @@ export const useSceneTransition = ({
 
     if (enter === 'fade' || exit === 'fade') {
       camera.opacity.value = progress.value;
-    } else {
-      camera.opacity.value = 1;
     }
     if (enter === 'slide' || exit === 'slide') {
       camera.translateY.value = (1 - progress.value) * 300;
@@ -94,10 +92,6 @@ export const useSceneTransition = ({
     if (enter === 'zoom' || exit === 'zoom') {
       camera.scaleX.value = 1 + (1 - progress.value) * 0.5;
       camera.scaleY.value = 1 + (1 - progress.value) * 0.5;
-    } else {
-      camera.scaleX.value = 1;
-      camera.scaleY.value = 1;
-      camera.translateY.value = 0;
     }
 
     return () => {
@@ -114,20 +108,13 @@ export const useSceneTransition = ({
     (progress) => {
       if (enter === 'fade' || exit === 'fade') {
         camera.opacity.value = progress;
-      } else {
-        camera.opacity.value = 1;
       }
       if (enter === 'slide' || exit === 'slide') {
         camera.translateY.value = (1 - progress) * 300;
-      } else {
-        camera.translateY.value = 0;
       }
       if (enter === 'zoom' || exit === 'zoom') {
         camera.scaleX.value = 1 + (1 - progress) * 0.5;
         camera.scaleY.value = 1 + (1 - progress) * 0.5;
-      } else {
-        camera.scaleX.value = 1;
-        camera.scaleY.value = 1;
       }
     }
   );

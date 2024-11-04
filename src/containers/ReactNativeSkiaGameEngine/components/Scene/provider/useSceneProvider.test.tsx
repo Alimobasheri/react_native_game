@@ -3,7 +3,7 @@ import { useSceneProvider } from './useSceneProvider';
 
 describe('useSceneProvider', () => {
   it('should register a new scene and set its isActive state', () => {
-    const { result } = renderHook(() => useSceneProvider());
+    const { result } = renderHook(() => useSceneProvider({}));
 
     act(() => {
       result.current.registerScene('newScene', true);
@@ -13,7 +13,7 @@ describe('useSceneProvider', () => {
   });
 
   it('should update isActive state when a scene is registered again', () => {
-    const { result } = renderHook(() => useSceneProvider());
+    const { result } = renderHook(() => useSceneProvider({}));
 
     act(() => {
       result.current.registerScene('newScene', false);
@@ -29,7 +29,7 @@ describe('useSceneProvider', () => {
   });
 
   it('should not modify other scene states when registering a new scene', () => {
-    const { result } = renderHook(() => useSceneProvider());
+    const { result } = renderHook(() => useSceneProvider({}));
 
     act(() => {
       result.current.registerScene('newScene', true);
@@ -45,7 +45,7 @@ describe('useSceneProvider', () => {
   });
 
   it('should handle multiple scenes and preserve their state correctly', () => {
-    const { result } = renderHook(() => useSceneProvider());
+    const { result } = renderHook(() => useSceneProvider({}));
 
     act(() => {
       result.current.registerScene('sceneA', true);
@@ -57,7 +57,7 @@ describe('useSceneProvider', () => {
   });
 
   it('should allow switching between scenes', () => {
-    const { result } = renderHook(() => useSceneProvider());
+    const { result } = renderHook(() => useSceneProvider({}));
 
     act(() => {
       result.current.registerScene('sceneA', true);
@@ -70,7 +70,7 @@ describe('useSceneProvider', () => {
   });
 
   it('should maintain history of scenes for back navigation', () => {
-    const { result } = renderHook(() => useSceneProvider());
+    const { result } = renderHook(() => useSceneProvider({}));
 
     act(() => {
       result.current.registerScene('sceneA', true);
@@ -99,7 +99,7 @@ describe('useSceneProvider', () => {
   });
 
   it('should allow scenes to be deactivated manually', () => {
-    const { result } = renderHook(() => useSceneProvider());
+    const { result } = renderHook(() => useSceneProvider({}));
 
     act(() => {
       result.current.registerScene('sceneA', true);
