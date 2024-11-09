@@ -79,10 +79,6 @@ export const useSceneProvider = ({ camera }: IUseSceneProviderArgs) => {
       ...prev,
       [name]: isActive,
     }));
-
-    if (isActive) {
-      pushScene(name);
-    }
   }, []);
 
   useEffect(() => {

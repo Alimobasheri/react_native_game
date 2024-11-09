@@ -99,12 +99,26 @@ const GameScene = () => {
       exit={'fade'}
       transitionConfig={{ duration: 1000 }}
     >
-      <SkyBackground />
-      <StarsView />
-      <SeaGroup />
-      <Physics />
-      <Collisions />
-      <Swipe />
+      <Scene
+        defaultSceneName={'gamePlayScene'}
+        isActive={true}
+        x={0}
+        y={0}
+        width={dimensions.width}
+        height={dimensions.height}
+        defaultCameraProps={{
+          scaleX: 1.2,
+          scaleY: 1.2,
+        }}
+      >
+        <SkyBackground />
+        <StarsView />
+        <SeaGroup />
+        <Physics />
+        <Collisions />
+        <Swipe />
+        <CameraControlView />
+      </Scene>
       <StartingScene />
     </Scene>
   );
