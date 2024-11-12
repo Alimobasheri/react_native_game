@@ -8,11 +8,12 @@ import {
   useCreateCamera,
 } from '../../hooks/useCreateCamera';
 import { useDerivedValue } from 'react-native-reanimated';
+import { SceneTransition } from './types/transitions';
 
 export interface ISceneProps extends PropsWithChildren {
   defaultSceneName: string;
-  enter?: 'fade' | 'slide' | 'zoom' | null;
-  exit?: 'fade' | 'slide' | 'zoom' | null;
+  enter?: SceneTransition;
+  exit?: SceneTransition;
   transitionConfig?: {
     duration?: number;
     enterDuration?: number;

@@ -7,7 +7,10 @@ import {
   useSharedValue,
   runOnJS,
   useAnimatedReaction,
+  SharedValue,
+  runOnUI,
 } from 'react-native-reanimated';
+import { SceneTransition, TransitionPhase } from '../types/transitions';
 
 interface ITransitionConfig {
   duration?: number;
@@ -18,8 +21,8 @@ interface ITransitionConfig {
 interface IUseSceneTransitionProps {
   isActive: boolean;
   camera: Camera;
-  enter: 'fade' | 'slide' | 'zoom' | null;
-  exit: 'fade' | 'slide' | 'zoom' | null;
+  enter?: SceneTransition | null;
+  exit?: SceneTransition | null;
   config: ITransitionConfig;
 }
 
@@ -28,8 +31,8 @@ interface IUseSceneTransitionProps {
  * It provides animation properties that can be applied to the scene's root component.
  *
  * @param {boolean} isActive - Whether the scene is currently active.
- * @param {'fade'|'slide'|'zoom'} enter - The transition effect when the scene enters.
- * @param {'fade'|'slide'|'zoom'} exit - The transition effect when the scene exits.
+ * @param {SceneTransition} enter - The transition callback for enter phase.
+ * @param {SceneTransition} exit - The transition callbakc for exit phase.
  * @param {Object} config - Configuration for transition durations.
  * @param {number} [config.duration=500] - Default duration for transitions.
  * @param {number} [config.enterDuration] - Specific duration for the enter transition (overrides `duration`).
@@ -59,6 +62,9 @@ export const useSceneTransition = ({
 
   const [isTransitioning, setIsTransitioning] = useState(false);
 
+  const phase = useSharedValue(
+    isActive ? TransitionPhase.BeforeEnter : TransitionPhase.Idle
+  );
   const progress = useSharedValue(isActive ? 0 : 1);
 
   const isInitialRender = useRef<boolean>(true);
@@ -67,6 +73,21 @@ export const useSceneTransition = ({
     if (duration === 0) {
       progress.value = isActive ? 1 : 0;
     } else if (!isInitialRender.current || isActive) {
+      if (isActive && phase.value === TransitionPhase.Idle) {
+        phase.value = TransitionPhase.BeforeEnter;
+      }
+      if (isActive && phase.value === TransitionPhase.BeforeEnter) {
+        if (typeof enter === 'function') {
+          runOnUI(enter)({ camera, phase: phase.value, progress });
+        }
+        phase.value = TransitionPhase.Enter;
+      } else if (!isActive && phase.value === TransitionPhase.AfterEnter) {
+        phase.value = TransitionPhase.BeforeExit;
+        if (typeof exit === 'function') {
+          runOnUI(exit)({ camera, phase: phase.value, progress });
+        }
+        phase.value = TransitionPhase.Exit;
+      }
       setIsTransitioning(true);
       animation.current = registerAnimation(
         progress,
@@ -83,17 +104,6 @@ export const useSceneTransition = ({
 
     isInitialRender.current = false;
 
-    if (enter === 'fade' || exit === 'fade') {
-      camera.opacity.value = progress.value;
-    }
-    if (enter === 'slide' || exit === 'slide') {
-      camera.translateY.value = (1 - progress.value) * 300;
-    }
-    if (enter === 'zoom' || exit === 'zoom') {
-      camera.scaleX.value = 1 + (1 - progress.value) * 0.5;
-      camera.scaleY.value = 1 + (1 - progress.value) * 0.5;
-    }
-
     return () => {
       if (animation.current) {
         removeAnimation(animation.current);
@@ -103,19 +113,25 @@ export const useSceneTransition = ({
 
   useAnimatedReaction(
     () => {
-      return progress.value;
+      return progress;
     },
     (progress) => {
-      if (enter === 'fade' || exit === 'fade') {
-        camera.opacity.value = progress;
+      console.log('🚀 ~ progress:', progress.value, phase.value);
+      if (
+        typeof enter === 'function' &&
+        phase.value === TransitionPhase.Enter
+      ) {
+        enter({ camera, phase: phase.value, progress });
+      } else if (
+        typeof exit === 'function' &&
+        phase.value === TransitionPhase.Exit
+      ) {
+        exit({ camera, phase: phase.value, progress });
       }
-      if (enter === 'slide' || exit === 'slide') {
-        camera.translateY.value = (1 - progress) * 300;
-      }
-      if (enter === 'zoom' || exit === 'zoom') {
-        camera.scaleX.value = 1 + (1 - progress) * 0.5;
-        camera.scaleY.value = 1 + (1 - progress) * 0.5;
-      }
+      if (isActive && progress.value === 1)
+        phase.value = TransitionPhase.AfterEnter;
+      else if (!isActive && progress.value === 0)
+        phase.value = TransitionPhase.Idle;
     }
   );
 
