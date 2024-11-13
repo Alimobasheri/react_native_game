@@ -116,7 +116,6 @@ export const useSceneTransition = ({
       return progress;
     },
     (progress) => {
-      console.log('🚀 ~ progress:', progress.value, phase.value);
       if (
         typeof enter === 'function' &&
         phase.value === TransitionPhase.Enter

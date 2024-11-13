@@ -7,8 +7,6 @@ export const fadeTransition =
   (): SceneTransition =>
   ({ camera, phase, progress }) => {
     'worklet';
-    console.log('🚀 ~ progress:', progress.value);
-    console.log('🚀 ~ phase:', phase);
     switch (phase) {
       case TransitionPhase.Idle:
       case TransitionPhase.BeforeEnter:

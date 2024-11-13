@@ -1,7 +1,7 @@
 import React from 'react';
 import { act, render, waitFor } from '@testing-library/react-native';
 import { Scene } from './Scene';
-import { SceneContext } from './context/SceneContext';
+import { IScenContextValue, SceneContext } from './context/SceneContext';
 import { SceneProvider } from './provider/SceneProvider';
 import { useSceneContext } from './hooks/useSceneContext';
 import { Text } from 'react-native';
@@ -24,6 +24,7 @@ import {
   slideTransition,
   SlideYDirection,
 } from '../../utils/transitions/slideTransition';
+import { zoomTransition } from '../../utils/transitions/zoomTransition';
 
 jest.mock('./provider/SceneProvider');
 jest.mock('./hooks/useSceneContext');
@@ -45,13 +46,33 @@ describe('Scene', () => {
   const mockSceneProvider = jest.fn();
   const mockUseSceneContext = jest.fn();
 
-  const mockContextValue = {
+  const mockContextValue: IScenContextValue = {
     activeScenes: { testScene: true },
     enableScene: jest.fn(),
     disableScene: jest.fn(),
     switchScene: jest.fn(),
     goBack: jest.fn(),
     registerScene: jest.fn(),
+    sceneCamera: {
+      x: { value: 0 },
+      y: { value: 0 },
+      width: { value: 300 },
+      height: { value: 300 },
+      opacity: { value: 1 },
+      translateX: { value: 0 },
+      translateY: { value: 0 },
+      scaleX: { value: 1 },
+      scaleY: { value: 1 },
+      rotate: { value: 0 },
+      transform: {
+        value: [
+          { translateX: 0 },
+          { translateY: 0 },
+          { scaleX: 1 },
+          { scaleY: 1 },
+        ],
+      },
+    },
   };
 
   const registerSceneMock = jest.fn();
@@ -307,7 +328,7 @@ describe('Scene', () => {
   });
 
   it('should apply slide transition with correct translateY during activation', async () => {
-    const transition = slideTransition({ y: SlideYDirection.Up });
+    const transition = slideTransition({ y: SlideYDirection.Down });
     const { getByTestId, unmount, rerender } = render(
       <SceneProvider>
         <Scene
@@ -325,7 +346,7 @@ describe('Scene', () => {
     const scene = getByTestId('scene');
     await waitFor(() => {
       expect(
-        scene.props.transform.value.find((t: object) =>
+        scene.props.transform.value.findLast((t: object) =>
           t.hasOwnProperty('translateY')
         ).translateY
       ).toBe(300);
@@ -363,7 +384,7 @@ describe('Scene', () => {
     });
     await waitFor(() => {
       expect(
-        scene.props.transform.value.find((t: object) =>
+        scene.props.transform.value.findLast((t: object) =>
           t.hasOwnProperty('translateY')
         ).translateY
       ).toBe(0);
@@ -373,13 +394,14 @@ describe('Scene', () => {
   });
 
   it('should apply zoom transition with correct scale during activation', () => {
+    const transition = zoomTransition({ from: 1.5, to: 1 });
     const { getByTestId, rerender, unmount } = render(
       <SceneProvider>
         <Scene
           defaultSceneName="zoomScene"
           isActive={true}
-          enter="zoom"
-          exit="zoom"
+          enter={transition}
+          exit={transition}
           rootComponentProps={{ testID: 'scene' }}
         />
       </SceneProvider>,
@@ -403,8 +425,8 @@ describe('Scene', () => {
         <Scene
           defaultSceneName="zoomScene"
           isActive={true}
-          enter="zoom"
-          exit="zoom"
+          enter={transition}
+          exit={transition}
           rootComponentProps={{ testID: 'scene' }}
         />
       </SceneProvider>

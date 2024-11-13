@@ -28,17 +28,17 @@ export const slideTransition = (
     switch (phase) {
       case TransitionPhase.Idle:
       case TransitionPhase.BeforeEnter:
-        camera.translateX.value = 0;
-        camera.translateY.value = 0;
+        camera.translateX.value = camera.width.value * x;
+        camera.translateY.value = camera.height.value * y;
         break;
       case TransitionPhase.Enter:
-        camera.translateX.value = progress.value * camera.width.value * x;
-        camera.translateY.value = progress.value * camera.height.value * y;
-        break;
-      case TransitionPhase.Exit:
         camera.translateX.value = (1 - progress.value) * camera.width.value * x;
         camera.translateY.value =
           (1 - progress.value) * camera.height.value * y;
+        break;
+      case TransitionPhase.Exit:
+        camera.translateX.value = progress.value * camera.width.value * x;
+        camera.translateY.value = progress.value * camera.height.value * y;
         break;
     }
   };
