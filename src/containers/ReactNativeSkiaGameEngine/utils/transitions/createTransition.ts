@@ -3,7 +3,7 @@ import {
   TransitionPhase,
 } from '../../components/Scene/types/transitions';
 
-export const fadeTransition =
+export const createFadeTransition =
   (): SceneTransition =>
   ({ camera, phase, progress }) => {
     'worklet';

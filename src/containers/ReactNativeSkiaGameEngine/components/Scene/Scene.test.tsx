@@ -19,12 +19,12 @@ import {
   useAnimatedReaction,
   useDerivedValue,
 } from 'react-native-reanimated';
-import { fadeTransition } from '../../utils/transitions/fadeTransition';
+import { createFadeTransition } from '../../utils/transitions/createFadeTransition';
 import {
-  slideTransition,
+  createSlideTransition,
   SlideYDirection,
-} from '../../utils/transitions/slideTransition';
-import { zoomTransition } from '../../utils/transitions/zoomTransition';
+} from '../../utils/transitions/createSlideTransition';
+import { createZoomTransition } from '../../utils/transitions/createZoomTransition';
 
 jest.mock('./provider/SceneProvider');
 jest.mock('./hooks/useSceneContext');
@@ -263,7 +263,7 @@ describe('Scene', () => {
   });
 
   it('should apply fade transition with correct opacity during activation', async () => {
-    const transition = fadeTransition();
+    const transition = createFadeTransition();
     const { getByTestId, rerender, unmount } = render(
       <SceneProvider>
         <Scene
@@ -328,7 +328,7 @@ describe('Scene', () => {
   });
 
   it('should apply slide transition with correct translateY during activation', async () => {
-    const transition = slideTransition({ y: SlideYDirection.Down });
+    const transition = createSlideTransition({ y: SlideYDirection.Down });
     const { getByTestId, unmount, rerender } = render(
       <SceneProvider>
         <Scene
@@ -394,7 +394,7 @@ describe('Scene', () => {
   });
 
   it('should apply zoom transition with correct scale during activation', () => {
-    const transition = zoomTransition({ from: 1.5, to: 1 });
+    const transition = createZoomTransition({ from: 1.5, to: 1 });
     const { getByTestId, rerender, unmount } = render(
       <SceneProvider>
         <Scene
@@ -457,8 +457,8 @@ describe('Scene', () => {
         <Scene
           defaultSceneName="customScene"
           isActive={true}
-          enter={fadeTransition()}
-          exit={fadeTransition()}
+          enter={createFadeTransition()}
+          exit={createFadeTransition()}
           transitionConfig={{ duration: 1000 }}
           rootComponentProps={{ testID: 'scene' }}
         />
@@ -479,8 +479,8 @@ describe('Scene', () => {
         <Scene
           defaultSceneName="customScene"
           isActive={true}
-          enter={fadeTransition()}
-          exit={fadeTransition()}
+          enter={createFadeTransition()}
+          exit={createFadeTransition()}
           transitionConfig={{ duration: 1000 }}
           rootComponentProps={{ testID: 'scene' }}
         />
@@ -503,8 +503,8 @@ describe('Scene', () => {
         <Scene
           defaultSceneName="rerenderScene"
           isActive={true}
-          enter={fadeTransition()}
-          exit={fadeTransition()}
+          enter={createFadeTransition()}
+          exit={createFadeTransition()}
           rootComponentProps={{ testID: 'scene' }}
           transitionConfig={{ duration: 300 }}
         />
@@ -526,8 +526,8 @@ describe('Scene', () => {
         <Scene
           defaultSceneName="rerenderScene"
           isActive={true}
-          enter={fadeTransition()}
-          exit={fadeTransition()}
+          enter={createFadeTransition()}
+          exit={createFadeTransition()}
           rootComponentProps={{ testID: 'scene' }}
           transitionConfig={{ duration: 300 }}
         />
@@ -541,8 +541,8 @@ describe('Scene', () => {
         <Scene
           defaultSceneName="rerenderScene"
           isActive={true}
-          enter={fadeTransition()}
-          exit={fadeTransition()}
+          enter={createFadeTransition()}
+          exit={createFadeTransition()}
           rootComponentProps={{ testID: 'scene' }}
           transitionConfig={{ duration: 300 }}
         />

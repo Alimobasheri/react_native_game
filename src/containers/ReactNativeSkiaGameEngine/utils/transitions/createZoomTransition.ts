@@ -8,7 +8,7 @@ interface ZoomTransitionConfig {
   to?: number;
 }
 
-export const zoomTransition =
+export const createZoomTransition =
   (config?: ZoomTransitionConfig): SceneTransition =>
   ({ camera, phase, progress }) => {
     'worklet';

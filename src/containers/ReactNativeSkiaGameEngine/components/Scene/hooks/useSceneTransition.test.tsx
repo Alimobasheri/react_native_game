@@ -9,12 +9,12 @@ import {
   advanceTime,
 } from '@/containers/ReactNativeSkiaGameEngine/utils';
 import { runOnJS, runOnUI } from 'react-native-reanimated';
-import { fadeTransition } from '@/containers/ReactNativeSkiaGameEngine/utils/transitions/fadeTransition';
+import { createFadeTransition } from '@/containers/ReactNativeSkiaGameEngine/utils/transitions/createFadeTransition';
 import {
-  slideTransition,
+  createSlideTransition,
   SlideYDirection,
-} from '@/containers/ReactNativeSkiaGameEngine/utils/transitions/slideTransition';
-import { zoomTransition } from '@/containers/ReactNativeSkiaGameEngine/utils/transitions/zoomTransition';
+} from '@/containers/ReactNativeSkiaGameEngine/utils/transitions/createSlideTransition';
+import { createZoomTransition } from '@/containers/ReactNativeSkiaGameEngine/utils/transitions/createZoomTransition';
 
 jest.mock('react-native-reanimated', () => {
   return {
@@ -79,8 +79,8 @@ describe('useSceneTransition', () => {
       () =>
         useSceneTransition({
           isActive: true,
-          enter: fadeTransition(),
-          exit: fadeTransition(),
+          enter: createFadeTransition(),
+          exit: createFadeTransition(),
           config: { duration: 300 },
           camera: mockCamera.camera,
         }),
@@ -95,8 +95,8 @@ describe('useSceneTransition', () => {
       () =>
         useSceneTransition({
           isActive: false,
-          enter: slideTransition(),
-          exit: slideTransition(),
+          enter: createSlideTransition(),
+          exit: createSlideTransition(),
           config: { duration: 300 },
           camera: mockCamera.camera,
         }),
@@ -116,8 +116,8 @@ describe('useSceneTransition', () => {
       () =>
         useSceneTransition({
           isActive: true,
-          enter: slideTransition({ y: SlideYDirection.Down }),
-          exit: slideTransition(),
+          enter: createSlideTransition({ y: SlideYDirection.Down }),
+          exit: createSlideTransition(),
           config: { duration: 400 },
           camera: mockCamera.camera,
         }),
@@ -146,8 +146,8 @@ describe('useSceneTransition', () => {
       () =>
         useSceneTransition({
           isActive: true,
-          enter: fadeTransition(),
-          exit: fadeTransition(),
+          enter: createFadeTransition(),
+          exit: createFadeTransition(),
           config: { duration: 1000 },
           camera: mockCamera.camera,
         }),
@@ -170,8 +170,8 @@ describe('useSceneTransition', () => {
       () =>
         useSceneTransition({
           isActive: true,
-          enter: fadeTransition(),
-          exit: fadeTransition(),
+          enter: createFadeTransition(),
+          exit: createFadeTransition(),
           config: { duration: 0 },
           camera: mockCamera.camera,
         }),
@@ -189,7 +189,7 @@ describe('useSceneTransition', () => {
       () =>
         useSceneTransition({
           isActive: true,
-          enter: zoomTransition({ from: 1, to: 1.5 }),
+          enter: createZoomTransition({ from: 1, to: 1.5 }),
           exit: null,
           config: { duration: 500 },
           camera: mockCamera.camera,

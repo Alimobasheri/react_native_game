@@ -20,7 +20,7 @@ export interface ISlideTransitionConfig {
   y?: SlideYDirection;
 }
 
-export const slideTransition = (
+export const createSlideTransition = (
   config?: ISlideTransitionConfig
 ): SceneTransition => {
   const { x = SlideXDirection.Left, y = SlideYDirection.None } = config || {};
