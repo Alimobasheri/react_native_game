@@ -79,6 +79,9 @@ export const useSceneProvider = ({ camera }: IUseSceneProviderArgs) => {
       ...prev,
       [name]: isActive,
     }));
+    if (isActive) {
+      setSceneHistory((prev) => [...prev, name]);
+    }
   }, []);
 
   useEffect(() => {
