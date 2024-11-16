@@ -53,14 +53,22 @@ export const useSceneTransition = ({
   config = { duration: 500 },
 }: IUseSceneTransitionProps) => {
   const enterDuration =
-    config.enterDuration ?? config.duration ?? typeof exit === 'function'
-      ? 500
-      : 0;
+    (typeof config.enterDuration === 'number' && config.enterDuration) ||
+    (typeof config.duration === 'number' && config.duration) ||
+    (typeof enter === 'function' && 0);
   const exitDuration =
-    config.exitDuration ?? config.duration ?? typeof exit === 'function'
-      ? 500
-      : 0;
+    (typeof config.exitDuration === 'number' && config.exitDuration) ||
+    (typeof config.duration === 'number' && config.duration) ||
+    (typeof exit === 'function' && 0);
   const duration = isActive ? enterDuration : exitDuration;
+  console.log(
+    '🚀 ~ duration:',
+    isActive,
+    config.enterDuration || config.duration,
+    enterDuration,
+    config,
+    duration
+  );
 
   const { registerAnimation, removeAnimation } = useAnimationsController();
 
@@ -78,9 +86,8 @@ export const useSceneTransition = ({
       progress.value = isActive ? 1 : 0;
     } else if (!isInitialRender.current || isActive) {
       let shouldTransition =
-        (isActive && enterDuration > 0) || (!isActive && exitDuration > 0);
+        (isActive && enterDuration >= 0) || (!isActive && exitDuration >= 0);
       if (isActive && shouldTransition) {
-        console.log('🚀 ~ useEffect ~ isActive:', isActive);
         if (typeof enter === 'function') {
           runOnUI(enter)({
             camera,
@@ -90,7 +97,6 @@ export const useSceneTransition = ({
         }
         phase.value = TransitionPhase.Enter;
       } else if (!isActive && shouldTransition) {
-        console.log('🚀 ~ useEffect ~ isActive:', isActive);
         if (typeof exit === 'function') {
           runOnUI(exit)({
             camera,

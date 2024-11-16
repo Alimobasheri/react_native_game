@@ -26,6 +26,18 @@ export const createSlideTransition = (
   const { x = SlideXDirection.Left, y = SlideYDirection.None } = config || {};
   return ({ camera, phase, progress }) => {
     'worklet';
+    console.log(
+      'camera.width.value:',
+      camera.width.value,
+      '\nx:',
+      x,
+      '\ny:',
+      y,
+      '\nprogress.value:',
+      progress.value,
+      '\nphase:',
+      phase
+    );
     switch (phase) {
       case TransitionPhase.BeforeEnter:
         camera.translateX.value = camera.width.value * x;
