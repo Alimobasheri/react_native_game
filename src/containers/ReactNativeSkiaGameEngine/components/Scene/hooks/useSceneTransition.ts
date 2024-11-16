@@ -7,10 +7,10 @@ import {
   useSharedValue,
   runOnJS,
   useAnimatedReaction,
-  SharedValue,
   runOnUI,
 } from 'react-native-reanimated';
 import { SceneTransition, TransitionPhase } from '../types/transitions';
+import { useFrameEffect } from '@/containers/ReactNativeSkiaGameEngine/hooks/useFrameEffect';
 
 interface ITransitionConfig {
   duration?: number;
@@ -52,8 +52,14 @@ export const useSceneTransition = ({
   exit = null,
   config = { duration: 500 },
 }: IUseSceneTransitionProps) => {
-  const enterDuration = config.enterDuration ?? config.duration ?? 500;
-  const exitDuration = config.exitDuration ?? config.duration ?? 500;
+  const enterDuration =
+    config.enterDuration ?? config.duration ?? typeof exit === 'function'
+      ? 500
+      : 0;
+  const exitDuration =
+    config.exitDuration ?? config.duration ?? typeof exit === 'function'
+      ? 500
+      : 0;
   const duration = isActive ? enterDuration : exitDuration;
 
   const { registerAnimation, removeAnimation } = useAnimationsController();
@@ -62,10 +68,8 @@ export const useSceneTransition = ({
 
   const [isTransitioning, setIsTransitioning] = useState(false);
 
-  const phase = useSharedValue(
-    isActive ? TransitionPhase.BeforeEnter : TransitionPhase.Idle
-  );
-  const progress = useSharedValue(isActive ? 0 : 1);
+  const phase = useSharedValue(TransitionPhase.BeforeEnter);
+  const progress = useSharedValue(0);
 
   const isInitialRender = useRef<boolean>(true);
 
@@ -73,42 +77,50 @@ export const useSceneTransition = ({
     if (duration === 0) {
       progress.value = isActive ? 1 : 0;
     } else if (!isInitialRender.current || isActive) {
-      if (isActive && phase.value === TransitionPhase.Idle) {
-        phase.value = TransitionPhase.BeforeEnter;
-      }
-      if (isActive && phase.value === TransitionPhase.BeforeEnter) {
+      let shouldTransition =
+        (isActive && enterDuration > 0) || (!isActive && exitDuration > 0);
+      if (isActive && shouldTransition) {
+        console.log('🚀 ~ useEffect ~ isActive:', isActive);
         if (typeof enter === 'function') {
-          runOnUI(enter)({ camera, phase: phase.value, progress });
+          runOnUI(enter)({
+            camera,
+            phase: TransitionPhase.BeforeEnter,
+            progress,
+          });
         }
         phase.value = TransitionPhase.Enter;
-      } else if (!isActive && phase.value === TransitionPhase.AfterEnter) {
-        phase.value = TransitionPhase.BeforeExit;
+      } else if (!isActive && shouldTransition) {
+        console.log('🚀 ~ useEffect ~ isActive:', isActive);
         if (typeof exit === 'function') {
-          runOnUI(exit)({ camera, phase: phase.value, progress });
+          runOnUI(exit)({
+            camera,
+            phase: TransitionPhase.BeforeExit,
+            progress,
+          });
         }
         phase.value = TransitionPhase.Exit;
       }
-      setIsTransitioning(true);
-      animation.current = registerAnimation(
-        progress,
-        createTimingAnimation(progress.value, isActive ? 1 : 0, duration),
-        {
-          duration,
-          removeOnComplete: true,
-          onDone: () => {
-            runOnJS(setIsTransitioning)(false);
-          },
+
+      if (shouldTransition) {
+        if (animation.current) {
+          removeAnimation(animation.current);
         }
-      );
+        setIsTransitioning(true);
+        animation.current = registerAnimation(
+          progress,
+          createTimingAnimation(progress.value, isActive ? 1 : 0, duration),
+          {
+            duration,
+            removeOnComplete: true,
+            onDone: () => {
+              runOnJS(setIsTransitioning)(false);
+            },
+          }
+        );
+      }
     }
 
     isInitialRender.current = false;
-
-    return () => {
-      if (animation.current) {
-        removeAnimation(animation.current);
-      }
-    };
   }, [isActive]);
 
   useAnimatedReaction(
@@ -127,11 +139,8 @@ export const useSceneTransition = ({
       ) {
         exit({ camera, phase: phase.value, progress });
       }
-      if (isActive && progress.value === 1)
-        phase.value = TransitionPhase.AfterEnter;
-      else if (!isActive && progress.value === 0)
-        phase.value = TransitionPhase.Idle;
-    }
+    },
+    [progress.value]
   );
 
   return {
