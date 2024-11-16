@@ -7,6 +7,7 @@ export const createFadeTransition =
   (): SceneTransition =>
   ({ camera, phase, progress }) => {
     'worklet';
+
     switch (phase) {
       case TransitionPhase.Idle:
       case TransitionPhase.BeforeEnter:
@@ -16,7 +17,7 @@ export const createFadeTransition =
         camera.opacity.value = progress.value;
         break;
       case TransitionPhase.Exit:
-        camera.opacity.value = 1 - progress.value;
+        camera.opacity.value = progress.value;
         break;
     }
   };

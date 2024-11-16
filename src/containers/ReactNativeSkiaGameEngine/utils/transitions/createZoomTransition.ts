@@ -14,7 +14,6 @@ export const createZoomTransition =
     'worklet';
     const { from = 1, to = 1.5 } = config || {};
     switch (phase) {
-      case TransitionPhase.Idle:
       case TransitionPhase.BeforeEnter:
         camera.scaleX.value = from;
         camera.scaleY.value = from;
@@ -24,8 +23,8 @@ export const createZoomTransition =
         camera.scaleY.value = progress.value * (to - from) + from;
         break;
       case TransitionPhase.Exit:
-        camera.scaleX.value = (1 - progress.value) * (to - from) + from;
-        camera.scaleY.value = (1 - progress.value) * (to - from) + from;
+        camera.scaleX.value = progress.value * (to - from) + from;
+        camera.scaleY.value = progress.value * (to - from) + from;
         break;
     }
   };

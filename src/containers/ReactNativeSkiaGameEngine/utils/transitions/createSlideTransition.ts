@@ -25,8 +25,8 @@ export const createSlideTransition = (
 ): SceneTransition => {
   const { x = SlideXDirection.Left, y = SlideYDirection.None } = config || {};
   return ({ camera, phase, progress }) => {
+    'worklet';
     switch (phase) {
-      case TransitionPhase.Idle:
       case TransitionPhase.BeforeEnter:
         camera.translateX.value = camera.width.value * x;
         camera.translateY.value = camera.height.value * y;
@@ -37,8 +37,9 @@ export const createSlideTransition = (
           (1 - progress.value) * camera.height.value * y;
         break;
       case TransitionPhase.Exit:
-        camera.translateX.value = progress.value * camera.width.value * x;
-        camera.translateY.value = progress.value * camera.height.value * y;
+        camera.translateX.value = (1 - progress.value) * camera.width.value * x;
+        camera.translateY.value =
+          (1 - progress.value) * camera.height.value * y;
         break;
     }
   };
