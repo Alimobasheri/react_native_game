@@ -19,6 +19,7 @@ import {
 import { createSlideTransition } from '../../utils/transitions/createSlideTransition';
 import { render } from '@testing-library/react-native';
 import { createZoomTransition } from '../../utils/transitions/createZoomTransition';
+import { SceneTransition, TransitionPhase } from './types/transitions';
 
 const meta = {
   title: 'Scene',
@@ -98,6 +99,39 @@ const SceneWithTransitionControl: FC<PropsWithChildren<{ args: any }>> = ({
   );
 };
 
+const customTransitionFn: SceneTransition = ({ camera, phase, progress }) => {
+  'worklet';
+  switch (phase) {
+    case TransitionPhase.BeforeEnter:
+      camera.opacity.value = 0.5;
+      camera.scaleX.value = 1.2;
+      camera.scaleY.value = 1.2;
+      break;
+    case TransitionPhase.Enter:
+      camera.opacity.value = 0.7 + progress.value * 0.3;
+      if (progress.value < 0.3) {
+        camera.rotate.value = progress.value * 0.2 * Math.PI;
+        camera.scaleX.value = 1.2 + progress.value;
+        camera.scaleY.value = 1.2 + progress.value;
+      } else {
+        camera.scaleX.value = 1.7 + (progress.value - 0.3) * 0.1;
+        camera.scaleY.value = 1.7 + (progress.value - 0.3) * 0.1;
+      }
+      break;
+    case TransitionPhase.Exit:
+      camera.opacity.value = 0.7 + progress.value * 0.3;
+      if (progress.value > 0.7) {
+        camera.scaleX.value = 1.7 + (progress.value - 0.7) * 0.1;
+        camera.scaleY.value = 1.7 + (progress.value - 0.7) * 0.1;
+      } else {
+        camera.rotate.value = progress.value * 0.2 * Math.PI;
+        camera.scaleX.value = 1.2 + progress.value;
+        camera.scaleY.value = 1.2 + progress.value;
+      }
+      break;
+  }
+};
+
 export const FadeTransition: Story = {
   args: {
     isActive: true,
@@ -131,6 +165,19 @@ export const ZoomTransition: Story = {
     enter: createZoomTransition(),
     exit: createZoomTransition(),
     transitionConfig: { duration: 2000 },
+  },
+  render: (args: any) => {
+    return <SceneWithTransitionControl args={args} />;
+  },
+};
+
+export const CustomTransition: Story = {
+  args: {
+    isActive: true,
+    defaultSceneName: 'CustomTransitionScene',
+    enter: customTransitionFn,
+    exit: customTransitionFn,
+    transitionConfig: { duration: 1000 },
   },
   render: (args: any) => {
     return <SceneWithTransitionControl args={args} />;

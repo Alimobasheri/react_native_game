@@ -10,7 +10,6 @@ import {
   runOnUI,
 } from 'react-native-reanimated';
 import { SceneTransition, TransitionPhase } from '../types/transitions';
-import { useFrameEffect } from '@/containers/ReactNativeSkiaGameEngine/hooks/useFrameEffect';
 
 interface ITransitionConfig {
   duration?: number;
