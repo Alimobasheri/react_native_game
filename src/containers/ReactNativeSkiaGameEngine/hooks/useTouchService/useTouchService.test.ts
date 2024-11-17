@@ -1,8 +1,19 @@
 import { renderHook, act } from '@testing-library/react-native';
-import { Gesture } from 'react-native-gesture-handler';
+import { Gesture, GestureType } from 'react-native-gesture-handler';
 import { useTouchService } from './useTouchService';
+import { GestureItem } from '../../types';
 
 describe('useTouchService', () => {
+  let mockRect = {
+    x: { value: 0 },
+    y: { value: 0 },
+    width: { value: 100 },
+    height: { value: 100 },
+  };
+
+  const createGesture = (gesture: GestureType): GestureItem => {
+    return { gesture, rect: mockRect };
+  };
   test('should initialize with an empty composed gesture', () => {
     const { result } = renderHook(() => useTouchService());
 
@@ -12,7 +23,7 @@ describe('useTouchService', () => {
 
   test('should add a gesture and update the composed gesture', () => {
     const { result } = renderHook(() => useTouchService());
-    const mockGesture = Gesture.Tap();
+    const mockGesture = createGesture(Gesture.Tap());
 
     act(() => {
       result.current.addGesture(mockGesture);
@@ -24,8 +35,8 @@ describe('useTouchService', () => {
 
   test('should compose multiple gestures correctly', () => {
     const { result } = renderHook(() => useTouchService());
-    const mockGesture1 = Gesture.Tap();
-    const mockGesture2 = Gesture.Pan();
+    const mockGesture1 = createGesture(Gesture.Tap());
+    const mockGesture2 = createGesture(Gesture.Pan());
 
     act(() => {
       result.current.addGesture(mockGesture1);
@@ -38,7 +49,7 @@ describe('useTouchService', () => {
 
   test('should maintain gesture array stability across renders', () => {
     const { result, rerender } = renderHook(() => useTouchService());
-    const mockGesture = Gesture.Tap();
+    const mockGesture = createGesture(Gesture.Tap());
 
     act(() => {
       result.current.addGesture(mockGesture);
@@ -54,7 +65,7 @@ describe('useTouchService', () => {
 
   test('should handle adding gestures after multiple renders', () => {
     const { result, rerender } = renderHook(() => useTouchService());
-    const mockGesture1 = Gesture.Tap();
+    const mockGesture1 = createGesture(Gesture.Tap());
 
     act(() => {
       result.current.addGesture(mockGesture1);
@@ -62,7 +73,7 @@ describe('useTouchService', () => {
 
     rerender({});
 
-    const mockGesture2 = Gesture.Pan();
+    const mockGesture2 = createGesture(Gesture.Pan());
 
     act(() => {
       result.current.addGesture(mockGesture2);
@@ -70,11 +81,11 @@ describe('useTouchService', () => {
 
     // Verify that gestures were updated with multiple gestures
     expect(result.current.gestures).toBeDefined();
-    expect(result.current.gestures.toGestureArray().length).toBe(2);
+    expect(result.current.gestures.length).toBe(2);
   });
   test('should return a generated ID when adding a gesture', () => {
     const { result } = renderHook(() => useTouchService());
-    const mockGesture = Gesture.Tap();
+    const mockGesture = createGesture(Gesture.Tap());
 
     let gestureId: string | null = null;
     act(() => {
@@ -88,7 +99,7 @@ describe('useTouchService', () => {
 
   test('should allow adding a gesture with label and group', () => {
     const { result } = renderHook(() => useTouchService());
-    const mockGesture = Gesture.Tap();
+    const mockGesture = createGesture(Gesture.Tap());
     const label = 'testLabel';
     const group = 'testGroup';
 
@@ -98,12 +109,12 @@ describe('useTouchService', () => {
 
     // Verify that gesture was added and can be accessed via label or group
     expect(result.current.gestures).toBeDefined();
-    expect(result.current.gestures.toGestureArray().length).toBe(1);
+    expect(result.current.gestures.length).toBe(1);
   });
 
   test('should remove a gesture by its generated ID', () => {
     const { result } = renderHook(() => useTouchService());
-    const mockGesture = Gesture.Tap();
+    const mockGesture = createGesture(Gesture.Tap());
     let gestureId: string;
 
     act(() => {
@@ -116,19 +127,19 @@ describe('useTouchService', () => {
 
     // Verify that the gesture is removed and composed gesture is empty
     expect(result.current.gestures).toBeDefined();
-    expect(result.current.gestures.toGestureArray().length).toBe(0);
+    expect(result.current.gestures.length).toBe(0);
   });
 
   test('should remove a gesture by label', () => {
     const { result } = renderHook(() => useTouchService());
-    const mockGesture = Gesture.Tap();
+    const mockGesture = createGesture(Gesture.Tap());
     const label = 'testLabel';
 
     act(() => {
       result.current.addGesture(mockGesture, { label });
     });
 
-    expect(result.current.gestures.toGestureArray().length).toBe(1);
+    expect(result.current.gestures.length).toBe(1);
 
     act(() => {
       result.current.removeGesture({ label });
@@ -136,13 +147,13 @@ describe('useTouchService', () => {
 
     // Verify that gesture is removed and composed gesture is empty
     expect(result.current.gestures).toBeDefined();
-    expect(result.current.gestures.toGestureArray().length).toBe(0);
+    expect(result.current.gestures.length).toBe(0);
   });
 
   test('should remove all gestures by group', () => {
     const { result } = renderHook(() => useTouchService());
-    const mockGesture1 = Gesture.Tap();
-    const mockGesture2 = Gesture.Pan();
+    const mockGesture1 = createGesture(Gesture.Tap());
+    const mockGesture2 = createGesture(Gesture.Pan());
     const group = 'testGroup';
 
     act(() => {
@@ -150,7 +161,7 @@ describe('useTouchService', () => {
       result.current.addGesture(mockGesture2, { groups: [group] });
     });
 
-    expect(result.current.gestures.toGestureArray().length).toBe(2);
+    expect(result.current.gestures.length).toBe(2);
 
     act(() => {
       result.current.removeGesture({ groups: [group] });
@@ -158,13 +169,13 @@ describe('useTouchService', () => {
 
     // Verify that all gestures in the group are removed
     expect(result.current.gestures).toBeDefined();
-    expect(result.current.gestures.toGestureArray().length).toBe(0);
+    expect(result.current.gestures.length).toBe(0);
   });
 
   test('should update a gesture by its generated ID', () => {
     const { result } = renderHook(() => useTouchService());
-    const mockGesture = Gesture.Tap();
-    const updatedGesture = Gesture.Pan();
+    const mockGesture = createGesture(Gesture.Tap());
+    const updatedGesture = createGesture(Gesture.Pan());
     let gestureId: string;
 
     act(() => {
@@ -177,13 +188,13 @@ describe('useTouchService', () => {
 
     // Verify that gesture was updated
     expect(result.current.gestures).toBeDefined();
-    expect(result.current.gestures.toGestureArray()[0]).toEqual(updatedGesture);
+    expect(result.current.gestures[0]).toEqual(updatedGesture);
   });
 
   test('should maintain stability of gestures when a gesture is removed or updated', () => {
     const { result, rerender } = renderHook(() => useTouchService());
-    const mockGesture1 = Gesture.Tap();
-    const mockGesture2 = Gesture.Pan();
+    const mockGesture1 = createGesture(Gesture.Tap());
+    const mockGesture2 = createGesture(Gesture.Pan());
 
     let gestureId: string;
 
@@ -203,7 +214,7 @@ describe('useTouchService', () => {
 
     // Verify stability
     expect(result.current.gestures).not.toBe(initialGestures);
-    expect(result.current.gestures.toGestureArray()[0]).toEqual(mockGesture2);
+    expect(result.current.gestures[0]).toEqual(mockGesture2);
 
     // Remove the updated gesture
     act(() => {
@@ -214,7 +225,7 @@ describe('useTouchService', () => {
 
     // Ensure gestures were updated after removal
     expect(result.current.gestures).not.toBe(initialGestures);
-    expect(result.current.gestures.toGestureArray().length).toBe(1);
+    expect(result.current.gestures.length).toBe(1);
   });
 
   test('should handle edge case where non-existent gesture is removed', () => {

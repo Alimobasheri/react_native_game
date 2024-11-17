@@ -4,10 +4,12 @@ exports[`Scene should match the snapshot for a nested active scene 1`] = `
 <skGroup
   clip={
     {
-      "height": 300,
-      "width": 300,
-      "x": 0,
-      "y": 0,
+      "value": {
+        "height": 300,
+        "width": 300,
+        "x": 0,
+        "y": 0,
+      },
     }
   }
   opacity={
@@ -22,16 +24,31 @@ exports[`Scene should match the snapshot for a nested active scene 1`] = `
   }
   transform={
     {
-      "_isReanimatedSharedValue": true,
-      "_value": [
-        {
-          "translateY": 0,
-        },
-      ],
-      "addListener": [Function],
-      "modify": [Function],
-      "removeListener": [Function],
       "value": [
+        {
+          "translateX": 150,
+        },
+        {
+          "translateY": 150,
+        },
+        {
+          "scaleX": 1,
+        },
+        {
+          "scaleY": 1,
+        },
+        {
+          "rotate": 0,
+        },
+        {
+          "translateX": -150,
+        },
+        {
+          "translateY": -150,
+        },
+        {
+          "translateX": 0,
+        },
         {
           "translateY": 0,
         },
@@ -42,10 +59,12 @@ exports[`Scene should match the snapshot for a nested active scene 1`] = `
   <skGroup
     clip={
       {
-        "height": 300,
-        "width": 300,
-        "x": 0,
-        "y": 0,
+        "value": {
+          "height": 300,
+          "width": 300,
+          "x": 0,
+          "y": 0,
+        },
       }
     }
     opacity={
@@ -60,16 +79,31 @@ exports[`Scene should match the snapshot for a nested active scene 1`] = `
     }
     transform={
       {
-        "_isReanimatedSharedValue": true,
-        "_value": [
-          {
-            "translateY": 0,
-          },
-        ],
-        "addListener": [Function],
-        "modify": [Function],
-        "removeListener": [Function],
         "value": [
+          {
+            "translateX": 150,
+          },
+          {
+            "translateY": 150,
+          },
+          {
+            "scaleX": 1,
+          },
+          {
+            "scaleY": 1,
+          },
+          {
+            "rotate": 0,
+          },
+          {
+            "translateX": -150,
+          },
+          {
+            "translateY": -150,
+          },
+          {
+            "translateX": 0,
+          },
           {
             "translateY": 0,
           },

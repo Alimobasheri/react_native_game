@@ -1,14 +1,32 @@
+import { useAnimationsController } from '@/containers/ReactNativeSkiaGameEngine/hooks/useAnimationsController/useAnimationsController';
+import { ActiveAnimation } from '@/containers/ReactNativeSkiaGameEngine/services/Animations';
+import { Camera } from '@/containers/ReactNativeSkiaGameEngine/types';
+import { createTimingAnimation } from '@/containers/ReactNativeSkiaGameEngine/utils';
 import { useEffect, useRef, useState } from 'react';
 import {
-  useDerivedValue,
-  withTiming,
-  Easing,
   useSharedValue,
   runOnJS,
+  useAnimatedReaction,
+  runOnUI,
 } from 'react-native-reanimated';
+import {
+  ISceneTransitionState,
+  SceneTransition,
+  TransitionPhase,
+} from '../types/transitions';
 
-interface TransitionConfig {
+interface ITransitionConfig {
   duration?: number;
+  enterDuration?: number;
+  exitDuration?: number;
+}
+
+interface IUseSceneTransitionProps {
+  isActive: boolean;
+  camera: Camera;
+  enter?: SceneTransition | null;
+  exit?: SceneTransition | null;
+  config: ITransitionConfig;
 }
 
 /**
@@ -16,85 +34,155 @@ interface TransitionConfig {
  * It provides animation properties that can be applied to the scene's root component.
  *
  * @param {boolean} isActive - Whether the scene is currently active.
- * @param {'fade'|'slide'|'zoom'} enter - The transition effect when the scene enters.
- * @param {'fade'|'slide'|'zoom'} exit - The transition effect when the scene exits.
+ * @param {SceneTransition} enter - The transition callback for enter phase.
+ * @param {SceneTransition} exit - The transition callbakc for exit phase.
  * @param {Object} config - Configuration for transition durations.
  * @param {number} [config.duration=500] - Default duration for transitions.
  * @param {number} [config.enterDuration] - Specific duration for the enter transition (overrides `duration`).
  * @param {number} [config.exitDuration] - Specific duration for the exit transition (overrides `duration`).
  *
- * @returns {Object} props - The animation properties for the scene.
- * @returns {Object} props.opacity - Animated opacity value.
- * @returns {Object} props.transform - Animated transformation (e.g., translateY for slide).
+ * @returns {object} returnObject
+ * @returns {boolean} returnObject.isTransitioning - Whether the scene is currently transitioning.
  *
  * @example
  * const { props } = useSceneTransition(true, 'fade', 'slide', { duration: 300 });
  * <Rect {...props}>Scene Content</Rect>
  */
-export const useSceneTransition = (
-  isActive: boolean,
-  enter: 'fade' | 'slide' | 'zoom' | null = null,
-  exit: 'fade' | 'slide' | 'zoom' | null = null,
-  config: {
-    duration?: number;
-    enterDuration?: number;
-    exitDuration?: number;
-  } = { duration: 500 }
-) => {
-  const enterDuration = config.enterDuration ?? config.duration ?? 500;
-  const exitDuration = config.exitDuration ?? config.duration ?? 500;
+export const useSceneTransition = ({
+  isActive,
+  camera,
+  enter = null,
+  exit = null,
+  config = { duration: 500 },
+}: IUseSceneTransitionProps) => {
+  const enterDuration =
+    (typeof config.enterDuration === 'number' && config.enterDuration) ||
+    (typeof config.duration === 'number' && config.duration) ||
+    (typeof enter === 'function' && 0);
+  const exitDuration =
+    (typeof config.exitDuration === 'number' && config.exitDuration) ||
+    (typeof config.duration === 'number' && config.duration) ||
+    (typeof exit === 'function' && 0);
   const duration = isActive ? enterDuration : exitDuration;
+
+  const { registerAnimation, removeAnimation } = useAnimationsController();
+
+  let animation = useRef<ActiveAnimation | null>(null);
 
   const [isTransitioning, setIsTransitioning] = useState(false);
 
-  const progress = useSharedValue(isActive ? 0 : 1);
+  const phase = useSharedValue(TransitionPhase.BeforeEnter);
+  const progress = useSharedValue(0);
+
+  const sceneTransitionState = useSharedValue<ISceneTransitionState>({
+    phase: phase.value,
+    progress: progress,
+    camera: camera,
+  });
 
   const isInitialRender = useRef<boolean>(true);
 
   useEffect(() => {
     if (duration === 0) {
       progress.value = isActive ? 1 : 0;
+      sceneTransitionState.value = {
+        phase: isActive ? TransitionPhase.Enter : TransitionPhase.Exit,
+        progress: progress,
+        camera: camera,
+      };
+      if (isActive && typeof enter === 'function') {
+        runOnUI(enter)({
+          camera,
+          phase: TransitionPhase.Enter,
+          progress,
+        });
+        phase.value = TransitionPhase.AfterEnter;
+      } else if (!isActive && typeof exit === 'function') {
+        runOnUI(exit)({
+          camera,
+          phase: TransitionPhase.Exit,
+          progress,
+        });
+        phase.value = TransitionPhase.Idle;
+      }
     } else if (!isInitialRender.current || isActive) {
-      setIsTransitioning(true);
-      progress.value = withTiming(
-        isActive ? 1 : 0,
-        {
-          duration,
-          easing: Easing.inOut(Easing.ease),
-        },
-        (done) => {
-          if (done) {
-            runOnJS(setIsTransitioning)(false);
-          }
+      sceneTransitionState.value = {
+        phase: isActive ? TransitionPhase.Enter : TransitionPhase.Exit,
+        progress: progress,
+        camera: camera,
+      };
+      let shouldTransition =
+        (isActive && typeof enterDuration == 'number') ||
+        (!isActive && typeof exitDuration == 'number');
+      if (isActive && shouldTransition) {
+        if (typeof enter === 'function') {
+          runOnUI(enter)({
+            camera,
+            phase: TransitionPhase.BeforeEnter,
+            progress,
+          });
         }
-      );
+        phase.value = TransitionPhase.Enter;
+      } else if (!isActive && shouldTransition) {
+        if (typeof exit === 'function') {
+          runOnUI(exit)({
+            camera,
+            phase: TransitionPhase.BeforeExit,
+            progress,
+          });
+        }
+        phase.value = TransitionPhase.Exit;
+      }
+
+      if (shouldTransition && typeof duration === 'number') {
+        if (animation.current) {
+          removeAnimation(animation.current);
+        }
+        setIsTransitioning(true);
+        animation.current = registerAnimation(
+          progress,
+          createTimingAnimation(progress.value, isActive ? 1 : 0, duration),
+          {
+            duration,
+            removeOnComplete: true,
+            onDone: () => {
+              runOnJS(setIsTransitioning)(false);
+            },
+          }
+        );
+      }
     }
 
     isInitialRender.current = false;
   }, [isActive]);
 
-  const opacity = useDerivedValue(() => {
-    if (enter === 'fade' || exit === 'fade') {
-      return progress.value;
-    }
-    return 1;
-  });
-
-  const transform = useDerivedValue(() => {
-    if (enter === 'slide' || exit === 'slide') {
-      return [{ translateY: (1 - progress.value) * 300 }];
-    }
-    if (enter === 'zoom' || exit === 'zoom') {
-      return [{ scale: 1 + (1 - progress.value) * 0.5 }];
-    }
-    return [{ translateY: 0 }];
-  });
+  useAnimatedReaction(
+    () => {
+      return progress;
+    },
+    (progress) => {
+      if (
+        typeof enter === 'function' &&
+        phase.value === TransitionPhase.Enter
+      ) {
+        enter({ camera, phase: phase.value, progress });
+      } else if (
+        typeof exit === 'function' &&
+        phase.value === TransitionPhase.Exit
+      ) {
+        exit({ camera, phase: phase.value, progress });
+      }
+      sceneTransitionState.value = {
+        phase: phase.value,
+        progress: progress,
+        camera: camera,
+      };
+    },
+    [progress.value]
+  );
 
   return {
-    props: {
-      opacity,
-      transform,
-    },
     isTransitioning,
+    sceneTransitionState,
   };
 };

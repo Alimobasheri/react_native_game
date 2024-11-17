@@ -1,4 +1,12 @@
-import { useCallback, useState } from 'react';
+import { Camera } from '@/containers/ReactNativeSkiaGameEngine/types';
+import { useCallback, useEffect, useState } from 'react';
+import { SharedValue } from 'react-native-reanimated';
+import { ISceneTransitionState } from '../types/transitions';
+
+export interface IUseSceneProviderArgs {
+  camera?: Camera;
+  sceneTransitionState?: SharedValue<ISceneTransitionState>;
+}
 
 /**
  * Hook that provides scene management functionality, such as enabling/disabling scenes,
@@ -19,9 +27,17 @@ import { useCallback, useState } from 'react';
  * enableScene('level1');
  * disableScene('level2');
  */
-export const useSceneProvider = () => {
+export const useSceneProvider = ({
+  camera,
+  sceneTransitionState,
+}: IUseSceneProviderArgs) => {
   const [activeScenes, setActiveScenes] = useState<Record<string, boolean>>({});
   const [sceneHistory, setSceneHistory] = useState<string[]>([]);
+  const [sceneCamera, setSceneCamera] = useState<Camera | null>(camera || null);
+  const [sceneTransition, setSceneTransition] =
+    useState<SharedValue<ISceneTransitionState> | null>(
+      sceneTransitionState || null
+    );
 
   const enableScene = useCallback(
     (name: string) => setActiveScenes((prev) => ({ ...prev, [name]: true })),
@@ -73,14 +89,19 @@ export const useSceneProvider = () => {
       ...prev,
       [name]: isActive,
     }));
-
     if (isActive) {
-      pushScene(name);
+      setSceneHistory((prev) => [...prev, name]);
     }
   }, []);
 
+  useEffect(() => {
+    setSceneCamera(camera || null);
+  }, [sceneCamera]);
+
   return {
     activeScenes,
+    sceneCamera,
+    sceneTransitionState: sceneTransition,
     enableScene,
     disableScene,
     switchScene,

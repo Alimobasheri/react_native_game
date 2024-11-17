@@ -2,12 +2,18 @@ import React, { FC, PropsWithChildren } from 'react';
 import { useSceneContext } from './hooks/useSceneContext';
 import { useSceneTransition } from './hooks/useSceneTransition';
 import { SceneProvider } from './provider';
-import { Group, rect } from '@shopify/react-native-skia';
+import { Group, Paint, rect, SkRect } from '@shopify/react-native-skia';
+import {
+  ICreateCameraOptions,
+  useCreateCamera,
+} from '../../hooks/useCreateCamera';
+import { useDerivedValue } from 'react-native-reanimated';
+import { SceneTransition } from './types/transitions';
 
 export interface ISceneProps extends PropsWithChildren {
   defaultSceneName: string;
-  enter?: 'fade' | 'slide' | 'zoom' | null;
-  exit?: 'fade' | 'slide' | 'zoom' | null;
+  enter?: SceneTransition;
+  exit?: SceneTransition;
   transitionConfig?: {
     duration?: number;
     enterDuration?: number;
@@ -20,6 +26,7 @@ export interface ISceneProps extends PropsWithChildren {
   rootComponent?: React.ComponentType<any>;
   rootComponentProps?: Record<string, any>;
   isActive?: boolean;
+  defaultCameraProps?: ICreateCameraOptions;
 }
 
 /**
@@ -34,8 +41,8 @@ export interface ISceneProps extends PropsWithChildren {
  * // A basic scene with a fade transition
  * <Scene
  *   defaultSceneName="gameOver"
- *   enter="fade"
- *   exit="fade"
+ *   enter={createFadeTransition()}
+ *   exit={createFadeTransition()}
  *   isActive={true}
  *   transitionConfig={{ duration: 300 }}
  * >
@@ -46,14 +53,14 @@ export interface ISceneProps extends PropsWithChildren {
  * // Nesting scenes where both parent and child scenes are active
  * <Scene
  *   defaultSceneName="parentScene"
- *   enter="slide"
- *   exit="fade"
+ *   enter={createSlideTransition()}
+ *   exit={createFadeTransition()}
  *   isActive={true}
  * >
  *   <Scene
  *     defaultSceneName="childScene"
- *     enter="zoom"
- *     exit="slide"
+ *     enter={createZoomTransition()}
+ *     exit={createSlideTransition()}
  *     isActive={true}
  *   >
  *     <Text>Child Scene Content</Text>
@@ -63,8 +70,8 @@ export interface ISceneProps extends PropsWithChildren {
  *
  * @param {Object} props - The properties object.
  * @param {string} props.defaultSceneName - The name of the scene (used for identification).
- * @param {'fade'|'slide'|'zoom'|null} [props.enter=null] - The animation to use when the scene enters.
- * @param {'fade'|'slide'|'zoom'|null} [props.exit=null] - The animation to use when the scene exits.
+ * @param {SceneTransition|null} [props.enter=null] - The animation to use when the scene enters.
+ * @param {SceneTransition|null} [props.exit=null] - The animation to use when the scene exits.
  * @param {Object} [props.transitionConfig={ duration: 500 }] - Transition configuration for enter/exit animations.
  * @param {number} [props.transitionConfig.duration=500] - Duration for both enter and exit transitions.
  * @param {number} [props.transitionConfig.enterDuration] - Specific duration for the enter transition (overrides `duration`).
@@ -73,7 +80,7 @@ export interface ISceneProps extends PropsWithChildren {
  * @param {number} [props.y=0] - Y-coordinate for scene positioning.
  * @param {number} [props.width=300] - Width of the scene.
  * @param {number} [props.height=300] - Height of the scene.
- * @param {React.ComponentType} [props.rootComponent=Group] - Component to be used as the root of the scene (default is Rect).
+ * @param {React.ComponentType} [props.rootComponent=Group] - Component to be used as the root of the scene (default is Group).
  * @param {Object} [props.rootComponentProps={}] - Props to pass to the root component.
  * @param {boolean} [props.isActive=false] - Whether the scene is active (i.e., visible). If `false`, the scene and its children will not be rendered.
  *
@@ -95,25 +102,74 @@ export const Scene: FC<ISceneProps> = ({
   rootComponent: RootComponent = Group,
   rootComponentProps = {},
   isActive = false,
+  defaultCameraProps = {},
 }) => {
   const { isActive: currentIsActive } = useSceneContext(
     defaultSceneName,
     isActive
   );
 
-  const { props, isTransitioning } = useSceneTransition(
-    currentIsActive,
+  const { camera: defaultCamera, resetCamera: resetDefaultCamera } =
+    useCreateCamera({
+      x,
+      y,
+      width,
+      height,
+      ...defaultCameraProps,
+    });
+
+  const { isTransitioning, sceneTransitionState } = useSceneTransition({
+    isActive: currentIsActive,
+    camera: defaultCamera,
     enter,
     exit,
-    transitionConfig
-  );
+    config: transitionConfig,
+  });
+
+  const defaultCameraClip = useDerivedValue<SkRect>(() => {
+    return {
+      x: defaultCamera.x.value,
+      y: defaultCamera.y.value,
+      width: defaultCamera.width.value,
+      height: defaultCamera.height.value,
+    };
+  }, [
+    defaultCamera.x,
+    defaultCamera.y,
+    defaultCamera.width,
+    defaultCamera.height,
+  ]);
+
+  const defaultCameraTransform = useDerivedValue(() => {
+    return [
+      { translateX: width / 2 },
+      { translateY: height / 2 },
+      { scaleX: defaultCamera.scaleX.value },
+      { scaleY: defaultCamera.scaleY.value },
+      { rotate: defaultCamera.rotate.value },
+      { translateX: -width / 2 },
+      { translateY: -height / 2 },
+      { translateX: defaultCamera.translateX.value },
+      { translateY: defaultCamera.translateY.value },
+    ];
+  }, [
+    defaultCamera.translateX,
+    defaultCamera.translateY,
+    defaultCamera.scaleX,
+    defaultCamera.scaleY,
+    defaultCamera.rotate,
+  ]);
 
   return currentIsActive || isTransitioning ? (
-    <SceneProvider>
+    <SceneProvider
+      camera={defaultCamera}
+      sceneTransitionState={sceneTransitionState}
+    >
       <RootComponent
-        clip={rect(x, y, width, height)}
+        clip={defaultCameraClip}
+        transform={defaultCameraTransform}
+        opacity={defaultCamera.opacity}
         {...rootComponentProps}
-        {...props}
       >
         {children}
       </RootComponent>

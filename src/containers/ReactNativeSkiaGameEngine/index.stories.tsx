@@ -20,11 +20,22 @@ import { StarsView } from '@/components/StarsView/StarsView-rnsge';
 import { Physics } from '@/components/Physics';
 import { Swipe } from '@/components/Swipe';
 import { Collisions } from '@/components/Collisions';
-import { useCanvasDimensions, useTouchHandler } from './hooks';
+import {
+  useCanvasDimensions,
+  useEntityInstance,
+  useTouchHandler,
+} from './hooks';
 import { Gesture } from 'react-native-gesture-handler';
 import { useFrameEffect } from './hooks/useFrameEffect';
 import { StateEntity } from '@/components/State';
 import { StartingScene } from '../Scenes/GameScene';
+import { Scene } from './components/Scene/Scene';
+import { useSceneCamera } from './hooks/useSceneCamera/useSceneCamera';
+import { ENTITIES_KEYS } from '@/constants/configs';
+import { Ship } from '@/Game/Entities/Ship/Ship';
+import { useAnimationsController } from './hooks/useAnimationsController/useAnimationsController';
+import { ActiveAnimation } from './services/Animations';
+import { createTimingAnimation, easeInOutQuad } from './utils';
 
 const SubComponent: FC<{}> = (props) => {
   const renderCount = useReRenderCount();
@@ -74,6 +85,45 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
+const GameScene = () => {
+  const dimensions = useCanvasDimensions();
+  if (!dimensions?.width || !dimensions?.height) return null;
+  return (
+    <Scene
+      defaultSceneName={'gameScene'}
+      isActive={true}
+      x={0}
+      y={0}
+      width={dimensions.width}
+      height={dimensions.height}
+      exit={'fade'}
+      transitionConfig={{ duration: 1000 }}
+    >
+      <Scene
+        defaultSceneName={'gamePlayScene'}
+        isActive={true}
+        x={0}
+        y={0}
+        width={dimensions.width}
+        height={dimensions.height}
+        defaultCameraProps={{
+          scaleX: 1.2,
+          scaleY: 1.2,
+        }}
+      >
+        <SkyBackground />
+        <StarsView />
+        <SeaGroup />
+        <Physics />
+        <Collisions />
+        <Swipe />
+        <CameraControlView />
+      </Scene>
+      <StartingScene />
+    </Scene>
+  );
+};
+
 export const Basic: Story = {
   args: {},
   render: (args: any) => (
@@ -81,13 +131,7 @@ export const Basic: Story = {
       <View style={{ flex: 1, width: '100%', height: '100%' }}>
         <ReactNativeSkiaGameEngine {...args}>
           <StateEntity isRunning={false} />
-          <SkyBackground />
-          <StarsView />
-          <SeaGroup />
-          <Physics />
-          <Collisions />
-          <Swipe />
-          <StartingScene />
+          <GameScene />
         </ReactNativeSkiaGameEngine>
       </View>
     </View>
@@ -173,4 +217,97 @@ const Gestures = () => {
   }, [touchHandler, gesture1, gesture2]);
 
   return <Rect x={x} y={y} height={height} width={width} color="blue" />;
+};
+
+export const GesturesRenderer: Story = {
+  args: {},
+  render: (args: any) => (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ flex: 1, width: '100%', height: '100%' }}>
+        <ReactNativeSkiaGameEngine {...args}>
+          <Gestures />
+        </ReactNativeSkiaGameEngine>
+      </View>
+    </View>
+  ),
+};
+
+const CameraControlView = () => {
+  const { camera } = useSceneCamera();
+  const { registerAnimation, removeAnimation } = useAnimationsController();
+  const registeredAnimation = useSharedValue<ActiveAnimation | null>(null);
+
+  const { entity: shipEntity } = useEntityInstance<Ship>({
+    label: ENTITIES_KEYS.SHIP,
+  });
+
+  const shipAngle = useEntityValue<Ship, number>(
+    shipEntity?.current.id as string,
+    'body',
+    { processor: (value) => value?.angle ?? 0 }
+  );
+
+  useFrameEffect(
+    () => {
+      if (!camera || !shipAngle) return;
+      if (registeredAnimation.value) removeAnimation(registeredAnimation.value);
+      registeredAnimation.value = registerAnimation(
+        camera.rotate,
+        createTimingAnimation(
+          camera.rotate.value,
+          -(shipAngle.value || 0) / 2,
+          60,
+          easeInOutQuad
+        ),
+        { duration: 60, removeOnComplete: true }
+      );
+    },
+    [shipAngle, camera],
+    100
+  );
+
+  return null;
+};
+
+const GameWithCameraControlScene = () => {
+  const dimensions = useCanvasDimensions();
+  if (!dimensions?.width || !dimensions?.height) return null;
+  return (
+    <Scene
+      defaultSceneName={'gameScene'}
+      isActive={true}
+      x={0}
+      y={0}
+      width={dimensions.width}
+      height={dimensions.height}
+      exit={'fade'}
+      transitionConfig={{ duration: 1000 }}
+      defaultCameraProps={{
+        scaleX: 1.2,
+        scaleY: 1.2,
+      }}
+    >
+      <SkyBackground />
+      <StarsView />
+      <SeaGroup />
+      <Physics />
+      <Collisions />
+      <Swipe />
+      <CameraControlView />
+    </Scene>
+  );
+};
+
+export const CameraControl: Story = {
+  args: {},
+  render: (args: any) => (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ flex: 1, width: '100%', height: '100%' }}>
+        <ReactNativeSkiaGameEngine {...args}>
+          <StateEntity isRunning={true} />
+          <GameWithCameraControlScene />
+        </ReactNativeSkiaGameEngine>
+      </View>
+    </View>
+  ),
 };

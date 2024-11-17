@@ -1,25 +1,78 @@
-import React, { act } from 'react';
-import { render } from '@testing-library/react-native';
+import React from 'react';
+import { act, render, waitFor } from '@testing-library/react-native';
 import { Scene } from './Scene';
-import { SceneContext } from './context/SceneContext';
+import { IScenContextValue, SceneContext } from './context/SceneContext';
 import { SceneProvider } from './provider/SceneProvider';
 import { useSceneContext } from './hooks/useSceneContext';
 import { Text } from 'react-native';
+import { RNSGEContext } from '../../context';
+import Animations from '../../services/Animations';
+import {
+  advanceTime,
+  mockRequestAnimationFrame,
+  resetTestTimers,
+} from '../../utils';
+import { useCreateCamera } from '../../hooks/useCreateCamera';
+import {
+  runOnJS,
+  runOnUI,
+  useAnimatedReaction,
+  useDerivedValue,
+} from 'react-native-reanimated';
+import { createFadeTransition } from '../../utils/transitions/createFadeTransition';
+import {
+  createSlideTransition,
+  SlideYDirection,
+} from '../../utils/transitions/createSlideTransition';
+import { createZoomTransition } from '../../utils/transitions/createZoomTransition';
 
 jest.mock('./provider/SceneProvider');
 jest.mock('./hooks/useSceneContext');
+jest.mock('react-native-reanimated', () => {
+  return {
+    ...jest.requireActual('react-native-reanimated'),
+    runOnUI: jest.fn((fn) => fn),
+    useAnimatedReaction: jest.fn((prepare, fn) => fn(prepare())),
+    useDerivedValue: jest.fn((fn) => ({
+      value: fn(),
+    })),
+  };
+});
 
 describe('Scene', () => {
+  let mockRNSGEWrapper: any;
+  let mockAnimations: Animations;
+
   const mockSceneProvider = jest.fn();
   const mockUseSceneContext = jest.fn();
 
-  const mockContextValue = {
+  const mockContextValue: IScenContextValue = {
     activeScenes: { testScene: true },
     enableScene: jest.fn(),
     disableScene: jest.fn(),
     switchScene: jest.fn(),
     goBack: jest.fn(),
     registerScene: jest.fn(),
+    sceneCamera: {
+      x: { value: 0 },
+      y: { value: 0 },
+      width: { value: 300 },
+      height: { value: 300 },
+      opacity: { value: 1 },
+      translateX: { value: 0 },
+      translateY: { value: 0 },
+      scaleX: { value: 1 },
+      scaleY: { value: 1 },
+      rotate: { value: 0 },
+      transform: {
+        value: [
+          { translateX: 0 },
+          { translateY: 0 },
+          { scaleX: 1 },
+          { scaleY: 1 },
+        ],
+      },
+    },
   };
 
   const registerSceneMock = jest.fn();
@@ -29,7 +82,8 @@ describe('Scene', () => {
   };
 
   beforeEach(() => {
-    jest.useFakeTimers(); // Enable fake timers for animation control
+    mockRequestAnimationFrame();
+    mockAnimations = new Animations();
     (SceneProvider as jest.Mock).mockImplementation(({ children }) => (
       <>{children}</>
     ));
@@ -40,12 +94,27 @@ describe('Scene', () => {
       .mockImplementation(() => {
         return { x: 0, y: 0, width: 300, height: 300 };
       });
+
+    mockRNSGEWrapper = ({ children }: any) => {
+      return (
+        <RNSGEContext.Provider
+          // @ts-ignore
+          value={{
+            dimensions: { width: 300, height: 300 },
+            animations: {
+              current: mockAnimations,
+            },
+          }}
+        >
+          {children}
+        </RNSGEContext.Provider>
+      );
+    };
   });
 
   afterEach(() => {
     jest.clearAllMocks();
-    jest.runOnlyPendingTimers();
-    jest.useRealTimers(); // Reset back to real timers
+    resetTestTimers();
   });
 
   const RenderWithContext = (props = { isActive: false }) => (
@@ -57,7 +126,9 @@ describe('Scene', () => {
   );
 
   test('should render the SceneProvider if the scene is active', () => {
-    const { getByText } = render(<RenderWithContext isActive />);
+    const { getByText } = render(<RenderWithContext isActive />, {
+      wrapper: mockRNSGEWrapper,
+    });
 
     expect(SceneProvider).toHaveBeenCalled();
     expect(getByText('Test Child Component')).toBeTruthy();
@@ -67,7 +138,9 @@ describe('Scene', () => {
     // Set the mock to return inactive state
     mockUseSceneContext.mockReturnValueOnce({ isActive: false });
 
-    const { queryByText } = render(<RenderWithContext isActive={false} />);
+    const { queryByText } = render(<RenderWithContext isActive={false} />, {
+      wrapper: mockRNSGEWrapper,
+    });
 
     expect(SceneProvider).not.toHaveBeenCalled();
     expect(queryByText('Test Child Component')).toBeNull();
@@ -84,7 +157,8 @@ describe('Scene', () => {
           </Scene>
           <Text>Parent Scene Content</Text>
         </Scene>
-      </SceneContext.Provider>
+      </SceneContext.Provider>,
+      { wrapper: mockRNSGEWrapper }
     );
 
     expect(getByText('Parent Scene Content')).toBeTruthy();
@@ -102,7 +176,8 @@ describe('Scene', () => {
           </Scene>
           <Text>Parent Scene Content</Text>
         </Scene>
-      </SceneContext.Provider>
+      </SceneContext.Provider>,
+      { wrapper: mockRNSGEWrapper }
     );
 
     expect(queryByText('Parent Scene Content')).toBeNull();
@@ -113,7 +188,8 @@ describe('Scene', () => {
     mockUseSceneContext.mockReturnValueOnce({ isActive: false });
 
     const { rerender, queryByText, getByText } = render(
-      <RenderWithContext isActive={false} />
+      <RenderWithContext isActive={false} />,
+      { wrapper: mockRNSGEWrapper }
     );
 
     // Initially inactive
@@ -141,7 +217,8 @@ describe('Scene', () => {
             </Scene>
           </Scene>
         </Scene>
-      </SceneContext.Provider>
+      </SceneContext.Provider>,
+      { wrapper: mockRNSGEWrapper }
     );
 
     expect(getByText('Parent Scene Content')).toBeTruthy();
@@ -160,7 +237,8 @@ describe('Scene', () => {
           </Scene>
           <Text>Parent Scene Content</Text>
         </Scene>
-      </SceneContext.Provider>
+      </SceneContext.Provider>,
+      { wrapper: mockRNSGEWrapper }
     );
 
     expect(toJSON()).toMatchSnapshot();
@@ -177,105 +255,246 @@ describe('Scene', () => {
           </Scene>
           <Text>Parent Scene Content</Text>
         </Scene>
-      </SceneContext.Provider>
+      </SceneContext.Provider>,
+      { wrapper: mockRNSGEWrapper }
     );
 
     expect(toJSON()).toMatchSnapshot();
   });
 
-  it('should apply fade transition with correct opacity during activation', () => {
-    const { getByTestId } = render(
+  it('should apply fade transition with correct opacity during activation', async () => {
+    const transition = createFadeTransition();
+    const { getByTestId, rerender, unmount } = render(
       <SceneProvider>
         <Scene
           defaultSceneName="fadeScene"
           isActive={true}
-          enter="fade"
-          exit="fade"
+          enter={transition}
+          exit={transition}
+          rootComponentProps={{ testID: 'scene' }}
+          transitionConfig={{ duration: 300 }}
+        />
+      </SceneProvider>,
+      { wrapper: mockRNSGEWrapper }
+    );
+
+    const scene = getByTestId('scene');
+    await waitFor(() => {
+      expect(scene.props.opacity.value).toBe(0);
+    });
+
+    act(() => {
+      advanceTime(150, () => {
+        mockAnimations.updateAnimations();
+      });
+    });
+    rerender(
+      <SceneProvider>
+        <Scene
+          defaultSceneName="fadeScene"
+          isActive={true}
+          enter={transition}
+          exit={transition}
           rootComponentProps={{ testID: 'scene' }}
           transitionConfig={{ duration: 300 }}
         />
       </SceneProvider>
+    );
+    await waitFor(() => {
+      expect(scene.props.opacity.value).toBe(0.5);
+    });
+
+    act(() => {
+      advanceTime(150, () => {
+        mockAnimations.updateAnimations();
+      });
+    });
+    rerender(
+      <SceneProvider>
+        <Scene
+          defaultSceneName="fadeScene"
+          isActive={true}
+          enter={transition}
+          exit={transition}
+          rootComponentProps={{ testID: 'scene' }}
+          transitionConfig={{ duration: 300 }}
+        />
+      </SceneProvider>
+    );
+    await waitFor(() => {
+      expect(scene.props.opacity.value).toBe(1);
+    });
+    unmount();
+  });
+
+  it('should apply slide transition with correct translateY during activation', async () => {
+    const transition = createSlideTransition({ y: SlideYDirection.Down });
+    const { getByTestId, unmount, rerender } = render(
+      <SceneProvider>
+        <Scene
+          defaultSceneName="slideScene"
+          isActive={true}
+          enter={transition}
+          exit={transition}
+          rootComponentProps={{ testID: 'scene' }}
+          transitionConfig={{ duration: 300 }}
+        />
+      </SceneProvider>,
+      { wrapper: mockRNSGEWrapper }
+    );
+
+    const scene = getByTestId('scene');
+    await waitFor(() => {
+      expect(
+        scene.props.transform.value.findLast((t: object) =>
+          t.hasOwnProperty('translateY')
+        ).translateY
+      ).toBe(300);
+    });
+
+    act(() => {
+      advanceTime(150, () => {
+        mockAnimations.updateAnimations();
+      });
+    });
+    rerender(
+      <SceneProvider>
+        <Scene
+          defaultSceneName="slideScene"
+          isActive={true}
+          enter={transition}
+          exit={transition}
+          rootComponentProps={{ testID: 'scene' }}
+          transitionConfig={{ duration: 300 }}
+        />
+      </SceneProvider>
+    );
+    await waitFor(() => {
+      expect(
+        scene.props.transform.value.find((t: object) =>
+          t.hasOwnProperty('translateY')
+        ).translateY
+      ).toBe(150);
+    });
+
+    act(() => {
+      advanceTime(150, () => {
+        mockAnimations.updateAnimations();
+      });
+    });
+    await waitFor(() => {
+      expect(
+        scene.props.transform.value.findLast((t: object) =>
+          t.hasOwnProperty('translateY')
+        ).translateY
+      ).toBe(0);
+    });
+
+    unmount();
+  });
+
+  it('should apply zoom transition with correct scale during activation', () => {
+    const transition = createZoomTransition({ from: 1.5, to: 1 });
+    const { getByTestId, rerender, unmount } = render(
+      <SceneProvider>
+        <Scene
+          defaultSceneName="zoomScene"
+          isActive={true}
+          enter={transition}
+          exit={transition}
+          rootComponentProps={{ testID: 'scene' }}
+        />
+      </SceneProvider>,
+      { wrapper: mockRNSGEWrapper }
+    );
+
+    const scene = getByTestId('scene');
+    expect(
+      scene.props.transform.value.find((t: object) =>
+        t.hasOwnProperty('scaleX')
+      ).scaleX
+    ).toBe(1.5);
+
+    act(() => {
+      advanceTime(250, () => {
+        mockAnimations.updateAnimations();
+      });
+    });
+    rerender(
+      <SceneProvider>
+        <Scene
+          defaultSceneName="zoomScene"
+          isActive={true}
+          enter={transition}
+          exit={transition}
+          rootComponentProps={{ testID: 'scene' }}
+        />
+      </SceneProvider>
+    );
+    expect(
+      scene.props.transform.value.find((t: object) =>
+        t.hasOwnProperty('scaleX')
+      ).scaleX
+    ).toBeCloseTo(1.25);
+
+    act(() => {
+      advanceTime(250, () => {
+        mockAnimations.updateAnimations();
+      });
+    });
+    expect(
+      scene.props.transform.value.find((t: object) =>
+        t.hasOwnProperty('scaleX')
+      ).scaleX
+    ).toBe(1);
+
+    unmount();
+  });
+
+  it('should respect custom durations for transitions', () => {
+    const { getByTestId, rerender, unmount } = render(
+      <SceneProvider>
+        <Scene
+          defaultSceneName="customScene"
+          isActive={true}
+          enter={createFadeTransition()}
+          exit={createFadeTransition()}
+          transitionConfig={{ duration: 1000 }}
+          rootComponentProps={{ testID: 'scene' }}
+        />
+      </SceneProvider>,
+      { wrapper: mockRNSGEWrapper }
     );
 
     const scene = getByTestId('scene');
     expect(scene.props.opacity.value).toBe(0);
 
-    jest.advanceTimersByTime(150);
-    expect(scene.props.opacity.value).toBeCloseTo(0.5);
-
-    jest.advanceTimersByTime(150);
-    expect(scene.props.opacity.value).toBe(1);
-  });
-
-  it('should apply slide transition with correct translateY during activation', () => {
-    const { getByTestId } = render(
-      <SceneProvider>
-        <Scene
-          defaultSceneName="slideScene"
-          isActive={true}
-          enter="slide"
-          exit="slide"
-          rootComponentProps={{ testID: 'scene' }}
-          transitionConfig={{ duration: 300 }}
-        />
-      </SceneProvider>
-    );
-
-    const scene = getByTestId('scene');
-    expect(scene.props.transform.value[0].translateY).toBe(300);
-
-    jest.advanceTimersByTime(150);
-    expect(scene.props.transform.value[0].translateY).toBeCloseTo(150);
-
-    jest.advanceTimersByTime(150);
-    expect(scene.props.transform.value[0].translateY).toBe(0);
-  });
-
-  it('should apply zoom transition with correct scale during activation', () => {
-    const { getByTestId } = render(
-      <SceneProvider>
-        <Scene
-          defaultSceneName="zoomScene"
-          isActive={true}
-          enter="zoom"
-          exit="zoom"
-          rootComponentProps={{ testID: 'scene' }}
-        />
-      </SceneProvider>
-    );
-
-    const scene = getByTestId('scene');
-    expect(scene.props.transform.value[0].scale).toBe(1.5);
-
-    jest.advanceTimersByTime(250);
-    expect(scene.props.transform.value[0].scale).toBeCloseTo(1.25);
-
-    jest.advanceTimersByTime(250);
-    expect(scene.props.transform.value[0].scale).toBe(1);
-  });
-
-  it('should respect custom durations for transitions', () => {
-    const { getByTestId } = render(
+    act(() => {
+      advanceTime(500, () => {
+        mockAnimations.updateAnimations();
+      });
+    });
+    rerender(
       <SceneProvider>
         <Scene
           defaultSceneName="customScene"
           isActive={true}
-          enter="fade"
-          exit="fade"
+          enter={createFadeTransition()}
+          exit={createFadeTransition()}
           transitionConfig={{ duration: 1000 }}
           rootComponentProps={{ testID: 'scene' }}
         />
       </SceneProvider>
     );
-
-    const scene = getByTestId('scene');
-    expect(scene.props.opacity.value).toBe(0);
-
-    jest.advanceTimersByTime(500);
     expect(scene.props.opacity.value).toBeCloseTo(0.5);
 
-    jest.advanceTimersByTime(500);
+    act(() => {
+      advanceTime(500, () => {
+        mockAnimations.updateAnimations();
+      });
+    });
     expect(scene.props.opacity.value).toBe(1);
+    unmount();
   });
 
   it('should not re-animate when isActive state is unchanged', () => {
@@ -284,18 +503,36 @@ describe('Scene', () => {
         <Scene
           defaultSceneName="rerenderScene"
           isActive={true}
-          enter="fade"
-          exit="fade"
+          enter={createFadeTransition()}
+          exit={createFadeTransition()}
           rootComponentProps={{ testID: 'scene' }}
           transitionConfig={{ duration: 300 }}
         />
-      </SceneProvider>
+      </SceneProvider>,
+      { wrapper: mockRNSGEWrapper }
     );
 
     const scene = getByTestId('scene');
     expect(scene.props.opacity.value).toBe(0);
 
-    jest.advanceTimersByTime(300);
+    act(() => {
+      advanceTime(300, () => {
+        mockAnimations.updateAnimations();
+      });
+    });
+
+    rerender(
+      <SceneProvider>
+        <Scene
+          defaultSceneName="rerenderScene"
+          isActive={true}
+          enter={createFadeTransition()}
+          exit={createFadeTransition()}
+          rootComponentProps={{ testID: 'scene' }}
+          transitionConfig={{ duration: 300 }}
+        />
+      </SceneProvider>
+    );
 
     expect(scene.props.opacity.value).toBeCloseTo(1);
 
@@ -304,8 +541,8 @@ describe('Scene', () => {
         <Scene
           defaultSceneName="rerenderScene"
           isActive={true}
-          enter="fade"
-          exit="fade"
+          enter={createFadeTransition()}
+          exit={createFadeTransition()}
           rootComponentProps={{ testID: 'scene' }}
           transitionConfig={{ duration: 300 }}
         />

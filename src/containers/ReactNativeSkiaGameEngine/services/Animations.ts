@@ -12,6 +12,7 @@ export interface AnimationConfig {
   groups?: string[];
   removeOnComplete?: boolean;
   throttle?: number;
+  onDone?: () => void;
 }
 
 export interface Animation {
@@ -230,6 +231,7 @@ class Animations {
         yoyo = false,
         retainFinalValue = true,
         removeOnComplete = true,
+        onDone = () => {},
       } = config;
       const elapsed = accumulatedTime + (now - startTime); // Total time elapsed, including paused time
 
@@ -247,6 +249,7 @@ class Animations {
       const onAnimateDone = (done: boolean) => {
         // Handle completion of one animation cycle
         if (done) {
+          onDone();
           if (direction === 1) animationObj.loopCount += 1; // Increment loop count
 
           // Handle looping
