@@ -1,5 +1,7 @@
 import { Camera } from '@/containers/ReactNativeSkiaGameEngine/types';
 import { createContext } from 'react';
+import { ISceneTransitionState } from '../types/transitions';
+import { SharedValue } from 'react-native-reanimated';
 
 /**
  * Context value for the Scene component.
@@ -44,6 +46,7 @@ export interface IScenContextValue {
    * Reference Of the camera registered for the current Scene.
    */
   sceneCamera: Camera | null;
+  sceneTransitionState: SharedValue<ISceneTransitionState> | null;
 }
 
 export const SceneContext = createContext<IScenContextValue | null>(null);

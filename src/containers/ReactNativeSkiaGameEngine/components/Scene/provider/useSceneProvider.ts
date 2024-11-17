@@ -1,8 +1,11 @@
 import { Camera } from '@/containers/ReactNativeSkiaGameEngine/types';
 import { useCallback, useEffect, useState } from 'react';
+import { SharedValue } from 'react-native-reanimated';
+import { ISceneTransitionState } from '../types/transitions';
 
 export interface IUseSceneProviderArgs {
   camera?: Camera;
+  sceneTransitionState?: SharedValue<ISceneTransitionState>;
 }
 
 /**
@@ -24,10 +27,17 @@ export interface IUseSceneProviderArgs {
  * enableScene('level1');
  * disableScene('level2');
  */
-export const useSceneProvider = ({ camera }: IUseSceneProviderArgs) => {
+export const useSceneProvider = ({
+  camera,
+  sceneTransitionState,
+}: IUseSceneProviderArgs) => {
   const [activeScenes, setActiveScenes] = useState<Record<string, boolean>>({});
   const [sceneHistory, setSceneHistory] = useState<string[]>([]);
   const [sceneCamera, setSceneCamera] = useState<Camera | null>(camera || null);
+  const [sceneTransition, setSceneTransition] =
+    useState<SharedValue<ISceneTransitionState> | null>(
+      sceneTransitionState || null
+    );
 
   const enableScene = useCallback(
     (name: string) => setActiveScenes((prev) => ({ ...prev, [name]: true })),
@@ -91,6 +101,7 @@ export const useSceneProvider = ({ camera }: IUseSceneProviderArgs) => {
   return {
     activeScenes,
     sceneCamera,
+    sceneTransitionState: sceneTransition,
     enableScene,
     disableScene,
     switchScene,

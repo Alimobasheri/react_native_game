@@ -51,7 +51,6 @@ const SceneWithTransitionControl: FC<PropsWithChildren<{ args: any }>> = ({
   args,
 }) => {
   const [isActive, setIsActive] = useState<boolean>(args.isActive);
-  // console.log('🚀 story ~ isActive:', isActive);
   const { width, height } = useCanvasDimensions();
   const x = useSharedValue(0);
   const y = useSharedValue(0);

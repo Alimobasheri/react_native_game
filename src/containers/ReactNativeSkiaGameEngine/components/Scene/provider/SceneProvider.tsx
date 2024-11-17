@@ -2,9 +2,12 @@ import { FC, PropsWithChildren } from 'react';
 import { SceneContext } from '../context';
 import { useSceneProvider } from './useSceneProvider';
 import { Camera } from '@/containers/ReactNativeSkiaGameEngine/types';
+import { SharedValue } from 'react-native-reanimated';
+import { ISceneTransitionState } from '../types/transitions';
 
 export interface ISceneProviderProps {
   camera?: Camera;
+  sceneTransitionState?: SharedValue<ISceneTransitionState>;
 }
 
 /**
@@ -24,9 +27,10 @@ export interface ISceneProviderProps {
  */
 export const SceneProvider: FC<PropsWithChildren<ISceneProviderProps>> = ({
   camera,
+  sceneTransitionState,
   children,
 }) => {
-  const value = useSceneProvider({ camera });
+  const value = useSceneProvider({ camera, sceneTransitionState });
   return (
     <SceneContext.Provider value={value}>{children}</SceneContext.Provider>
   );

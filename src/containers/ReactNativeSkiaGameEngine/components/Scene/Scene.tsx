@@ -118,7 +118,7 @@ export const Scene: FC<ISceneProps> = ({
       ...defaultCameraProps,
     });
 
-  const { isTransitioning } = useSceneTransition({
+  const { isTransitioning, sceneTransitionState } = useSceneTransition({
     isActive: currentIsActive,
     camera: defaultCamera,
     enter,
@@ -161,7 +161,10 @@ export const Scene: FC<ISceneProps> = ({
   ]);
 
   return currentIsActive || isTransitioning ? (
-    <SceneProvider camera={defaultCamera}>
+    <SceneProvider
+      camera={defaultCamera}
+      sceneTransitionState={sceneTransitionState}
+    >
       <RootComponent
         clip={defaultCameraClip}
         transform={defaultCameraTransform}

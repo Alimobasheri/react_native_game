@@ -9,7 +9,11 @@ import {
   useAnimatedReaction,
   runOnUI,
 } from 'react-native-reanimated';
-import { SceneTransition, TransitionPhase } from '../types/transitions';
+import {
+  ISceneTransitionState,
+  SceneTransition,
+  TransitionPhase,
+} from '../types/transitions';
 
 interface ITransitionConfig {
   duration?: number;
@@ -70,11 +74,22 @@ export const useSceneTransition = ({
   const phase = useSharedValue(TransitionPhase.BeforeEnter);
   const progress = useSharedValue(0);
 
+  const sceneTransitionState = useSharedValue<ISceneTransitionState>({
+    phase: phase.value,
+    progress: progress,
+    camera: camera,
+  });
+
   const isInitialRender = useRef<boolean>(true);
 
   useEffect(() => {
     if (duration === 0) {
       progress.value = isActive ? 1 : 0;
+      sceneTransitionState.value = {
+        phase: isActive ? TransitionPhase.Enter : TransitionPhase.Exit,
+        progress: progress,
+        camera: camera,
+      };
       if (isActive && typeof enter === 'function') {
         runOnUI(enter)({
           camera,
@@ -91,6 +106,11 @@ export const useSceneTransition = ({
         phase.value = TransitionPhase.Idle;
       }
     } else if (!isInitialRender.current || isActive) {
+      sceneTransitionState.value = {
+        phase: isActive ? TransitionPhase.Enter : TransitionPhase.Exit,
+        progress: progress,
+        camera: camera,
+      };
       let shouldTransition =
         (isActive && typeof enterDuration == 'number') ||
         (!isActive && typeof exitDuration == 'number');
@@ -152,11 +172,17 @@ export const useSceneTransition = ({
       ) {
         exit({ camera, phase: phase.value, progress });
       }
+      sceneTransitionState.value = {
+        phase: phase.value,
+        progress: progress,
+        camera: camera,
+      };
     },
     [progress.value]
   );
 
   return {
     isTransitioning,
+    sceneTransitionState,
   };
 };

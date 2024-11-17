@@ -17,3 +17,9 @@ export type TransitionArgs = {
 };
 
 export type SceneTransition = (args: TransitionArgs) => void;
+
+export interface ISceneTransitionState {
+  camera: Camera;
+  phase: TransitionPhase;
+  progress: SharedValue<number>;
+}
