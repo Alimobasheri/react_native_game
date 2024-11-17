@@ -46,6 +46,9 @@ export interface IScenContextValue {
    * Reference Of the camera registered for the current Scene.
    */
   sceneCamera: Camera | null;
+  /**
+   * A sharedValue including lates Transition Phase, Transition Progress and A Reference Of the camera registered for the current Scene.
+   */
   sceneTransitionState: SharedValue<ISceneTransitionState> | null;
 }
 

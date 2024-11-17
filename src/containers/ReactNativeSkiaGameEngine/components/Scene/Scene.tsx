@@ -41,8 +41,8 @@ export interface ISceneProps extends PropsWithChildren {
  * // A basic scene with a fade transition
  * <Scene
  *   defaultSceneName="gameOver"
- *   enter="fade"
- *   exit="fade"
+ *   enter={createFadeTransition()}
+ *   exit={createFadeTransition()}
  *   isActive={true}
  *   transitionConfig={{ duration: 300 }}
  * >
@@ -53,14 +53,14 @@ export interface ISceneProps extends PropsWithChildren {
  * // Nesting scenes where both parent and child scenes are active
  * <Scene
  *   defaultSceneName="parentScene"
- *   enter="slide"
- *   exit="fade"
+ *   enter={createSlideTransition()}
+ *   exit={createFadeTransition()}
  *   isActive={true}
  * >
  *   <Scene
  *     defaultSceneName="childScene"
- *     enter="zoom"
- *     exit="slide"
+ *     enter={createZoomTransition()}
+ *     exit={createSlideTransition()}
  *     isActive={true}
  *   >
  *     <Text>Child Scene Content</Text>
@@ -70,8 +70,8 @@ export interface ISceneProps extends PropsWithChildren {
  *
  * @param {Object} props - The properties object.
  * @param {string} props.defaultSceneName - The name of the scene (used for identification).
- * @param {'fade'|'slide'|'zoom'|null} [props.enter=null] - The animation to use when the scene enters.
- * @param {'fade'|'slide'|'zoom'|null} [props.exit=null] - The animation to use when the scene exits.
+ * @param {SceneTransition|null} [props.enter=null] - The animation to use when the scene enters.
+ * @param {SceneTransition|null} [props.exit=null] - The animation to use when the scene exits.
  * @param {Object} [props.transitionConfig={ duration: 500 }] - Transition configuration for enter/exit animations.
  * @param {number} [props.transitionConfig.duration=500] - Duration for both enter and exit transitions.
  * @param {number} [props.transitionConfig.enterDuration] - Specific duration for the enter transition (overrides `duration`).
@@ -80,7 +80,7 @@ export interface ISceneProps extends PropsWithChildren {
  * @param {number} [props.y=0] - Y-coordinate for scene positioning.
  * @param {number} [props.width=300] - Width of the scene.
  * @param {number} [props.height=300] - Height of the scene.
- * @param {React.ComponentType} [props.rootComponent=Group] - Component to be used as the root of the scene (default is Rect).
+ * @param {React.ComponentType} [props.rootComponent=Group] - Component to be used as the root of the scene (default is Group).
  * @param {Object} [props.rootComponentProps={}] - Props to pass to the root component.
  * @param {boolean} [props.isActive=false] - Whether the scene is active (i.e., visible). If `false`, the scene and its children will not be rendered.
  *

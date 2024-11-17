@@ -7,6 +7,21 @@ export interface IUseSceneTransitioningArgs {
   callback: SceneTransition;
 }
 
+/**
+ * Hook that runs a callback function when the scene transition state changes.
+ *
+ * The callback function will be called with the current scene transition state.
+ *
+ * @param {IUseSceneTransitioningArgs} args
+ * @param {SceneTransition} args.callback - The callback function.
+ *
+ * @example
+ * const handleSceneTransition = (state) => {
+ *   console.log('Scene transition state:', state);
+ * };
+ *
+ * useSceneTransitioning({ callback: handleSceneTransition });
+ */
 export const useSceneTransitioning = ({
   callback,
 }: IUseSceneTransitioningArgs) => {
