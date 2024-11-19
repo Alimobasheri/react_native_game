@@ -4,6 +4,7 @@ import { uid } from './Entity';
 
 export interface AnimationConfig {
   duration?: number;
+  delay?: number;
   easing?: (t: number) => number;
   loop?: number;
   yoyo?: boolean;
@@ -227,13 +228,15 @@ class Animations {
 
       const {
         duration = 500,
+        delay = 0,
         loop = 1,
         yoyo = false,
         retainFinalValue = true,
         removeOnComplete = true,
         onDone = () => {},
       } = config;
-      const elapsed = accumulatedTime + (now - startTime); // Total time elapsed, including paused time
+      const elapsed =
+        accumulatedTime + (now - startTime) - (loopCount === 0 ? delay : 0); // Total time elapsed, including paused time
 
       // Calculate progress
       let progress = elapsed / duration;

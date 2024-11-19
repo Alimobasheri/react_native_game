@@ -5,6 +5,7 @@ import {
   useCanvasDimensions,
   useEntityInstance,
   useEntityState,
+  Entity,
 } from '@/containers/ReactNativeSkiaGameEngine';
 import { Boat } from '@/Game/Entities/Boat/Boat';
 import { BoatSystem } from '@/systems/BoatSystem/BoatSystem';
@@ -20,10 +21,11 @@ export const Boats: FC<{}> = () => {
   });
   const boatSystem = useRef(
     new BoatSystem({
-      windowWidth: dimensions.width,
-      windowHeight: dimensions.height,
-      originalWaterSUrfaceY:
-        seaInstance.current.data.getOriginalWaterSurfaceY(),
+      windowWidth: dimensions.width || 0,
+      windowHeight: dimensions.height || 0,
+      originalWaterSUrfaceY: (
+        seaInstance.current as Entity<Sea>
+      )?.data.getOriginalWaterSurfaceY(),
     })
   );
 
@@ -32,9 +34,8 @@ export const Boats: FC<{}> = () => {
   });
 
   useSystem((entities, args) => {
-    const boatSystemInstance = entities.getEntityByLabel(
-      ENTITIES_KEYS.BOAT_SYSTEM_INSTANCE
-    );
+    const boatSystemInstance: Entity<MutableRefObject<BoatSystem>> | undefined =
+      entities.getEntityByLabel(ENTITIES_KEYS.BOAT_SYSTEM_INSTANCE);
     boatSystemInstance?.data.current.systemInstanceRNSGE(entities, args);
   });
 

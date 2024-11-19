@@ -18,6 +18,7 @@ import { GAME_STATE } from '../GameLoopSystem/types';
 import { Sea } from '@/Game/Entities/Sea/Sea';
 import { Entities, Entity } from '@/containers/ReactNativeSkiaGameEngine';
 import { MutableRefObject } from 'react';
+import { State } from '@/Game/Entities/State/State';
 
 export class BoatSystem implements IBoatSystem {
   protected _boatFactory: BoatFactory;
@@ -44,6 +45,8 @@ export class BoatSystem implements IBoatSystem {
     return boatSystem.systemInstance(entities, args);
   }
   protected update(entities: Entities, args: RNGE_System_Args) {
+    const state: State = entities.getEntityByLabel(ENTITIES_KEYS.STATE)!.data;
+    if (!state.isRunning) return;
     // const gameLoopSystem: GameLoopSystem =
     //   entities[ENTITIES_KEYS.GAME_LOOP_SYSTEM];
     const sea: Sea = entities.getEntityByLabel(ENTITIES_KEYS.SEA)!.data;

@@ -1,3 +1,7 @@
+export interface IGameState {
+  isRunning: boolean;
+}
+
 export class State {
   private _isRunning: boolean;
   constructor(isRunning: boolean) {

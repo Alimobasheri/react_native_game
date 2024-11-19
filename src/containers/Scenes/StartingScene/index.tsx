@@ -1,4 +1,4 @@
-import { SCENES } from '@/constants/scenes';
+import { Scenes } from '@/constants/scenes';
 import {
   useCanvasDimensions,
   useEntityMemoizedValue,
@@ -11,6 +11,7 @@ import { Title } from './components/Title';
 import { StartSwipe } from './components/StartSwipe';
 import { State } from '@/Game/Entities/State/State';
 import { ENTITIES_KEYS } from '@/constants/configs';
+import { createFadeTransition } from '@/containers/ReactNativeSkiaGameEngine/utils/transitions/createFadeTransition';
 
 export const StartingScene: FC<PropsWithChildren> = ({ children }) => {
   const dimensions = useCanvasDimensions();
@@ -27,14 +28,14 @@ export const StartingScene: FC<PropsWithChildren> = ({ children }) => {
   const titleWidth = Math.min(dimensions.width * 0.2, 100);
   return (
     <Scene
-      defaultSceneName={SCENES.START}
+      defaultSceneName={Scenes.Start}
       isActive={!isRunning}
       x={0}
       y={0}
       width={dimensions.width}
       height={dimensions.height}
-      exit={'fade'}
-      transitionConfig={{ duration: 1000 }}
+      exit={createFadeTransition()}
+      transitionConfig={{ duration: 500 }}
     >
       <SwipeToPlay
         text={text}
