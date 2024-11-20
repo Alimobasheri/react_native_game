@@ -37,14 +37,16 @@ export const StartingScene: FC<PropsWithChildren> = ({ children }) => {
       exit={createFadeTransition()}
       transitionConfig={{ duration: 500 }}
     >
-      <SwipeToPlay
-        text={text}
-        x={dimensions.width / 2}
-        y={dimensions.height - 20}
-        width={dimensions.width}
-        height={dimensions.height}
-        font={font}
-      />
+      {font && (
+        <SwipeToPlay
+          text={text}
+          x={dimensions.width / 2}
+          y={dimensions.height - 20}
+          width={dimensions.width}
+          height={dimensions.height}
+          font={font}
+        />
+      )}
       {children}
       <Title
         x={dimensions.width / 2 - titleWidth / 2}

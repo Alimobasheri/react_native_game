@@ -17,7 +17,7 @@ import { runOnUI, SharedValue, useSharedValue } from 'react-native-reanimated';
 
 export interface ISwipeToPlayProps {
   text: string;
-  font: AnimatedProp<SkFont | null, any>;
+  font: SkFont;
   x: number;
   y: number;
   width: number;
@@ -54,7 +54,7 @@ export const SwipeToPlay: FC<ISwipeToPlayProps> = ({
   }, []);
 
   const initalPath = Skia.Path.Make();
-  initalPath.moveTo(x, y);
+  initalPath.moveTo(x - font.getTextWidth(text) / 2, y);
   initalPath.lineTo(width, y);
 
   const path = useSharedValue(initalPath);
@@ -74,11 +74,15 @@ export const SwipeToPlay: FC<ISwipeToPlayProps> = ({
       const maxY = y + amplitude;
       const minY = y - amplitude;
 
-      newPath.moveTo(width / 2, y);
-      for (let x = width / 2; x <= width; x += 10) {
+      newPath.moveTo(x - font.getTextWidth(text) / 2, y);
+      for (
+        let z = x - font.getTextWidth(text) / 2;
+        z <= x + font.getTextWidth(text) / 2;
+        z += 10
+      ) {
         const targetY =
-          y + amplitude * Math.sin(frequency * x + wavePhase.value);
-        newPath.lineTo(x, Math.min(Math.max(targetY, minY), maxY));
+          y + amplitude * Math.sin(frequency * z + wavePhase.value);
+        newPath.lineTo(z, Math.min(Math.max(targetY, minY), maxY));
       }
       path.value = newPath;
     },
