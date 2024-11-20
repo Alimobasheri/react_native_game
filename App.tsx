@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { View } from 'react-native';
 import Overlay from '@/containers/Overlay';
 import Constants from 'expo-constants';
+import { Game } from '@/containers/Game/index-rnsge';
 
 function App() {
   const { width, height } = useWindowDimensions();
@@ -13,8 +14,7 @@ function App() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <View style={[styles.container]}>
           <StatusBar hidden />
-
-          <Overlay />
+          <Game />
         </View>
       </GestureHandlerRootView>
     </SafeAreaProvider>
@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
 let AppEntryPoint = App;
 
 // Render Storybook if storybookEnabled is true
-if (Constants.expoConfig.extra.storybookEnabled === 'true') {
+if (Constants?.expoConfig?.extra?.storybookEnabled === 'true') {
   LogBox.ignoreAllLogs(true);
   AppEntryPoint = require('./.storybook').default;
 }
