@@ -10,6 +10,7 @@ import { Dimensions, View } from 'react-native';
 import { FC } from 'react';
 import { State } from '@/Game/Entities/State/State';
 import { ENTITIES_KEYS } from '@/constants/configs';
+import { InitialGameState } from '@/constants/gameState';
 const { width: windowWidth, height: windowHeight } = Dimensions.get('window');
 const width = windowWidth * 0.8;
 const height = windowHeight * 0.8;
@@ -25,7 +26,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const GameStateEntity: FC<{}> = () => {
-  useAddEntity(new State(false), { label: ENTITIES_KEYS.STATE });
+  useAddEntity(new State(InitialGameState), { label: ENTITIES_KEYS.STATE });
   return null;
 };
 

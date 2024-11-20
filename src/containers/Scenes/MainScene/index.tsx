@@ -1,4 +1,5 @@
 import { ENTITIES_KEYS } from '@/constants/configs';
+import { InitialGameState } from '@/constants/gameState';
 import { Scenes } from '@/constants/scenes';
 import {
   useAddEntity,
@@ -10,7 +11,7 @@ import { FC, PropsWithChildren } from 'react';
 
 export const MainScene: FC<PropsWithChildren> = ({ children }) => {
   const { width, height } = useCanvasDimensions();
-  useAddEntity(new State(false), { label: ENTITIES_KEYS.STATE });
+  useAddEntity(new State(InitialGameState), { label: ENTITIES_KEYS.STATE });
   return (
     <Scene
       defaultSceneName={Scenes.Main}
