@@ -15,8 +15,8 @@ import { InitialGameState } from '@/constants/gameState';
 import { runOnJS, useSharedValue } from 'react-native-reanimated';
 import { Gesture } from 'react-native-gesture-handler';
 const { width: windowWidth, height: windowHeight } = Dimensions.get('window');
-const width = windowWidth * 0.8;
-const height = windowHeight * 0.8;
+const width = windowWidth;
+const height = windowHeight;
 
 const meta = {
   title: 'Scenes/Game Over Scene',
