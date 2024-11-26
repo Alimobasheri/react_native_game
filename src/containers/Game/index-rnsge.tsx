@@ -10,6 +10,7 @@ import { Physics } from '@/components/Physics';
 import { Collisions } from '@/components/Collisions';
 import { Swipe } from '@/components/Swipe';
 import { ActionCameraControl } from '@/components/ActionCameraControl';
+import { GameOverScene } from '../Scenes/GameOverScene';
 
 export const Game: FC<unknown> = () => {
   return (
@@ -25,6 +26,7 @@ export const Game: FC<unknown> = () => {
           <ActionCameraControl />
         </GamePlayScene>
         <StartingScene />
+        <GameOverScene />
       </MainScene>
     </ReactNativeSkiaGameEngine>
   );

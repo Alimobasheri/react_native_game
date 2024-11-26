@@ -24,12 +24,16 @@ export const StartingScene: FC<PropsWithChildren> = ({ children }) => {
     { label: ENTITIES_KEYS.STATE },
     'isRunning'
   ) as boolean;
+  const isGameOver = useEntityMemoizedValue<State, boolean>(
+    { label: ENTITIES_KEYS.STATE },
+    'isGameOver'
+  ) as boolean;
   if (!dimensions?.width || !dimensions?.height) return null;
   const titleWidth = Math.min(dimensions.width * 0.2, 100);
   return (
     <Scene
       defaultSceneName={Scenes.Start}
-      isActive={!isRunning}
+      isActive={!isRunning && !isGameOver}
       x={0}
       y={0}
       width={dimensions.width}

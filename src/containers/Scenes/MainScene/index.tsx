@@ -6,12 +6,21 @@ import {
   useCanvasDimensions,
 } from '@/containers/ReactNativeSkiaGameEngine';
 import { Scene } from '@/containers/ReactNativeSkiaGameEngine/components/Scene/Scene';
+import { useEventListener } from '@/containers/ReactNativeSkiaGameEngine/hooks/useEventListener';
 import { State } from '@/Game/Entities/State/State';
 import { FC, PropsWithChildren } from 'react';
+import { GAME_OVER_EVENT } from '@/constants/events';
 
 export const MainScene: FC<PropsWithChildren> = ({ children }) => {
   const { width, height } = useCanvasDimensions();
-  useAddEntity(new State(InitialGameState), { label: ENTITIES_KEYS.STATE });
+  const stateEntityInstance = useAddEntity(new State(InitialGameState), {
+    label: ENTITIES_KEYS.STATE,
+  });
+
+  useEventListener(GAME_OVER_EVENT.type, () => {
+    stateEntityInstance.data.isGameOver = true;
+    stateEntityInstance.data.isRunning = false;
+  });
   return (
     <Scene
       defaultSceneName={Scenes.Main}
