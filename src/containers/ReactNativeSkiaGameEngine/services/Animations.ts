@@ -77,6 +77,8 @@ class Animations {
       direction: 1,
       loopCount: 0,
       lastUpdateTime: now,
+      waitingForNextLoop: false,
+      loopStartTime: now,
     };
 
     this.allAnimations.set(id, newAnimation);
