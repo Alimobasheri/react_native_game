@@ -267,4 +267,33 @@ describe('Animations class', () => {
       expect(animations.getAnimationByLabel('test')).toBeDefined(); // Still present after completion
     });
   });
+  it('should handle loop interval correctly between loops', async () => {
+    const config: AnimationConfig = {
+      duration: 500,
+      loop: 2,
+      loopInterval: 300,
+    };
+    animations.registerAnimation(sharedValue, mockAnimation, config);
+
+    advanceTimeBy(500);
+    await waitFor(() => {
+      expect(sharedValue.value).toBe(100); // 1st loop complete
+    });
+
+    advanceTimeBy(299); // Waiting for loop interval
+    await waitFor(() => {
+      expect(sharedValue.value).toBe(100); // Interval is nearly over, and next loop is about to start, value retained
+    });
+
+    advanceTimeBy(1);
+    await waitFor(() => {
+      expect(sharedValue.value).toBe(0); // 2nd loop sstarting, value reset
+      expect(mockAnimation.update).toHaveBeenCalledTimes(2);
+    });
+    advanceTimeBy(500);
+    await waitFor(() => {
+      expect(sharedValue.value).toBe(100); // 2nd loop complete
+      expect(mockAnimation.update).toHaveBeenCalledTimes(3);
+    });
+  });
 });
