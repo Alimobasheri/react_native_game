@@ -19,6 +19,7 @@ import { Sea } from '@/Game/Entities/Sea/Sea';
 import { Entities, Entity } from '@/containers/ReactNativeSkiaGameEngine';
 import { MutableRefObject } from 'react';
 import { State } from '@/Game/Entities/State/State';
+import { BOAT_SINKED_EVENT } from '@/constants/events';
 
 export class BoatSystem implements IBoatSystem {
   protected _boatFactory: BoatFactory;
@@ -67,7 +68,7 @@ export class BoatSystem implements IBoatSystem {
           boat.removeAllListeners('isSinkedChange');
           boat.addListener('isSinkedChange', (isSinked) => {
             if (isSinked) {
-              args.dispatch.emit('boatSinked');
+              args.dispatcher.emitEvent(BOAT_SINKED_EVENT(boat.data));
             }
           });
         }

@@ -4,4 +4,5 @@ export const InitialGameState: IGameState = {
   isRunning: false,
   isGameOver: false,
   isPaused: false,
+  isGamePlayExited: false,
 };

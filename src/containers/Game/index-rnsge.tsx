@@ -15,19 +15,7 @@ import { GameOverScene } from '../Scenes/GameOverScene';
 export const Game: FC<unknown> = () => {
   return (
     <ReactNativeSkiaGameEngine onEventListeners={{}}>
-      <MainScene>
-        <GamePlayScene>
-          <SkyBackground />
-          <StarsView />
-          <SeaGroup />
-          <Physics />
-          <Collisions />
-          <Swipe />
-          <ActionCameraControl />
-        </GamePlayScene>
-        <StartingScene />
-        <GameOverScene />
-      </MainScene>
+      <MainScene />
     </ReactNativeSkiaGameEngine>
   );
 };

@@ -2,17 +2,20 @@ export interface IGameState {
   isRunning: boolean;
   isGameOver: boolean;
   isPaused: boolean;
+  isGamePlayExited: boolean;
 }
 
 export class State {
   private _isRunning: boolean;
   private _isGameOver: boolean;
   private _isPaused: boolean;
+  private _isGamePlayExited: boolean;
 
   constructor(initialState: IGameState) {
     this._isRunning = initialState.isRunning;
     this._isGameOver = initialState.isGameOver;
     this._isPaused = initialState.isPaused;
+    this._isGamePlayExited = initialState.isGamePlayExited;
   }
 
   get isRunning(): boolean {
@@ -42,6 +45,16 @@ export class State {
   set isPaused(value: boolean) {
     if (this._isPaused !== value) {
       this._isPaused = value;
+    }
+  }
+
+  get isGamePlayExited(): boolean {
+    return this._isGamePlayExited;
+  }
+
+  set isGamePlayExited(value: boolean) {
+    if (this._isGamePlayExited !== value) {
+      this._isGamePlayExited = value;
     }
   }
 }

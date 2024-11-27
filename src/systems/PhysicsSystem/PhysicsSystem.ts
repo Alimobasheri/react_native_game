@@ -11,6 +11,7 @@ import { VEHICLE_TYPE_IDENTIFIERS } from '@/constants/vehicle';
 import { Sea } from '@/Game/Entities/Sea/Sea';
 import { GameLoopSystem } from '../GameLoopSystem/GameLoopSystem';
 import { Entities, Entity } from '@/containers/ReactNativeSkiaGameEngine';
+import { BUOYANT_VEHICLE_SINKED_EVENT } from '@/constants/events';
 
 export class PhysicsSystem implements IPhysicsSystem {
   protected _engine: Matter.Engine;
@@ -72,7 +73,7 @@ export class PhysicsSystem implements IPhysicsSystem {
         acceleration,
       } = props;
 
-      this.applySinkStatus(buoyantVehicle, size, submergedArea, sea);
+      this.applySinkStatus(args, buoyantVehicle, size, submergedArea, sea);
 
       this.applyFriction(
         body,
@@ -233,6 +234,7 @@ export class PhysicsSystem implements IPhysicsSystem {
   }
 
   protected applySinkStatus(
+    args: RNGE_System_Args,
     buoyantVehicle: Vehicle,
     size: number[],
     submergedArea: number,
@@ -254,6 +256,7 @@ export class PhysicsSystem implements IPhysicsSystem {
     ) {
       console.log('====sinked', buoyantVehicle.body.label);
       buoyantVehicle.isSinked = true;
+      args.dispatcher.emitEvent(BUOYANT_VEHICLE_SINKED_EVENT(buoyantVehicle));
       // buoyantVehicle.isAttacking = false;
     }
   }

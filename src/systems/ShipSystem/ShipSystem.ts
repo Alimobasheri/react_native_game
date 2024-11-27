@@ -1,9 +1,10 @@
-import { ENTITIES_KEYS } from "@/constants/configs";
-import { IShipSystem } from "./types";
-import { RNGE_Entities, RNGE_System_Args } from "../types";
-import { IShip } from "@/Game/Entities/Ship/types";
-import { Ship } from "@/Game/Entities/Ship/Ship";
-import { Entities, Entity } from "@/containers/ReactNativeSkiaGameEngine";
+import { ENTITIES_KEYS } from '@/constants/configs';
+import { IShipSystem } from './types';
+import { RNGE_Entities, RNGE_System_Args } from '../types';
+import { IShip } from '@/Game/Entities/Ship/types';
+import { Ship } from '@/Game/Entities/Ship/Ship';
+import { Entities, Entity } from '@/containers/ReactNativeSkiaGameEngine';
+import { SHIP_SINKED_EVENT } from '@/constants/events';
 
 /**
  * The ship system is responsible for keeping the main sheep stable.
@@ -11,12 +12,12 @@ import { Entities, Entity } from "@/containers/ReactNativeSkiaGameEngine";
  */
 export class ShipSystem implements IShipSystem {
   systemInstance(entities: RNGE_Entities, args: RNGE_System_Args) {
-    const ship: Ship = entities[ENTITIES_KEYS.SEA_GROUP].entities["ship"];
+    const ship: Ship = entities[ENTITIES_KEYS.SEA_GROUP].entities['ship'];
     ship.update(entities, args);
-    ship.removeAllListeners("isSinkedChange");
-    ship.addListener("isSinkedChange", (isSinked) => {
+    ship.removeAllListeners('isSinkedChange');
+    ship.addListener('isSinkedChange', (isSinked) => {
       if (isSinked) {
-        args.dispatch("shipSinked");
+        args.dispatch('shipSinked');
       }
     });
     return entities;
@@ -32,10 +33,11 @@ export class ShipSystem implements IShipSystem {
     ship: Entity<Ship>
   ) {
     ship.data.update(entities, args);
-    ship.data.removeAllListeners("isSinkedChange");
-    ship.addListener("isSinkedChange", (isSinked) => {
+    ship.data.removeAllListeners('isSinkedChange');
+    ship.addListener('isSinkedChange', (isSinked) => {
+      console.log('🚀 ~ ShipSystem ~ ship.addListener ~ isSinked:', isSinked);
       if (isSinked) {
-        args.dispatch("shipSinked");
+        args.dispatcher.emitEvent(SHIP_SINKED_EVENT(ship.data));
       }
     });
   }

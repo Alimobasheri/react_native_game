@@ -8,7 +8,7 @@ import {
   useFont,
   vec,
 } from '@shopify/react-native-skia';
-import { FC, useLayoutEffect, useMemo } from 'react';
+import { FC, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import {
   runOnJS,
   useDerivedValue,
@@ -16,6 +16,11 @@ import {
 } from 'react-native-reanimated';
 import { ActiveAnimation } from '@/containers/ReactNativeSkiaGameEngine/services/Animations';
 import { useAnimationsController } from '@/containers/ReactNativeSkiaGameEngine/hooks/useAnimationsController/useAnimationsController';
+import { useTouchHandler } from '@/containers/ReactNativeSkiaGameEngine';
+import { GestureItem } from '@/containers/ReactNativeSkiaGameEngine/types';
+import { Gesture } from 'react-native-gesture-handler';
+import { RESTART_GAME_EVENT } from '@/constants/events';
+import { useDispatchEvent } from '@/containers/ReactNativeSkiaGameEngine/hooks/useDispatchEvent';
 
 interface IRestartGameButtonProps {
   x: number;
@@ -41,6 +46,8 @@ export const RestartGameButton: FC<IRestartGameButtonProps> = ({ x, y }) => {
   const translateY = useSharedValue(0);
   const shinePosition = useSharedValue(0);
   const { registerAnimation, removeAnimation } = useAnimationsController();
+  const { addGesture, removeGesture } = useTouchHandler();
+  const dispatch = useDispatchEvent();
 
   useSceneTransitioning({
     callback: ({ progress }) => {
@@ -133,6 +140,39 @@ export const RestartGameButton: FC<IRestartGameButtonProps> = ({ x, y }) => {
         translateY.value,
     };
   }, [buttonRect, translateY]);
+
+  const touchX = useDerivedValue(() => {
+    return buttonRect.value.rect.x;
+  }, [buttonRect]);
+  const touchY = useDerivedValue(() => {
+    return buttonRect.value.rect.y + translateY.value;
+  }, [buttonRect, translateY]);
+  const touchWidth = useDerivedValue(() => {
+    return buttonRect.value.rect.width;
+  }, [buttonRect]);
+  const touchHeight = useDerivedValue(() => {
+    return buttonRect.value.rect.height;
+  }, [buttonRect]);
+  const onTap = useCallback(() => {
+    dispatch(RESTART_GAME_EVENT);
+  }, [dispatch]);
+  const gesture: GestureItem = useMemo(() => {
+    return {
+      gesture: Gesture.Tap().onFinalize(onTap).runOnJS(true),
+      rect: {
+        x: touchX,
+        y: touchY,
+        width: touchWidth,
+        height: touchHeight,
+      },
+    };
+  }, []);
+  useEffect(() => {
+    const gestureId = addGesture(gesture);
+    return () => {
+      removeGesture(gestureId);
+    };
+  }, [gesture]);
 
   if (!font) return null;
 
