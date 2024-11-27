@@ -162,6 +162,7 @@ export const Scene: FC<ISceneProps> = ({
 
   return currentIsActive || isTransitioning ? (
     <SceneProvider
+      name={defaultSceneName}
       camera={defaultCamera}
       sceneTransitionState={sceneTransitionState}
     >

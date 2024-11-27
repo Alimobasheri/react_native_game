@@ -8,10 +8,12 @@ export const AddEntityEvent = 'AddEntityEvent';
  * @typedef {Object} IEntityOptions
  * @property {string} [label] - A label to associate with the entity.
  * @property {string[]} [groups] - A list of groups the entity belongs to.
+ * @property {string} [sceneId] - The unique identifier of the scene the entity belongs to.
  */
 export interface IEntityOptions {
   label?: string;
   groups?: string[];
+  sceneId?: string;
 }
 
 /**
@@ -25,6 +27,10 @@ export class Entities extends EventEmitter {
     string
   >();
   protected _mapGroupIdToEntities: Map<string, Entity<any>[]> = new Map<
+    string,
+    Entity<any>[]
+  >();
+  protected _mapSceneIdToEntities: Map<string, Entity<any>[]> = new Map<
     string,
     Entity<any>[]
   >();
@@ -44,7 +50,7 @@ export class Entities extends EventEmitter {
   }
 
   /**
-   * Initializes the label and group maps from the provided entities.
+   * Initializes the label, group, and scene maps from the provided entities.
    * @param {Map<string, Entity<any>>} entities - A map of entity IDs to entities.
    * @private
    */
@@ -60,6 +66,12 @@ export class Entities extends EventEmitter {
           }
           this._mapGroupIdToEntities.get(group)?.push(entity);
         });
+      }
+      if (entity.sceneId) {
+        if (!this._mapSceneIdToEntities.has(entity.sceneId)) {
+          this._mapSceneIdToEntities.set(entity.sceneId, []);
+        }
+        this._mapSceneIdToEntities.get(entity.sceneId)?.push(entity);
       }
     });
   }
@@ -89,7 +101,15 @@ export class Entities extends EventEmitter {
   }
 
   /**
-   * Adds a new entity to the collection and optionally associates it with a label and/or groups.
+   * Gets the map of scene IDs to lists of entities.
+   * @returns {Map<string, Entity<any>[]>} - The map of scene IDs to lists of entities.
+   */
+  public get mapSceneIdToEntities(): Map<string, Entity<any>[]> {
+    return this._mapSceneIdToEntities;
+  }
+
+  /**
+   * Adds a new entity to the collection and optionally associates it with a label, groups, and/or sceneId.
    * @param {Entity<any>} entity - The entity to add.
    * @param {IEntityOptions} [options] - Optional configurations for the entity.
    * @fires AddEntityEvent
@@ -107,29 +127,27 @@ export class Entities extends EventEmitter {
         this._mapGroupIdToEntities.get(group)?.push(entity);
       }
     }
+    if (entity.sceneId) {
+      if (!this._mapSceneIdToEntities.has(entity.sceneId)) {
+        this._mapSceneIdToEntities.set(entity.sceneId, []);
+      }
+      this._mapSceneIdToEntities.get(entity.sceneId)?.push(entity);
+    }
     this.emit(AddEntityEvent, { entity });
   }
 
   /**
-   * Removes an entity from the collection based on its ID, label, or groups.
-   * @param {string|{label?: string; group?: string[]}} entityId - The entity ID, or an object specifying a label or groups to remove.
+   * Removes an entity from the collection based on its ID, label, groups, or sceneId.
+   * @param {string|{label?: string; group?: string[]; sceneId?: string}} entityId - The entity ID, or an object specifying a label, groups, or sceneId to remove.
    */
-  public removeEntity(entityId: string | { label?: string; group?: string[] }) {
+  public removeEntity(
+    entityId: string | { label?: string; group?: string[]; sceneId?: string }
+  ) {
     if (typeof entityId === 'string') {
-      this._entities.delete(entityId);
-      this._mapLabelToEntityId.forEach((id, label) => {
-        if (id === entityId) this._mapLabelToEntityId.delete(label);
-      });
-      this._mapGroupIdToEntities.forEach((entities, group) => {
-        const index = entities.findIndex((entity) => entity.id === entityId);
-        if (index !== -1) {
-          entities.splice(index, 1);
-          if (entities.length === 0) this._mapGroupIdToEntities.delete(group);
-        }
-      });
+      this._removeEntityById(entityId);
     } else if (entityId.label) {
       const entity = this._mapLabelToEntityId.get(entityId.label);
-      if (entity) this.removeEntity(entity);
+      if (entity) this._removeEntityById(entity);
     } else if (entityId.group) {
       const entityIdsToRemove: string[] = [];
 
@@ -141,8 +159,59 @@ export class Entities extends EventEmitter {
       });
 
       entityIdsToRemove.forEach((id) => {
-        this.removeEntity(id);
+        this._removeEntityById(id);
       });
+    } else if (entityId.sceneId) {
+      const entities = this._mapSceneIdToEntities.get(entityId.sceneId);
+      if (entities) {
+        entities.forEach((entity) => {
+          this._removeEntityById(entity.id);
+        });
+      }
+    }
+  }
+
+  /**
+   * Removes an entity by its ID and updates all relevant maps.
+   * @param {string} entityId - The ID of the entity to remove.
+   * @private
+   */
+  private _removeEntityById(entityId: string) {
+    const entity = this._entities.get(entityId);
+    if (!entity) return;
+
+    this._entities.delete(entityId);
+
+    if (entity.label) {
+      this._mapLabelToEntityId.delete(entity.label);
+    }
+
+    if (entity.groups) {
+      entity.groups.forEach((group) => {
+        const entities = this._mapGroupIdToEntities.get(group);
+        if (entities) {
+          const index = entities.findIndex((e) => e.id === entityId);
+          if (index !== -1) {
+            entities.splice(index, 1);
+            if (entities.length === 0) {
+              this._mapGroupIdToEntities.delete(group);
+            }
+          }
+        }
+      });
+    }
+
+    if (entity.sceneId) {
+      const entities = this._mapSceneIdToEntities.get(entity.sceneId);
+      if (entities) {
+        const index = entities.findIndex((e) => e.id === entityId);
+        if (index !== -1) {
+          entities.splice(index, 1);
+          if (entities.length === 0) {
+            this._mapSceneIdToEntities.delete(entity.sceneId);
+          }
+        }
+      }
     }
   }
 

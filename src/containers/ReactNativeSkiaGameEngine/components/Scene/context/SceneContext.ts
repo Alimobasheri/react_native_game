@@ -43,6 +43,10 @@ export interface IScenContextValue {
    */
   registerScene: (name: string, isActive: boolean) => void;
   /**
+   * The anme of the scene that is rendering this sceneProvider
+   **/
+  name: string;
+  /**
    * Reference Of the camera registered for the current Scene.
    */
   sceneCamera: Camera | null;

@@ -1,9 +1,11 @@
 import { Camera } from '@/containers/ReactNativeSkiaGameEngine/types';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
 import { SharedValue } from 'react-native-reanimated';
 import { ISceneTransitionState } from '../types/transitions';
+import { RNSGEContext } from '@/containers/ReactNativeSkiaGameEngine/context';
 
 export interface IUseSceneProviderArgs {
+  name: string;
   camera?: Camera;
   sceneTransitionState?: SharedValue<ISceneTransitionState>;
 }
@@ -28,9 +30,14 @@ export interface IUseSceneProviderArgs {
  * disableScene('level2');
  */
 export const useSceneProvider = ({
+  name,
   camera,
   sceneTransitionState,
 }: IUseSceneProviderArgs) => {
+  const rnsgeContext = useContext(RNSGEContext);
+  if (!rnsgeContext) {
+    throw new Error('useSceneProvider must be used within a RNSGEContext');
+  }
   const [activeScenes, setActiveScenes] = useState<Record<string, boolean>>({});
   const [sceneHistory, setSceneHistory] = useState<string[]>([]);
   const [sceneCamera, setSceneCamera] = useState<Camera | null>(camera || null);
@@ -98,7 +105,14 @@ export const useSceneProvider = ({
     setSceneCamera(camera || null);
   }, [sceneCamera]);
 
+  useEffect(() => {
+    return () => {
+      rnsgeContext.entities.current.removeEntity({ sceneId: name });
+    };
+  });
+
   return {
+    name,
     activeScenes,
     sceneCamera,
     sceneTransitionState: sceneTransition,
