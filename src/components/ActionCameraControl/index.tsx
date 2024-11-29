@@ -47,9 +47,9 @@ export const ActionCameraControl = () => {
     { processor: (value) => value?.angle ?? 0 }
   );
 
-  const isRunning = useEntityMemoizedValue<State, boolean>(
+  const isHomeScene = useEntityMemoizedValue<State, boolean>(
     stateEntity?.current?.id as string,
-    'isRunning'
+    'isHomeScene'
   );
 
   useEffect(() => {
@@ -58,57 +58,12 @@ export const ActionCameraControl = () => {
       removeAnimation(registeredScaleXAnimation.value);
     if (registeredScaleYAnimation.value)
       removeAnimation(registeredScaleYAnimation.value);
-    if (isRunning) {
-      registeredScaleXAnimation.value = registerAnimation(
-        camera.scaleX,
-        createTimingAnimation(
-          camera.scaleX.value,
-          1.2,
-          ScaleAnimationDuration,
-          easeInOutQuad
-        ),
-        { duration: ScaleAnimationDuration, removeOnComplete: true }
-      );
-      registeredScaleYAnimation.value = registerAnimation(
-        camera.scaleY,
-        createTimingAnimation(
-          camera.scaleY.value,
-          1.2,
-          ScaleAnimationDuration,
-          easeInOutQuad
-        ),
-        { duration: ScaleAnimationDuration, removeOnComplete: true }
-      );
-    }
-  }, [isRunning, camera]);
 
-  useEffect(() => {
-    if (!camera) return;
-    if (registeredTranslateAnimation.value)
-      removeAnimation(registeredTranslateAnimation.value);
-    registeredTranslateAnimation.value = registerAnimation(
-      camera.translateY,
-      createTimingAnimation(
-        camera.translateY.value,
-        0,
-        TranslateAnimationDuration,
-        easeInOutQuad
-      ),
-      {
-        delay: 1000,
-        duration: TranslateAnimationDuration,
-        removeOnComplete: true,
-      }
-    );
-    if (registeredScaleXAnimation.value)
-      removeAnimation(registeredScaleXAnimation.value);
-    if (registeredScaleYAnimation.value)
-      removeAnimation(registeredScaleYAnimation.value);
     registeredScaleXAnimation.value = registerAnimation(
       camera.scaleX,
       createTimingAnimation(
         camera.scaleX.value,
-        1.5,
+        isHomeScene ? 1.5 : 1.2,
         ScaleAnimationDuration,
         easeInOutQuad
       ),
@@ -118,17 +73,41 @@ export const ActionCameraControl = () => {
       camera.scaleY,
       createTimingAnimation(
         camera.scaleY.value,
-        1.5,
+        isHomeScene ? 1.5 : 1.2,
         ScaleAnimationDuration,
         easeInOutQuad
       ),
       { duration: ScaleAnimationDuration, removeOnComplete: true }
     );
-  }, []);
+
+    if (registeredTranslateAnimation.value)
+      removeAnimation(registeredTranslateAnimation.value);
+    if (camera.translateY.value !== 0) {
+      registeredTranslateAnimation.value = registerAnimation(
+        camera.translateY,
+        createTimingAnimation(
+          camera.translateY.value,
+          0,
+          TranslateAnimationDuration,
+          easeInOutQuad
+        ),
+        {
+          delay: 1000,
+          duration: TranslateAnimationDuration,
+          removeOnComplete: true,
+        }
+      );
+    }
+  }, [isHomeScene, camera]);
 
   useFrameEffect(
     () => {
-      if (!camera || !shipAngle) return;
+      if (!camera || !shipAngle) {
+        if (camera && camera.rotate.value !== 0) {
+          camera.rotate.value = 0;
+        }
+        return;
+      }
       if (registeredAnimation.value) removeAnimation(registeredAnimation.value);
       registeredAnimation.value = registerAnimation(
         camera.rotate,
