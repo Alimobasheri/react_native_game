@@ -11,6 +11,7 @@ import { SHIP_BUILDS } from '@/constants/ships';
 import { EntityRendererProps } from '@/constants/views';
 import {
   Entity,
+  system,
   useAddEntity,
   useCanvasDimensions,
   useEntityInstance,
@@ -31,7 +32,14 @@ import {
   useImage,
 } from '@shopify/react-native-skia';
 import Matter from 'matter-js';
-import { FC, memo, MutableRefObject, useMemo, useRef } from 'react';
+import {
+  FC,
+  memo,
+  MutableRefObject,
+  useCallback,
+  useMemo,
+  useRef,
+} from 'react';
 import { TranslateXTransform, useWindowDimensions } from 'react-native';
 import { SharedValue, useDerivedValue } from 'react-native-reanimated';
 
@@ -124,15 +132,14 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
     ];
   }, [angle.value, translateX.value, translateY.value]);
 
-  const shipSystem = new ShipSystem();
-
-  useSystem((entities, args) => {
-    shipSystem.systemInstanceRNSGE(entities, args, shipEntity);
-  });
-
-  useSystem((entities, args) => {
-    const ship = entities.entities.get(shipEntity.id) as Entity<Ship>;
-  });
+  const shipSystem = useMemo(() => new ShipSystem(), []);
+  const systemCallback: system = useCallback(
+    (entities, args) => {
+      shipSystem.systemInstanceRNSGE(entities, args, shipEntity);
+    },
+    [shipSystem]
+  );
+  useSystem(systemCallback);
 
   useFrameEffect(() => {
     if (!found) return;
