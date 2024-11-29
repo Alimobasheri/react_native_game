@@ -11,19 +11,19 @@ export const MAXIMUM_INITIAL_FREQUENCY = 10;
 
 export const layerFlowConfigs = [
   {
-    flowAmplitude: 0.4,
-    flowFrequency: 16,
-    flowSpeed: 0.4,
-  },
-  {
     flowAmplitude: 0.6,
-    flowFrequency: 12,
-    flowSpeed: 0.2,
+    flowFrequency: 22,
+    flowSpeed: 0.8,
   },
   {
-    flowAmplitude: 0.1,
-    flowFrequency: 6,
-    flowSpeed: 0.12,
+    flowAmplitude: 0.8,
+    flowFrequency: 16,
+    flowSpeed: 0.6,
+  },
+  {
+    flowAmplitude: 0.3,
+    flowFrequency: 10,
+    flowSpeed: 0.2,
   },
 ];
 

@@ -311,7 +311,7 @@ export class PhysicsSystem implements IPhysicsSystem {
       const targetAngle = Math.atan(averageSlope);
       const diffAngle = targetAngle - body.angle;
       if (Math.abs(diffAngle) > 0.01) {
-        Matter.Body.setAngle(body, body.angle + diffAngle * 0.2);
+        Matter.Body.setAngle(body, body.angle + diffAngle * 0.5);
       }
     }
   }
