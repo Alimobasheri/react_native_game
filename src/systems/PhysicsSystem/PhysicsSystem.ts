@@ -43,7 +43,7 @@ export class PhysicsSystem implements IPhysicsSystem {
   protected update(entities: Entities, args: RNGE_System_Args): void {
     const { time } = args;
     this.updateBuoyantVehicles(entities, args);
-    Matter.Engine.update(this._engine, time.delta);
+    Matter.Engine.update(this._engine);
   }
 
   protected updateBuoyantVehicles(
@@ -91,6 +91,7 @@ export class PhysicsSystem implements IPhysicsSystem {
       // );
 
       this.applyBuoyantForce(
+        args,
         body,
         size,
         submergedDepth,
@@ -197,6 +198,7 @@ export class PhysicsSystem implements IPhysicsSystem {
     };
   }
   protected applyBuoyantForce(
+    args: RNGE_System_Args,
     body: Matter.Body,
     size: number[],
     submergedDepth: number,
@@ -206,13 +208,13 @@ export class PhysicsSystem implements IPhysicsSystem {
   ): void {
     if (submergedArea > 0) {
       this.applyAngleByWave(submergedDepth, body, sea);
-      for (let i = 0; i <= 100; i++) {
-        const x = i * (size[0] / 100) + body.bounds.min.x;
+      for (let i = 0; i <= 30; i++) {
+        const x = i * (size[0] / 30) + body.bounds.min.x;
         if (x > body.bounds.max.x) break;
         const force = sea.getForceAtPoint(x);
         const y = sea.getWaterSurfaceAndMaxHeightAtPoint(x).y;
         if (y > body.bounds.max.y) break;
-        const pointWidth = (body.bounds.max.x - body.bounds.min.x) / 100;
+        const pointWidth = (body.bounds.max.x - body.bounds.min.x) / 30;
         force.y = force.y * pointWidth;
         const seaForce = { force, position: { x, y } };
         Matter.Body.applyForce(body, seaForce.position, seaForce.force);
@@ -309,7 +311,7 @@ export class PhysicsSystem implements IPhysicsSystem {
       const targetAngle = Math.atan(averageSlope);
       const diffAngle = targetAngle - body.angle;
       if (Math.abs(diffAngle) > 0.01) {
-        Matter.Body.setAngle(body, body.angle + diffAngle * 0.5);
+        Matter.Body.setAngle(body, body.angle + diffAngle * 0.2);
       }
     }
   }
