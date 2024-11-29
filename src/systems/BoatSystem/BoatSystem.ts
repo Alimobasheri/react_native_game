@@ -16,10 +16,15 @@ import { VEHICLE_TYPE_IDENTIFIERS } from '@/constants/vehicle';
 import { GameLoopSystem } from '../GameLoopSystem/GameLoopSystem';
 import { GAME_STATE } from '../GameLoopSystem/types';
 import { Sea } from '@/Game/Entities/Sea/Sea';
-import { Entities, Entity } from '@/containers/ReactNativeSkiaGameEngine';
+import {
+  Entities,
+  Entity,
+  EntityChangeComparison,
+} from '@/containers/ReactNativeSkiaGameEngine';
 import { MutableRefObject } from 'react';
 import { State } from '@/Game/Entities/State/State';
 import { BOAT_SINKED_EVENT } from '@/constants/events';
+import { Scenes } from '@/constants/scenes';
 
 export class BoatSystem implements IBoatSystem {
   protected _boatFactory: BoatFactory;
@@ -55,11 +60,12 @@ export class BoatSystem implements IBoatSystem {
     let gameState = GAME_STATE.RUNNING;
     this._killedBoatsInFrame = [];
     const boats = this._findBoatsInEntities(entities);
-    if (!this.isAnyBoatAttacking(boats) && gameState === GAME_STATE.RUNNING) {
+    if (!this.isAnyBoatAttacking(boats) && state.isRunning === true) {
+      console.log('🚀 ~ BoatSystem ~ update ~ state:', state.isRunning);
       this.spawnBoat(entities, args);
     } else {
       boats.forEach((boat) => {
-        if (gameState !== GAME_STATE.RUNNING) boat.data.isSinked = true;
+        if (!state.isRunning) boat.data.isSinked = true;
         if (this.isBoatKilled(boat.data)) {
           this._killedBoatsInFrame.push(boat);
         } else {
@@ -120,9 +126,12 @@ export class BoatSystem implements IBoatSystem {
     });
     if (boat?.body) {
       physicsSystem.data.current.addBodyToWorld(boat?.body);
-      entities.addEntity(new Entity<Boat>(boat), {
-        groups: [ENTITIES_KEYS.BOAT_GROUP, BUOYANTS_GROUP, VEHICLES_GROUP],
-      });
+      entities.addEntity(
+        new Entity<Boat>(boat, {
+          groups: [ENTITIES_KEYS.BOAT_GROUP, BUOYANTS_GROUP, VEHICLES_GROUP],
+          sceneId: Scenes.GamePlay,
+        })
+      );
     }
   }
 

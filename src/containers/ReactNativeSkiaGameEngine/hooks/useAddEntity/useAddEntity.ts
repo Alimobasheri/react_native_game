@@ -36,8 +36,8 @@ export function useAddEntity<T extends Record<string, any>>(
   }
 
   const entity = useMemo(() => {
-    const entityInstance = new Entity<T>(data);
-    context.entities.current.addEntity(entityInstance, { ...options, sceneId });
+    const entityInstance = new Entity<T>(data, { ...options, sceneId });
+    context.entities.current.addEntity(entityInstance);
     return entityInstance;
   }, []);
 

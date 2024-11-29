@@ -109,18 +109,17 @@ export class Entities extends EventEmitter {
   }
 
   /**
-   * Adds a new entity to the collection and optionally associates it with a label, groups, and/or sceneId.
+   * Adds a new entity to the collection.
    * @param {Entity<any>} entity - The entity to add.
-   * @param {IEntityOptions} [options] - Optional configurations for the entity.
    * @fires AddEntityEvent
    */
-  public addEntity(entity: Entity<any>, options?: IEntityOptions) {
+  public addEntity(entity: Entity<any>) {
     this._entities.set(entity.id, entity);
-    if (options?.label) {
-      this._mapLabelToEntityId.set(options.label, entity.id);
+    if (entity.label) {
+      this._mapLabelToEntityId.set(entity.label, entity.id);
     }
-    if (options?.groups) {
-      for (const group of options.groups) {
+    if (entity?.groups) {
+      for (const group of entity.groups) {
         if (!this._mapGroupIdToEntities.has(group)) {
           this._mapGroupIdToEntities.set(group, []);
         }
@@ -180,12 +179,10 @@ export class Entities extends EventEmitter {
     const entity = this._entities.get(entityId);
     if (!entity) return;
 
-    this._entities.delete(entityId);
-
     if (entity.label) {
       this._mapLabelToEntityId.delete(entity.label);
     }
-
+    console.log(entity.groups);
     if (entity.groups) {
       entity.groups.forEach((group) => {
         const entities = this._mapGroupIdToEntities.get(group);
@@ -213,6 +210,8 @@ export class Entities extends EventEmitter {
         }
       }
     }
+
+    this._entities.delete(entityId);
   }
 
   /**
