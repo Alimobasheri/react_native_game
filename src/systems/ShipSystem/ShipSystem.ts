@@ -35,7 +35,6 @@ export class ShipSystem implements IShipSystem {
     ship.data.update(entities, args);
     ship.data.removeAllListeners('isSinkedChange');
     ship.addListener('isSinkedChange', (isSinked) => {
-      console.log('🚀 ~ ShipSystem ~ ship.addListener ~ isSinked:', isSinked);
       if (isSinked) {
         args.dispatcher.emitEvent(SHIP_SINKED_EVENT(ship.data));
       }

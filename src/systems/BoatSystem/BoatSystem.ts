@@ -61,7 +61,6 @@ export class BoatSystem implements IBoatSystem {
     this._killedBoatsInFrame = [];
     const boats = this._findBoatsInEntities(entities);
     if (!this.isAnyBoatAttacking(boats) && state.isRunning === true) {
-      console.log('🚀 ~ BoatSystem ~ update ~ state:', state.isRunning);
       this.spawnBoat(entities, args);
     } else {
       boats.forEach((boat) => {

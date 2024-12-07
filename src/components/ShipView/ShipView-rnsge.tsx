@@ -24,9 +24,13 @@ import { useReRenderCount } from '@/hooks/useReRenderCount';
 import { PhysicsSystem } from '@/systems/PhysicsSystem/PhysicsSystem';
 import { ShipSystem } from '@/systems/ShipSystem/ShipSystem';
 import {
+  Canvas,
   Group,
   Image,
   ImageProps,
+  ImageShader,
+  Rect,
+  Skia,
   SkiaProps,
   Transforms2d,
   useImage,
@@ -41,7 +45,11 @@ import {
   useRef,
 } from 'react';
 import { TranslateXTransform, useWindowDimensions } from 'react-native';
-import { SharedValue, useDerivedValue } from 'react-native-reanimated';
+import {
+  SharedValue,
+  useDerivedValue,
+  useSharedValue,
+} from 'react-native-reanimated';
 
 export interface IShipViewProps {
   seaEntityId: string;
@@ -64,6 +72,10 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
 
   const { width: windowWidth } = useCanvasDimensions();
 
+  const numebrOfFrames = 1;
+  const numebrOfCols = 1;
+  const numebrOfRows = 1;
+
   const shipFactoryRef = useRef<ShipFactory>(new ShipFactory({ windowWidth }));
 
   const initialX = useMemo(() => windowWidth / 2, [windowWidth]);
@@ -75,7 +87,7 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
   const shipData = useMemo(
     () =>
       shipFactoryRef.current.create({
-        type: SHIP_BUILDS.WAR_SHIP,
+        type: SHIP_BUILDS.FisherBoat,
         x: initialX,
         y: initialY,
         createdTime: global.nativePerformanceNow(),
@@ -93,6 +105,7 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
       return body.position.x;
     },
   }) as SharedValue<number>;
+  console.log('🚀 ~ x:', x.value);
 
   const y = useEntityValue<Ship, number>(shipEntity.id, 'body', {
     processor: (body: Matter.Body | undefined) => {
@@ -100,6 +113,7 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
       return body.position.y;
     },
   }) as SharedValue<number>;
+  console.log('🚀 ~ y:', y.value);
 
   const angle = useEntityValue<Ship, number>(shipEntity.id, 'body', {
     processor: (body: Matter.Body | undefined) => {
@@ -150,20 +164,94 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
     addedBodyToWorld.current = true;
   }, [found]);
 
+  const frameWidth = useDerivedValue(() => {
+    return size.value[0] / numebrOfCols;
+  }, [size.value]);
+  const frameHeight = useDerivedValue(() => {
+    return size.value[1] / numebrOfRows;
+  }, [size.value]);
+
+  // The current frame to display (can be updated based on game logic)
+  const frameIndex = useSharedValue(0);
+
+  useFrameEffect(
+    () => {
+      frameIndex.value = (frameIndex.value + 1) % numebrOfFrames;
+    },
+    [],
+    90
+  );
+
+  const groupClip = useDerivedValue(() => {
+    const width = size.value[0] / numebrOfCols;
+    const height = size.value[1] / numebrOfRows;
+    return {
+      rect: {
+        x: initialX - width / 2,
+        y: initialY - height / 2,
+        width,
+        height,
+      },
+      rx: 0,
+      ry: 0,
+    };
+  }, [size.value]);
+
+  const spriteRect = useDerivedValue(() => {
+    const width = size.value[0] / numebrOfCols;
+    const height = size.value[1] / numebrOfRows;
+    return {
+      x: initialX - width / 2,
+      y: initialY - height / 2,
+      width: size.value[0],
+      height: size.value[1],
+    };
+  }, [initialX, initialY, size.value]);
+
+  const spriteTransform = useDerivedValue(() => {
+    return [
+      {
+        translateX: -(frameIndex.value % numebrOfCols) * frameWidth.value,
+      },
+      {
+        translateY:
+          -Math.floor(frameIndex.value / numebrOfCols) * frameHeight.value,
+      },
+    ];
+  }, [frameWidth.value, frameHeight.value, frameIndex]);
+
   if (!size.value) return null;
 
-  const boatImage = useImage(require('../../../assets/warship.png'));
+  const boatImage = useImage(require('../../../assets/fisher_boat3.png'));
   if (!boatImage) return null;
 
   return (
     <Group origin={origin} transform={transform}>
-      <ShipImage
+      {/* <ShipImage
         image={boatImage}
         x={initialX - size.value[0] / 2}
         y={initialY - size.value[1] / 2}
         width={size.value[0]}
         height={size.value[1]}
+      /> */}
+      <Rect
+        x={initialX - size.value[0] / numebrOfCols / 2}
+        y={initialY - size.value[1] / numebrOfRows / 2}
+        width={size.value[0] / numebrOfCols}
+        height={size.value[1] / numebrOfRows}
+        color={'rgba(0, 0, 0, 1)'}
+        style={'stroke'}
       />
+      <Group clip={groupClip}>
+        <Image
+          image={boatImage}
+          width={size.value[0]}
+          height={size.value[1]}
+          rect={spriteRect}
+          transform={spriteTransform}
+        />
+      </Group>
+
       {/* <Shadow
         dx={size[0] / 4}
         dy={size[1] / 4}
