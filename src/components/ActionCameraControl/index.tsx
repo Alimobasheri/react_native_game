@@ -83,20 +83,24 @@ export const ActionCameraControl = () => {
     if (registeredTranslateAnimation.value)
       removeAnimation(registeredTranslateAnimation.value);
     if (camera.translateY.value !== 0) {
-      registeredTranslateAnimation.value = registerAnimation(
-        camera.translateY,
-        createTimingAnimation(
-          camera.translateY.value,
-          0,
-          TranslateAnimationDuration,
-          easeInOutQuad
-        ),
-        {
-          delay: 1000,
-          duration: TranslateAnimationDuration,
-          removeOnComplete: true,
-        }
-      );
+      if (isHomeScene) {
+        registeredTranslateAnimation.value = registerAnimation(
+          camera.translateY,
+          createTimingAnimation(
+            camera.translateY.value,
+            0,
+            TranslateAnimationDuration,
+            easeInOutQuad
+          ),
+          {
+            delay: 1000,
+            duration: TranslateAnimationDuration,
+            removeOnComplete: true,
+          }
+        );
+      } else {
+        camera.translateY.value = 0;
+      }
     }
   }, [isHomeScene, camera]);
 

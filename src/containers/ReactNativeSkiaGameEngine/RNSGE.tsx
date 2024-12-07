@@ -99,7 +99,7 @@ export const ReactNativeSkiaGameEngine = memo(
             }) => setDimensions({ width, height })}
           >
             <RNSGEContext.Provider value={value}>
-              <SceneProvider>
+              <SceneProvider name="root">
                 {dimensions.width !== null && dimensions.height !== null && (
                   <MemoizedContainer>{children}</MemoizedContainer>
                 )}

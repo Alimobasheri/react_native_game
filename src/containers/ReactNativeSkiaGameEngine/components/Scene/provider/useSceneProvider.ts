@@ -3,6 +3,7 @@ import { useCallback, useContext, useEffect, useState } from 'react';
 import { SharedValue } from 'react-native-reanimated';
 import { ISceneTransitionState } from '../types/transitions';
 import { RNSGEContext } from '@/containers/ReactNativeSkiaGameEngine/context';
+import { useTouchHandler } from '@/containers/ReactNativeSkiaGameEngine/hooks';
 
 export interface IUseSceneProviderArgs {
   name: string;
@@ -38,6 +39,7 @@ export const useSceneProvider = ({
   if (!rnsgeContext) {
     throw new Error('useSceneProvider must be used within a RNSGEContext');
   }
+  const { removeGesture } = useTouchHandler();
   const [activeScenes, setActiveScenes] = useState<Record<string, boolean>>({});
   const [sceneHistory, setSceneHistory] = useState<string[]>([]);
   const [sceneCamera, setSceneCamera] = useState<Camera | null>(camera || null);
@@ -108,8 +110,10 @@ export const useSceneProvider = ({
   useEffect(() => {
     return () => {
       rnsgeContext.entities.current.removeEntity({ sceneId: name });
+      rnsgeContext.systems.current.removeSystem({ sceneId: name });
+      removeGesture({ sceneId: name });
     };
-  });
+  }, []);
 
   return {
     name,

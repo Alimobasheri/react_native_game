@@ -1,4 +1,4 @@
-import React, { FC, PropsWithChildren } from 'react';
+import React, { FC, PropsWithChildren, useMemo } from 'react';
 import { useSceneContext } from './hooks/useSceneContext';
 import { useSceneTransition } from './hooks/useSceneTransition';
 import { SceneProvider } from './provider';
@@ -9,6 +9,7 @@ import {
 } from '../../hooks/useCreateCamera';
 import { useDerivedValue } from 'react-native-reanimated';
 import { SceneTransition } from './types/transitions';
+import { MemoizedContainer } from '../MemoizedContainer';
 
 export interface ISceneProps extends PropsWithChildren {
   defaultSceneName: string;
@@ -160,8 +161,13 @@ export const Scene: FC<ISceneProps> = ({
     defaultCamera.rotate,
   ]);
 
-  return currentIsActive || isTransitioning ? (
+  const show = useMemo(() => {
+    return currentIsActive || isTransitioning;
+  }, [currentIsActive, isTransitioning]);
+
+  return show ? (
     <SceneProvider
+      key={defaultSceneName}
       name={defaultSceneName}
       camera={defaultCamera}
       sceneTransitionState={sceneTransitionState}
@@ -172,7 +178,7 @@ export const Scene: FC<ISceneProps> = ({
         opacity={defaultCamera.opacity}
         {...rootComponentProps}
       >
-        {children}
+        <MemoizedContainer>{children}</MemoizedContainer>
       </RootComponent>
     </SceneProvider>
   ) : null;

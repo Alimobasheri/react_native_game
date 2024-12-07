@@ -5,6 +5,7 @@ import { GestureItem } from '../../types/gestures';
 interface IGestureOptions {
   label?: string;
   groups?: string[];
+  sceneId?: string;
 }
 
 /**
@@ -44,6 +45,7 @@ export const useTouchService = () => {
   const gesturesMap = useRef<Map<string, GestureItem>>(new Map());
   const labelToGestureIdMap = useRef<Map<string, string>>(new Map());
   const groupToGestureMap = useRef<Map<string, string[]>>(new Map());
+  const sceneIdToGesturesMap = useRef<Map<string, string[]>>(new Map());
 
   const [gestures, setGestures] = useState<GestureItem[]>([]);
 
@@ -60,7 +62,6 @@ export const useTouchService = () => {
     (gesture: GestureItem, options?: IGestureOptions): string => {
       const id = uid(); // Generate unique ID
       gesturesMap.current.set(id, gesture);
-
       // If a label is provided, map it to the gesture ID
       if (options?.label) {
         labelToGestureIdMap.current.set(options.label, id);
@@ -76,6 +77,13 @@ export const useTouchService = () => {
         });
       }
 
+      if (options?.sceneId) {
+        if (!sceneIdToGesturesMap.current.has(options.sceneId)) {
+          sceneIdToGesturesMap.current.set(options.sceneId, []);
+        }
+        sceneIdToGesturesMap.current.get(options.sceneId)?.push(id);
+      }
+
       composeGestures();
       return id;
     },
@@ -83,7 +91,11 @@ export const useTouchService = () => {
   );
 
   const removeGesture = useCallback(
-    (identifier: string | { label?: string; groups?: string[] }) => {
+    (
+      identifier:
+        | string
+        | { label?: string; groups?: string[]; sceneId?: string }
+    ) => {
       let idsToRemove: string[] = [];
 
       if (typeof identifier === 'string') {
@@ -107,6 +119,16 @@ export const useTouchService = () => {
               groupToGestureMap.current.delete(group);
             }
           });
+        }
+
+        if (identifier.sceneId) {
+          const sceneGestures = sceneIdToGesturesMap.current.get(
+            identifier.sceneId
+          );
+          if (sceneGestures) {
+            idsToRemove.push(...sceneGestures);
+            sceneIdToGesturesMap.current.delete(identifier.sceneId);
+          }
         }
       }
 
