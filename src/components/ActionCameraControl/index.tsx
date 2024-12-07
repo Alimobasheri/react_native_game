@@ -52,8 +52,14 @@ export const ActionCameraControl = () => {
     'isHomeScene'
   );
 
+  const isGamePlayExited = useEntityMemoizedValue<State, boolean>(
+    stateEntity?.current?.id as string,
+    'isGamePlayExited'
+  );
+
   useEffect(() => {
     if (!camera) return;
+    if (isGamePlayExited) return;
     if (registeredScaleXAnimation.value)
       removeAnimation(registeredScaleXAnimation.value);
     if (registeredScaleYAnimation.value)
@@ -63,11 +69,14 @@ export const ActionCameraControl = () => {
       camera.scaleX,
       createTimingAnimation(
         camera.scaleX.value,
-        isHomeScene ? 1.5 : 1.2,
-        ScaleAnimationDuration,
+        isHomeScene ? 1.5 : 1.1,
+        ScaleAnimationDuration / (isHomeScene ? 2 : 1),
         easeInOutQuad
       ),
-      { duration: ScaleAnimationDuration, removeOnComplete: true }
+      {
+        duration: ScaleAnimationDuration / (isHomeScene ? 2 : 1),
+        removeOnComplete: true,
+      }
     );
     registeredScaleYAnimation.value = registerAnimation(
       camera.scaleY,
