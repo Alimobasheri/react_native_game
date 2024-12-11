@@ -3,6 +3,7 @@ export interface IGameState {
   isGameOver: boolean;
   isPaused: boolean;
   isGamePlayExited: boolean;
+  isHomeScene: boolean;
 }
 
 export class State {
@@ -10,12 +11,14 @@ export class State {
   private _isGameOver: boolean;
   private _isPaused: boolean;
   private _isGamePlayExited: boolean;
+  private _isHomeScene: boolean;
 
   constructor(initialState: IGameState) {
     this._isRunning = initialState.isRunning;
     this._isGameOver = initialState.isGameOver;
     this._isPaused = initialState.isPaused;
     this._isGamePlayExited = initialState.isGamePlayExited;
+    this._isHomeScene = initialState.isHomeScene;
   }
 
   get isRunning(): boolean {
@@ -55,6 +58,16 @@ export class State {
   set isGamePlayExited(value: boolean) {
     if (this._isGamePlayExited !== value) {
       this._isGamePlayExited = value;
+    }
+  }
+
+  get isHomeScene(): boolean {
+    return this._isHomeScene;
+  }
+
+  set isHomeScene(value: boolean) {
+    if (this._isHomeScene !== value) {
+      this._isHomeScene = value;
     }
   }
 }

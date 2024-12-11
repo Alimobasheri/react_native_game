@@ -95,7 +95,7 @@ export const Scene: FC<ISceneProps> = ({
   children,
   enter = null,
   exit = null,
-  transitionConfig = { duration: 500 },
+  transitionConfig = { duration: 0 },
   x = 0,
   y = 0,
   width = 300,
@@ -165,21 +165,25 @@ export const Scene: FC<ISceneProps> = ({
     return currentIsActive || isTransitioning;
   }, [currentIsActive, isTransitioning]);
 
-  return show ? (
+  return (
     <SceneProvider
       key={defaultSceneName}
       name={defaultSceneName}
       camera={defaultCamera}
       sceneTransitionState={sceneTransitionState}
+      currentIsActive={currentIsActive}
+      currentIsTransitioning={isTransitioning}
     >
-      <RootComponent
-        clip={defaultCameraClip}
-        transform={defaultCameraTransform}
-        opacity={defaultCamera.opacity}
-        {...rootComponentProps}
-      >
-        <MemoizedContainer>{children}</MemoizedContainer>
-      </RootComponent>
+      {show ? (
+        <RootComponent
+          clip={defaultCameraClip}
+          transform={defaultCameraTransform}
+          opacity={defaultCamera.opacity}
+          {...rootComponentProps}
+        >
+          {children}
+        </RootComponent>
+      ) : null}
     </SceneProvider>
-  ) : null;
+  );
 };

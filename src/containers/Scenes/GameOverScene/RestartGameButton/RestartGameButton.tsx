@@ -92,7 +92,7 @@ export const RestartGameButton: FC<IRestartGameButtonProps> = ({ x, y }) => {
         removeAnimation(shineAnimation);
       }
     };
-  }, [font, registerAnimation, removeAnimation]);
+  }, [font]);
 
   const transform = useDerivedValue(() => {
     return [{ translateY: translateY.value }];

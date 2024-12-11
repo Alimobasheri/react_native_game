@@ -9,6 +9,8 @@ export interface IUseSceneProviderArgs {
   name: string;
   camera?: Camera;
   sceneTransitionState?: SharedValue<ISceneTransitionState>;
+  currentIsActive?: boolean;
+  currentIsTransitioning?: boolean;
 }
 
 /**
@@ -34,6 +36,8 @@ export const useSceneProvider = ({
   name,
   camera,
   sceneTransitionState,
+  currentIsActive,
+  currentIsTransitioning,
 }: IUseSceneProviderArgs) => {
   const rnsgeContext = useContext(RNSGEContext);
   if (!rnsgeContext) {
@@ -108,12 +112,19 @@ export const useSceneProvider = ({
   }, [sceneCamera]);
 
   useEffect(() => {
-    return () => {
+    if (!currentIsActive && !currentIsTransitioning) {
       rnsgeContext.entities.current.removeEntity({ sceneId: name });
       rnsgeContext.systems.current.removeSystem({ sceneId: name });
       removeGesture({ sceneId: name });
-    };
-  }, []);
+      Object.entries(activeScenes).forEach(([sceneName, isActive]) => {
+        if (isActive) {
+          rnsgeContext.entities.current.removeEntity({ sceneId: sceneName });
+          rnsgeContext.systems.current.removeSystem({ sceneId: sceneName });
+          removeGesture({ sceneId: sceneName });
+        }
+      });
+    }
+  }, [currentIsActive, currentIsTransitioning]);
 
   return {
     name,

@@ -9,6 +9,8 @@ export interface ISceneProviderProps {
   name: string;
   camera?: Camera;
   sceneTransitionState?: SharedValue<ISceneTransitionState>;
+  currentIsActive?: boolean;
+  currentIsTransitioning?: boolean;
 }
 
 /**
@@ -30,9 +32,17 @@ export const SceneProvider: FC<PropsWithChildren<ISceneProviderProps>> = ({
   name,
   camera,
   sceneTransitionState,
+  currentIsActive,
+  currentIsTransitioning,
   children,
 }) => {
-  const value = useSceneProvider({ name, camera, sceneTransitionState });
+  const value = useSceneProvider({
+    name,
+    camera,
+    sceneTransitionState,
+    currentIsActive,
+    currentIsTransitioning,
+  });
   return (
     <SceneContext.Provider value={value}>{children}</SceneContext.Provider>
   );
