@@ -34,8 +34,17 @@ export const MainScene: FC<PropsWithChildren> = ({ children }) => {
   });
 
   useEventListener(GAME_OVER_EVENT.type, () => {
-    stateEntityInstance.data.isGameOver = true;
-    stateEntityInstance.data.isRunning = false;
+    if (
+      stateEntityInstance.data.isGamePlayExited ||
+      !stateEntityInstance.data.isRunning ||
+      stateEntityInstance.data.isGameOver
+    )
+      return;
+    stateEntityInstance.data.state = {
+      ...stateEntityInstance.data.state,
+      isGameOver: true,
+      isRunning: false,
+    };
   });
   useEventListener(BUOYANT_VEHICLE_SINKED_EVENT_TYPE, (data: GameEvent) => {
     if (data.data.type === VEHICLE_TYPE_IDENTIFIERS.SHIP) {
@@ -48,7 +57,6 @@ export const MainScene: FC<PropsWithChildren> = ({ children }) => {
     stateEntityInstance.data.isGamePlayExited = true;
     setTimeout(() => {
       stateEntityInstance.data.isGamePlayExited = false;
-      stateEntityInstance.data.isRunning = true;
     }, 500);
   });
   return (
@@ -58,15 +66,7 @@ export const MainScene: FC<PropsWithChildren> = ({ children }) => {
       height={height || 0}
       isActive={true}
     >
-      <GamePlayScene>
-        <SkyBackground />
-        <StarsView />
-        <SeaGroup />
-        <Physics />
-        <Collisions />
-        <Swipe />
-        <ActionCameraControl />
-      </GamePlayScene>
+      <GamePlayScene></GamePlayScene>
       <StartingScene />
       <GameOverScene />
     </Scene>

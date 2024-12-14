@@ -21,6 +21,24 @@ export class State {
     this._isHomeScene = initialState.isHomeScene;
   }
 
+  get state(): IGameState {
+    return {
+      isRunning: this._isRunning,
+      isGameOver: this._isGameOver,
+      isPaused: this._isPaused,
+      isGamePlayExited: this._isGamePlayExited,
+      isHomeScene: this._isHomeScene,
+    };
+  }
+
+  set state(value: IGameState) {
+    this._isRunning = value.isRunning;
+    this._isGameOver = value.isGameOver;
+    this._isPaused = value.isPaused;
+    this._isGamePlayExited = value.isGamePlayExited;
+    this._isHomeScene = value.isHomeScene;
+  }
+
   get isRunning(): boolean {
     return this._isRunning;
   }

@@ -1,6 +1,6 @@
-import { useCanvasDimensions } from "@/containers/ReactNativeSkiaGameEngine";
-import { Rect, Skia, TileMode } from "@shopify/react-native-skia";
-import { useWindowDimensions } from "react-native";
+import { useCanvasDimensions } from '@/containers/ReactNativeSkiaGameEngine';
+import { Rect, Skia, TileMode } from '@shopify/react-native-skia';
+import { useWindowDimensions } from 'react-native';
 
 export const SkyBackground = () => {
   const { width: windowWidth, height: windowHeight } = useCanvasDimensions();
@@ -20,36 +20,58 @@ export const SkyBackground = () => {
   // ];
 
   // const colors = [
-  //   "#87CEEB", // Light blue
-  //   "#ADD8E6",
-  //   "#B0E0E6",
-  //   "#AFEEEE",
-  //   "#E0FFFF",
-  //   "#E0FFD1",
-  //   "#F0E68C",
-  //   "#FFFFE0",
-  //   "#FFFFF0", // Very light green/yellow
+  //   '#87CEEB', // Light blue
+  //   '#ADD8E6',
+  //   '#B0E0E6',
+  //   '#AFEEEE',
+  //   '#E0FFFF',
+  //   '#E0FFD1',
+  //   '#F0E68C',
+  //   '#FFFFE0',
+  //   '#FFFFF0', // Very light green/yellow
   // ];
 
   const colors = [
-    "#0A0A23",
-    "#0B0B2A",
-    "#0D0E34",
-    "#10113D",
-    "#131448",
-    "#171955",
-    "#1A1D62",
-    "#1E226F",
-    "#22277D",
-    "#262C8C",
-    "#2A319B",
-    "#2E36AB",
-    "#323BBA",
-    "#3741CA",
-    "#3C46DA",
-    "#414BEB",
-    "#4650FC",
+    '#0A0A23',
+    '#0B0B2A',
+    '#0D0E34',
+    '#10113D',
+    '#131448',
+    '#171955',
+    '#1A1D62',
+    '#1E226F',
+    '#22277D',
+    '#262C8C',
+    '#2A319B',
+    '#2E36AB',
+    '#323BBA',
+    '#3741CA',
+    '#3C46DA',
+    '#414BEB',
+    '#4650FC',
   ];
+
+  // const colors = [
+  //   '#03045e',
+  //   '#023e8a',
+  //   '#0077b6',
+  //   '#0096c7',
+  //   '#00b4d8',
+  //   '#48cae4',
+  //   '#90e0ef',
+  //   '#ade8f4',
+  //   '#caf0f8',
+  // ];
+
+  // const colors = [
+  //   '#edf2fb',
+  //   '#e2eafc',
+  //   '#d7e3fc',
+  //   '#ccdbfd',
+  //   '#c1d3fe',
+  //   '#b6ccfe',
+  //   '#abc4ff',
+  // ];
 
   // Define the positions for each color
   const positions = colors.map((_, index) => index / (colors.length - 1));

@@ -135,7 +135,6 @@ export class BoatSystem implements IBoatSystem {
   }
 
   protected createBoat({ createdTime }: { createdTime: number }): Boat | null {
-    console.log('🚀 ~ BoatSystem ~ createBoat ~ createdTime:', createdTime);
     const label = `${ENTITIES_KEYS.BOAT_LABEL}${Matter.Common.random(
       10 ** 6,
       10 ** 20
@@ -153,12 +152,6 @@ export class BoatSystem implements IBoatSystem {
       label,
       createdTime,
     });
-    console.log(
-      '🚀 ~ BoatSystem ~ createBoat ~ boat:',
-      boat?.body?.density,
-      boat?.body?.restitution,
-      boat?.body?.frictionAir
-    );
 
     return boat;
   }

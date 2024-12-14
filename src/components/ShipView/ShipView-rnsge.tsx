@@ -105,7 +105,6 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
       return body.position.x;
     },
   }) as SharedValue<number>;
-  console.log('🚀 ~ x:', x.value);
 
   const y = useEntityValue<Ship, number>(shipEntity.id, 'body', {
     processor: (body: Matter.Body | undefined) => {
@@ -113,7 +112,6 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
       return body.position.y;
     },
   }) as SharedValue<number>;
-  console.log('🚀 ~ y:', y.value);
 
   const angle = useEntityValue<Ship, number>(shipEntity.id, 'body', {
     processor: (body: Matter.Body | undefined) => {

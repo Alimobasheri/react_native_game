@@ -182,7 +182,6 @@ export class Entities extends EventEmitter {
     if (entity.label) {
       this._mapLabelToEntityId.delete(entity.label);
     }
-    console.log(entity.groups);
     if (entity.groups) {
       entity.groups.forEach((group) => {
         const entities = this._mapGroupIdToEntities.get(group);

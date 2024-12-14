@@ -256,7 +256,7 @@ export class PhysicsSystem implements IPhysicsSystem {
             3 * size[1]) ||
       Math.abs(buoyantVehicle.body.angle) > 5
     ) {
-      console.log('====sinked', buoyantVehicle.body.label);
+      // console.log('====sinked', buoyantVehicle.body.label);
       buoyantVehicle.isSinked = true;
       args.dispatcher.emitEvent(BUOYANT_VEHICLE_SINKED_EVENT(buoyantVehicle));
       // buoyantVehicle.isAttacking = false;

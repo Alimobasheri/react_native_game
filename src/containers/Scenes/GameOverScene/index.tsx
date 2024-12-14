@@ -8,6 +8,7 @@ import { GameOverTitle } from './GameOverTitle/GameOverTitle';
 import { State } from '@/Game/Entities/State/State';
 import { ENTITIES_KEYS } from '@/constants/configs';
 import { RestartGameButton } from './RestartGameButton/RestartGameButton';
+import { GameOverBackground } from './GameOverBackground/GameOverBackground';
 
 export const GameOverScene = () => {
   const { width, height } = useCanvasDimensions();
@@ -23,6 +24,7 @@ export const GameOverScene = () => {
       isActive={isGameOver}
       transitionConfig={{ duration: 500 }}
     >
+      {/* <GameOverBackground /> */}
       <GameOverTitle x={(width || 0) / 2} y={(height || 0) / 10} />
       <RestartGameButton x={(width || 0) / 2} y={((height || 0) / 10) * 9} />
     </Scene>

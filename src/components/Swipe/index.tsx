@@ -76,10 +76,10 @@ const normalizeSwipeData = (
   const waveAcceleration = normalize(clampedAccelerationY, 0, 1, 0, 0.01);
   const waveAmplitude = normalize(clampedTranslationY, 0, 1, 0, 20);
 
-  console.log(`Wave Velocity: ${waveVelocity}`);
-  console.log(`Wave Frequency: ${waveFrequency}`);
-  console.log(`Wave Acceleration: ${waveAcceleration}`);
-  console.log(`Wave Amplitude: ${waveAmplitude}`);
+  // console.log(`Wave Velocity: ${waveVelocity}`);
+  // console.log(`Wave Frequency: ${waveFrequency}`);
+  // console.log(`Wave Acceleration: ${waveAcceleration}`);
+  // console.log(`Wave Amplitude: ${waveAmplitude}`);
 
   return { waveVelocity, waveFrequency, waveAcceleration, waveAmplitude };
 };

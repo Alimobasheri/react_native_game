@@ -20,20 +20,16 @@ export const StartingScene: FC<PropsWithChildren> = ({ children }) => {
     16
   );
   const text = 'SWIPE UP TO START';
-  const isRunning = useEntityMemoizedValue<State, boolean>(
+  const isHomeScene = useEntityMemoizedValue<State, boolean>(
     { label: ENTITIES_KEYS.STATE },
-    'isRunning'
-  ) as boolean;
-  const isGameOver = useEntityMemoizedValue<State, boolean>(
-    { label: ENTITIES_KEYS.STATE },
-    'isGameOver'
-  ) as boolean;
+    'isHomeScene'
+  );
   if (!dimensions?.width || !dimensions?.height) return null;
   const titleWidth = Math.min(dimensions.width * 0.2, 100);
   return (
     <Scene
       defaultSceneName={Scenes.Start}
-      isActive={!isRunning && !isGameOver}
+      isActive={isHomeScene}
       x={0}
       y={0}
       width={dimensions.width}
