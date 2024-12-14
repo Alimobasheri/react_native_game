@@ -39,7 +39,8 @@ export const StartSwipe: FC<{}> = () => {
               gameStateEntity.current &&
               !Array.isArray(gameStateEntity.current)
             ) {
-              if (!gameStateEntity.current.data.isRunning) {
+              if (gameStateEntity.current.data.isHomeScene) {
+                gameStateEntity.current.data.isHomeScene = false;
                 gameStateEntity.current.data.isRunning = true;
               }
             }

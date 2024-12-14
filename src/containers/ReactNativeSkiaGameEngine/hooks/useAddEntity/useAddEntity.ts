@@ -2,6 +2,7 @@ import { useContext, useMemo } from 'react';
 import { RNSGEContext } from '../../context/RNSGEContext';
 import { Entity } from '../../services/Entity';
 import { IEntityOptions } from '../../services';
+import { useCurrentScene } from '../useCurrentScene/useCurrentScene';
 
 /**
  * A React hook that adds a new entity to the game engine's entities list and returns the created entity instance.
@@ -25,17 +26,18 @@ import { IEntityOptions } from '../../services';
  */
 export function useAddEntity<T extends Record<string, any>>(
   data: T,
-  options?: IEntityOptions
+  options?: Omit<IEntityOptions, 'sceneId'>
 ) {
   const context = useContext(RNSGEContext);
+  const { name: sceneId } = useCurrentScene();
 
   if (!context) {
     throw new Error('useAddEntity must be used within a RNSGEContext');
   }
 
   const entity = useMemo(() => {
-    const entityInstance = new Entity<T>(data);
-    context.entities.current.addEntity(entityInstance, options);
+    const entityInstance = new Entity<T>(data, { ...options, sceneId });
+    context.entities.current.addEntity(entityInstance);
     return entityInstance;
   }, []);
 

@@ -1,10 +1,11 @@
-import { ENTITIES_KEYS } from "@/constants/configs";
+import { ENTITIES_KEYS } from '@/constants/configs';
 import {
   useSystem,
   useAddEntity,
-} from "@/containers/ReactNativeSkiaGameEngine";
-import { PhysicsSystem } from "@/systems/PhysicsSystem/PhysicsSystem";
-import { FC, MutableRefObject, useRef } from "react";
+  system,
+} from '@/containers/ReactNativeSkiaGameEngine';
+import { PhysicsSystem } from '@/systems/PhysicsSystem/PhysicsSystem';
+import { FC, MutableRefObject, useCallback, useRef } from 'react';
 
 export const Physics: FC<{}> = () => {
   const physicsSystem = useRef(new PhysicsSystem());
@@ -13,11 +14,13 @@ export const Physics: FC<{}> = () => {
     label: ENTITIES_KEYS.PHYSICS_SYSTEM_INSTANCE,
   });
 
-  useSystem((entities, args) => {
+  const systemCallback: system = useCallback((entities, args) => {
     const physicsSystemInstance = entities.getEntityByLabel(
       ENTITIES_KEYS.PHYSICS_SYSTEM_INSTANCE
     );
     physicsSystemInstance?.data.current.systemInstanceRNSGE(entities, args);
-  });
+  }, []);
+
+  useSystem(systemCallback);
   return <></>;
 };

@@ -23,6 +23,10 @@ export const useEntityInstance = <T extends Record<string, any>>(
 } => {
   const rnsgeContext = useContext(RNSGEContext);
 
+  if (!rnsgeContext) {
+    throw new Error('useEntityInstance must be used within a RNSGEContext');
+  }
+
   const found = useRef(true);
 
   const findEntityAndReturn = useCallback(() => {

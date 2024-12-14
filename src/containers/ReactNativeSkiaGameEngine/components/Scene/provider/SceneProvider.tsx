@@ -6,8 +6,11 @@ import { SharedValue } from 'react-native-reanimated';
 import { ISceneTransitionState } from '../types/transitions';
 
 export interface ISceneProviderProps {
+  name: string;
   camera?: Camera;
   sceneTransitionState?: SharedValue<ISceneTransitionState>;
+  currentIsActive?: boolean;
+  currentIsTransitioning?: boolean;
 }
 
 /**
@@ -26,11 +29,20 @@ export interface ISceneProviderProps {
  * @returns {JSX.Element} Returns the wrapped scene with context.
  */
 export const SceneProvider: FC<PropsWithChildren<ISceneProviderProps>> = ({
+  name,
   camera,
   sceneTransitionState,
+  currentIsActive,
+  currentIsTransitioning,
   children,
 }) => {
-  const value = useSceneProvider({ camera, sceneTransitionState });
+  const value = useSceneProvider({
+    name,
+    camera,
+    sceneTransitionState,
+    currentIsActive,
+    currentIsTransitioning,
+  });
   return (
     <SceneContext.Provider value={value}>{children}</SceneContext.Provider>
   );

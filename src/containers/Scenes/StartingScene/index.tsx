@@ -1,4 +1,4 @@
-import { SCENES } from '@/constants/scenes';
+import { Scenes } from '@/constants/scenes';
 import {
   useCanvasDimensions,
   useEntityMemoizedValue,
@@ -11,6 +11,7 @@ import { Title } from './components/Title';
 import { StartSwipe } from './components/StartSwipe';
 import { State } from '@/Game/Entities/State/State';
 import { ENTITIES_KEYS } from '@/constants/configs';
+import { createFadeTransition } from '@/containers/ReactNativeSkiaGameEngine/utils/transitions/createFadeTransition';
 
 export const StartingScene: FC<PropsWithChildren> = ({ children }) => {
   const dimensions = useCanvasDimensions();
@@ -19,31 +20,33 @@ export const StartingScene: FC<PropsWithChildren> = ({ children }) => {
     16
   );
   const text = 'SWIPE UP TO START';
-  const isRunning = useEntityMemoizedValue<State, boolean>(
+  const isHomeScene = useEntityMemoizedValue<State, boolean>(
     { label: ENTITIES_KEYS.STATE },
-    'isRunning'
-  ) as boolean;
+    'isHomeScene'
+  );
   if (!dimensions?.width || !dimensions?.height) return null;
   const titleWidth = Math.min(dimensions.width * 0.2, 100);
   return (
     <Scene
-      defaultSceneName={SCENES.START}
-      isActive={!isRunning}
+      defaultSceneName={Scenes.Start}
+      isActive={isHomeScene}
       x={0}
       y={0}
       width={dimensions.width}
       height={dimensions.height}
-      exit={'fade'}
-      transitionConfig={{ duration: 1000 }}
+      exit={createFadeTransition()}
+      transitionConfig={{ duration: 500 }}
     >
-      <SwipeToPlay
-        text={text}
-        x={dimensions.width / 2}
-        y={dimensions.height - 20}
-        width={dimensions.width}
-        height={dimensions.height}
-        font={font}
-      />
+      {font && (
+        <SwipeToPlay
+          text={text}
+          x={dimensions.width / 2}
+          y={dimensions.height - 20}
+          width={dimensions.width}
+          height={dimensions.height}
+          font={font}
+        />
+      )}
       {children}
       <Title
         x={dimensions.width / 2 - titleWidth / 2}

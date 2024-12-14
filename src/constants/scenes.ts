@@ -1,5 +1,6 @@
-export const SCENES = {
-  START: 'start',
-  GAME: 'game',
-  GAME_OVER: 'gameOver',
-};
+export enum Scenes {
+  Main = 'main',
+  Start = 'start',
+  GamePlay = 'gamePlay',
+  GameOver = 'gameOver',
+}

@@ -1,7 +1,7 @@
-import { ICanvasDimensions } from "@/containers/ReactNativeSkiaGameEngine";
-import { Skia } from "@shopify/react-native-skia";
-import { SharedValue, useDerivedValue } from "react-native-reanimated";
-import { shaderNoiseFuncWithRandom } from "../common";
+import { ICanvasDimensions } from '@/containers/ReactNativeSkiaGameEngine';
+import { Skia } from '@shopify/react-native-skia';
+import { SharedValue, useDerivedValue } from 'react-native-reanimated';
+import { shaderNoiseFuncWithRandom } from '../common';
 
 export const waveShaderUniforms = `
   float M_PI = 3.1415926535897932384626433832795;
@@ -88,7 +88,7 @@ export const waveShaderMainFunc = `
     float clampedFoam = clamp(foam, 0., 1.);
 
     float whiteCap = 1./ exp(smoothstep(h, h+0.01,wavePosition.y*1.)*.5);
-    vec3 waterMix = mix(vec3(1.)*clampedFoam,w*waterColor, 0.9);
+    vec3 waterMix = mix(vec3(1.)*clampedFoam,w*waterColor, 0.8);
     
     return vec4(waterMix, w*whiteCap*1.);
   }

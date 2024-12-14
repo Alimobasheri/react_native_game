@@ -1,15 +1,15 @@
-import { Boat } from "@/Game/Entities/Boat/Boat";
-import { Sea } from "@/Game/Entities/Sea/Sea";
-import { Ship } from "@/Game/Entities/Ship/Ship";
-import { EntityRendererProps } from "@/constants/views";
-import { FC, memo, useCallback, useMemo, useRef } from "react";
+import { Boat } from '@/Game/Entities/Boat/Boat';
+import { Sea } from '@/Game/Entities/Sea/Sea';
+import { Ship } from '@/Game/Entities/Ship/Ship';
+import { EntityRendererProps } from '@/constants/views';
+import { FC, memo, useCallback, useMemo, useRef } from 'react';
 import {
   ENTITIES_KEYS,
   getSeaConfigDefaults,
   TRAIL_FADE_DURATION,
-} from "@/constants/configs";
-import { ShipView } from "../ShipView/ShipView-rnsge";
-import { BoatView } from "../BoatView";
+} from '@/constants/configs';
+import { ShipView } from '../ShipView/ShipView-rnsge';
+import { BoatView } from '../BoatView';
 import {
   Group,
   LinearGradient,
@@ -18,22 +18,23 @@ import {
   Skia,
   TileMode,
   vec,
-} from "@shopify/react-native-skia";
-import { WATER_GRADIENT_COLORS } from "@/constants/waterConfigs";
-import { useWindowDimensions } from "react-native";
+} from '@shopify/react-native-skia';
+import { WATER_GRADIENT_COLORS } from '@/constants/waterConfigs';
+import { useWindowDimensions } from 'react-native';
 import {
   Entities,
+  system,
   useAddEntity,
   useCanvasDimensions,
   useEntityValue,
   useSystem,
-} from "@/containers/ReactNativeSkiaGameEngine";
-import { SeaSystem } from "@/systems/SeaSystem/SeaSystem";
-import { ENGINES } from "@/systems/types";
-import { useEntityMemoizedValue } from "@/containers/ReactNativeSkiaGameEngine/hooks/useEntityMemoizedValue";
-import { SeaView } from "../SeaView/SeaView-rnsge";
-import { SeaViewShader } from "../SeaView/SeaView-rnsge-shader";
-import { Boats } from "../Boats";
+} from '@/containers/ReactNativeSkiaGameEngine';
+import { SeaSystem } from '@/systems/SeaSystem/SeaSystem';
+import { ENGINES } from '@/systems/types';
+import { useEntityMemoizedValue } from '@/containers/ReactNativeSkiaGameEngine/hooks/useEntityMemoizedValue';
+import { SeaView } from '../SeaView/SeaView-rnsge';
+import { SeaViewShader } from '../SeaView/SeaView-rnsge-shader';
+import { Boats } from '../Boats';
 
 export type SeaGroupEntities = {
   [key: string]: Sea | Ship | Boat;
@@ -49,21 +50,22 @@ export const SeaGroup: FC<{}> = (props) => {
     label: ENTITIES_KEYS.SEA,
   });
   const seaSystem = useRef<SeaSystem>(new SeaSystem(ENGINES.RNSGE));
-  useSystem((entities, args) => {
+  const systemCallback: system = useCallback((entities, args) => {
     seaSystem.current.systemInstanceRNSGE(seaEntity, args);
-  });
+  }, []);
+  useSystem(systemCallback);
   const layersCount = useEntityMemoizedValue<Sea, number>(
     seaEntity.id,
-    "layers",
+    'layers',
     {
-      processor: (layers: Sea["layers"] | undefined) => {
+      processor: (layers: Sea['layers'] | undefined) => {
         return !!layers ? layers.length : 0;
       },
     }
   );
   const mainLayerIndex = useEntityMemoizedValue<Sea, number>(
     seaEntity.id,
-    "mainLayerIndex"
+    'mainLayerIndex'
   );
   const bottomLayerRenders = useCallback(() => {
     if ((!mainLayerIndex && mainLayerIndex !== 0) || !layersCount) return null;

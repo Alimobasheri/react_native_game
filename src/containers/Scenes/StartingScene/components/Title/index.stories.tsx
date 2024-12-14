@@ -19,10 +19,28 @@ const meta = {
     height: titleWidth * 0.5,
   },
   argTypes: {
-    x: 'number',
-    y: 'number',
-    width: 'number',
-    height: 'number',
+    x: {
+      type: 'number',
+    },
+    y: {
+      type: 'number',
+    },
+    width: {
+      control: {
+        type: 'range',
+        min: 0,
+        max: windowWidth,
+        step: 1,
+      },
+    },
+    height: {
+      control: {
+        type: 'range',
+        min: 0,
+        max: windowHeight,
+        step: 1,
+      },
+    },
   },
 } satisfies Meta<typeof Title>;
 

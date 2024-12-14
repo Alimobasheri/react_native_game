@@ -1,9 +1,9 @@
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
-import { RNSGEContext } from "../context/RNSGEContext";
-import { Entity } from "../services/Entity";
-import { useSharedValue } from "react-native-reanimated";
-import { AddEntityEvent } from "../services/Entities";
-import { FrameUpdateEvent } from "../services/Frames";
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { RNSGEContext } from '../context/RNSGEContext';
+import { Entity } from '../services/Entity';
+import { useSharedValue } from 'react-native-reanimated';
+import { AddEntityEvent } from '../services/Entities';
+import { FrameUpdateEvent } from '../services/Frames';
 
 export type EntityOptions<T> = {
   processor?: (value: any) => T;
@@ -11,13 +11,17 @@ export type EntityOptions<T> = {
   comparator?: (prevValue: T | undefined, nextValue: T | undefined) => boolean;
 };
 
-export function useEntityValue<E, T>(
+export function useEntityValue<E extends Record<string, any>, T>(
   entityId: string,
   key: keyof E,
   options: EntityOptions<T> = {}
 ) {
   const { processor, defaultValue, comparator } = options;
   const rnsgeContext = useContext(RNSGEContext);
+
+  if (!rnsgeContext) {
+    throw new Error('useEntityValue must be used within a RNSGEContext');
+  }
 
   const entities = rnsgeContext.entities;
   const frames = rnsgeContext.frames;
@@ -27,7 +31,7 @@ export function useEntityValue<E, T>(
       if (!entity?.id) {
         return defaultValue;
       }
-      if (typeof processor === "function") {
+      if (typeof processor === 'function') {
         return processor(entity.data[key]);
       } else {
         return entity.data[key];
@@ -38,7 +42,7 @@ export function useEntityValue<E, T>(
 
   const areValuesEqual = useCallback(
     (prevValue: T | undefined, nextValue: T | undefined) => {
-      if (typeof comparator === "function") {
+      if (typeof comparator === 'function') {
         return comparator(prevValue, nextValue);
       } else {
         return prevValue === nextValue;

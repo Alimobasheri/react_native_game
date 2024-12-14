@@ -11,6 +11,7 @@ import { VEHICLE_TYPE_IDENTIFIERS } from '@/constants/vehicle';
 import { Sea } from '@/Game/Entities/Sea/Sea';
 import { GameLoopSystem } from '../GameLoopSystem/GameLoopSystem';
 import { Entities, Entity } from '@/containers/ReactNativeSkiaGameEngine';
+import { BUOYANT_VEHICLE_SINKED_EVENT } from '@/constants/events';
 
 export class PhysicsSystem implements IPhysicsSystem {
   protected _engine: Matter.Engine;
@@ -42,7 +43,7 @@ export class PhysicsSystem implements IPhysicsSystem {
   protected update(entities: Entities, args: RNGE_System_Args): void {
     const { time } = args;
     this.updateBuoyantVehicles(entities, args);
-    Matter.Engine.update(this._engine, time.delta);
+    Matter.Engine.update(this._engine);
   }
 
   protected updateBuoyantVehicles(
@@ -72,7 +73,7 @@ export class PhysicsSystem implements IPhysicsSystem {
         acceleration,
       } = props;
 
-      this.applySinkStatus(buoyantVehicle, size, submergedArea, sea);
+      this.applySinkStatus(args, buoyantVehicle, size, submergedArea, sea);
 
       this.applyFriction(
         body,
@@ -90,6 +91,7 @@ export class PhysicsSystem implements IPhysicsSystem {
       // );
 
       this.applyBuoyantForce(
+        args,
         body,
         size,
         submergedDepth,
@@ -196,6 +198,7 @@ export class PhysicsSystem implements IPhysicsSystem {
     };
   }
   protected applyBuoyantForce(
+    args: RNGE_System_Args,
     body: Matter.Body,
     size: number[],
     submergedDepth: number,
@@ -205,13 +208,13 @@ export class PhysicsSystem implements IPhysicsSystem {
   ): void {
     if (submergedArea > 0) {
       this.applyAngleByWave(submergedDepth, body, sea);
-      for (let i = 0; i <= 100; i++) {
-        const x = i * (size[0] / 100) + body.bounds.min.x;
+      for (let i = 0; i <= 30; i++) {
+        const x = i * (size[0] / 30) + body.bounds.min.x;
         if (x > body.bounds.max.x) break;
         const force = sea.getForceAtPoint(x);
         const y = sea.getWaterSurfaceAndMaxHeightAtPoint(x).y;
         if (y > body.bounds.max.y) break;
-        const pointWidth = (body.bounds.max.x - body.bounds.min.x) / 100;
+        const pointWidth = (body.bounds.max.x - body.bounds.min.x) / 30;
         force.y = force.y * pointWidth;
         const seaForce = { force, position: { x, y } };
         Matter.Body.applyForce(body, seaForce.position, seaForce.force);
@@ -233,6 +236,7 @@ export class PhysicsSystem implements IPhysicsSystem {
   }
 
   protected applySinkStatus(
+    args: RNGE_System_Args,
     buoyantVehicle: Vehicle,
     size: number[],
     submergedArea: number,
@@ -252,8 +256,9 @@ export class PhysicsSystem implements IPhysicsSystem {
             3 * size[1]) ||
       Math.abs(buoyantVehicle.body.angle) > 5
     ) {
-      console.log('====sinked', buoyantVehicle.body.label);
+      // console.log('====sinked', buoyantVehicle.body.label);
       buoyantVehicle.isSinked = true;
+      args.dispatcher.emitEvent(BUOYANT_VEHICLE_SINKED_EVENT(buoyantVehicle));
       // buoyantVehicle.isAttacking = false;
     }
   }

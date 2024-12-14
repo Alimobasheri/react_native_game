@@ -16,8 +16,15 @@ import { VEHICLE_TYPE_IDENTIFIERS } from '@/constants/vehicle';
 import { GameLoopSystem } from '../GameLoopSystem/GameLoopSystem';
 import { GAME_STATE } from '../GameLoopSystem/types';
 import { Sea } from '@/Game/Entities/Sea/Sea';
-import { Entities, Entity } from '@/containers/ReactNativeSkiaGameEngine';
+import {
+  Entities,
+  Entity,
+  EntityChangeComparison,
+} from '@/containers/ReactNativeSkiaGameEngine';
 import { MutableRefObject } from 'react';
+import { State } from '@/Game/Entities/State/State';
+import { BOAT_SINKED_EVENT } from '@/constants/events';
+import { Scenes } from '@/constants/scenes';
 
 export class BoatSystem implements IBoatSystem {
   protected _boatFactory: BoatFactory;
@@ -44,6 +51,8 @@ export class BoatSystem implements IBoatSystem {
     return boatSystem.systemInstance(entities, args);
   }
   protected update(entities: Entities, args: RNGE_System_Args) {
+    const state: State = entities.getEntityByLabel(ENTITIES_KEYS.STATE)!.data;
+    if (!state.isRunning) return;
     // const gameLoopSystem: GameLoopSystem =
     //   entities[ENTITIES_KEYS.GAME_LOOP_SYSTEM];
     const sea: Sea = entities.getEntityByLabel(ENTITIES_KEYS.SEA)!.data;
@@ -51,11 +60,11 @@ export class BoatSystem implements IBoatSystem {
     let gameState = GAME_STATE.RUNNING;
     this._killedBoatsInFrame = [];
     const boats = this._findBoatsInEntities(entities);
-    if (!this.isAnyBoatAttacking(boats) && gameState === GAME_STATE.RUNNING) {
+    if (!this.isAnyBoatAttacking(boats) && state.isRunning === true) {
       this.spawnBoat(entities, args);
     } else {
       boats.forEach((boat) => {
-        if (gameState !== GAME_STATE.RUNNING) boat.data.isSinked = true;
+        if (!state.isRunning) boat.data.isSinked = true;
         if (this.isBoatKilled(boat.data)) {
           this._killedBoatsInFrame.push(boat);
         } else {
@@ -64,7 +73,7 @@ export class BoatSystem implements IBoatSystem {
           boat.removeAllListeners('isSinkedChange');
           boat.addListener('isSinkedChange', (isSinked) => {
             if (isSinked) {
-              args.dispatch.emit('boatSinked');
+              args.dispatcher.emitEvent(BOAT_SINKED_EVENT(boat.data));
             }
           });
         }
@@ -116,14 +125,16 @@ export class BoatSystem implements IBoatSystem {
     });
     if (boat?.body) {
       physicsSystem.data.current.addBodyToWorld(boat?.body);
-      entities.addEntity(new Entity<Boat>(boat), {
-        groups: [ENTITIES_KEYS.BOAT_GROUP, BUOYANTS_GROUP, VEHICLES_GROUP],
-      });
+      entities.addEntity(
+        new Entity<Boat>(boat, {
+          groups: [ENTITIES_KEYS.BOAT_GROUP, BUOYANTS_GROUP, VEHICLES_GROUP],
+          sceneId: Scenes.GamePlay,
+        })
+      );
     }
   }
 
   protected createBoat({ createdTime }: { createdTime: number }): Boat | null {
-    console.log('🚀 ~ BoatSystem ~ createBoat ~ createdTime:', createdTime);
     const label = `${ENTITIES_KEYS.BOAT_LABEL}${Matter.Common.random(
       10 ** 6,
       10 ** 20
@@ -141,12 +152,6 @@ export class BoatSystem implements IBoatSystem {
       label,
       createdTime,
     });
-    console.log(
-      '🚀 ~ BoatSystem ~ createBoat ~ boat:',
-      boat?.body?.density,
-      boat?.body?.restitution,
-      boat?.body?.frictionAir
-    );
 
     return boat;
   }

@@ -4,8 +4,10 @@ import { uid } from './Entity';
 
 export interface AnimationConfig {
   duration?: number;
+  delay?: number;
   easing?: (t: number) => number;
   loop?: number;
+  loopInterval?: number; // New property for interval between loops
   yoyo?: boolean;
   retainFinalValue?: boolean;
   label?: string;
@@ -43,6 +45,8 @@ export interface ActiveAnimation {
   direction: 1 | -1;
   loopCount: number;
   lastUpdateTime: number;
+  waitingForNextLoop: boolean; // New property to track if waiting for the next loop
+  loopStartTime: number; // New property to track the start time of the next loop
 }
 
 class Animations {
@@ -73,6 +77,8 @@ class Animations {
       direction: 1,
       loopCount: 0,
       lastUpdateTime: now,
+      waitingForNextLoop: false,
+      loopStartTime: now,
     };
 
     this.allAnimations.set(id, newAnimation);
@@ -200,23 +206,25 @@ class Animations {
   }
 
   // Updates all running animations at each frame
+  // Updates all running animations at each frame
   updateAnimations() {
     const now = global.nativePerformanceNow();
     this.activeAnimations.forEach((animationObj) => {
       const {
         sharedValue,
         animation,
-        startTime,
         accumulatedTime,
         isRunning,
         config,
         direction,
         loopCount,
         lastUpdateTime,
+        waitingForNextLoop,
+        loopStartTime,
       } = animationObj;
 
       // Throttle check
-      const { throttle } = config;
+      const { throttle, loopInterval = 0 } = config;
       if (throttle && now - lastUpdateTime < throttle) {
         return; // Skip update if within throttle time
       }
@@ -225,15 +233,31 @@ class Animations {
         return; // Skip if the animation is paused
       }
 
+      if (waitingForNextLoop) {
+        // If the animation is waiting for the next loop, check if the interval has passed
+        if (now - loopStartTime >= loopInterval) {
+          animationObj.waitingForNextLoop = false;
+          animationObj.startTime = now;
+          animationObj.accumulatedTime = 0;
+          animationObj.waitingForNextLoop = false;
+        } else {
+          return; // Skip until the interval has passed
+        }
+      }
+
       const {
         duration = 500,
+        delay = 0,
         loop = 1,
         yoyo = false,
         retainFinalValue = true,
         removeOnComplete = true,
         onDone = () => {},
       } = config;
-      const elapsed = accumulatedTime + (now - startTime); // Total time elapsed, including paused time
+      const elapsed =
+        accumulatedTime +
+        (now - animationObj.startTime) -
+        (loopCount === 0 ? delay : 0); // Total time elapsed, including paused time
 
       // Calculate progress
       let progress = elapsed / duration;
@@ -263,9 +287,15 @@ class Animations {
               animationObj.direction = animationObj.direction === 1 ? -1 : 1;
             }
 
-            // Reset the start time for the next loop
-            animationObj.startTime = now;
-            animationObj.accumulatedTime = 0; // Reset accumulated time
+            // Set waiting for the next loop if loopInterval is specified
+            if (loopInterval > 0) {
+              animationObj.waitingForNextLoop = true;
+              animationObj.loopStartTime = now;
+            } else {
+              // Reset the start time for the next loop
+              animationObj.startTime = now;
+              animationObj.accumulatedTime = 0; // Reset accumulated time
+            }
           } else {
             // Handle end of animation after all loops
             if (!retainFinalValue) {

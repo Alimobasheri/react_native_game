@@ -13,15 +13,15 @@ export const layerFlowConfigs = [
   {
     flowAmplitude: 0.6,
     flowFrequency: 22,
-    flowSpeed: 0.6,
+    flowSpeed: 0.8,
   },
   {
     flowAmplitude: 0.8,
-    flowFrequency: 24,
-    flowSpeed: 0.3,
+    flowFrequency: 16,
+    flowSpeed: 0.6,
   },
   {
-    flowAmplitude: 0.2,
+    flowAmplitude: 0.3,
     flowFrequency: 10,
     flowSpeed: 0.2,
   },

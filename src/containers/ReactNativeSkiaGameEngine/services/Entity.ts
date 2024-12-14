@@ -16,6 +16,13 @@ export enum EntityChangeComparison {
   StrictEqual = 1,
 }
 
+export type IEntityOptions = {
+  sceneId?: string;
+  comparison?: EntityChangeComparison;
+  label?: string;
+  groups?: string[];
+};
+
 /**
  * Represents an entity in the game engine.
  *
@@ -28,6 +35,13 @@ export class Entity<T extends Record<string, any>> extends EventEmitter {
    * @type {string}
    */
   protected _id: string;
+
+  /**
+   * The unique identifier of the scene.
+   *
+   * @type {string | undefined}
+   */
+  protected _sceneId?: string;
 
   /**
    * The data associated with the entity.
@@ -59,28 +73,19 @@ export class Entity<T extends Record<string, any>> extends EventEmitter {
   protected _comparison: EntityChangeComparison = EntityChangeComparison.Equal;
 
   /**
-   * Creates a new entity with the given data, label, and groups.
+   * Creates a new entity with the given data and options.
    *
    * @param {T} data The data to associate with the entity.
-   * @param {EntityChangeComparison} [comparison] The comparison mode for data changes.
-   * @param {string} [label] The label to associate with the entity.
-   * @param {string[]} [groups] The groups to associate with the entity.
+   * @param {EntityOptions} [options] The options to configure the entity.
    */
-  constructor(
-    data: T,
-    comparison?: EntityChangeComparison,
-    label?: string,
-    groups?: string[]
-  ) {
+  constructor(data: T, options: IEntityOptions = {}) {
     super();
     this._id = uid();
     this._data = data;
-    this._label = label;
-    this._groups = groups || [];
-
-    if (comparison) {
-      this._comparison = comparison;
-    }
+    this._sceneId = options.sceneId;
+    this._label = options.label;
+    this._groups = options.groups || [];
+    this._comparison = options.comparison ?? EntityChangeComparison.Equal;
   }
 
   /**
@@ -90,6 +95,15 @@ export class Entity<T extends Record<string, any>> extends EventEmitter {
    */
   public get id(): string {
     return this._id;
+  }
+
+  /**
+   * Gets the unique identifier of the scene.
+   *
+   * @return {string | undefined} The unique identifier of the scene.
+   */
+  public get sceneId(): string | undefined {
+    return this._sceneId;
   }
 
   /**

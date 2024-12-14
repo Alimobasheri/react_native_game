@@ -1,15 +1,15 @@
-import { Boat } from "../Boat";
-import { BoatConfig, commonBoatBuildsConfig } from "../types";
+import { Boat } from '../Boat';
+import { BoatConfig, commonBoatBuildsConfig } from '../types';
 
 export class RedPirateHeadSkull extends Boat {
-  protected _sizeRatio = 308 / 512;
+  protected _sizeRatio = 1;
   protected _windowWidth: number;
-  protected _imageSource: string = "skull-head-pirate-shark-red.png";
+  protected _imageSource: string = 'skull-head-pirate-shark-red.png';
   constructor(config: commonBoatBuildsConfig) {
     super(config);
     this._windowWidth = config.windowWidth;
     this.initialize();
-    this._acceleration = 0.01;
+    this._acceleration = 0.3;
   }
   public getSize(): number[] {
     const size = [
@@ -20,6 +20,6 @@ export class RedPirateHeadSkull extends Boat {
   }
 
   public get imageSource() {
-    return require(`../../../../../assets/skull-head-pirate-shark-red.png`);
+    return require(`../../../../../assets/small_attacking_speed_boat.png`);
   }
 }

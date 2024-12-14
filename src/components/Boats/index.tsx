@@ -5,11 +5,13 @@ import {
   useCanvasDimensions,
   useEntityInstance,
   useEntityState,
+  Entity,
+  system,
 } from '@/containers/ReactNativeSkiaGameEngine';
 import { Boat } from '@/Game/Entities/Boat/Boat';
 import { BoatSystem } from '@/systems/BoatSystem/BoatSystem';
 import { PhysicsSystem } from '@/systems/PhysicsSystem/PhysicsSystem';
-import { FC, MutableRefObject, useRef } from 'react';
+import { FC, MutableRefObject, useCallback, useRef } from 'react';
 import { BoatView } from '../BoatView/BoatView-rnsge';
 import { Sea } from '@/Game/Entities/Sea/Sea';
 
@@ -20,10 +22,11 @@ export const Boats: FC<{}> = () => {
   });
   const boatSystem = useRef(
     new BoatSystem({
-      windowWidth: dimensions.width,
-      windowHeight: dimensions.height,
-      originalWaterSUrfaceY:
-        seaInstance.current.data.getOriginalWaterSurfaceY(),
+      windowWidth: dimensions.width || 0,
+      windowHeight: dimensions.height || 0,
+      originalWaterSUrfaceY: (
+        seaInstance.current as Entity<Sea>
+      )?.data.getOriginalWaterSurfaceY(),
     })
   );
 
@@ -31,12 +34,13 @@ export const Boats: FC<{}> = () => {
     label: ENTITIES_KEYS.BOAT_SYSTEM_INSTANCE,
   });
 
-  useSystem((entities, args) => {
-    const boatSystemInstance = entities.getEntityByLabel(
-      ENTITIES_KEYS.BOAT_SYSTEM_INSTANCE
-    );
+  const systemCallback: system = useCallback((entities, args) => {
+    const boatSystemInstance: Entity<MutableRefObject<BoatSystem>> | undefined =
+      entities.getEntityByLabel(ENTITIES_KEYS.BOAT_SYSTEM_INSTANCE);
     boatSystemInstance?.data.current.systemInstanceRNSGE(entities, args);
-  });
+  }, []);
+
+  useSystem(systemCallback);
 
   const { entity: baotsInstances, found } = useEntityState<Boat>({
     group: ENTITIES_KEYS.BOAT_GROUP,

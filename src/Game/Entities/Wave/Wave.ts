@@ -212,12 +212,12 @@ export class Wave implements IWave {
 
     if (this._time > riseTime / 3 && this._frequency < 60) {
       // Smooth frequency update
-      const frequencyDecayFactor = 1.005; // A decay factor for smoother frequency changes
+      const frequencyDecayFactor = 1.01; // A decay factor for smoother frequency changes
       this._frequency = this._frequency * frequencyDecayFactor;
     }
     if (this._time > riseTime / 3 && this._speed < 1.1) {
       this._prevSpeed = this._speed;
-      this._speed *= 1.005;
+      this._speed *= 1.01;
     }
   }
 

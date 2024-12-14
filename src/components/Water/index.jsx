@@ -1,8 +1,8 @@
-import { View, Dimensions, Text } from "react-native";
-import { COLLISION_CATEGORIES } from "../../constants/collisionCategories";
-import Matter from "matter-js";
-import { RoundedRect, Group } from "@shopify/react-native-skia";
-const { width, height } = Dimensions.get("window");
+import { View, Dimensions, Text } from 'react-native';
+import { COLLISION_CATEGORIES } from '../../constants/collisionCategories';
+import Matter from 'matter-js';
+import { RoundedRect, Group } from '@shopify/react-native-skia';
+const { width, height } = Dimensions.get('window');
 const windowWidth = width;
 const windowHeight = height;
 const WaterRendererCanvas = ({
@@ -17,12 +17,12 @@ const WaterRendererCanvas = ({
   return (
     <Group>
       <RoundedRect
-        key={"water_container"}
+        key={'water_container'}
         x={windowWidth / 2 - waterContainerSize.width / 2}
         y={position.y - waterContainerSize.height / 2}
         width={waterContainerSize.width}
         height={waterContainerSize.height}
-        color={"blue"}
+        color={'blue'}
         r={5}
       />
       {waterBodies.map((body, idx) => {
@@ -36,7 +36,7 @@ const WaterRendererCanvas = ({
               // strokeCap={true}
               width={size.width}
               height={size.height}
-              color={"blue"}
+              color={'blue'}
               r={5}
             />
           </Group>
@@ -55,7 +55,7 @@ const WaterRendererCanvas = ({
           // strokeCap={true}
           width={size.width}
           height={size.height}
-          color={"blue"}
+          color={'blue'}
           r={5}
         />
       </Group>
@@ -73,13 +73,13 @@ const WaterRenderer = ({ waterBodies, size, waterConstraints }) => {
       <View
         key={idx}
         style={{
-          position: "absolute",
+          position: 'absolute',
           left: body.position.x - size.width / 2,
           top: body.position.y,
           transform: [{ rotate: `${body.angle}rad` }],
           width: size.width,
           height: size.height,
-          backgroundColor: "blue",
+          backgroundColor: 'blue',
         }}
       />
     );
@@ -94,7 +94,7 @@ export default function (
   bottomPlatforms,
   isUsingCanvas = false
 ) {
-  console.log("🚀 ~ minimumY:", minimumY);
+  // console.log("🚀 ~ minimumY:", minimumY);
   let Body = Matter.Body,
     Composites = Matter.Composites,
     Common = Matter.Common,
@@ -120,7 +120,7 @@ export default function (
     width: windowWidth,
     height: windowHeight / 2,
   };
-  console.log("🚀 ~ waterContainerSize:", waterContainerSize);
+  // console.log("🚀 ~ waterContainerSize:", waterContainerSize);
 
   const waterContainer = Bodies.rectangle(
     windowWidth / 2,
@@ -135,13 +135,13 @@ export default function (
     for (let x = 0; x < numberOfXRows; x++) {
       const posX = bodyWidth * x + bodyWidth / 2;
       const posY = minimumY + bodyWidth - (bodyWidth / 2) * y;
-      console.log("🚀 ~ posY:", posY);
+      // console.log("🚀 ~ posY:", posY);
       let body = Bodies.rectangle(posX, posY, bodyWidth, bodyHeight, {
         // collisionFilter: {
         //   category:
         //     COLLISION_CATEGORIES.defaultCategory || COLLISION_CATEGORIES.water,
         // },
-        label: "waterBody",
+        label: 'waterBody',
         isStatic: false,
         // chamfer: 5,
         density: 0.2,
@@ -203,7 +203,7 @@ export default function (
         waterConstraints.push(constraint);
       }
       if (x === numberOfXRows - 1) {
-        console.log("🚀 ~ posY:", posY);
+        // console.log("🚀 ~ posY:", posY);
         let constraint = Constraint.create({
           pointA: {
             x: windowWidth + bodyWidth / 2 + bodyWidth / 8,

@@ -28,7 +28,7 @@ import {
 import { Gesture } from 'react-native-gesture-handler';
 import { useFrameEffect } from './hooks/useFrameEffect';
 import { StateEntity } from '@/components/State';
-import { StartingScene } from '../Scenes/GameScene';
+import { StartingScene } from '../Scenes/StartingScene';
 import { Scene } from './components/Scene/Scene';
 import { useSceneCamera } from './hooks/useSceneCamera/useSceneCamera';
 import { ENTITIES_KEYS } from '@/constants/configs';
@@ -36,6 +36,8 @@ import { Ship } from '@/Game/Entities/Ship/Ship';
 import { useAnimationsController } from './hooks/useAnimationsController/useAnimationsController';
 import { ActiveAnimation } from './services/Animations';
 import { createTimingAnimation, easeInOutQuad } from './utils';
+import { create } from 'zustand';
+import { createFadeTransition } from './utils/transitions/createFadeTransition';
 
 const SubComponent: FC<{}> = (props) => {
   const renderCount = useReRenderCount();
@@ -60,7 +62,7 @@ const SubComponentTwo: FC<{}> = (props) => {
     }
   }, []);
   useSystem((entities) => {
-    updateTranslateX(entities);
+    updateTranslateX(entities.entities);
   });
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -96,7 +98,7 @@ const GameScene = () => {
       y={0}
       width={dimensions.width}
       height={dimensions.height}
-      exit={'fade'}
+      exit={createFadeTransition()}
       transitionConfig={{ duration: 1000 }}
     >
       <Scene
@@ -125,7 +127,9 @@ const GameScene = () => {
 };
 
 export const Basic: Story = {
-  args: {},
+  args: {
+    onEventListeners: {},
+  },
   render: (args: any) => (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
       <View style={{ flex: 1, width: '100%', height: '100%' }}>
@@ -220,7 +224,9 @@ const Gestures = () => {
 };
 
 export const GesturesRenderer: Story = {
-  args: {},
+  args: {
+    onEventListeners: {},
+  },
   render: (args: any) => (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
       <View style={{ flex: 1, width: '100%', height: '100%' }}>
@@ -242,7 +248,7 @@ const CameraControlView = () => {
   });
 
   const shipAngle = useEntityValue<Ship, number>(
-    shipEntity?.current.id as string,
+    shipEntity?.current?.id as string,
     'body',
     { processor: (value) => value?.angle ?? 0 }
   );
@@ -280,7 +286,7 @@ const GameWithCameraControlScene = () => {
       y={0}
       width={dimensions.width}
       height={dimensions.height}
-      exit={'fade'}
+      exit={createFadeTransition()}
       transitionConfig={{ duration: 1000 }}
       defaultCameraProps={{
         scaleX: 1.2,
@@ -299,7 +305,9 @@ const GameWithCameraControlScene = () => {
 };
 
 export const CameraControl: Story = {
-  args: {},
+  args: {
+    onEventListeners: {},
+  },
   render: (args: any) => (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
       <View style={{ flex: 1, width: '100%', height: '100%' }}>
