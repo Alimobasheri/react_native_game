@@ -1,3 +1,4 @@
+import { SharedValue } from 'react-native-reanimated';
 import { WaveSource } from '../Sea/types';
 
 /**
@@ -13,34 +14,34 @@ export interface IWave {
   get initialConfig(): WaveConfig;
   /**
    * Original position the wave originated from.
-   * @type {number}
+   * @type {SharedValue<number>}
    */
-  get x(): number;
+  get x(): SharedValue<number>;
   /**
    * Current phase value in latest frame the wave is updated at.
-   * @type {number}
+   * @type {SharedValue<number>}
    */
 
-  get phase(): number;
+  get phase(): SharedValue<number>;
   /**
    * Current time value in latest frame the wave is updated at.
-   * @type {number}
+   * @type {SharedValue<number>}
    */
-  get time(): number;
+  get time(): SharedValue<number>;
   /**
    * Current amplitude value in latest frame the wave is updated at.
-   * @type {number}
+   * @type {SharedValue<number>}
    */
-  get amplitude(): number;
+  get amplitude(): SharedValue<number>;
   /**
    * Maximum amplitude the wave is gonna reach in initial x.
    */
-  get maxAmplitude(): number;
+  get maxAmplitude(): SharedValue<number>;
   /**
    * Current frequency value in latest frame the wave is updated at.
-   * @type {number}
+   * @type {SharedValue<number>}
    */
-  get frequency(): number;
+  get frequency(): SharedValue<number>;
   /**
    * What source caused this wave
    */
@@ -99,24 +100,23 @@ export type WaveConfig = {
   source: WaveSource;
   /**
    * x-coordinate of the wave's origin position.
-   * @type {number}
+   * @type {SharedValue<number>}
    */
-  x: number;
+  x: SharedValue<number>;
   /**
    * set initial value for amplitude.
-   * @type {number}
+   * @type {SharedValue<number>}
    */
-  initialAmplitude: number;
+  initialAmplitude: SharedValue<number>;
   /**
    * set initial value for frequency.
-   * @type {number}
+   * @type {SharedValue<number>}
    */
-  initialFrequency: number;
-  initialForce?: number;
+  initialFrequency: SharedValue<number>;
   /**
    * speed of wave based on force
    */
-  speed?: number;
+  speed: SharedValue<number>;
   /**
    * At what frame was this wave created at.
    * @type {number | undefined}
@@ -125,73 +125,19 @@ export type WaveConfig = {
   /**
    * override initial phase to start drawing phase.
    * @default 0
-   * @type {number | undefined}
+   * @type {SharedValue<number> | undefined}
    */
-  initialPhase?: number;
+  initialPhase: SharedValue<number>;
   /**
    * override initial value for time multiplier
    * @default 0
-   * @type {number | undefined}
+   * @type {SharedValue<number> | undefined}
    */
-  initialTime?: number;
-  /**
-   * Override value for amplitude multiplier.
-   * In each frame, the amplitude value is multiplied by this value.
-   * @default 0.95
-   * @type {numebr | undefined}
-   */
-  amplitudeMultiplier?: number;
-  /**
-   * Override value for frequency multiplier.
-   * In each frame, the frequency value is multiplied by this value.
-   * @default 1.01
-   * @type {numebr | undefined}
-   */
-  frequencyMultiplier?: number;
-  /**
-   * To provide a custom updater for phase value in each frame.
-   * By default phase is incremented by 0.2.
-   * This function can beused for custom implementation, like multiplying or deviding, or deciding based on frame numebr.
-   * @param prevPhase Phase value in previous frame
-   * @param numberOfFrame Current frame number in game engine
-   * @returns {number} Phase value to be used in current frame
-   */
-  phaseValueUpdater?: (prevPhase: number, numberOfFrame: number) => number;
-  /**
-   * To provide a custom updater for time value in each frame.
-   * By default time is incremented by 1.
-   * This function can beused for custom implementation, like multiplying or deviding, or deciding based on frame numebr.
-   * @param prevTime Time value in previous frame
-   * @param numberOfFrame Current frame number in game engine
-   * @returns {number} Time value to be used in current frame
-   */
-  timeValueUpdater?: (prevTime: number, numberOfFrame: number) => number;
-  /**
-   * To provide a custom updater for amplitude value in each frame.
-   * By default amplitude is multiplied by {@link WaveConfig.amplitudeMultiplier amplitudeMultiplier}.
-   * @param prevAmplitude Amplitude value in previous frame
-   * @param numberOfFrame Current frame numebr in game engine
-   * @returns {number} Amplitude value to be used in current frame
-   */
-  amplitudeValueUpdater?: (
-    prevAmplitude: number,
-    numberOfFrame: number
-  ) => number;
-  /**
-   * To provide a custom updater for amplitude value in each frame.
-   * By default amplitude is multiplied by {@link WaveConfig.frequencyMultiplier frequencyMultiplier}.
-   * @param prevFrequency Frequency value in previous frame
-   * @param numberOfFrame Current frame numebr in game engine
-   * @returns {number} Frequency value to be used in current frame
-   */
-  frequencyValueUpdater?: (
-    prevFrequency: number,
-    numberOfFrame: number
-  ) => number;
+  initialTime: SharedValue<number>;
   /**
    * Minimum amplitude value. If amplitude value reaches this value or less than it, the wave will be expired and not drawn anymore.
    * @default 5
-   * @type {number | undefined}
+   * @type {SharedValue<number> | undefined}
    */
-  minimumAmplitude?: number;
+  minimumAmplitude?: SharedValue<number>;
 };

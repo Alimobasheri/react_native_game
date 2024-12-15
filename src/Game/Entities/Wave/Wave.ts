@@ -1,119 +1,20 @@
-import {
-  DEFAULT_AMPLITUDE_MULTIPLIER,
-  DEFAULT_FREQUEMCY_MULTIPLIER,
-  DEFAULT_MINIMUM_AMPLITUDE,
-  DEFAULT_PHASE_STEP,
-  DEFAULT_TIME_STEP,
-} from '@/constants/waterConfigs';
 import { IWave, WaveConfig } from './types';
 import { WaveSource } from '../Sea/types';
 import { ICanvasDimensions } from '@/containers/ReactNativeSkiaGameEngine';
+import { SharedValue } from 'react-native-reanimated';
 
 export class Wave implements IWave {
   protected _initialConfig: WaveConfig;
   protected _dimensions: ICanvasDimensions;
   protected _source: WaveSource;
-  protected _x: number;
-  protected _phase: number = -Math.PI / 2;
-  protected _time: number = 0;
-  protected _amplitude: number;
-  protected _maxAmplitude: number;
-  protected _frequency: number;
-  protected _speed: number = 1;
+  protected _x: SharedValue<number>;
+  protected _phase: SharedValue<number>;
+  protected _time: SharedValue<number>;
+  protected _amplitude: SharedValue<number>;
+  protected _maxAmplitude: SharedValue<number>;
+  protected _frequency: SharedValue<number>;
+  protected _speed: SharedValue<number>;
   protected _prevSpeed: number = 0;
-  protected _phaseStep: number = DEFAULT_PHASE_STEP;
-  protected _timeStep: number = DEFAULT_TIME_STEP;
-  protected _minimumAmplitude: number = DEFAULT_MINIMUM_AMPLITUDE;
-  protected _amplitudeMultiplier: number = DEFAULT_AMPLITUDE_MULTIPLIER;
-  protected _frequencyMultiplier: number = DEFAULT_FREQUEMCY_MULTIPLIER;
-  protected _initialForce: number; // New property for initial force
-  protected _velocity: number = 0; // New property for wave velocity
-  protected _acceleration: number = 0; // New property for wave acceleration
-  protected _gravity: number = 0.98; // Gravity constant
-  protected _friction: number = 0.2; // Friction constant
-  protected _phaseValueUpdater = (
-    prevPhase: number,
-    deltaTime: number
-  ): number => {
-    return prevPhase + (deltaTime / 100) * this._phaseStep;
-  };
-  protected _timeValueUpdater = (
-    prevTime: number,
-    deltaTime: number
-  ): number => {
-    const timeChange = deltaTime / 100;
-    return prevTime + timeChange;
-  };
-  protected _initialAmplitudeMultiplier: number = 0.99;
-  protected _finalAmplitudeMultiplier: number = 0.98;
-  protected _decayDuration: number = 5;
-  protected _calculateAmplitudeMultiplier = (elapsedTime: number): number => {
-    const peakDuration = this._decayDuration / 4;
-    const totalDuration = this._decayDuration;
-    const endValue = 0.96;
-
-    if (elapsedTime >= totalDuration) {
-      return endValue;
-    }
-
-    let t: number;
-    if (elapsedTime <= peakDuration) {
-      // Normalize for peak phase
-      t = elapsedTime / peakDuration;
-    } else {
-      // Normalize for decay phase
-      t = (elapsedTime - peakDuration) / (totalDuration - peakDuration);
-    }
-
-    // Adjust control points for smoother transition
-    const p0 = 1; // Start value
-    const p1 = 4; // Control point 1
-    const p2 = 10; // Control point 2 (peak value)
-    const p3 = elapsedTime <= peakDuration ? 10 : endValue; // Control point for decay phase
-
-    // Use a cubic Bezier curve for both phases
-    const currentMultiplier =
-      (1 - t) ** 3 * p0 +
-      3 * (1 - t) ** 2 * t * p1 +
-      3 * (1 - t) * t ** 2 * p2 +
-      t ** 3 * p3;
-
-    return currentMultiplier;
-  };
-
-  // New method to calculate the amplitude rise and decay with friction and interpolation
-  // New method to calculate the amplitude rise and decay with friction, interpolation, and initial force
-  protected _calculateAmplitude(elapsedTime: number): number {
-    const riseTime = 1 / this._speed; // Time it takes to reach peak amplitude, adjusted by force
-    const totalDuration = 5; // Total duration of the wave
-    const friction = 0.01; // Friction coefficient
-
-    if (elapsedTime < riseTime) {
-      // Rising phase
-      return (
-        this._maxAmplitude * Math.sin((Math.PI / 2) * (elapsedTime / riseTime))
-      );
-    } else {
-      // Decay phase with interpolation and force adjustment
-      const decayTime = elapsedTime - riseTime;
-      const adjustedDecayFactor = Math.exp(
-        (-friction * decayTime) / this._speed
-      );
-      return this._amplitude * adjustedDecayFactor;
-    }
-  }
-
-  protected _amplitudeValueUpdater = (
-    prevAmplitude: number,
-    deltaTime: number
-  ): number => {
-    const elapsedTime = this._time + deltaTime / 100;
-    return this._calculateAmplitude(elapsedTime);
-  };
-  protected _frequencyValueUpdater = (
-    prevFrequency: number,
-    currentFrame: number
-  ) => prevFrequency * this._frequencyMultiplier;
 
   constructor(config: WaveConfig) {
     this._initialConfig = config;
@@ -121,63 +22,41 @@ export class Wave implements IWave {
 
     this._x = config.x;
     this._maxAmplitude = config.initialAmplitude;
-    this._amplitude =
-      config.source === WaveSource.FLOW ? config.initialAmplitude : 0.006;
+    this._amplitude = config.initialAmplitude;
+
+    this._phase = config.initialPhase;
 
     this._frequency = config.initialFrequency;
     // this._phase = config.initialPhase ?? 0;
-    this._time = config.initialTime ?? 0;
-    this._speed = config.speed ?? 0.01;
+    this._time = config.initialTime;
+    this._speed = config.speed;
     this._source = config.source;
-
-    // New property for force
-    this._initialForce = config.initialForce ?? 1;
-    this._acceleration = config.initialForce ?? 0;
-    this._velocity = config.speed ?? 0; // Initial velocity based on the force
-
-    this._amplitudeMultiplier =
-      config.amplitudeMultiplier ?? this._amplitudeMultiplier;
-    this._frequencyMultiplier =
-      config.frequencyMultiplier ?? this._frequencyMultiplier;
-
-    if (typeof config.phaseValueUpdater === 'function') {
-      this._phaseValueUpdater = config.phaseValueUpdater;
-    }
-    if (typeof config.timeValueUpdater === 'function') {
-      this._timeValueUpdater = config.timeValueUpdater;
-    }
-    if (typeof config.amplitudeValueUpdater === 'function') {
-      this._amplitudeValueUpdater = config.amplitudeValueUpdater;
-    }
-    if (typeof config.frequencyValueUpdater === 'function') {
-      this._frequencyValueUpdater = config.frequencyValueUpdater;
-    }
   }
 
   get initialConfig(): WaveConfig {
     return this._initialConfig;
   }
-  get x(): number {
+  get x() {
     return this._x;
   }
-  get phase(): number {
+  get phase() {
     return this._phase;
   }
-  get time(): number {
+  get time() {
     return this._time;
   }
-  get amplitude(): number {
+  get amplitude() {
     return this._amplitude;
   }
 
-  get maxAmplitude(): number {
+  get maxAmplitude() {
     return this._maxAmplitude;
   }
-  get frequency(): number {
+  get frequency() {
     return this._frequency;
   }
 
-  get speed(): number {
+  get speed() {
     return this._speed;
   }
 
@@ -193,7 +72,7 @@ export class Wave implements IWave {
     const deltaSeconds = deltaTime / 1000;
 
     // Update time
-    this._time += deltaSeconds;
+    this._time.value += deltaSeconds;
 
     if (this._source === WaveSource.FLOW) return;
 
@@ -202,31 +81,32 @@ export class Wave implements IWave {
     const initialDecayFactor = 0.9; // Quick decay factor for initial rise
     const smoothDecayFactor = 0.92; // Smooth decay factor for gradual decay
 
-    if (this._time < riseTime) {
-      const progress = this._time / riseTime;
-      this._amplitude = 1 + this._maxAmplitude * Math.pow(progress, 3);
+    if (this._time.value < riseTime) {
+      const progress = this._time.value / riseTime;
+      this._amplitude.value =
+        1 + this._maxAmplitude.value * Math.pow(progress, 3);
     } else {
       const smoothDecayFactor = 0.98; // Adjust this value to control the speed of decay
-      this._amplitude *= smoothDecayFactor;
+      this._amplitude.value *= smoothDecayFactor;
     }
 
-    if (this._time > riseTime / 3 && this._frequency < 60) {
+    if (this._time.value > riseTime / 3 && this._frequency.value < 60) {
       // Smooth frequency update
       const frequencyDecayFactor = 1.01; // A decay factor for smoother frequency changes
-      this._frequency = this._frequency * frequencyDecayFactor;
+      this._frequency.value = this._frequency.value * frequencyDecayFactor;
     }
-    if (this._time > riseTime / 3 && this._speed < 1.1) {
-      this._prevSpeed = this._speed;
-      this._speed *= 1.01;
+    if (this._time.value > riseTime / 3 && this._speed.value < 1.1) {
+      this._prevSpeed = this._speed.value;
+      this._speed.value *= 1.01;
     }
   }
 
   isExpired(): boolean {
-    return this._amplitude < 1;
+    return this._amplitude.value < 1;
   }
 
   getXAcceleration(): number {
-    return this._speed - this._prevSpeed;
+    return this._speed.value - this._prevSpeed;
   }
   /**
    * Retrieves the decay factor at a given distance.
@@ -248,8 +128,8 @@ export class Wave implements IWave {
   getDistance(x: number): number {
     let xPosition = x / (this._dimensions.width || 1);
 
-    xPosition = xPosition + this._time * this._speed * 0.4;
-    let distance = xPosition - this._x / (this._dimensions.width || 1);
+    xPosition = xPosition + this._time.value * this._speed.value * 0.4;
+    let distance = xPosition - this._x.value / (this._dimensions.width || 1);
     return distance;
   }
   getSurfaceAtPosition(x: number): number {
@@ -260,12 +140,12 @@ export class Wave implements IWave {
     if (this._source !== WaveSource.FLOW)
       decayFactor = this.getDecayFactorAtDistance(distance);
     let phase = 0;
-    if (this._source !== WaveSource.FLOW) phase = this._phase;
+    if (this._source !== WaveSource.FLOW) phase = this._phase.value;
     const surface =
-      -this.amplitude *
+      -this._amplitude *
       0.05 *
       decayFactor *
-      Math.sin(distance * this.frequency * 0.5 + 0.5);
+      Math.sin(distance * this._frequency.value * 0.5 + 0.5);
     return surface * (this._dimensions.height || 1);
   }
   getUniformsForShader() {
@@ -280,13 +160,13 @@ export class Wave implements IWave {
     return y - this.getSurfaceAtPosition(x);
   }
   getSlopeAtPosition(x: number): number {
-    const distance = x - this.x;
+    const distance = x - this._x.value;
     const decayFactor = this.getDecayFactorAtDistance(distance);
     const waveSlope =
       -this.amplitude *
       decayFactor *
-      this.frequency *
-      Math.cos(distance * this.frequency + this.phase);
+      this._frequency.value *
+      Math.cos(distance * this.frequency.value + this.phase.value);
     return waveSlope;
   }
 }
