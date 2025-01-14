@@ -2,36 +2,35 @@ import { ENTITIES_KEYS } from '@/constants/configs';
 import {
   createTimingAnimation,
   easeInOutQuad,
+  useCanvasDimensions,
   useEntityInstance,
   useEntityMemoizedValue,
   useEntityValue,
 } from '@/containers/ReactNativeSkiaGameEngine';
 import { useAnimationsController } from '@/containers/ReactNativeSkiaGameEngine/hooks/useAnimationsController/useAnimationsController';
+import { useCreateAnimation } from '@/containers/ReactNativeSkiaGameEngine/hooks/useCreateAnimation/useCreateAnimation';
 import { useFrameEffect } from '@/containers/ReactNativeSkiaGameEngine/hooks/useFrameEffect';
 import { useSceneCamera } from '@/containers/ReactNativeSkiaGameEngine/hooks/useSceneCamera/useSceneCamera';
 import { ActiveAnimation } from '@/containers/ReactNativeSkiaGameEngine/services/Animations';
 import { Ship } from '@/Game/Entities/Ship/Ship';
 import { State } from '@/Game/Entities/State/State';
-import { useEffect } from 'react';
-import { useSharedValue } from 'react-native-reanimated';
+import { useCallback, useEffect } from 'react';
+import {
+  runOnJS,
+  runOnUI,
+  SharedValue,
+  useAnimatedReaction,
+  useSharedValue,
+} from 'react-native-reanimated';
 
 const ScaleAnimationDuration = 2000;
 const TranslateAnimationDuration = 2000;
 
 export const ActionCameraControl = () => {
   const { camera } = useSceneCamera();
-  const { registerAnimation, removeAnimation } = useAnimationsController();
+  const { height, width } = useCanvasDimensions();
 
-  const registeredAnimation = useSharedValue<ActiveAnimation | null>(null);
-  const registeredScaleXAnimation = useSharedValue<ActiveAnimation | null>(
-    null
-  );
-  const registeredScaleYAnimation = useSharedValue<ActiveAnimation | null>(
-    null
-  );
-  const registeredTranslateAnimation = useSharedValue<ActiveAnimation | null>(
-    null
-  );
+  if (!camera) return null;
 
   const { entity: shipEntity } = useEntityInstance<Ship>({
     label: ENTITIES_KEYS.SHIP,
@@ -47,71 +46,126 @@ export const ActionCameraControl = () => {
     { processor: (value) => value?.angle ?? 0 }
   );
 
-  const isHomeScene = useEntityMemoizedValue<State, boolean>(
+  const isHomeScene = useEntityMemoizedValue<State, SharedValue<boolean>>(
     stateEntity?.current?.id as string,
-    'isHomeScene'
+    '_isHomeScene'
   );
 
-  const isGamePlayExited = useEntityMemoizedValue<State, boolean>(
+  const isGamePlayExited = useEntityMemoizedValue<State, SharedValue<boolean>>(
     stateEntity?.current?.id as string,
-    'isGamePlayExited'
+    '_isGamePlayExited'
   );
 
-  useEffect(() => {
-    if (!camera) return;
-    if (isGamePlayExited) return;
-    if (registeredScaleXAnimation.value)
-      removeAnimation(registeredScaleXAnimation.value);
-    if (registeredScaleYAnimation.value)
-      removeAnimation(registeredScaleYAnimation.value);
+  const {
+    animation: scaleXAnimation,
+    registerAnimation: registerScaleXAnimation,
+    remove: removeScaleXAnimation,
+  } = useCreateAnimation({
+    sharedValue: camera.scaleX,
+  });
 
-    registeredScaleXAnimation.value = registerAnimation(
-      camera.scaleX,
-      createTimingAnimation(
-        camera.scaleX.value,
-        isHomeScene ? 1.5 : 1.1,
-        ScaleAnimationDuration / (isHomeScene ? 2 : 1),
-        easeInOutQuad
-      ),
-      {
-        duration: ScaleAnimationDuration / (isHomeScene ? 2 : 1),
-        removeOnComplete: true,
+  const {
+    animation: scaleYAnimation,
+    registerAnimation: registerScaleYAnimation,
+    remove: removeScaleYAnimation,
+  } = useCreateAnimation({
+    sharedValue: camera.scaleY,
+  });
+
+  const createScaleXAnimation = useCallback(
+    (isHome?: boolean) => {
+      registerScaleXAnimation({
+        isRunning: true,
+        animation: createTimingAnimation(
+          isHome ? 1.5 : 1.3,
+          isHome ? 1.3 : 1.2,
+          ScaleAnimationDuration / (isHome ? 2 : 1),
+          easeInOutQuad,
+          'scaleXAnimation'
+        ),
+        config: {
+          duration: ScaleAnimationDuration / (isHome ? 2 : 1),
+          removeOnComplete: true,
+          label: 'scaleXAnimation',
+        },
+      });
+    },
+    [registerScaleXAnimation]
+  );
+
+  const createScaleYAnimation = useCallback(
+    (isHome?: boolean) => {
+      registerScaleYAnimation({
+        isRunning: true,
+        animation: createTimingAnimation(
+          isHome ? 1.5 : 1.3,
+          isHome ? 1.3 : 1.2,
+          ScaleAnimationDuration / (isHome ? 2 : 1),
+          easeInOutQuad,
+          'scaleYAnimation'
+        ),
+        config: {
+          duration: ScaleAnimationDuration / (isHome ? 2 : 1),
+          removeOnComplete: true,
+          label: 'scaleYAnimation',
+        },
+      });
+    },
+    [registerScaleYAnimation]
+  );
+
+  const {
+    animationInstance: translateYAnimation,
+    registerAnimation: registerTranslateAnimation,
+    remove: removeTranslateAnimation,
+  } = useCreateAnimation({
+    sharedValue: camera.translateY,
+    animation: createTimingAnimation(
+      (height || 0) / 7,
+      0,
+      TranslateAnimationDuration,
+      easeInOutQuad,
+      'translateYAnimation'
+    ),
+    config: {
+      duration: TranslateAnimationDuration,
+      removeOnComplete: true,
+      label: 'translateYAnimation',
+    },
+  });
+
+  const {
+    registerAnimation: registerRotateAnimation,
+    remove: removeRotateAnimation,
+  } = useCreateAnimation({
+    sharedValue: camera.rotate,
+  });
+
+  useAnimatedReaction(
+    () => isHomeScene?.value,
+    (isHome, prevIsHome) => {
+      if (camera.translateY.value !== 0) {
+        if (isHome) {
+          runOnJS(removeTranslateAnimation)();
+          runOnJS(registerTranslateAnimation)({ isRunning: true });
+        } else {
+          runOnJS(removeTranslateAnimation)();
+          camera.translateY.value = 0;
+        }
       }
-    );
-    registeredScaleYAnimation.value = registerAnimation(
-      camera.scaleY,
-      createTimingAnimation(
-        camera.scaleY.value,
-        isHomeScene ? 1.5 : 1.2,
-        ScaleAnimationDuration,
-        easeInOutQuad
-      ),
-      { duration: ScaleAnimationDuration, removeOnComplete: true }
-    );
-
-    if (registeredTranslateAnimation.value)
-      removeAnimation(registeredTranslateAnimation.value);
-    if (camera.translateY.value !== 0) {
-      if (isHomeScene) {
-        registeredTranslateAnimation.value = registerAnimation(
-          camera.translateY,
-          createTimingAnimation(
-            camera.translateY.value,
-            0,
-            TranslateAnimationDuration,
-            easeInOutQuad
-          ),
-          {
-            delay: 1000,
-            duration: TranslateAnimationDuration,
-            removeOnComplete: true,
-          }
-        );
+      runOnJS(removeScaleXAnimation)();
+      runOnJS(removeScaleYAnimation)();
+      if (isHome !== prevIsHome) {
+        runOnJS(createScaleXAnimation)(isHome);
+        runOnJS(createScaleYAnimation)(isHome);
       } else {
-        camera.translateY.value = 0;
+        if (camera.scaleX.value !== 1) {
+          runOnJS(createScaleXAnimation)(isHome);
+          runOnJS(createScaleYAnimation)(isHome);
+        }
       }
     }
-  }, [isHomeScene, camera]);
+  );
 
   useFrameEffect(
     () => {
@@ -121,17 +175,17 @@ export const ActionCameraControl = () => {
         }
         return;
       }
-      if (registeredAnimation.value) removeAnimation(registeredAnimation.value);
-      registeredAnimation.value = registerAnimation(
-        camera.rotate,
-        createTimingAnimation(
+      removeRotateAnimation();
+      registerRotateAnimation({
+        isRunning: true,
+        animation: createTimingAnimation(
           camera.rotate.value,
           -(shipAngle.value || 0) / 4,
           60,
           easeInOutQuad
         ),
-        { duration: 60, removeOnComplete: true }
-      );
+        config: { duration: 60, removeOnComplete: true },
+      });
     },
     [shipAngle, camera],
     100

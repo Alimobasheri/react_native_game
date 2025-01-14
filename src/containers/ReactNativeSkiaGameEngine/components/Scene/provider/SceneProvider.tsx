@@ -4,6 +4,7 @@ import { useSceneProvider } from './useSceneProvider';
 import { Camera } from '@/containers/ReactNativeSkiaGameEngine/types';
 import { SharedValue } from 'react-native-reanimated';
 import { ISceneTransitionState } from '../types/transitions';
+import { MemoizedContainer } from '../../MemoizedContainer';
 
 export interface ISceneProviderProps {
   name: string;
@@ -44,6 +45,8 @@ export const SceneProvider: FC<PropsWithChildren<ISceneProviderProps>> = ({
     currentIsTransitioning,
   });
   return (
-    <SceneContext.Provider value={value}>{children}</SceneContext.Provider>
+    <SceneContext.Provider value={value}>
+      <MemoizedContainer>{children}</MemoizedContainer>
+    </SceneContext.Provider>
   );
 };

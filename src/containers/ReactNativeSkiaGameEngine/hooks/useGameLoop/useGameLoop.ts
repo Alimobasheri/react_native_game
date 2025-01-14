@@ -5,6 +5,7 @@ import { Frames } from '../../services/Frames';
 import { EventDispatcher } from '../../services';
 import { OnEventListeners } from '../../types/Events';
 import Animations from '../../services/Animations';
+import { runOnUI } from 'react-native-reanimated';
 
 /**
  * Options for the useGameLoop hook
@@ -71,7 +72,7 @@ export function useGameLoop(
         layout: {},
       });
 
-      animations.current.updateAnimations();
+      animations.current.updateAnimations({ now });
       events.current.forEach((event) => {
         if (onEventListeners && onEventListeners[event.type]) {
           onEventListeners[event.type](event);

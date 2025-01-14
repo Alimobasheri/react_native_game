@@ -1,35 +1,53 @@
 import { Scenes } from '@/constants/scenes';
 import {
   useCanvasDimensions,
+  useEntityInstance,
   useEntityMemoizedValue,
 } from '@/containers/ReactNativeSkiaGameEngine';
 import { Scene } from '@/containers/ReactNativeSkiaGameEngine/components/Scene/Scene';
 import { Group, useFont } from '@shopify/react-native-skia';
-import { FC, PropsWithChildren } from 'react';
+import { FC, PropsWithChildren, useState } from 'react';
 import { SwipeToPlay } from './components/SwipeToPlay';
 import { Title } from './components/Title';
 import { StartSwipe } from './components/StartSwipe';
 import { State } from '@/Game/Entities/State/State';
 import { ENTITIES_KEYS } from '@/constants/configs';
 import { createFadeTransition } from '@/containers/ReactNativeSkiaGameEngine/utils/transitions/createFadeTransition';
+import {
+  runOnJS,
+  SharedValue,
+  useAnimatedReaction,
+} from 'react-native-reanimated';
 
 export const StartingScene: FC<PropsWithChildren> = ({ children }) => {
   const dimensions = useCanvasDimensions();
+  const [isActive, setIsActive] = useState<boolean>(true);
   const font = useFont(
     require('../../../../assets/fonts/Montserrat-SemiBold.ttf'),
     16
   );
   const text = 'SWIPE UP TO START';
-  const isHomeScene = useEntityMemoizedValue<State, boolean>(
-    { label: ENTITIES_KEYS.STATE },
-    'isHomeScene'
+  const { entity: stateEntity } = useEntityInstance<State>({
+    label: ENTITIES_KEYS.STATE,
+  });
+
+  const isHomeScene = useEntityMemoizedValue<State, SharedValue<boolean>>(
+    stateEntity?.current?.id as string,
+    '_isHomeScene'
+  );
+  useAnimatedReaction(
+    () => isHomeScene?.value,
+    (isHome) => {
+      if (isActive !== !!isHome) runOnJS(setIsActive)(!!isHome);
+    },
+    [isHomeScene]
   );
   if (!dimensions?.width || !dimensions?.height) return null;
   const titleWidth = Math.min(dimensions.width * 0.2, 100);
   return (
     <Scene
       defaultSceneName={Scenes.Start}
-      isActive={isHomeScene}
+      isActive={isActive}
       x={0}
       y={0}
       width={dimensions.width}

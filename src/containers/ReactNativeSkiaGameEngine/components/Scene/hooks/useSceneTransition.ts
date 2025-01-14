@@ -1,5 +1,3 @@
-import { useAnimationsController } from '@/containers/ReactNativeSkiaGameEngine/hooks/useAnimationsController/useAnimationsController';
-import { ActiveAnimation } from '@/containers/ReactNativeSkiaGameEngine/services/Animations';
 import { Camera } from '@/containers/ReactNativeSkiaGameEngine/types';
 import { createTimingAnimation } from '@/containers/ReactNativeSkiaGameEngine/utils';
 import { useEffect, useRef, useState } from 'react';
@@ -14,6 +12,7 @@ import {
   SceneTransition,
   TransitionPhase,
 } from '../types/transitions';
+import { useCreateAnimation } from '@/containers/ReactNativeSkiaGameEngine/hooks/useCreateAnimation/useCreateAnimation';
 
 interface ITransitionConfig {
   duration?: number;
@@ -24,6 +23,7 @@ interface ITransitionConfig {
 interface IUseSceneTransitionProps {
   isActive: boolean;
   camera: Camera;
+  defaultSceneName?: string;
   enter?: SceneTransition | null;
   exit?: SceneTransition | null;
   config: ITransitionConfig;
@@ -51,6 +51,7 @@ interface IUseSceneTransitionProps {
 export const useSceneTransition = ({
   isActive,
   camera,
+  defaultSceneName,
   enter = null,
   exit = null,
   config = { duration: 500 },
@@ -65,17 +66,18 @@ export const useSceneTransition = ({
     (typeof exit === 'function' && 0);
   const duration = isActive ? enterDuration : exitDuration;
 
-  const { registerAnimation, removeAnimation } = useAnimationsController();
-
-  let animation = useRef<ActiveAnimation | null>(null);
-
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   const phase = useSharedValue(TransitionPhase.BeforeEnter);
   const progress = useSharedValue(0);
 
+  const { registerAnimation, remove } = useCreateAnimation({
+    sharedValue: progress,
+    isRunning: false,
+  });
+
   const sceneTransitionState = useSharedValue<ISceneTransitionState>({
-    phase: phase.value,
+    phase: TransitionPhase.BeforeEnter,
     progress: progress,
     camera: camera,
   });
@@ -135,21 +137,23 @@ export const useSceneTransition = ({
       }
 
       if (shouldTransition && typeof duration === 'number') {
-        if (animation.current) {
-          removeAnimation(animation.current);
-        }
+        remove();
         setIsTransitioning(true);
-        animation.current = registerAnimation(
-          progress,
-          createTimingAnimation(progress.value, isActive ? 1 : 0, duration),
-          {
+        registerAnimation({
+          isRunning: true,
+          animation: createTimingAnimation(
+            isActive ? 0 : 1,
+            isActive ? 1 : 0,
+            duration
+          ),
+          config: {
             duration,
             removeOnComplete: true,
             onDone: () => {
               runOnJS(setIsTransitioning)(false);
             },
-          }
-        );
+          },
+        });
       }
     }
 
@@ -161,6 +165,7 @@ export const useSceneTransition = ({
       return progress;
     },
     (progress) => {
+      'worklet';
       if (
         typeof enter === 'function' &&
         phase.value === TransitionPhase.Enter
@@ -178,7 +183,7 @@ export const useSceneTransition = ({
         camera: camera,
       };
     },
-    [progress.value]
+    [progress]
   );
 
   return {

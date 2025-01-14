@@ -9,19 +9,34 @@ import { State } from '@/Game/Entities/State/State';
 import { ENTITIES_KEYS } from '@/constants/configs';
 import { RestartGameButton } from './RestartGameButton/RestartGameButton';
 import { GameOverBackground } from './GameOverBackground/GameOverBackground';
+import { useState } from 'react';
+import {
+  runOnJS,
+  SharedValue,
+  useAnimatedReaction,
+} from 'react-native-reanimated';
 
 export const GameOverScene = () => {
   const { width, height } = useCanvasDimensions();
-  const isGameOver = useEntityMemoizedValue<State, boolean>(
+  const [isActive, setIsActive] = useState(false);
+  const isGameOver = useEntityMemoizedValue<State, SharedValue<boolean>>(
     { label: ENTITIES_KEYS.STATE },
-    'isGameOver'
-  ) as boolean;
+    '_isGameOver'
+  ) as SharedValue<boolean>;
+
+  useAnimatedReaction(
+    () => isGameOver.value,
+    (isGameOver) => {
+      runOnJS(setIsActive)(isGameOver);
+    },
+    [isGameOver]
+  );
   return (
     <Scene
       defaultSceneName={Scenes.GameOver}
       width={width || 0}
       height={height || 0}
-      isActive={isGameOver}
+      isActive={isActive}
       transitionConfig={{ duration: 500 }}
     >
       {/* <GameOverBackground /> */}

@@ -1,31 +1,46 @@
 import { useSceneTransitioning } from '@/containers/ReactNativeSkiaGameEngine/hooks/useSceneTransitioning';
 import {
+  Atlas,
+  drawAsImage,
   Group,
+  InputRRect,
   LinearGradient,
-  Rect,
+  rect,
   RoundedRect,
+  SkFont,
+  SkRect,
+  SkRRect,
   Text,
+  Transforms3d,
   useFont,
-  vec,
+  useRSXformBuffer,
+  useTexture,
+  Vector,
 } from '@shopify/react-native-skia';
-import { FC, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
+import React, {
+  FC,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+} from 'react';
 import {
+  DerivedValue,
   runOnJS,
   useDerivedValue,
   useSharedValue,
 } from 'react-native-reanimated';
-import { ActiveAnimation } from '@/containers/ReactNativeSkiaGameEngine/services/Animations';
-import { useAnimationsController } from '@/containers/ReactNativeSkiaGameEngine/hooks/useAnimationsController/useAnimationsController';
 import { useTouchHandler } from '@/containers/ReactNativeSkiaGameEngine';
 import { GestureItem } from '@/containers/ReactNativeSkiaGameEngine/types';
 import { Gesture } from 'react-native-gesture-handler';
 import { RESTART_GAME_EVENT } from '@/constants/events';
 import { useDispatchEvent } from '@/containers/ReactNativeSkiaGameEngine/hooks/useDispatchEvent';
+import { useCreateAnimation } from '@/containers/ReactNativeSkiaGameEngine/hooks/useCreateAnimation/useCreateAnimation';
 
-interface IRestartGameButtonProps {
+export type RestartGameButtonProps = {
   x: number;
   y: number;
-}
+};
 
 const ButtonPadding = 10;
 const RestartText = 'Restart';
@@ -38,16 +53,77 @@ const RestartGradientColors = [
   'rgba(255, 255, 255, 0.1)',
 ];
 
-export const RestartGameButton: FC<IRestartGameButtonProps> = ({ x, y }) => {
+export type ButtonTextureProps = {
+  font: SkFont;
+  buttonRect: DerivedValue<SkRRect>;
+  shineStart: DerivedValue<Vector>;
+  shineEnd: DerivedValue<Vector>;
+  transform: DerivedValue<{ translateY: number }[]>;
+} & RestartGameButtonProps;
+
+const ButtonTexture: FC<ButtonTextureProps> = ({
+  font,
+  buttonRect,
+  shineStart,
+  shineEnd,
+  x,
+  y,
+  transform,
+}) => {
+  const textX = useDerivedValue(() => {
+    return x - font.measureText(RestartText).width / 2;
+  });
+  const textY = useDerivedValue(() => {
+    return y - font.measureText(RestartText).height / 2;
+  });
+  return (
+    <Group transform={transform}>
+      <RoundedRect rect={buttonRect} color={RestartButtonColor}></RoundedRect>
+      <RoundedRect rect={buttonRect}>
+        <LinearGradient
+          start={shineStart}
+          end={shineEnd}
+          colors={RestartGradientColors}
+        />
+      </RoundedRect>
+
+      <Text
+        x={textX}
+        y={textY}
+        text={RestartText}
+        font={font}
+        color={RestartTextColor}
+        antiAlias
+      />
+    </Group>
+  );
+};
+
+export const RestartGameButton: FC<RestartGameButtonProps> = ({ x, y }) => {
   const font = useFont(
     require('../../../../../assets/fonts/Montserrat-SemiBold.ttf'),
     RestartTextFontSize
   );
   const translateY = useSharedValue(0);
   const shinePosition = useSharedValue(0);
-  const { registerAnimation, removeAnimation } = useAnimationsController();
   const { addGesture, removeGesture } = useTouchHandler();
   const dispatch = useDispatchEvent();
+
+  const { registerAnimation, remove } = useCreateAnimation({
+    sharedValue: shinePosition,
+    animation: {
+      update: (currentTime, sharedValue, progress, isBackward, onAnimate) => {
+        'worklet';
+        sharedValue.value = progress;
+        if (progress >= 1) runOnJS(onAnimate)(true);
+      },
+    },
+    config: {
+      duration: 500,
+      loop: -1,
+      loopInterval: 1000,
+    },
+  });
 
   useSceneTransitioning({
     callback: ({ progress }) => {
@@ -59,54 +135,31 @@ export const RestartGameButton: FC<IRestartGameButtonProps> = ({ x, y }) => {
     },
   });
 
-  useLayoutEffect(() => {
-    let shineAnimation: ActiveAnimation;
+  useEffect(() => {
     if (font) {
       translateY.value = y - (font?.getMetrics().bounds?.height || 0) / 2;
-      // Start the shine animation using the animations controller
-      shineAnimation = registerAnimation(
-        shinePosition,
-        {
-          update: (
-            currentTime,
-            sharedValue,
-            progress,
-            isBackward,
-            onAnimate
-          ) => {
-            'worklet';
-            sharedValue.value = progress;
-            if (progress >= 1) runOnJS(onAnimate)(true);
-          },
-        },
-        {
-          duration: 500,
-          loop: -1,
-          loopInterval: 1000,
-        }
-      );
+      registerAnimation({ isRunning: true });
     }
 
     return () => {
-      if (shineAnimation) {
-        removeAnimation(shineAnimation);
-      }
+      remove();
     };
   }, [font]);
 
-  const transform = useDerivedValue(() => {
-    return [{ translateY: translateY.value }];
-  }, [translateY.value]);
+  const transform: DerivedValue<{ translateY: number }[]> =
+    useDerivedValue(() => {
+      return [{ translateY: translateY.value }];
+    }, [translateY]);
 
   const textWidth = useMemo(() => {
-    return font?.getTextWidth(RestartText) || 0;
+    return font?.measureText(RestartText).width || 0;
   }, [font]);
 
   const textHeight = useMemo(() => {
-    return RestartTextFontSize || 0;
+    return font?.measureText(RestartText).height || 0;
   }, [font]);
 
-  const buttonRect = useDerivedValue(() => {
+  const buttonRect: DerivedValue<SkRRect> = useDerivedValue(() => {
     return {
       rx: 5,
       ry: 5,
@@ -177,24 +230,14 @@ export const RestartGameButton: FC<IRestartGameButtonProps> = ({ x, y }) => {
   if (!font) return null;
 
   return (
-    <Group transform={transform}>
-      <RoundedRect rect={buttonRect} color={RestartButtonColor}></RoundedRect>
-      <RoundedRect rect={buttonRect}>
-        <LinearGradient
-          start={shineStart}
-          end={shineEnd}
-          colors={RestartGradientColors}
-        />
-      </RoundedRect>
-
-      <Text
-        x={x - textWidth / 2}
-        y={y - textHeight / 2}
-        text={RestartText}
-        font={font}
-        color={RestartTextColor}
-        antiAlias
-      />
-    </Group>
+    <ButtonTexture
+      font={font}
+      buttonRect={buttonRect}
+      shineStart={shineStart}
+      shineEnd={shineEnd}
+      x={x}
+      y={y}
+      transform={transform}
+    />
   );
 };

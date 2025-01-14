@@ -122,10 +122,10 @@ export const SeaViewShader: FC<ISeaViewProps> = (props) => {
       dynamicWaveTime.value,
     ];
   }, [
-    dynamicWaveAmplitude.value,
-    dynamicWaveFrequency.value,
-    dynamicWaveSpeed.value,
-    dynamicWaveTime.value,
+    dynamicWaveAmplitude,
+    dynamicWaveFrequency,
+    dynamicWaveSpeed,
+    dynamicWaveTime,
   ]);
 
   const wavePath = useSharedValue<SkPath>(Skia.Path.Make());

@@ -38,7 +38,7 @@ export const useCreateCamera = (options: ICreateCameraOptions) => {
       { scaleX: scaleX.value },
       { scaleY: scaleY.value },
     ];
-  }, [translateX.value, translateY.value, scaleX.value, scaleY.value]);
+  }, [translateX, translateY, scaleX, scaleY]);
 
   const camera: Camera = useMemo(() => {
     return {

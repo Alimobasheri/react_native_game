@@ -2,7 +2,7 @@ import {
   createTimingAnimation,
   easeInQuad,
 } from '@/containers/ReactNativeSkiaGameEngine';
-import { useAnimationsController } from '@/containers/ReactNativeSkiaGameEngine/hooks/useAnimationsController/useAnimationsController';
+import { useCreateAnimation } from '@/containers/ReactNativeSkiaGameEngine/hooks/useCreateAnimation/useCreateAnimation';
 import { useFrameEffect } from '@/containers/ReactNativeSkiaGameEngine/hooks/useFrameEffect';
 import {
   AnimatedProp,
@@ -13,7 +13,13 @@ import {
 } from '@shopify/react-native-skia';
 import { FC, useCallback, useEffect } from 'react';
 import { Platform } from 'react-native';
-import { runOnUI, SharedValue, useSharedValue } from 'react-native-reanimated';
+import {
+  runOnUI,
+  SharedValue,
+  useAnimatedReaction,
+  useDerivedValue,
+  useSharedValue,
+} from 'react-native-reanimated';
 
 export interface ISwipeToPlayProps {
   text: string;
@@ -40,63 +46,52 @@ export const SwipeToPlay: FC<ISwipeToPlayProps> = ({
 }) => {
   const wavePhase = useSharedValue(0);
 
-  const { registerAnimation, removeAnimation } = useAnimationsController();
-
-  useEffect(() => {
-    const animation = registerAnimation(
-      wavePhase,
-      createTimingAnimation(0.1, 2 * Math.PI, 2000, easeInQuad),
-      { loop: -1, yoyo: true, throttle: 0 }
-    );
-    return () => {
-      removeAnimation(animation);
-    };
-  }, []);
+  const { registerAnimation, remove: removeAnimation } = useCreateAnimation({
+    sharedValue: wavePhase,
+    config: {
+      loop: -1,
+      throttle: 0,
+      label: 'wavePhase',
+    },
+  });
 
   const initalPath = Skia.Path.Make();
   initalPath.moveTo(x - font.getTextWidth(text) / 2, y);
   initalPath.lineTo(width, y);
 
-  const path = useSharedValue(initalPath);
+  const path = useDerivedValue(() => {
+    const newPath = Skia.Path.Make();
 
-  const updatePath = useCallback(
-    (
-      width: number,
-      height: number,
-      path: SharedValue<SkPath>,
-      wavePhase: SharedValue<number>,
-      amplitude: number,
-      frequency: number
-    ) => {
-      'worklet';
-      const newPath = Skia.Path.Make();
+    const maxY = y + amplitude;
+    const minY = y - amplitude;
 
-      const maxY = y + amplitude;
-      const minY = y - amplitude;
+    newPath.moveTo(x - font.getTextWidth(text) / 2, y);
+    for (
+      let z = x - font.getTextWidth(text) / 2;
+      z <= x + font.getTextWidth(text) / 2;
+      z += 10
+    ) {
+      const targetY = y + amplitude * Math.sin(frequency * z + wavePhase.value);
+      newPath.lineTo(z, Math.min(Math.max(targetY, minY), maxY));
+    }
+    return newPath;
+  });
 
-      newPath.moveTo(x - font.getTextWidth(text) / 2, y);
-      for (
-        let z = x - font.getTextWidth(text) / 2;
-        z <= x + font.getTextWidth(text) / 2;
-        z += 10
-      ) {
-        const targetY =
-          y + amplitude * Math.sin(frequency * z + wavePhase.value);
-        newPath.lineTo(z, Math.min(Math.max(targetY, minY), maxY));
-      }
-      path.value = newPath;
-    },
-    []
-  );
-
-  useFrameEffect(
-    () => {
-      if (Platform.OS === 'android') return;
-      runOnUI(updatePath)(width, height, path, wavePhase, amplitude, frequency);
-    },
-    [wavePhase.value, width, height, path.value],
-    60
-  );
+  useEffect(() => {
+    registerAnimation({
+      isRunning: true,
+      animation: createTimingAnimation(
+        0.1,
+        2 * Math.PI,
+        2000,
+        easeInQuad,
+        'wavePhase'
+      ),
+    });
+    return () => {
+      removeAnimation();
+    };
+  }, []);
   return (
     <TextPath
       text={text}

@@ -1,7 +1,12 @@
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { RNSGEContext } from '../context/RNSGEContext';
 import { Entity } from '../services/Entity';
-import { useSharedValue } from 'react-native-reanimated';
+import {
+  runOnJS,
+  runOnUI,
+  SharedValue,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { AddEntityEvent } from '../services/Entities';
 import { FrameUpdateEvent } from '../services/Frames';
 
@@ -61,15 +66,45 @@ export function useEntityValue<E extends Record<string, any>, T>(
     getValue(entity, key) as T | undefined
   );
 
-  useEffect(() => {
-    if (!entity) return;
-    if (!value.value && !entityLoadedFirstTime.current)
+  const updateValue = useCallback(
+    (nativeValue: T | undefined) => {
       value.value = getValue(entity, key) as T | undefined;
-    const framesListener = frames.current.addListener(FrameUpdateEvent, () => {
+    },
+    [entity, getValue, key]
+  );
+
+  const compareValues = useCallback(
+    (nativeValue: T | undefined) => {
       const entity = entities.current.entities.get(entityId);
+
       const nextValue = getValue(entity, key) as T | undefined;
-      if (!!entity?.id && !areValuesEqual(value.value, nextValue))
-        value.value = nextValue;
+      if (!!entity?.id) {
+        if (!areValuesEqual(nativeValue, nextValue)) {
+          value.value = nextValue;
+        }
+      }
+    },
+    [areValuesEqual, value]
+  );
+
+  const onEffectWorklet = useCallback(() => {
+    'worklet';
+    if (!entity) return;
+    if (!value.value && !entityLoadedFirstTime.current) {
+      runOnJS(updateValue)(value.value);
+    }
+  }, [updateValue, key, value]);
+
+  const onFrameWorklet = useCallback(() => {
+    'worklet';
+
+    runOnJS(compareValues)(value.value);
+  }, [key, value, compareValues]);
+
+  useEffect(() => {
+    runOnUI(onEffectWorklet)();
+    const framesListener = frames.current.addListener(FrameUpdateEvent, () => {
+      runOnUI(onFrameWorklet)();
     });
     return () => {
       framesListener.remove();
