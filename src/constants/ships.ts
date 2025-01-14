@@ -1,3 +1,4 @@
 export enum SHIP_BUILDS {
-  WAR_SHIP = "war_ship",
+  WAR_SHIP = 'war_ship',
+  FisherBoat = 'FisherBoat',
 }

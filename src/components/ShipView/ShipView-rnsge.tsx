@@ -32,7 +32,7 @@ import {
   Rect,
   Skia,
   SkiaProps,
-  Transforms2d,
+  Transforms3d,
   useImage,
 } from '@shopify/react-native-skia';
 import Matter from 'matter-js';
@@ -44,8 +44,8 @@ import {
   useMemo,
   useRef,
 } from 'react';
-import { TranslateXTransform, useWindowDimensions } from 'react-native';
 import {
+  runOnUI,
   SharedValue,
   useDerivedValue,
   useSharedValue,
@@ -126,23 +126,23 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
 
   const origin = useDerivedValue(() => {
     return { x: x.value - size.value[0] / 2, y: y.value - size.value[1] / 2 };
-  }, [size.value]);
+  }, [size]);
 
   const translateX = useDerivedValue<number>(() => {
     return x.value - initialX;
-  }, [x.value]);
+  }, [x]);
 
   const translateY = useDerivedValue<number>(() => {
     return y.value - initialY;
-  }, [y.value]);
+  }, [y]);
 
-  const transform = useDerivedValue<Transforms2d>(() => {
+  const transform = useDerivedValue<Transforms3d>(() => {
     return [
       { rotate: angle.value },
       { translateX: translateX.value },
       { translateY: translateY.value },
     ];
-  }, [angle.value, translateX.value, translateY.value]);
+  }, [angle, translateX, translateY]);
 
   const shipSystem = useMemo(() => new ShipSystem(), []);
   const systemCallback: system = useCallback(
@@ -164,17 +164,22 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
 
   const frameWidth = useDerivedValue(() => {
     return size.value[0] / numebrOfCols;
-  }, [size.value]);
+  }, [size]);
   const frameHeight = useDerivedValue(() => {
     return size.value[1] / numebrOfRows;
-  }, [size.value]);
+  }, [size]);
 
   // The current frame to display (can be updated based on game logic)
   const frameIndex = useSharedValue(0);
 
+  const updateFrameIndex = useCallback(() => {
+    'worklet';
+    frameIndex.value = (frameIndex.value + 1) % numebrOfFrames;
+  }, [frameIndex, numebrOfFrames]);
+
   useFrameEffect(
     () => {
-      frameIndex.value = (frameIndex.value + 1) % numebrOfFrames;
+      runOnUI(updateFrameIndex)();
     },
     [],
     90
@@ -193,7 +198,7 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
       rx: 0,
       ry: 0,
     };
-  }, [size.value]);
+  }, [size]);
 
   const spriteRect = useDerivedValue(() => {
     const width = size.value[0] / numebrOfCols;
@@ -204,7 +209,7 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
       width: size.value[0],
       height: size.value[1],
     };
-  }, [initialX, initialY, size.value]);
+  }, [initialX, initialY, size]);
 
   const spriteTransform = useDerivedValue(() => {
     return [
@@ -216,9 +221,7 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
           -Math.floor(frameIndex.value / numebrOfCols) * frameHeight.value,
       },
     ];
-  }, [frameWidth.value, frameHeight.value, frameIndex]);
-
-  if (!size.value) return null;
+  }, [frameWidth, frameHeight, frameIndex]);
 
   const boatImage = useImage(require('../../../assets/fisher_boat3.png'));
   if (!boatImage) return null;
@@ -232,19 +235,17 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
         width={size.value[0]}
         height={size.value[1]}
       /> */}
-      <Rect
+      {/* <Rect
         x={initialX - size.value[0] / numebrOfCols / 2}
         y={initialY - size.value[1] / numebrOfRows / 2}
         width={size.value[0] / numebrOfCols}
         height={size.value[1] / numebrOfRows}
         color={'rgba(0, 0, 0, 1)'}
         style={'stroke'}
-      />
+      /> */}
       <Group clip={groupClip}>
         <Image
           image={boatImage}
-          width={size.value[0]}
-          height={size.value[1]}
           rect={spriteRect}
           transform={spriteTransform}
         />

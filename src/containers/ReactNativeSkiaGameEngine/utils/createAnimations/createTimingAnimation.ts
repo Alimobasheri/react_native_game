@@ -6,12 +6,12 @@ export function createTimingAnimation(
   startValue: number,
   targetValue: number,
   duration: number,
-  easing: (progress: number) => number = linear
+  easing: (progress: number) => number = linear,
+  label?: string
 ): Animation {
   return {
     update: (now, sharedValue, progress, isBackward, onAnimate) => {
       'worklet';
-
       const easedProgress = easing(progress);
 
       // Update the shared value

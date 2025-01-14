@@ -36,7 +36,7 @@ export const BoatView: FC<{ entityId: string }> = ({ entityId }) => {
   );
   const size = useEntityMemoizedValue<Boat, number[]>(entityId, 'size', {
     defaultValue: [0, 0],
-  });
+  }) as number[];
   const initialX = useMemo(
     () => (found ? entity.current?.data.body.position.x : 0),
     [found]
@@ -75,11 +75,11 @@ export const BoatView: FC<{ entityId: string }> = ({ entityId }) => {
 
   const translateX = useDerivedValue<number>(() => {
     return x.value - initialX;
-  }, [x.value]);
+  }, [x]);
 
   const translateY = useDerivedValue<number>(() => {
     return y.value - initialY;
-  }, [y.value]);
+  }, [y]);
 
   const transform = useDerivedValue<Transforms2d>(() => {
     return [
@@ -87,23 +87,31 @@ export const BoatView: FC<{ entityId: string }> = ({ entityId }) => {
       { translateX: translateX.value },
       { translateY: translateY.value },
     ];
-  }, [angle.value, translateX.value, translateY.value]);
+  }, [angle, translateX, translateY]);
 
   const imageRotateTransform = useDerivedValue<Transforms2d>(() => {
     return [{ rotate: angle.value }];
-  }, [angle.value]);
+  }, [angle]);
 
   const imageOrigin = useDerivedValue<SkPoint>(() => {
     return { x: initialX - size[0] / 2, y: initialY - size[1] / 2 };
   }, [initialX, initialY, size[0], size[1]]);
 
+  const posX = useMemo(() => {
+    return initialX - size[0] / 2;
+  }, [initialX, size[0]]);
+
+  const posY = useMemo(() => {
+    return initialY - size[1] / 2;
+  }, [initialY, size[1]]);
+
   const imageTransform = useDerivedValue<Transforms2d>(() => {
     return [{ scaleX: -1 }];
-  }, [translateX.value, translateY.value]);
+  }, [translateX, translateY]);
 
   const imageDirectionTranslateX = useDerivedValue<Transforms2d>(() => {
     return [{ translateX: -size[0] }];
-  }, [size[0]]);
+  }, [size?.[0]]);
 
   if (!found) return;
   const boatImage = useImage(imageSource);
@@ -114,8 +122,8 @@ export const BoatView: FC<{ entityId: string }> = ({ entityId }) => {
       <Group origin={origin} transform={transform}>
         <Image
           image={boatImage}
-          x={initialX - size[0] / 2}
-          y={initialY - size[1] / 2}
+          x={posX}
+          y={posY}
           width={size[0]}
           height={size[1]}
         />
@@ -127,8 +135,8 @@ export const BoatView: FC<{ entityId: string }> = ({ entityId }) => {
       <Group origin={imageOrigin} transform={imageTransform}>
         <Image
           image={boatImage}
-          x={initialX - size[0] / 2}
-          y={initialY - size[1] / 2}
+          x={posX}
+          y={posY}
           width={size[0]}
           height={size[1]}
           origin={origin}

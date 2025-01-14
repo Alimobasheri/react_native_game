@@ -141,15 +141,15 @@ export const useWaveShaderUniforms = (
       canvasSize: [dimensions.width, dimensions.height],
     };
   }, [
-    time.value,
+    time,
     height,
     dimensions.height,
     frequency,
     amplitude,
     speed,
     waterColor,
-    dynamicWaveX.value,
-    dynamicWave.value,
+    dynamicWaveX,
+    dynamicWave,
   ]);
 };
 

@@ -2,7 +2,13 @@ import React, { FC, PropsWithChildren, useMemo } from 'react';
 import { useSceneContext } from './hooks/useSceneContext';
 import { useSceneTransition } from './hooks/useSceneTransition';
 import { SceneProvider } from './provider';
-import { Group, Paint, rect, SkRect } from '@shopify/react-native-skia';
+import {
+  ClipDef,
+  Group,
+  Paint,
+  rect,
+  SkRect,
+} from '@shopify/react-native-skia';
 import {
   ICreateCameraOptions,
   useCreateCamera,
@@ -120,6 +126,7 @@ export const Scene: FC<ISceneProps> = ({
     });
 
   const { isTransitioning, sceneTransitionState } = useSceneTransition({
+    defaultSceneName,
     isActive: currentIsActive,
     camera: defaultCamera,
     enter,
@@ -127,19 +134,14 @@ export const Scene: FC<ISceneProps> = ({
     config: transitionConfig,
   });
 
-  const defaultCameraClip = useDerivedValue<SkRect>(() => {
+  const defaultCameraClip = useDerivedValue<ClipDef>(() => {
     return {
       x: defaultCamera.x.value,
       y: defaultCamera.y.value,
       width: defaultCamera.width.value,
       height: defaultCamera.height.value,
     };
-  }, [
-    defaultCamera.x,
-    defaultCamera.y,
-    defaultCamera.width,
-    defaultCamera.height,
-  ]);
+  });
 
   const defaultCameraTransform = useDerivedValue(() => {
     return [
@@ -153,17 +155,11 @@ export const Scene: FC<ISceneProps> = ({
       { translateX: defaultCamera.translateX.value },
       { translateY: defaultCamera.translateY.value },
     ];
-  }, [
-    defaultCamera.translateX,
-    defaultCamera.translateY,
-    defaultCamera.scaleX,
-    defaultCamera.scaleY,
-    defaultCamera.rotate,
-  ]);
+  });
 
   const show = useMemo(() => {
-    return currentIsActive || isTransitioning;
-  }, [currentIsActive, isTransitioning]);
+    return currentIsActive;
+  }, [currentIsActive]);
 
   return (
     <SceneProvider
@@ -181,7 +177,7 @@ export const Scene: FC<ISceneProps> = ({
           opacity={defaultCamera.opacity}
           {...rootComponentProps}
         >
-          {children}
+          <MemoizedContainer>{children}</MemoizedContainer>
         </RootComponent>
       ) : null}
     </SceneProvider>

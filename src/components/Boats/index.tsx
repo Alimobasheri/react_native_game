@@ -7,16 +7,24 @@ import {
   useEntityState,
   Entity,
   system,
+  useEntityMemoizedValue,
 } from '@/containers/ReactNativeSkiaGameEngine';
 import { Boat } from '@/Game/Entities/Boat/Boat';
 import { BoatSystem } from '@/systems/BoatSystem/BoatSystem';
 import { PhysicsSystem } from '@/systems/PhysicsSystem/PhysicsSystem';
-import { FC, MutableRefObject, useCallback, useRef } from 'react';
+import { FC, MutableRefObject, useCallback, useRef, useState } from 'react';
 import { BoatView } from '../BoatView/BoatView-rnsge';
 import { Sea } from '@/Game/Entities/Sea/Sea';
+import { State } from '@/Game/Entities/State/State';
+import {
+  runOnJS,
+  SharedValue,
+  useAnimatedReaction,
+} from 'react-native-reanimated';
 
 export const Boats: FC<{}> = () => {
   const dimensions = useCanvasDimensions();
+  const [isActive, setIsActive] = useState(false);
   const { entity: seaInstance, found: seaFound } = useEntityInstance<Sea>({
     label: ENTITIES_KEYS.SEA,
   });
@@ -34,11 +42,31 @@ export const Boats: FC<{}> = () => {
     label: ENTITIES_KEYS.BOAT_SYSTEM_INSTANCE,
   });
 
-  const systemCallback: system = useCallback((entities, args) => {
-    const boatSystemInstance: Entity<MutableRefObject<BoatSystem>> | undefined =
-      entities.getEntityByLabel(ENTITIES_KEYS.BOAT_SYSTEM_INSTANCE);
-    boatSystemInstance?.data.current.systemInstanceRNSGE(entities, args);
-  }, []);
+  const isRunning = useEntityMemoizedValue<State, SharedValue<boolean>>(
+    { label: ENTITIES_KEYS.STATE },
+    '_isRunning'
+  ) as SharedValue<boolean>;
+
+  useAnimatedReaction(
+    () => isRunning.value,
+    (isRunning) => {
+      if (isActive !== isRunning) runOnJS(setIsActive)(isRunning);
+    },
+    [isRunning]
+  );
+
+  const systemCallback: system = useCallback(
+    (entities, args) => {
+      if (!isActive) return;
+      const boatSystemInstance:
+        | Entity<MutableRefObject<BoatSystem>>
+        | undefined = entities.getEntityByLabel(
+        ENTITIES_KEYS.BOAT_SYSTEM_INSTANCE
+      );
+      boatSystemInstance?.data.current.systemInstanceRNSGE(entities, args);
+    },
+    [isActive]
+  );
 
   useSystem(systemCallback);
 

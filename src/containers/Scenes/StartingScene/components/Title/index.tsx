@@ -3,7 +3,7 @@ import {
   easeInOutQuad,
   linear,
 } from '@/containers/ReactNativeSkiaGameEngine';
-import { useAnimationsController } from '@/containers/ReactNativeSkiaGameEngine/hooks/useAnimationsController/useAnimationsController';
+import { useCreateAnimation } from '@/containers/ReactNativeSkiaGameEngine/hooks/useCreateAnimation/useCreateAnimation';
 import { Group, Image, useImage } from '@shopify/react-native-skia';
 import { FC, useDebugValue, useEffect } from 'react';
 import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
@@ -20,28 +20,37 @@ export const Title: FC<ITitleProps> = ({ x, y, width, height }) => {
   const scale = useSharedValue(1);
   const translateX = useDerivedValue(() => {
     return -width * (scale.value - 1) * 2;
-  }, [scale.value]);
+  }, [scale]);
   const translateY = useDerivedValue(() => {
     return -height * (scale.value - 1) * 2;
-  }, [scale.value]);
-  const { registerAnimation, removeAnimation } = useAnimationsController();
+  }, [scale]);
+
+  const { registerAnimation, remove: removeAnimation } = useCreateAnimation({
+    sharedValue: scale,
+    animation: createTimingAnimation(1, 1.05, 5000, easeInOutQuad, 'title'),
+    config: {
+      loop: -1,
+      yoyo: true,
+      throttle: 0,
+    },
+  });
 
   const transform = useDerivedValue(() => {
     return [
+      { translateX: width / 2 },
+      { translateY: height / 2 },
       { scale: scale.value },
+      { translateX: -width / 2 },
+      { translateY: -height / 2 },
       { translateX: translateX.value },
       { translateY: translateY.value },
     ];
-  }, [scale.value, translateX.value, translateY.value]);
+  }, [scale, translateX, translateY]);
 
   useEffect(() => {
-    const animation = registerAnimation(
-      scale,
-      createTimingAnimation(1, 1.05, 5000, easeInOutQuad),
-      { loop: -1, yoyo: true, throttle: 0 }
-    );
+    registerAnimation({ isRunning: true });
     return () => {
-      removeAnimation(animation);
+      removeAnimation();
     };
   }, []);
   if (!image) return;

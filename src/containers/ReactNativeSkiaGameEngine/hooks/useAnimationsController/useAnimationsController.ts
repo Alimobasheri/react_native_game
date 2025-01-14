@@ -7,6 +7,7 @@ import {
   Animation,
   AnimationConfig,
   AnimationFilter,
+  RegisterAnimationArg,
 } from '../../services/Animations';
 
 export const useAnimationsController = () => {
@@ -20,16 +21,8 @@ export const useAnimationsController = () => {
 
   // Register an animation with optional config (label, group, etc.)
   const registerAnimation = useCallback(
-    (
-      sharedValue: SharedValue<any>,
-      animation: Animation,
-      config?: AnimationConfig
-    ) => {
-      return context.animations.current.registerAnimation(
-        sharedValue,
-        animation,
-        config
-      );
+    (animation: RegisterAnimationArg) => {
+      return context.animations.current.registerAnimation(animation);
     },
     [context]
   );

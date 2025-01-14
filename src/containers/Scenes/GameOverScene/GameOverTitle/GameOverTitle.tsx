@@ -35,7 +35,7 @@ export const GameOverTitle: FC<IGameOverTitleProps> = ({ x, y }) => {
   }, [font]);
   const transform = useDerivedValue(() => {
     return [{ translateY: translateY.value }];
-  }, [translateY.value]);
+  }, [translateY]);
   if (!font) return null;
 
   return (

@@ -31,11 +31,6 @@ export class CollisionsSystem implements ICollisionsSystem {
   }
 
   protected update(entities: Entities, args: RNGE_System_Args): void {
-    const stateEntity: Entity<State> | undefined = entities.getEntityByLabel(
-      ENTITIES_KEYS.STATE
-    );
-    if (stateEntity?.data?.isGamePlayExited || !stateEntity?.data?.isRunning)
-      return;
     const attackingBoats = this.findAttackingBoats(entities);
     const ship: Entity<Ship> | undefined = entities.getEntityByLabel(
       ENTITIES_KEYS.SHIP

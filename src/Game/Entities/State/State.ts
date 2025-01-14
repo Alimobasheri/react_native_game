@@ -1,4 +1,14 @@
+import { SharedValue } from 'react-native-reanimated';
+
 export interface IGameState {
+  isRunning: SharedValue<boolean>;
+  isGameOver: SharedValue<boolean>;
+  isPaused: SharedValue<boolean>;
+  isGamePlayExited: SharedValue<boolean>;
+  isHomeScene: SharedValue<boolean>;
+}
+
+export interface IVanillaGameState {
   isRunning: boolean;
   isGameOver: boolean;
   isPaused: boolean;
@@ -7,11 +17,11 @@ export interface IGameState {
 }
 
 export class State {
-  private _isRunning: boolean;
-  private _isGameOver: boolean;
-  private _isPaused: boolean;
-  private _isGamePlayExited: boolean;
-  private _isHomeScene: boolean;
+  _isRunning: SharedValue<boolean>;
+  _isGameOver: SharedValue<boolean>;
+  _isPaused: SharedValue<boolean>;
+  _isGamePlayExited: SharedValue<boolean>;
+  _isHomeScene: SharedValue<boolean>;
 
   constructor(initialState: IGameState) {
     this._isRunning = initialState.isRunning;
@@ -21,71 +31,21 @@ export class State {
     this._isHomeScene = initialState.isHomeScene;
   }
 
-  get state(): IGameState {
+  get state(): IVanillaGameState {
     return {
-      isRunning: this._isRunning,
-      isGameOver: this._isGameOver,
-      isPaused: this._isPaused,
-      isGamePlayExited: this._isGamePlayExited,
-      isHomeScene: this._isHomeScene,
+      isRunning: this._isRunning.value,
+      isGameOver: this._isGameOver.value,
+      isPaused: this._isPaused.value,
+      isGamePlayExited: this._isGamePlayExited.value,
+      isHomeScene: this._isHomeScene.value,
     };
   }
 
-  set state(value: IGameState) {
-    this._isRunning = value.isRunning;
-    this._isGameOver = value.isGameOver;
-    this._isPaused = value.isPaused;
-    this._isGamePlayExited = value.isGamePlayExited;
-    this._isHomeScene = value.isHomeScene;
-  }
-
-  get isRunning(): boolean {
-    return this._isRunning;
-  }
-
-  set isRunning(value: boolean) {
-    if (this._isRunning !== value) {
-      this._isRunning = value;
-    }
-  }
-
-  get isGameOver(): boolean {
-    return this._isGameOver;
-  }
-
-  set isGameOver(value: boolean) {
-    if (this._isGameOver !== value) {
-      this._isGameOver = value;
-    }
-  }
-
-  get isPaused(): boolean {
-    return this._isPaused;
-  }
-
-  set isPaused(value: boolean) {
-    if (this._isPaused !== value) {
-      this._isPaused = value;
-    }
-  }
-
-  get isGamePlayExited(): boolean {
-    return this._isGamePlayExited;
-  }
-
-  set isGamePlayExited(value: boolean) {
-    if (this._isGamePlayExited !== value) {
-      this._isGamePlayExited = value;
-    }
-  }
-
-  get isHomeScene(): boolean {
-    return this._isHomeScene;
-  }
-
-  set isHomeScene(value: boolean) {
-    if (this._isHomeScene !== value) {
-      this._isHomeScene = value;
-    }
+  set state(value: IVanillaGameState) {
+    this._isRunning.value = value.isRunning;
+    this._isGameOver.value = value.isGameOver;
+    this._isPaused.value = value.isPaused;
+    this._isGamePlayExited.value = value.isGamePlayExited;
+    this._isHomeScene.value = value.isHomeScene;
   }
 }
