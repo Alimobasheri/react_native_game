@@ -8,6 +8,7 @@ export default ({ config }) => {
       icon: './assets/icon.png',
       userInterfaceStyle: 'light',
       jsEngine: 'hermes',
+      newArchEnabled: true,
       splash: {
         image: './assets/splash.png',
         resizeMode: 'contain',
