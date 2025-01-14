@@ -38,16 +38,18 @@ export interface ActiveAnimation {
   sharedValue: SharedValue<any>;
   originalValue: any;
   animation: Animation;
-  startTime: number;
-  accumulatedTime: number;
-  isRunning: boolean;
+  startTime: SharedValue<number | null>;
+  accumulatedTime: SharedValue<number>;
+  isRunning: SharedValue<boolean>;
   config: AnimationConfig;
-  direction: 1 | -1;
-  loopCount: number;
-  lastUpdateTime: number;
-  waitingForNextLoop: boolean; // New property to track if waiting for the next loop
-  loopStartTime: number; // New property to track the start time of the next loop
+  direction: SharedValue<1 | -1>;
+  loopCount: SharedValue<number>;
+  lastUpdateTime: SharedValue<number>;
+  waitingForNextLoop: SharedValue<boolean>; // New property to track if waiting for the next loop
+  loopStartTime: SharedValue<number>; // New property to track the start time of the next loop
 }
+
+export type RegisterAnimationArg = Omit<ActiveAnimation, 'id'>;
 
 class Animations {
   private allAnimations: Map<string, ActiveAnimation> = new Map();
@@ -56,44 +58,28 @@ class Animations {
   private mapGroupToAnimations: Map<string, ActiveAnimation[]> = new Map(); // Store group -> animations
 
   // Registers a new animation with optional label and groups
-  registerAnimation(
-    sharedValue: SharedValue<any>,
-    animation: Animation,
-    config: AnimationConfig = {},
-    isRunning = true
-  ) {
+  registerAnimation(animation: RegisterAnimationArg) {
     const id = uid(); // Generate a unique ID for the animation
     const now = global.nativePerformanceNow();
 
     const newAnimation: ActiveAnimation = {
       id,
-      sharedValue,
-      originalValue: sharedValue.value,
-      animation,
-      startTime: now,
-      accumulatedTime: 0,
-      isRunning,
-      config,
-      direction: 1,
-      loopCount: 0,
-      lastUpdateTime: now,
-      waitingForNextLoop: false,
-      loopStartTime: now,
+      ...animation,
     };
 
     this.allAnimations.set(id, newAnimation);
-    if (isRunning) {
+    if (newAnimation.isRunning) {
       this.activeAnimations.set(id, newAnimation);
     }
 
     // If the animation has a label, associate it with the animation ID
-    if (config.label) {
-      this.mapLabelToAnimationId.set(config.label, id);
+    if (newAnimation.config.label) {
+      this.mapLabelToAnimationId.set(newAnimation.config.label, id);
     }
 
     // If the animation belongs to groups, associate it with those groups
-    if (config.groups) {
-      config.groups.forEach((group) => {
+    if (newAnimation.config.groups) {
+      newAnimation.config.groups.forEach((group) => {
         if (!this.mapGroupToAnimations.has(group)) {
           this.mapGroupToAnimations.set(group, []);
         }
@@ -155,15 +141,17 @@ class Animations {
 
     if (Array.isArray(animations)) {
       animations.forEach((animationObj) => {
-        if (animationObj.isRunning) {
-          animationObj.isRunning = false;
-          animationObj.accumulatedTime += now - animationObj.startTime; // Accumulate elapsed time
+        if (animationObj.isRunning.value) {
+          animationObj.isRunning.value = false;
+          animationObj.accumulatedTime.value +=
+            now - (animationObj.startTime.value || now); // Accumulate elapsed time
           this.activeAnimations.delete(animationObj.id);
         }
       });
-    } else if (animations && animations.isRunning) {
-      animations.isRunning = false;
-      animations.accumulatedTime += now - animations.startTime;
+    } else if (animations && animations.isRunning.value) {
+      animations.isRunning.value = false;
+      animations.accumulatedTime.value +=
+        now - (animations.startTime.value || now);
       this.activeAnimations.delete(animations.id);
     }
   }
@@ -175,15 +163,15 @@ class Animations {
 
     if (Array.isArray(animations)) {
       animations.forEach((animationObj) => {
-        if (!animationObj.isRunning) {
-          animationObj.isRunning = true;
-          animationObj.startTime = now; // Set the new start time but progress from accumulatedTime
+        if (!animationObj.isRunning.value) {
+          animationObj.isRunning.value = true;
+          animationObj.startTime.value = now; // Set the new start time but progress from accumulatedTime
           this.activeAnimations.set(animationObj.id, animationObj);
         }
       });
-    } else if (animations && !animations.isRunning) {
-      animations.isRunning = true;
-      animations.startTime = now;
+    } else if (animations && !animations.isRunning.value) {
+      animations.isRunning.value = true;
+      animations.startTime.value = now;
       this.activeAnimations.set(animations.id, animations);
     }
   }
@@ -195,20 +183,19 @@ class Animations {
     if (Array.isArray(animations)) {
       animations.forEach((animationObj) => {
         animationObj.sharedValue.value = animationObj.originalValue; // Reset to original value
-        animationObj.isRunning = false;
+        animationObj.isRunning.value = false;
         this.activeAnimations.delete(animationObj.id);
       });
     } else if (animations) {
       animations.sharedValue.value = animations.originalValue; // Reset to original value
-      animations.isRunning = false;
+      animations.isRunning.value = false;
       this.activeAnimations.delete(animations.id);
     }
   }
 
   // Updates all running animations at each frame
   // Updates all running animations at each frame
-  updateAnimations() {
-    const now = global.nativePerformanceNow();
+  updateAnimations({ now }: { now: number }) {
     this.activeAnimations.forEach((animationObj) => {
       const {
         sharedValue,
@@ -222,24 +209,25 @@ class Animations {
         waitingForNextLoop,
         loopStartTime,
       } = animationObj;
-
       // Throttle check
       const { throttle, loopInterval = 0 } = config;
-      if (throttle && now - lastUpdateTime < throttle) {
+      if (animationObj.startTime.value === null)
+        animationObj.startTime.value === now;
+      if (throttle && now - lastUpdateTime.value < throttle) {
         return; // Skip update if within throttle time
       }
 
-      if (!isRunning) {
+      if (!isRunning.value) {
         return; // Skip if the animation is paused
       }
 
-      if (waitingForNextLoop) {
+      if (waitingForNextLoop.value) {
         // If the animation is waiting for the next loop, check if the interval has passed
-        if (now - loopStartTime >= loopInterval) {
-          animationObj.waitingForNextLoop = false;
-          animationObj.startTime = now;
-          animationObj.accumulatedTime = 0;
-          animationObj.waitingForNextLoop = false;
+        if (now - loopStartTime.value >= loopInterval) {
+          animationObj.waitingForNextLoop.value = false;
+          animationObj.startTime.value = now;
+          animationObj.accumulatedTime.value = 0;
+          animationObj.waitingForNextLoop.value = false;
         } else {
           return; // Skip until the interval has passed
         }
@@ -254,11 +242,11 @@ class Animations {
         removeOnComplete = true,
         onDone = () => {},
       } = config;
-      const elapsed =
-        accumulatedTime +
-        (now - animationObj.startTime) -
-        (loopCount === 0 ? delay : 0); // Total time elapsed, including paused time
 
+      const elapsed =
+        accumulatedTime.value +
+        (now - (animationObj.startTime.value as number)) -
+        (loopCount.value === 0 ? delay : 0); // Total time elapsed, including paused time
       // Calculate progress
       let progress = elapsed / duration;
       if (progress > 1) {
@@ -266,35 +254,35 @@ class Animations {
       }
 
       // Adjust progress based on direction (yoyo behavior)
-      if (direction === -1) {
+      if (direction.value === -1) {
         progress = 1 - progress; // Reverse the progress if in backward mode (yoyo)
       }
-
       const onAnimateDone = (done: boolean) => {
         // Handle completion of one animation cycle
         if (done) {
           onDone();
-          if (direction === 1) animationObj.loopCount += 1; // Increment loop count
+          if (direction.value === 1) animationObj.loopCount.value += 1; // Increment loop count
 
           // Handle looping
           if (
             loop === -1 ||
-            animationObj.loopCount < loop ||
-            (animationObj.loopCount === loop && yoyo)
+            animationObj.loopCount.value < loop ||
+            (animationObj.loopCount.value === loop && yoyo)
           ) {
             // If yoyo is enabled, reverse the direction for the next loop
             if (yoyo) {
-              animationObj.direction = animationObj.direction === 1 ? -1 : 1;
+              animationObj.direction.value =
+                animationObj.direction.value === 1 ? -1 : 1;
             }
 
             // Set waiting for the next loop if loopInterval is specified
             if (loopInterval > 0) {
-              animationObj.waitingForNextLoop = true;
-              animationObj.loopStartTime = now;
+              animationObj.waitingForNextLoop.value = true;
+              animationObj.loopStartTime.value = now;
             } else {
               // Reset the start time for the next loop
-              animationObj.startTime = now;
-              animationObj.accumulatedTime = 0; // Reset accumulated time
+              animationObj.startTime.value = now;
+              animationObj.accumulatedTime.value = 0; // Reset accumulated time
             }
           } else {
             // Handle end of animation after all loops
@@ -309,14 +297,14 @@ class Animations {
         }
       };
 
-      runOnUI(animation.update)(
+      animation.update(
         now,
         sharedValue,
         progress,
-        direction === -1,
+        direction.value === -1,
         onAnimateDone
       );
-      animationObj.lastUpdateTime = now;
+      animationObj.lastUpdateTime.value = now;
     });
   }
 

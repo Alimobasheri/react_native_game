@@ -8,15 +8,33 @@ import {
   Entity,
   useCanvasDimensions,
   useEntityInstance,
+  useEntityMemoizedValue,
   useTouchHandler,
 } from '@/containers/ReactNativeSkiaGameEngine';
 import { useFrameEffect } from '@/containers/ReactNativeSkiaGameEngine/hooks/useFrameEffect';
 import { Sea } from '@/Game/Entities/Sea/Sea';
 import { WaveSource } from '@/Game/Entities/Sea/types';
 import { State } from '@/Game/Entities/State/State';
-import { FC, MutableRefObject, useEffect, useMemo, useRef } from 'react';
-import { Gesture } from 'react-native-gesture-handler';
-import { runOnJS, useSharedValue } from 'react-native-reanimated';
+import {
+  FC,
+  MutableRefObject,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
+import {
+  Gesture,
+  GestureStateChangeEvent,
+  PanGestureHandlerEventPayload,
+} from 'react-native-gesture-handler';
+import {
+  runOnJS,
+  runOnUI,
+  SharedValue,
+  useAnimatedReaction,
+  useSharedValue,
+} from 'react-native-reanimated';
 
 const normalize = (
   value: number,
@@ -100,72 +118,55 @@ export const Swipe: FC<{}> = () => {
     label: ENTITIES_KEYS.SEA,
   });
 
-  const { entity: stateEntityInstance, found: foundState } =
-    useEntityInstance<State>({
-      label: ENTITIES_KEYS.STATE,
-    });
-  const registered = useRef<false | string>(false);
-  const prevAcceleration = useRef(0);
-  const currentAcceleration = useRef(0);
+  const isRunning = useEntityMemoizedValue<State, SharedValue<boolean>>(
+    { label: ENTITIES_KEYS.STATE },
+    '_isRunning'
+  ) as SharedValue<boolean>;
+  const registered = useSharedValue<false | string>(false);
+  const prevAcceleration = useSharedValue(0);
+  const currentAcceleration = useSharedValue(0);
   const touchHandler = useTouchHandler();
+
+  const initWave = useCallback(
+    (
+      event: GestureStateChangeEvent<PanGestureHandlerEventPayload>,
+      currentAccelerationValue: number
+    ) => {
+      const { waveVelocity, waveFrequency, waveAcceleration, waveAmplitude } =
+        normalizeSwipeData(
+          Math.abs(event.velocityY),
+          Math.abs(event.translationY),
+          Math.abs(currentAccelerationValue),
+          dimensionsRef.current.height || 1
+        );
+      seaEntityInstance.current?.data.initiateWave({
+        x: event.x,
+        amplitude: waveAmplitude,
+        frequency: waveFrequency,
+        phase: 0,
+        time: 0,
+        speed: waveVelocity,
+        initialForce: waveAcceleration,
+        source: WaveSource.TOUCH,
+        layerIndex: seaEntityInstance.current.data.mainLayerIndex,
+        dimensions: dimensionsRef.current,
+      });
+      currentAcceleration.value = 0;
+    },
+    [seaEntityInstance, normalizeSwipeData]
+  );
   const gesture = useMemo(
     () => ({
       gesture: Gesture.Pan()
         .onChange((event) => {
-          if (
-            !Array.isArray(stateEntityInstance.current) &&
-            !!stateEntityInstance.current &&
-            !stateEntityInstance.current.data.isRunning
-          )
-            return;
-          prevAcceleration.current = currentAcceleration.current;
-          currentAcceleration.current = event.velocityY;
+          if (!isRunning.value) return;
+          prevAcceleration.value = currentAcceleration.value;
+          currentAcceleration.value = event.velocityY;
         })
         .onEnd((event) => {
-          if (
-            !Array.isArray(stateEntityInstance.current) &&
-            !!stateEntityInstance.current &&
-            !stateEntityInstance.current.data.isRunning
-          )
-            return;
-          if (!found.current) return;
-          const amplitude = Math.min(
-            -event.translationY,
-            MAXIMUM_INITIAL_AMPLITUDE
-          );
-          const frequency = Math.min(
-            MAXIMUM_INITIAL_FREQUENCY,
-            Math.max(
-              MINIMUM_INITIAL_FREQUENCY,
-              Math.abs(-event.velocityY / 100)
-            )
-          );
-          const {
-            waveVelocity,
-            waveFrequency,
-            waveAcceleration,
-            waveAmplitude,
-          } = normalizeSwipeData(
-            Math.abs(event.velocityY),
-            Math.abs(event.translationY),
-            Math.abs(currentAcceleration.current),
-            dimensionsRef.current.height || 1
-          );
-          seaEntityInstance.current?.data.initiateWave({
-            x: event.x,
-            amplitude: waveAmplitude,
-            frequency: waveFrequency,
-            phase: 0,
-            time: 0,
-            speed: waveVelocity,
-            initialForce: waveAcceleration,
-            source: WaveSource.TOUCH,
-            layerIndex: seaEntityInstance.current.data.mainLayerIndex,
-            dimensions: dimensionsRef.current,
-          });
-          currentAcceleration.current = 0;
-        })
-        .runOnJS(true),
+          if (!isRunning.value) return;
+          runOnJS(initWave)(event, currentAcceleration.value);
+        }),
       rect: {
         x,
         y,
@@ -176,25 +177,27 @@ export const Swipe: FC<{}> = () => {
     []
   );
 
-  useFrameEffect(() => {
-    if (
-      !Array.isArray(stateEntityInstance.current) &&
-      !!stateEntityInstance.current &&
-      !stateEntityInstance.current.data.isRunning
-    )
-      return;
+  const setGesture = useCallback(() => {
+    registered.value = touchHandler.addGesture(gesture);
+  }, [touchHandler, gesture]);
 
-    if (registered.current) return;
-    if (found.current) {
-      registered.current = touchHandler.addGesture(gesture);
+  const removeGesture = useCallback(() => {
+    'worklet';
+    if (registered.value) runOnJS(touchHandler.removeGesture)(registered.value);
+  }, [touchHandler]);
+
+  useAnimatedReaction(
+    () => isRunning.value,
+    (isRunning) => {
+      if (isRunning && !registered.value) {
+        runOnJS(setGesture)();
+      }
     }
-  }, []);
+  );
 
   useEffect(() => {
     return () => {
-      if (registered.current) {
-        touchHandler.removeGesture(registered.current);
-      }
+      runOnUI(removeGesture)();
     };
   }, []);
   return null;

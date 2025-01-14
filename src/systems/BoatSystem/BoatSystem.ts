@@ -52,7 +52,6 @@ export class BoatSystem implements IBoatSystem {
   }
   protected update(entities: Entities, args: RNGE_System_Args) {
     const state: State = entities.getEntityByLabel(ENTITIES_KEYS.STATE)!.data;
-    if (!state.isRunning) return;
     // const gameLoopSystem: GameLoopSystem =
     //   entities[ENTITIES_KEYS.GAME_LOOP_SYSTEM];
     const sea: Sea = entities.getEntityByLabel(ENTITIES_KEYS.SEA)!.data;
@@ -60,11 +59,10 @@ export class BoatSystem implements IBoatSystem {
     let gameState = GAME_STATE.RUNNING;
     this._killedBoatsInFrame = [];
     const boats = this._findBoatsInEntities(entities);
-    if (!this.isAnyBoatAttacking(boats) && state.isRunning === true) {
+    if (!this.isAnyBoatAttacking(boats)) {
       this.spawnBoat(entities, args);
     } else {
       boats.forEach((boat) => {
-        if (!state.isRunning) boat.data.isSinked = true;
         if (this.isBoatKilled(boat.data)) {
           this._killedBoatsInFrame.push(boat);
         } else {
