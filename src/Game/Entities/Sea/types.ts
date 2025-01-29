@@ -4,6 +4,7 @@ import { FC, JSX } from 'react';
 import { EntityRendererProps } from '@/constants/views';
 import { Sea } from './Sea';
 import { SharedValue } from 'react-native-reanimated';
+import { EventDispatcher } from '@/containers/ReactNativeSkiaGameEngine';
 
 export type SurfacePointMap = Map<number, WaterSurfacePoint>;
 
@@ -14,12 +15,12 @@ export enum WaveSource {
 }
 
 export type InitiateWaveConfig = {
-  x: SharedValue<number>;
-  amplitude: SharedValue<number>;
-  frequency: SharedValue<number>;
-  phase: SharedValue<number>;
-  time: SharedValue<number>;
-  speed: SharedValue<number>;
+  x: number;
+  amplitude: number;
+  frequency: number;
+  phase?: number;
+  time?: number;
+  speed?: number;
   source: WaveSource;
   layerIndex?: number;
 };
@@ -29,10 +30,10 @@ export type InitiateWaveConfig = {
  * @interface Sea
  */
 export interface ISea {
-  get width(): SharedValue<number>;
-  get height(): SharedValue<number>;
-  get startingY(): SharedValue<number>;
-  get startingX(): SharedValue<number>;
+  get width(): number;
+  get height(): number;
+  get startingY(): number;
+  get startingX(): number;
   get waterSurfacePoints(): SurfacePointMap;
   get layers(): Sea[];
   /**
@@ -52,10 +53,6 @@ export interface ISea {
    * @returns {IWave} The new created wave.
    */
   initiateWave: (config: InitiateWaveConfig) => IWave;
-  /**
-   * Renders the sea using SeaView Component.
-   */
-  renderer: FC<EntityRendererProps<ISea>>;
   /**
    * Given an x-coordinate, returns water surface by combining all active waves affecting that point.
    * @param x x-coordinate of the point
@@ -87,36 +84,32 @@ export type SeaConfig = {
   /**
    * The center of the x-coordinate of the sea in accordance to its width.
    */
-  x: SharedValue<number>;
+  x: number;
   /**
    * The center of the y-coordinate of the sea in accordance to its height.
    */
-  y: SharedValue<number>;
+  y: number;
   /**
    * Width of the sea rendered.
    */
-  width: SharedValue<number>;
+  width: number;
   /**
    * Height of the sea rendered.
    */
-  height: SharedValue<number>;
-  windowWidth: SharedValue<number>;
-  windowHeight: SharedValue<number>;
+  height: number;
+  windowWidth: number;
+  windowHeight: number;
   /**
    * How many layers this sea item contains.
    */
   layersCount?: number;
-  layersConfigs?: SeaConfig[];
   /**
    * Index of the layer that is the main layer the vehicles move on.
    */
   mainLayerIndex?: number;
   gradientColors?: string[];
-  flowAmplitude: SharedValue<number>;
-  flowFrequency: SharedValue<number>;
-  flowSpeed: SharedValue<number>;
-  flowPhase: SharedValue<number>;
-  flowTime: SharedValue<number>;
-  bounds: { startingX: SharedValue<number>; startingY: SharedValue<number> };
-  dynamicWave: IWave;
+  flowAmplitude?: number;
+  flowFrequency?: number;
+  flowSpeed?: number;
+  emitEvent?: EventDispatcher['emitEvent'];
 };

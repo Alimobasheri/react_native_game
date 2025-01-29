@@ -1,14 +1,15 @@
 import { IWave, WaveConfig } from './types';
 import { WaveSource } from '../Sea/types';
 import { ICanvasDimensions } from '@/containers/ReactNativeSkiaGameEngine';
-import { SharedValue } from 'react-native-reanimated';
+import { makeMutable, runOnJS, SharedValue } from 'react-native-reanimated';
 
 export class Wave implements IWave {
   protected _initialConfig: WaveConfig;
+  protected _isFlowing: boolean;
   protected _dimensions: ICanvasDimensions;
   protected _source: WaveSource;
   protected _x: SharedValue<number>;
-  protected _phase: SharedValue<number>;
+  protected _phase: SharedValue<number> = makeMutable(-Math.PI / 2);
   protected _time: SharedValue<number>;
   protected _amplitude: SharedValue<number>;
   protected _maxAmplitude: SharedValue<number>;
@@ -18,23 +19,27 @@ export class Wave implements IWave {
 
   constructor(config: WaveConfig) {
     this._initialConfig = config;
+    this._isFlowing = config.isFlowing;
     this._dimensions = config.dimensions;
 
-    this._x = config.x;
-    this._maxAmplitude = config.initialAmplitude;
-    this._amplitude = config.initialAmplitude;
+    this._x = makeMutable(config.x);
+    this._maxAmplitude = makeMutable(config.initialAmplitude);
+    this._amplitude = makeMutable(
+      config.source === WaveSource.FLOW ? config.initialAmplitude : 0.006
+    );
 
-    this._phase = config.initialPhase;
-
-    this._frequency = config.initialFrequency;
+    this._frequency = makeMutable(config.initialFrequency);
     // this._phase = config.initialPhase ?? 0;
-    this._time = config.initialTime;
-    this._speed = config.speed;
+    this._time = makeMutable(config.initialTime ?? 0);
+    this._speed = makeMutable(config.speed ?? 0.01);
     this._source = config.source;
   }
 
   get initialConfig(): WaveConfig {
     return this._initialConfig;
+  }
+  get isFlowing(): boolean {
+    return this._isFlowing;
   }
   get x() {
     return this._x;
@@ -65,43 +70,89 @@ export class Wave implements IWave {
   }
 
   // Modified update method to simulate physics
-  update(deltaTime?: number) {
+  update(
+    {
+      time,
+      source,
+      amplitude,
+      maxAmplitude,
+      frequency,
+      speed,
+      isFlowing,
+    }: Partial<IWave>,
+    deltaTime?: number,
+    onExpired?: () => void
+  ) {
+    'worklet';
     if (!deltaTime) return;
+    if (
+      !isFlowing ||
+      !time ||
+      !amplitude ||
+      !maxAmplitude ||
+      !frequency ||
+      !speed ||
+      !source
+    )
+      return;
 
     // Convert deltaTime to seconds
     const deltaSeconds = deltaTime / 1000;
 
     // Update time
-    this._time.value += deltaSeconds;
+    time.value += deltaSeconds;
 
-    if (this._source === WaveSource.FLOW) return;
+    if (source === WaveSource.FLOW) return;
 
     // Initial quick rise phase for amplitude
     const riseTime = 0.2; // 1 second for quick rise
     const initialDecayFactor = 0.9; // Quick decay factor for initial rise
     const smoothDecayFactor = 0.92; // Smooth decay factor for gradual decay
 
-    if (this._time.value < riseTime) {
-      const progress = this._time.value / riseTime;
-      this._amplitude.value =
-        1 + this._maxAmplitude.value * Math.pow(progress, 3);
+    if (time.value < riseTime) {
+      const progress = time.value / riseTime;
+      amplitude.value = 1 + maxAmplitude.value * Math.pow(progress, 3);
     } else {
       const smoothDecayFactor = 0.98; // Adjust this value to control the speed of decay
-      this._amplitude.value *= smoothDecayFactor;
+      amplitude.value *= smoothDecayFactor;
     }
 
-    if (this._time.value > riseTime / 3 && this._frequency.value < 60) {
+    if (time.value > riseTime / 3 && frequency.value < 60) {
       // Smooth frequency update
       const frequencyDecayFactor = 1.01; // A decay factor for smoother frequency changes
-      this._frequency.value = this._frequency.value * frequencyDecayFactor;
+      frequency.value = frequency.value * frequencyDecayFactor;
     }
-    if (this._time.value > riseTime / 3 && this._speed.value < 1.1) {
-      this._prevSpeed = this._speed.value;
-      this._speed.value *= 1.01;
+    if (time.value > riseTime / 3 && speed.value < 1.1) {
+      this._prevSpeed = speed.value;
+      speed.value *= 1.01;
+    }
+    if (onExpired) {
+      if (amplitude.value < 1 && source === WaveSource.TOUCH)
+        runOnJS(onExpired)();
     }
   }
 
+  reset(config: WaveConfig) {
+    this._initialConfig = config;
+    this._isFlowing = config.isFlowing;
+    this._dimensions = config.dimensions;
+
+    this._x.value = config.x;
+    this._maxAmplitude.value = config.initialAmplitude;
+    this._amplitude.value =
+      config.source === WaveSource.FLOW ? config.initialAmplitude : 0.006;
+
+    this._frequency.value = config.initialFrequency;
+    // this._phase = config.initialPhase ?? 0;
+    this._time.value = config.initialTime ?? 0;
+    this._speed.value = config.speed ?? 0.01;
+    this._source = config.source;
+  }
+
   isExpired(): boolean {
+    'worklet';
+    if (this.source !== WaveSource.FLOW && this._amplitude.value < 1) {
+    }
     return this._amplitude.value < 1;
   }
 

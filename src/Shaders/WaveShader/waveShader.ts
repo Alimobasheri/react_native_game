@@ -1,7 +1,8 @@
 import { ICanvasDimensions } from '@/containers/ReactNativeSkiaGameEngine';
-import { Skia } from '@shopify/react-native-skia';
+import { Skia, Uniforms } from '@shopify/react-native-skia';
 import { SharedValue, useDerivedValue } from 'react-native-reanimated';
 import { shaderNoiseFuncWithRandom } from '../common';
+import { IWave } from '@/Game/Entities/Wave/types';
 
 export const waveShaderUniforms = `
   float M_PI = 3.1415926535897932384626433832795;
@@ -107,49 +108,63 @@ export const createWaveShader = () => {
   `)!;
 };
 
-export const useWaveShaderUniforms = (
-  dimensions: ICanvasDimensions,
-  time: any,
-  height: number,
-  heightOffset: number,
-  frequency: number,
-  speed: number,
-  amplitude: number,
-  dynamicWaveX: SharedValue<number>,
-  dynamicWave: SharedValue<[number, number, number, number]>,
-  heightOffsetFreq: number,
-  heightOffsetAmp: number,
-  waterColor: [number, number, number]
-) => {
-  return useDerivedValue(() => {
-    return {
+export const useWaveShaderUniforms = ({
+  frequency,
+  amplitude,
+  speed,
+  time,
+  dynamicWaveX,
+  dynamicWaveUniformValue,
+  dimensions,
+  height,
+  heightOffset,
+  heightOffsetFreq,
+  heightOffsetAmp,
+  waterColor,
+}: {
+  time: SharedValue<number>;
+  frequency: SharedValue<number>;
+  amplitude: SharedValue<number>;
+  speed: SharedValue<number>;
+  dynamicWaveX: SharedValue<number>;
+  dynamicWaveUniformValue: SharedValue<[number, number, number, number]>;
+  dimensions: ICanvasDimensions;
+  height: number;
+  heightOffset: number;
+  heightOffsetFreq: number;
+  heightOffsetAmp: number;
+  waterColor: [number, number, number];
+}) => {
+  return useDerivedValue<Uniforms>(() => {
+    const result = {
       iTime: time.value,
       height: dimensions.height ? height / dimensions.height : 0,
       heightOffset,
-      frequency: frequency,
-      amplitude: amplitude,
-      speed: speed,
+      frequency: frequency.value,
+      amplitude: amplitude.value,
+      speed: speed.value,
       heightOffsetFreq,
       heightOffsetAmp,
       dynamicWaveX: dynamicWaveX.value,
-      dynamicWave: dynamicWave.value,
+      dynamicWave: dynamicWaveUniformValue.value,
       waterColor: waterColor.map((color) => color / 255) as [
         number,
         number,
         number
       ],
-      canvasSize: [dimensions.width, dimensions.height],
+      canvasSize: [dimensions.width || 0, dimensions.height || 0],
     };
+    return result;
   }, [
     time,
-    height,
-    dimensions.height,
     frequency,
     amplitude,
     speed,
-    waterColor,
+    dynamicWaveUniformValue,
     dynamicWaveX,
-    dynamicWave,
+    height,
+    dimensions.height,
+    waterColor,
   ]);
 };
 

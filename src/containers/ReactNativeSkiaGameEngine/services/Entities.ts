@@ -218,7 +218,9 @@ export class Entities extends EventEmitter {
    * @param {string} label - The label associated with the entity.
    * @returns {Entity<any>|undefined} - The entity associated with the label, or undefined if not found.
    */
-  public getEntityByLabel(label: string): Entity<any> | undefined {
+  public getEntityByLabel<T extends Record<string, any> = any>(
+    label: string
+  ): Entity<T> | undefined {
     const entityId = this._mapLabelToEntityId.get(label);
     if (!entityId) return;
     return this._entities.get(entityId);

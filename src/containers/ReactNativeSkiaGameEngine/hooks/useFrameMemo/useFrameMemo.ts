@@ -2,6 +2,56 @@ import { useContext, useEffect, useRef, useState, useMemo } from 'react';
 import { Entity, FrameUpdateEvent } from '../../services';
 import { RNSGEContext } from '../../context';
 import { deepEqual } from '../../utils/deepEqual';
+// import { cloneDeep } from 'lodash';
+
+const cloneDeep = (value: any): any => {
+  const visited = new WeakMap(); // Tracks cloned objects to handle circular references
+
+  const _clone = (val: any): any => {
+    try {
+      // Primitives and functions
+      if (typeof val !== 'object' || val === null) return val;
+
+      // Check for circular reference
+      if (visited.has(val)) return visited.get(val);
+
+      // Special cases
+      if (val?._isReanimatedSharedValue) return val;
+      if (val instanceof Date) return new Date(val);
+      if (val instanceof RegExp) return new RegExp(val);
+
+      // Handle arrays
+      if (Array.isArray(val)) {
+        const arrClone: any[] = [];
+        visited.set(val, arrClone); // Register before cloning children
+        arrClone.push(...val.map((item) => _clone(item)));
+        return arrClone;
+      }
+
+      // Custom clone logic
+      if (typeof val.clone === 'function') {
+        const cloned = val.clone();
+        visited.set(val, cloned);
+        return cloned;
+      }
+
+      // Handle plain objects
+      const objClone = Object.create(Object.getPrototypeOf(val));
+      visited.set(val, objClone); // Register before cloning properties
+      for (const key in val) {
+        if (val.hasOwnProperty(key)) {
+          objClone[key] = _clone(val[key]);
+        }
+      }
+      return objClone;
+    } catch (e) {
+      console.log(e);
+      return val;
+    }
+  };
+
+  return _clone(value);
+};
 
 export type Factory<E extends Record<string, any>, T> = (
   currentValue: T | undefined,
@@ -15,6 +65,11 @@ export type EqualityCheck<T> = (
 
 const defaultEqualityCheck: EqualityCheck<any> = (prev, next) =>
   deepEqual(prev, next);
+
+export type UseFrameMemoConfig<T> = {
+  equalityCheck?: EqualityCheck<T>;
+  getComparisonValue?: (value: T | undefined) => any;
+};
 
 /**
  * A React hook that memoizes a value based on changes in an entity's properties
@@ -33,9 +88,13 @@ const defaultEqualityCheck: EqualityCheck<any> = (prev, next) =>
  * key to watch for changes. The memoized value is recalculated whenever this
  * property changes.
  *
- * @param {EqualityCheck<T>} [equalityCheck=defaultEqualityCheck] - A function that compares the previous
+ * @param {UseFrameMemoConfig<T>} [config] - Optional configuration object.
+ * @param {EqualityCheck<T>} [config.equalityCheck] - A function that compares the previous
  * and current values to determine if the memoized value should be recalculated.
  * By default, a deep comparison is used.
+ * @param {(value: T | undefined) => any} [config.getComparisonValue] - A function that
+ * returns a value to be used for comparison and cloning. If provided, this value
+ * is used instead of the original entity value for equality checks and cloning.
  *
  * @returns {T} - The memoized value, which updates whenever the specified entity
  * property changes or when a new frame is rendered and the dependencies change.
@@ -50,17 +109,21 @@ const defaultEqualityCheck: EqualityCheck<any> = (prev, next) =>
  *     }
  *     return currentValue || defaultPosition;
  *   },
- *   { entityId: 'someEntityId', key: 'position' }
+ *   { entityId: 'someEntityId', key: 'position' },
+ *   {
+ *     equalityCheck: (prev, next) => prev.x === next.x && prev.y === next.y,
+ *     getComparisonValue: (value) => ({ x: value.x, y: value.y })
+ *   }
  * );
- *
- * // The memoized position will be updated whenever the 'position' property
- * // of the entity changes or on each frame update.
  */
 export const useFrameMemo = <E extends Record<string, any>, T>(
   factory: Factory<E, T>,
   dep: Dep<E>,
-  equalityCheck: EqualityCheck<T> = defaultEqualityCheck
+  config?: UseFrameMemoConfig<T>
 ): T | undefined => {
+  const { equalityCheck = defaultEqualityCheck, getComparisonValue } =
+    config || {};
+
   const context = useContext(RNSGEContext);
   const entities = context?.entities;
   const framesRef = context?.frames;
@@ -71,17 +134,23 @@ export const useFrameMemo = <E extends Record<string, any>, T>(
 
   const depsRef = useRef(dep);
 
+  const initialEntity = entities.current.entities.get(dep.entityId);
+  const initialEntityValue = initialEntity?.data[dep.key] as T | undefined;
+  const initialComparisonValue = getComparisonValue
+    ? getComparisonValue(initialEntityValue)
+    : initialEntityValue;
   const previousValueRef = useRef<T | undefined>(
-    entities.current.entities.get(dep.entityId)?.data[dep.key]
-  );
-  const memoizedValueRef = useRef<T | undefined>(
-    entities.current.entities.get(dep.entityId)?.data[dep.key]
+    cloneDeep(initialComparisonValue)
   );
 
+  const memoizedValueRef = useRef<T | undefined>(cloneDeep(initialEntityValue));
+
   const initialValue = useMemo(() => {
-    return factory(
-      memoizedValueRef.current,
-      entities.current.entities.get(dep.entityId)
+    return cloneDeep(
+      factory(
+        memoizedValueRef.current,
+        entities.current.entities.get(dep.entityId)
+      )
     );
   }, [dep.entityId, dep.key, factory]);
 
@@ -93,10 +162,15 @@ export const useFrameMemo = <E extends Record<string, any>, T>(
     const updateMemoizedValue = () => {
       const entity = entities.current.entities.get(dep.entityId);
       const nextValue = entity?.data[dep.key] as T | undefined;
+      const nextComparisonValue = getComparisonValue
+        ? getComparisonValue(nextValue)
+        : nextValue;
+      const clonedComparisonValue = cloneDeep(nextComparisonValue);
 
-      if (!equalityCheck(previousValueRef.current, nextValue)) {
-        previousValueRef.current = nextValue;
-        memoizedValueRef.current = nextValue;
+      if (!equalityCheck(previousValueRef.current, clonedComparisonValue)) {
+        previousValueRef.current = clonedComparisonValue;
+        const clonedOriginalValue = cloneDeep(nextValue);
+        memoizedValueRef.current = clonedOriginalValue;
 
         const newValue = factory(nextValue, entity);
         setMemoizedValue(newValue);
@@ -121,15 +195,20 @@ export const useFrameMemo = <E extends Record<string, any>, T>(
     ) {
       const currentValue = entities.current.entities.get(dep.entityId)?.data[
         dep.key
-      ];
-      previousValueRef.current = currentValue;
-      memoizedValueRef.current = currentValue;
+      ] as T | undefined;
+      const currentComparisonValue = getComparisonValue
+        ? getComparisonValue(currentValue)
+        : currentValue;
+      previousValueRef.current = cloneDeep(currentComparisonValue);
+      const clonedOriginalValue = cloneDeep(currentValue);
+      memoizedValueRef.current = clonedOriginalValue;
       setMemoizedValue(
         factory(
-          memoizedValueRef.current,
+          clonedOriginalValue,
           entities.current.entities.get(dep.entityId)
         )
       );
+      depsRef.current = dep;
     }
   }, [dep?.entityId, dep?.key]);
 

@@ -1,16 +1,16 @@
-import { ENTITIES_KEYS } from "@/constants/configs";
-import { TouchProps } from "../TouchSystem/types";
+import { ENTITIES_KEYS } from '@/constants/configs';
+import { TouchProps } from '../TouchSystem/types';
 import {
   ENGINES,
   RNGE_Entities,
   RNGE_System_Args,
   RNGE_Time,
   RNGE_Touch_Item,
-} from "../types";
-import { ISeaSystem } from "./types";
-import { ISea, WaveSource } from "@/Game/Entities/Sea/types";
-import { Sea } from "@/Game/Entities/Sea/Sea";
-import { Entity } from "@/containers/ReactNativeSkiaGameEngine";
+} from '../types';
+import { ISeaSystem } from './types';
+import { ISea, WaveSource } from '@/Game/Entities/Sea/types';
+import { Sea } from '@/Game/Entities/Sea/Sea';
+import { Entity } from '@/containers/ReactNativeSkiaGameEngine';
 
 export class SeaSystem implements ISeaSystem {
   private _engine: ENGINES;
@@ -18,7 +18,7 @@ export class SeaSystem implements ISeaSystem {
     this._engine = engine;
   }
   systemInstance(entities: RNGE_Entities, args: RNGE_System_Args) {
-    const sea: ISea = entities[ENTITIES_KEYS.SEA_GROUP].entities["sea"];
+    const sea: ISea = entities[ENTITIES_KEYS.SEA_GROUP].entities['sea'];
     sea.update();
     return entities;
   }

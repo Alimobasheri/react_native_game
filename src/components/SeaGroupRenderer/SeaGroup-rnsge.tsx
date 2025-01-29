@@ -46,9 +46,12 @@ export type seaGroupEntity = {
 };
 export const SeaGroup: FC<{}> = (props) => {
   const { width, height } = useCanvasDimensions();
-  const seaEntity = useAddEntity(new Sea(getSeaConfigDefaults(width, height)), {
-    label: ENTITIES_KEYS.SEA,
-  });
+  const seaEntity = useAddEntity(
+    new Sea(getSeaConfigDefaults(width || 0, height || 0)),
+    {
+      label: ENTITIES_KEYS.SEA,
+    }
+  );
   const seaSystem = useRef<SeaSystem>(new SeaSystem(ENGINES.RNSGE));
   const systemCallback: system = useCallback((entities, args) => {
     seaSystem.current.systemInstanceRNSGE(seaEntity, args);

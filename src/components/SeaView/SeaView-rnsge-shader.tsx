@@ -1,19 +1,27 @@
 import { Sea } from '@/Game/Entities/Sea/Sea';
+import { IWave } from '@/Game/Entities/Wave/types';
 import createWaveShader, {
   useWaveShaderUniforms,
 } from '@/Shaders/WaveShader/waveShader';
 import { ENTITIES_KEYS } from '@/constants/configs';
+import { SEA_ADD_WAVE_EVENT_TYPE, SeaAddWaveEvent } from '@/constants/events';
 import {
+  Entity,
   useCanvasDimensions,
   useEntityInstance,
   useEntityValue,
 } from '@/containers/ReactNativeSkiaGameEngine';
 import { useEntityMemoizedValue } from '@/containers/ReactNativeSkiaGameEngine/hooks/useEntityMemoizedValue';
+import { useEventListener } from '@/containers/ReactNativeSkiaGameEngine/hooks/useEventListener';
 import { useFrameEffect } from '@/containers/ReactNativeSkiaGameEngine/hooks/useFrameEffect';
 import { Fill, Shader, SkPath } from '@shopify/react-native-skia';
 import { Skia, LinearGradient } from '@shopify/react-native-skia';
-import { FC, useMemo } from 'react';
-import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
+import { FC, useMemo, useState } from 'react';
+import {
+  makeMutable,
+  useDerivedValue,
+  useSharedValue,
+} from 'react-native-reanimated';
 export interface ISeaViewProps {
   entityId: string;
   layerIndex: number;
@@ -22,124 +30,36 @@ export const SeaViewShader: FC<ISeaViewProps> = (props) => {
   const dimensions = useCanvasDimensions();
   const time = useSharedValue(0);
 
-  const { entity: seaEntityInstance, found } = useEntityInstance<Sea>({
+  const { entity: seaEntityInstance } = useEntityInstance<Sea>({
     label: ENTITIES_KEYS.SEA,
-  });
-  const { height, gradientColors, amplitude, frequency, speed } =
-    useEntityMemoizedValue<Sea, any>(seaEntityInstance.current?.id, 'layers', {
-      processor: (layers: Sea['layers'] | undefined) => {
-        const layer = layers?.[props.layerIndex];
-        if (!layer) return {};
-        if (layer) {
-          return {
-            height: layer.height,
-            gradientColors: layer.gradientColors,
-            amplitude: layer.waves[0].amplitude,
-            frequency: layer.waves[0].frequency,
-            speed: layer.waves[0].speed,
-          };
-        }
-      },
-    });
+  }) as { entity: React.MutableRefObject<Entity<Sea>> };
 
-  const flowTime = useEntityValue<Sea, number>(
-    seaEntityInstance.current?.id,
-    'layers',
-    {
-      processor: (layers: Sea['layers'] | undefined) => {
-        const layer = layers?.[props.layerIndex];
-        if (!layer) return 1;
-        if (layer) return layer.waves[0]?.time ?? 0;
-      },
-    }
+  const [layer, setLayer] = useState(
+    seaEntityInstance.current.data.layers[props.layerIndex]
   );
 
-  const dynamicWaveX = useEntityValue<Sea, number>(
-    seaEntityInstance.current?.id,
-    'layers',
-    {
-      processor: (layers: Sea['layers'] | undefined) => {
-        const layer = layers?.[props.layerIndex];
-        if (!layer) return 1;
-        if (layer) return layer.waves[1]?.x ?? 0;
-      },
-    }
-  );
+  const dynamicWave = useMemo(() => {
+    return {
+      x: layer.waves?.[1].x,
+      amplitude: layer.waves?.[1].amplitude,
+      frequency: layer.waves?.[1].frequency,
+      speed: layer.waves?.[1].speed,
+      time: layer.waves?.[1].time,
+    };
+  }, [layer.waves?.[1]]);
 
-  const dynamicWaveAmplitude = useEntityValue<Sea, number>(
-    seaEntityInstance.current?.id,
-    'layers',
-    {
-      processor: (layers: Sea['layers'] | undefined) => {
-        const layer = layers?.[props.layerIndex];
-        if (!layer) return 1;
-        if (layer) return layer.waves[1]?.amplitude ?? 0;
-      },
-    }
-  );
+  // const wavePath = useSharedValue<SkPath>(Skia.Path.Make());
 
-  const dynamicWaveFrequency = useEntityValue<Sea, number>(
-    seaEntityInstance.current?.id,
-    'layers',
-    {
-      processor: (layers: Sea['layers'] | undefined) => {
-        const layer = layers?.[props.layerIndex];
-        if (!layer) return 1;
-        if (layer) return layer.waves[1]?.frequency ?? 1;
-      },
-    }
-  );
-
-  const dynamicWaveSpeed = useEntityValue<Sea, number>(
-    seaEntityInstance.current?.id,
-    'layers',
-    {
-      processor: (layers: Sea['layers'] | undefined) => {
-        const layer = layers?.[props.layerIndex];
-        if (!layer) return 1;
-        if (layer) return layer.waves[1]?.speed ?? 1;
-      },
-    }
-  );
-
-  const dynamicWaveTime = useEntityValue<Sea, number>(
-    seaEntityInstance.current?.id,
-    'layers',
-    {
-      processor: (layers: Sea['layers'] | undefined) => {
-        const layer = layers?.[props.layerIndex];
-        if (!layer) return 1;
-        if (layer) return layer.waves[1]?.time ?? 1;
-      },
-    }
-  );
-
-  const dynamicWaveUniformValue = useDerivedValue(() => {
-    return [
-      dynamicWaveAmplitude.value,
-      dynamicWaveFrequency.value,
-      dynamicWaveSpeed.value,
-      dynamicWaveTime.value,
-    ];
-  }, [
-    dynamicWaveAmplitude,
-    dynamicWaveFrequency,
-    dynamicWaveSpeed,
-    dynamicWaveTime,
-  ]);
-
-  const wavePath = useSharedValue<SkPath>(Skia.Path.Make());
-
-  const linearGradientMemo = useMemo(() => {
-    if (!gradientColors) return null;
-    return (
-      <LinearGradient
-        colors={gradientColors || []}
-        start={{ x: 0, y: 1 }}
-        end={{ x: 1, y: 1 }}
-      />
-    );
-  }, [gradientColors]);
+  // const linearGradientMemo = useMemo(() => {
+  //   if (!gradientColors) return null;
+  //   return (
+  //     <LinearGradient
+  //       colors={gradientColors || []}
+  //       start={{ x: 0, y: 1 }}
+  //       end={{ x: 1, y: 1 }}
+  //     />
+  //   );
+  // }, [gradientColors]);
 
   useFrameEffect((delta) => {
     time.value = time.value + delta / 100;
@@ -147,20 +67,42 @@ export const SeaViewShader: FC<ISeaViewProps> = (props) => {
 
   const source = useMemo(() => createWaveShader()!, []);
 
-  const uniforms = useWaveShaderUniforms(
+  const dynamicWaveX = useDerivedValue(() => {
+    if (!dynamicWave?.x) return 0;
+    return dynamicWave.x.value;
+  }, [dynamicWave?.x]);
+
+  const dynamicWaveUniformValue = useDerivedValue<
+    [number, number, number, number]
+  >(() => {
+    if (!dynamicWave) return [0, 0, 0, 0];
+    return [
+      dynamicWave.amplitude.value,
+      dynamicWave.frequency.value,
+      dynamicWave.speed.value,
+      dynamicWave.time.value,
+    ];
+  }, [
+    dynamicWave?.amplitude,
+    dynamicWave?.frequency,
+    dynamicWave?.speed,
+    dynamicWave?.time,
+  ]);
+
+  const uniforms = useWaveShaderUniforms({
     dimensions,
-    flowTime,
-    height,
-    (props.layerIndex * height) / dimensions.height,
-    frequency,
-    speed,
-    amplitude,
+    frequency: layer.waves[0].frequency,
+    amplitude: layer.waves[0].amplitude,
+    speed: layer.waves[0].speed,
+    time: layer.waves[0].time,
     dynamicWaveX,
     dynamicWaveUniformValue,
-    0.5,
-    0.0,
-    [28, 163, 236]
-  );
+    height: layer.height,
+    heightOffset: (props.layerIndex * layer.height) / (dimensions.height || 1),
+    heightOffsetFreq: 0.5,
+    heightOffsetAmp: 0.0,
+    waterColor: [28, 163, 236],
+  });
 
   if (!source) {
     return null;

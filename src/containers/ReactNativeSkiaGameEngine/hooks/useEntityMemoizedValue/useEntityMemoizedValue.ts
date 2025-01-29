@@ -6,6 +6,10 @@ import { useFrameMemo } from '../useFrameMemo';
 import { EntityOptions } from '../useEntityValue';
 import { entityIdentifier } from '../useEntityInstance';
 
+export type MemoizedEntityOptions<T> = {
+  getComparisonValue?: (value: T | undefined) => any;
+} & EntityOptions<T>;
+
 /**
  * A React hook that retrieves and memoizes a specific value from an entity's data
  * within the game engine. It supports accessing the entity by ID or label.
@@ -17,10 +21,11 @@ import { entityIdentifier } from '../useEntityInstance';
  *
  * @param {string | entityIdentifier} entityIdOrLabel - The unique identifier or label of the entity from which to retrieve the value.
  * @param {keyof E} key - The key in the entity's data object whose value is to be memoized.
- * @param {EntityOptions<T>} [options={}] - Optional configuration object.
+ * @param {MemoizedEntityOptions<T>} [options={}] - Optional configuration object.
  * @param {function(any): T} [options.processor] - A function to process the value before memoization.
  * @param {T} [options.defaultValue] - A default value to return if the entity or key is not found.
  * @param {function(T | undefined, T | undefined): boolean} [options.comparator] - A function to compare the previous and next values to determine if an update is needed.
+ * @param {function(T | undefined): any} [options.getComparisonValue] - A funciton to get a value to be used for comparison. This can be useful with complex object and class instances.
  *
  * @returns {T | undefined} - The memoized value corresponding to the specified key in the entity's data.
  *
@@ -39,9 +44,9 @@ import { entityIdentifier } from '../useEntityInstance';
 export function useEntityMemoizedValue<E extends Record<string, any>, T>(
   entityIdOrLabel: string | entityIdentifier,
   key: keyof E,
-  options: EntityOptions<T> = {}
+  options: MemoizedEntityOptions<T> = {}
 ): T | undefined {
-  const { processor, defaultValue, comparator } = options;
+  const { processor, defaultValue, comparator, getComparisonValue } = options;
   const rnsgeContext = useContext(RNSGEContext);
 
   if (!rnsgeContext) {
@@ -81,11 +86,10 @@ export function useEntityMemoizedValue<E extends Record<string, any>, T>(
   }, [entityIdOrLabel, entities]);
 
   const [entity, setEntity] = useState<Entity<E> | undefined>(foundEntity);
-
   const memoizedValue = useFrameMemo<E, T | undefined>(
     (value, entity) => getValue(entity, key),
     { entityId: entity?.id || '', key },
-    comparator
+    { equalityCheck: comparator, getComparisonValue }
   );
 
   useEffect(() => {
@@ -104,6 +108,7 @@ export function useEntityMemoizedValue<E extends Record<string, any>, T>(
         }
       );
       return () => {
+        console.log('removed');
         listener.remove();
       };
     }

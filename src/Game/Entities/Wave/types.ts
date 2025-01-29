@@ -12,6 +12,7 @@ export interface IWave {
    * @type {WaveConfig}
    */
   get initialConfig(): WaveConfig;
+  get isFlowing(): boolean;
   /**
    * Original position the wave originated from.
    * @type {SharedValue<number>}
@@ -42,6 +43,11 @@ export interface IWave {
    * @type {SharedValue<number>}
    */
   get frequency(): SharedValue<number>;
+  /**
+   * Current speed value in latest frame the wave is updated at.
+   * @type {SharedValue<number>}
+   */
+  get speed(): SharedValue<number>;
   /**
    * What source caused this wave
    */
@@ -81,15 +87,30 @@ export interface IWave {
    * Given a frame number, updates the wave's phase, time, amplitude, and frquency.
    * After the update, surface points and distances and expirations are calculated based on new values.
    * @param {number | undefined} deltaTime Time passed since last animation frame.
+   * @param {() => void | undefined} onExpired Callback to execute when wave is expired.
    * @returns {void}
    */
-  update: (deltaTime?: number) => void;
+  update: (
+    config: Partial<IWave>,
+    deltaTime?: number,
+    onExpired?: () => void
+  ) => void;
+  /**
+   * Given an iniital config, updates all waves inner values to match this config.
+   * @param config the same initial config required to create a wave
+   * @returns void
+   */
+  reset: (config: WaveConfig) => void;
 }
 
 /**
  * Initial config to create a functioning wave in sea.
  */
 export type WaveConfig = {
+  /**
+   * Should be updated when update called?
+   */
+  isFlowing: boolean;
   /**
    * Dimensions to normalize the wave.
    */
@@ -100,23 +121,23 @@ export type WaveConfig = {
   source: WaveSource;
   /**
    * x-coordinate of the wave's origin position.
-   * @type {SharedValue<number>}
+   * @type {number}
    */
-  x: SharedValue<number>;
+  x: number;
   /**
    * set initial value for amplitude.
-   * @type {SharedValue<number>}
+   * @type {number}
    */
-  initialAmplitude: SharedValue<number>;
+  initialAmplitude: number;
   /**
    * set initial value for frequency.
-   * @type {SharedValue<number>}
+   * @type {number}
    */
-  initialFrequency: SharedValue<number>;
+  initialFrequency: number;
   /**
    * speed of wave based on force
    */
-  speed: SharedValue<number>;
+  speed?: number;
   /**
    * At what frame was this wave created at.
    * @type {number | undefined}
@@ -125,19 +146,19 @@ export type WaveConfig = {
   /**
    * override initial phase to start drawing phase.
    * @default 0
-   * @type {SharedValue<number> | undefined}
+   * @type {number | undefined}
    */
-  initialPhase: SharedValue<number>;
+  initialPhase?: number;
   /**
    * override initial value for time multiplier
    * @default 0
-   * @type {SharedValue<number> | undefined}
+   * @type {number | undefined}
    */
-  initialTime: SharedValue<number>;
+  initialTime?: number;
   /**
    * Minimum amplitude value. If amplitude value reaches this value or less than it, the wave will be expired and not drawn anymore.
    * @default 5
-   * @type {SharedValue<number> | undefined}
+   * @type {number | undefined}
    */
-  minimumAmplitude?: SharedValue<number>;
+  minimumAmplitude?: number;
 };
