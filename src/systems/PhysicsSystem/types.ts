@@ -1,6 +1,6 @@
-import { WaterSurfacePoint } from "@/types/globals";
-import { IGameSystem } from "../types";
-import Matter from "matter-js";
+import { WaterSurfacePoint } from '@/types/globals';
+import { IGameSystem } from '../types';
+import Matter from 'matter-js';
 
 export interface IPhysicsSystem extends IGameSystem {
   /**
@@ -17,6 +17,4 @@ export type BuoyantVehicleProps = {
   waterSurfaceYAtPoint: WaterSurfacePoint;
   submergedDepth: number;
   submergedArea: number;
-  combinedSlope: number;
-  acceleration?: Matter.Vector;
 };

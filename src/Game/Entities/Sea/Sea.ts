@@ -17,6 +17,7 @@ import { makeMutable, runOnUI, SharedValue } from 'react-native-reanimated';
 import React from 'react';
 import { EventDispatcher } from '@/containers/ReactNativeSkiaGameEngine';
 import { SEA_ADD_WAVE_EVENT } from '@/constants/events';
+import { resetWave, updateWave } from '../Wave/worklets';
 
 export class Sea implements ISea {
   protected _x: number;
@@ -95,6 +96,14 @@ export class Sea implements ISea {
     // this.setWaterSurfacePoints();
   }
 
+  get x(): number {
+    return this._x;
+  }
+
+  get y(): number {
+    return this._y;
+  }
+
   get width(): number {
     return this._width;
   }
@@ -120,55 +129,19 @@ export class Sea implements ISea {
     return this._layers;
   }
 
+  get layersCount(): number {
+    return this._layersCount;
+  }
+
   get mainLayerIndex(): number {
     return this._mainLayerIndex;
   }
 
   update(deltaTime?: number | undefined): void {
     this._layers.forEach((layer, idx) => {
-      layer._waves.forEach(
-        (
-          {
-            isFlowing,
-            time,
-            source,
-            amplitude,
-            maxAmplitude,
-            frequency,
-            speed,
-            update,
-          },
-          idx
-        ) => {
-          const onExpire = () => {
-            layer._waves[idx].reset({
-              dimensions: {
-                width: this._windowWidth,
-                height: this._windowHeight,
-              },
-              source: WaveSource.TOUCH,
-              x: 0,
-              initialAmplitude: 0,
-              initialFrequency: 0,
-              speed: 0,
-              isFlowing: false,
-            });
-          };
-          runOnUI(update)(
-            {
-              isFlowing,
-              time,
-              source,
-              amplitude,
-              maxAmplitude,
-              frequency,
-              speed,
-            },
-            deltaTime,
-            onExpire
-          );
-        }
-      );
+      layer._waves.forEach((wave, idx) => {
+        runOnUI(updateWave)(wave.props, deltaTime);
+      });
       // layer.setWaterSurfacePoints();
       // layer._waves = layer._waves.filter(
       //   (wave) => !wave.isExpired() || wave.source === WaveSource.FLOW
@@ -224,7 +197,7 @@ export class Sea implements ISea {
       speed,
     };
     const touchWave = layer._waves[1];
-    touchWave.reset(waveConfig);
+    runOnUI(resetWave)(touchWave.props, waveConfig);
     if (this._emitEvent)
       this._emitEvent(SEA_ADD_WAVE_EVENT(layer, layer.waves));
     return touchWave;
@@ -243,26 +216,30 @@ export class Sea implements ISea {
     });
     return { x, y: surface, maxWaveHeight };
   }
-  getForceAtPoint(x: number, layerIndex?: number): Matter.Vector {
-    const layer: Sea = this.getDefaultLayer(layerIndex);
-    const force = Matter.Vector.create(0, 0);
-    layer._waves.forEach((wave, index) => {
+  static getForceAtPoint(
+    waves: IWave[],
+    x: number,
+    layerIndex?: number
+  ): Matter.Vector {
+    const force = { x: 0, y: 0 };
+    waves.forEach((wave, index) => {
       if (index !== 0) {
-        const maxAmplitude = wave.maxAmplitude.value;
-        const distance = wave.getDistance(x);
-        const decayFactor = wave.getDecayFactorAtDistance(distance);
+        if (wave.isFlowing) {
+          const distance = wave.getDistance(x);
+          const decayFactor = wave.getDecayFactorAtDistance(distance);
 
-        const xAcceleration = wave.getXAcceleration();
+          const xAcceleration = wave.getXAcceleration();
 
-        const yForce =
-          ((maxAmplitude *
-            decayFactor *
-            Math.sin(distance * wave.frequency.value)) /
-            0.2) *
-          0.01 *
-          0.01;
-        if (yForce > 0) force.y -= yForce;
-        force.x += xAcceleration * decayFactor * 0.001 * 0.01;
+          const yForce =
+            ((wave.maxAmplitude.value *
+              decayFactor *
+              Math.sin(distance * wave.frequency.value)) /
+              0.2) *
+            0.01 *
+            0.01;
+          if (yForce > 0) force.y -= yForce;
+          force.x += xAcceleration * decayFactor * 0.001 * 0.01;
+        }
       }
     });
     return force;

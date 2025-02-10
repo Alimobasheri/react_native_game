@@ -12,12 +12,20 @@ import {
 import { Boat } from '@/Game/Entities/Boat/Boat';
 import { BoatSystem } from '@/systems/BoatSystem/BoatSystem';
 import { PhysicsSystem } from '@/systems/PhysicsSystem/PhysicsSystem';
-import { FC, MutableRefObject, useCallback, useRef, useState } from 'react';
+import {
+  FC,
+  MutableRefObject,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { BoatView } from '../BoatView/BoatView-rnsge';
 import { Sea } from '@/Game/Entities/Sea/Sea';
 import { State } from '@/Game/Entities/State/State';
 import {
   runOnJS,
+  runOnUI,
   SharedValue,
   useAnimatedReaction,
 } from 'react-native-reanimated';
@@ -47,13 +55,23 @@ export const Boats: FC<{}> = () => {
     '_isRunning'
   ) as SharedValue<boolean>;
 
-  useAnimatedReaction(
-    () => isRunning.value,
-    (isRunning) => {
-      if (isActive !== isRunning) runOnJS(setIsActive)(isRunning);
-    },
-    [isRunning]
-  );
+  const addListener = useCallback(() => {
+    'worklet';
+    isRunning.addListener(1, (newIsRunning) => {
+      runOnJS(setIsActive)(newIsRunning);
+    });
+  }, [isRunning]);
+
+  const removeListener = useCallback(() => {
+    'worklet';
+    isRunning.removeListener(1);
+  }, [isRunning]);
+
+  useEffect(() => {
+    runOnUI(addListener)();
+
+    return () => runOnUI(removeListener)();
+  }, [isRunning]);
 
   const systemCallback: system = useCallback(
     (entities, args) => {

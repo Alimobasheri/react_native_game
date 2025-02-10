@@ -1,18 +1,13 @@
 import { Sea } from '@/Game/Entities/Sea/Sea';
-import { IWave } from '@/Game/Entities/Wave/types';
 import createWaveShader, {
   useWaveShaderUniforms,
 } from '@/Shaders/WaveShader/waveShader';
 import { ENTITIES_KEYS } from '@/constants/configs';
-import { SEA_ADD_WAVE_EVENT_TYPE, SeaAddWaveEvent } from '@/constants/events';
 import {
   Entity,
   useCanvasDimensions,
   useEntityInstance,
-  useEntityValue,
 } from '@/containers/ReactNativeSkiaGameEngine';
-import { useEntityMemoizedValue } from '@/containers/ReactNativeSkiaGameEngine/hooks/useEntityMemoizedValue';
-import { useEventListener } from '@/containers/ReactNativeSkiaGameEngine/hooks/useEventListener';
 import { useFrameEffect } from '@/containers/ReactNativeSkiaGameEngine/hooks/useFrameEffect';
 import { Fill, Shader, SkPath } from '@shopify/react-native-skia';
 import { Skia, LinearGradient } from '@shopify/react-native-skia';

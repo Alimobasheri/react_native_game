@@ -11,96 +11,52 @@ export interface IWave {
    * The initial config passed to constructor.
    * @type {WaveConfig}
    */
-  get initialConfig(): WaveConfig;
-  get isFlowing(): boolean;
+  initialConfig: WaveConfig;
+  isFlowing: SharedValue<boolean>;
   /**
    * Original position the wave originated from.
    * @type {SharedValue<number>}
    */
-  get x(): SharedValue<number>;
+  x: SharedValue<number>;
   /**
    * Current phase value in latest frame the wave is updated at.
    * @type {SharedValue<number>}
    */
 
-  get phase(): SharedValue<number>;
+  phase: SharedValue<number>;
   /**
    * Current time value in latest frame the wave is updated at.
    * @type {SharedValue<number>}
    */
-  get time(): SharedValue<number>;
+  time: SharedValue<number>;
   /**
    * Current amplitude value in latest frame the wave is updated at.
    * @type {SharedValue<number>}
    */
-  get amplitude(): SharedValue<number>;
+  amplitude: SharedValue<number>;
   /**
    * Maximum amplitude the wave is gonna reach in initial x.
    */
-  get maxAmplitude(): SharedValue<number>;
+  maxAmplitude: SharedValue<number>;
   /**
    * Current frequency value in latest frame the wave is updated at.
    * @type {SharedValue<number>}
    */
-  get frequency(): SharedValue<number>;
+  frequency: SharedValue<number>;
   /**
    * Current speed value in latest frame the wave is updated at.
    * @type {SharedValue<number>}
    */
-  get speed(): SharedValue<number>;
+  speed: SharedValue<number>;
   /**
    * What source caused this wave
    */
-  get source(): WaveSource;
-  /**
-   * Checks if based on current amplitude,the wave is no longer useful to draw.
-   * @returns {boolean} true if wave is expired
-   */
-  isExpired: () => boolean;
-  getDecayFactorAtDistance: (distance: number) => number;
-  getDistance: (x: number) => number;
-  getXAcceleration: () => number;
-  /**
-   * Given an x coordinate, calculate the y coordinate of the water surface.
-   * Uses x to determine horizontal distance from original starting position of this wave.
-   * Uses distance to calculate a factor to decay the wave's height.
-   * Uses the wave's phase and frequency to determine the wave's angle.
-   * Finally uses `Math.cos` to calculate the wave's height direction [-1, 1].
-   * @param {number} x The x-coordinate of position to calculate surface at.
-   * @returns {number} The y-coordinate of the water surface.
-   */
-  getSurfaceAtPosition: (x: number) => number;
-  /**
-   * Given a point x and y, calculate the distance of the point from the water surface in y-coordinate. If poit is under surface, positive value returns, otherwise negative.
-   * @param x The x-coordinate of position to calculate surface at.
-   * @param y The y-coordinate of position to calculate surface at.
-   * @returns {number} The distance of the position from the water surface in y-coordinate.
-   */
-  getDistanceFromSurfaceAtPosition: (x: number, y: number) => number;
-  /**
-   * Given an x coordinate, calculate the slope of the water surface in radian.
-   * @param x The x-coordinate of position to calculate surface slope at.
-   * @returns {number} The slope of the water surface in radian.
-   */
-  getSlopeAtPosition: (x: number) => number;
-  /**
-   * Given a frame number, updates the wave's phase, time, amplitude, and frquency.
-   * After the update, surface points and distances and expirations are calculated based on new values.
-   * @param {number | undefined} deltaTime Time passed since last animation frame.
-   * @param {() => void | undefined} onExpired Callback to execute when wave is expired.
-   * @returns {void}
-   */
-  update: (
-    config: Partial<IWave>,
-    deltaTime?: number,
-    onExpired?: () => void
-  ) => void;
-  /**
-   * Given an iniital config, updates all waves inner values to match this config.
-   * @param config the same initial config required to create a wave
-   * @returns void
-   */
-  reset: (config: WaveConfig) => void;
+  source: WaveSource;
+  prevSpeed: number;
+  lastForceTime: SharedValue<number>;
+  forceSmoothingFactor: number;
+  dimensions: { width: number; height: number };
+  props: SharedValue<IWaveSystemProps>;
 }
 
 /**
@@ -162,3 +118,21 @@ export type WaveConfig = {
    */
   minimumAmplitude?: number;
 };
+
+export type IWaveSystemProps = Pick<
+  IWave,
+  | 'initialConfig'
+  | 'amplitude'
+  | 'phase'
+  | 'time'
+  | 'maxAmplitude'
+  | 'frequency'
+  | 'speed'
+  | 'source'
+  | 'isFlowing'
+  | 'dimensions'
+  | 'x'
+  | 'prevSpeed'
+  | 'lastForceTime'
+  | 'forceSmoothingFactor'
+>;

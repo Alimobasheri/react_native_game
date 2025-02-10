@@ -1,10 +1,11 @@
 import { Point2D, WaterSurfacePoint } from '@/types/globals';
-import { IWave } from '../Wave/types';
+import { IWave, IWaveSystemProps } from '../Wave/types';
 import { FC, JSX } from 'react';
 import { EntityRendererProps } from '@/constants/views';
 import { Sea } from './Sea';
 import { SharedValue } from 'react-native-reanimated';
 import { EventDispatcher } from '@/containers/ReactNativeSkiaGameEngine';
+import { pick } from 'lodash';
 
 export type SurfacePointMap = Map<number, WaterSurfacePoint>;
 
@@ -113,3 +114,8 @@ export type SeaConfig = {
   flowSpeed?: number;
   emitEvent?: EventDispatcher['emitEvent'];
 };
+
+export type SeaSystemProps = {
+  layers: SeaSystemProps[];
+  waves: IWave['props'][];
+} & Pick<Sea, 'y' | 'width' | 'height' | 'layersCount' | 'mainLayerIndex'>;

@@ -2,7 +2,11 @@ import { BUOYANTS_GROUP, ENTITIES_KEYS } from '@/constants/configs';
 import { RNGE_Entities, RNGE_System_Args } from '../types';
 import { BuoyantVehicleProps, IPhysicsSystem } from './types';
 import { Vehicle } from '@/Game/Entities/Vehicle/Vehicle';
-import { ISea, SurfacePointMap } from '@/Game/Entities/Sea/types';
+import {
+  ISea,
+  SeaSystemProps,
+  SurfacePointMap,
+} from '@/Game/Entities/Sea/types';
 import Matter from 'matter-js';
 import { getVerticleBounds } from '@/utils/getVerticalBounds';
 import { getSubmergedArea, getSubmergedDepthAtX } from '@/utils/submergedDepth';
@@ -12,12 +16,71 @@ import { Sea } from '@/Game/Entities/Sea/Sea';
 import { GameLoopSystem } from '../GameLoopSystem/GameLoopSystem';
 import { Entities, Entity } from '@/containers/ReactNativeSkiaGameEngine';
 import { BUOYANT_VEHICLE_SINKED_EVENT } from '@/constants/events';
+import {
+  getDefaultLayer,
+  getForceAtPoint,
+  getOriginalWaterSurfaceY,
+  getWaterSurfaceAndMaxHeightAtPoint,
+} from '@/Game/Entities/Sea/worklets';
+import { runOnJS, runOnUI } from 'react-native-reanimated';
+import { IWaveSystemProps } from '@/Game/Entities/Wave/types';
+
+/**
+ * Along the x axis of body bounds, find the slope of water surface and applies it to the buoyant body's vehicle to show it rotating to water surface
+ * @param submergedDepth How much of body is merged into water
+ * @param body Matter Body of the buoyant to apply angle to
+ * @param sea The sea instance to get sea height at points
+ */
+const applyAngleByWave = (
+  submergedDepth: number,
+  body: {
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+    positionX: number;
+    positionY: number;
+    area: number;
+    mass: number;
+    angle: number;
+  },
+  sea: SeaSystemProps,
+  setAngle: (angle: number) => void
+): void => {
+  'worklet';
+  if (submergedDepth > 0) {
+    const bodyLength = body.maxX - body.minX;
+    const numberOfPoints = 5; // Number of points to sample along the body's length
+    let totalSlope = 0;
+
+    for (let i = 0; i <= numberOfPoints; i++) {
+      const pointX = body.minX + (i * bodyLength) / numberOfPoints;
+      totalSlope += getWaterSurfaceAndMaxHeightAtPoint(sea, pointX).y;
+    }
+
+    const x2 = body.minX;
+    const x1 = body.maxX;
+    const y2 = getWaterSurfaceAndMaxHeightAtPoint(sea, x2).maxWaveHeight;
+    const y1 = getWaterSurfaceAndMaxHeightAtPoint(sea, x1).maxWaveHeight;
+    const averageSlope = (y2 - y1) / (x2 - x1);
+    const targetAngle = Math.atan(averageSlope);
+    const diffAngle = targetAngle - body.angle;
+    if (Math.abs(diffAngle) > 0.01) {
+      runOnJS(setAngle)(body.angle + diffAngle * 0.5);
+    }
+  }
+};
 
 export class PhysicsSystem implements IPhysicsSystem {
   protected _engine: Matter.Engine;
   protected _render = 0;
+  protected _curr = 0;
+  buoyantUiWorklet: any;
+  sinkUiWorklet: any;
   constructor() {
     this._engine = Matter.Engine.create();
+    this.buoyantUiWorklet = runOnUI(this.applyBuoyantForce);
+    this.sinkUiWorklet = runOnUI(this.applySinkStatus);
   }
   systemInstance(entities: RNGE_Entities, args: RNGE_System_Args) {
     this.update(entities, args);
@@ -69,11 +132,44 @@ export class PhysicsSystem implements IPhysicsSystem {
         submergedArea,
         submergedDepth,
         waterSurfaceYAtPoint,
-        combinedSlope,
-        acceleration,
       } = props;
 
-      this.applySinkStatus(args, buoyantVehicle, size, submergedArea, sea);
+      let seaProps: SeaSystemProps = {
+        layers: sea.layers.map((layer) => ({
+          layers: [],
+          waves: layer.waves.map((wave) => wave.props),
+          y: layer.y,
+          width: layer.width,
+          height: layer.height,
+          layersCount: layer.layersCount,
+          mainLayerIndex: layer.mainLayerIndex,
+        })),
+        waves: sea.layers[sea.mainLayerIndex].waves.map((wave) => wave.props),
+        y: sea.y,
+        width: sea.width,
+        height: sea.height,
+        layersCount: sea.layersCount,
+        mainLayerIndex: sea.mainLayerIndex,
+      };
+
+      let bodyProps = {
+        minX: body.bounds.min.x,
+        maxX: body.bounds.max.x,
+        minY: body.bounds.min.y,
+        maxY: body.bounds.max.y,
+        positionX: body.position.x,
+        positionY: body.position.y,
+        area: body.area,
+        mass: body.mass,
+        angle: body.angle,
+        label: body.label,
+      };
+
+      let onSinked = () => {
+        buoyantVehicle.isSinked = true;
+        args.dispatcher.emitEvent(BUOYANT_VEHICLE_SINKED_EVENT(buoyantVehicle));
+      };
+      this.sinkUiWorklet(bodyProps, size, seaProps, onSinked);
 
       this.applyFriction(
         body,
@@ -90,15 +186,33 @@ export class PhysicsSystem implements IPhysicsSystem {
       //   sea
       // );
 
-      this.applyBuoyantForce(
+      let applyMatterForce = (position: Matter.Vector, force: Matter.Vector) =>
+        Matter.Body.applyForce(body, position, force);
+
+      let setAngle = (angle: number) => Matter.Body.setAngle(body, angle);
+
+      this.buoyantUiWorklet(
         args,
-        body,
+        bodyProps,
         size,
         submergedDepth,
         submergedArea,
-        sea,
-        combinedSlope
+        seaProps,
+        applyMatterForce,
+        setAngle
       );
+      setTimeout(() => {
+        //@ts-ignore
+        bodyProps = null;
+        //@ts-ignore
+        seaProps = null;
+        //@ts-ignore
+        applyMatterForce = null;
+        //@ts-ignore
+        onSinked = null;
+        //@ts-ignore
+        setAngle = null;
+      }, 100);
     });
   }
 
@@ -178,7 +292,6 @@ export class PhysicsSystem implements IPhysicsSystem {
       waterSurfaceYAtPoint = sea.getWaterSurfaceAndMaxHeightAtPoint(
         body.position.x
       );
-    const combinedSlope = sea.getWaterSlopeAtPoint(body.position.x);
 
     const { submergedDepth, submergedArea } = getSubmergedArea(
       body,
@@ -191,76 +304,103 @@ export class PhysicsSystem implements IPhysicsSystem {
       size,
       buoyantVehicleBottomY,
       waterSurfaceYAtPoint,
-      combinedSlope,
       submergedDepth,
       submergedArea,
-      acceleration: buoyantVehicle.getAcceleration(args.time.delta),
     };
   }
   protected applyBuoyantForce(
     args: RNGE_System_Args,
-    body: Matter.Body,
+    body: {
+      minX: number;
+      maxX: number;
+      minY: number;
+      maxY: number;
+      positionX: number;
+      positionY: number;
+      area: number;
+      mass: number;
+      angle: number;
+      label: string;
+    },
     size: number[],
     submergedDepth: number,
     submergedArea: number,
-    sea: Sea,
-    combinedSlope: number
+    sea: SeaSystemProps,
+    applyMatterForce: (position: Matter.Vector, force: Matter.Vector) => void,
+    setAngle: (angle: number) => void
   ): void {
+    'worklet';
     if (submergedArea > 0) {
-      this.applyAngleByWave(submergedDepth, body, sea);
-      for (let i = 0; i <= 30; i++) {
-        const x = i * (size[0] / 30) + body.bounds.min.x;
-        if (x > body.bounds.max.x) break;
-        const force = sea.getForceAtPoint(x);
-        const y = sea.getWaterSurfaceAndMaxHeightAtPoint(x).y;
-        if (y > body.bounds.max.y) break;
-        const pointWidth = (body.bounds.max.x - body.bounds.min.x) / 30;
+      applyAngleByWave(submergedDepth, body, sea, setAngle);
+      for (let i = 0; i <= 4; i++) {
+        const x = i * (size[0] / 4) + body.minX;
+        if (x > body.maxX) break;
+        const force = getForceAtPoint(sea.waves, x);
+        const y = getWaterSurfaceAndMaxHeightAtPoint(sea, x).y;
+        if (y > body.maxY) break;
+        const pointWidth = (body.maxX - body.minX) / 4;
         force.y = force.y * pointWidth;
         const seaForce = { force, position: { x, y } };
-        Matter.Body.applyForce(body, seaForce.position, seaForce.force);
+        runOnJS(applyMatterForce)(seaForce.position, seaForce.force);
       }
-      const xAcceleration = sea.getForceAtPoint(body.position.x).x;
 
-      const clampedSubmergedArea = Matter.Common.clamp(
-        Math.exp(submergedArea / (body.area * 0.25)),
+      const clampedSubmergedArea = Math.max(
         0,
-        1.5
+        Math.min(Math.exp(submergedArea / (body.area * 0.25)), 1.5)
       );
 
-      const antiGravityForce = Matter.Vector.create(
-        0,
-        -1 * body.mass * clampedSubmergedArea * 0.001
+      const antiGravityForce = {
+        x: 0,
+        y: -1 * body.mass * clampedSubmergedArea * 0.001,
+      };
+      // Matter.Body.applyForce(body, body.position, antiGravityForce);
+      runOnJS(applyMatterForce)(
+        { x: body.positionX, y: body.positionY },
+        antiGravityForce
       );
-      Matter.Body.applyForce(body, body.position, antiGravityForce);
     }
+    //@ts-ignore
+    body = null;
+    // @ts-ignore
+    sea = null;
   }
 
   protected applySinkStatus(
-    args: RNGE_System_Args,
-    buoyantVehicle: Vehicle,
+    body: {
+      minX: number;
+      maxX: number;
+      minY: number;
+      maxY: number;
+      positionX: number;
+      positionY: number;
+      area: number;
+      mass: number;
+      angle: number;
+      label: string;
+    },
     size: number[],
-    submergedArea: number,
-    sea: Sea
+    sea: SeaSystemProps,
+    onSinked: () => void
   ): void {
-    if (!buoyantVehicle.body) return;
+    'worklet';
+    if (!body) return;
     if (
-      (buoyantVehicle.body.bounds.min.y >= size[1] * size[0] * 1.5 &&
-        buoyantVehicle.body &&
-        sea.getWaterSurfaceAndMaxHeightAtPoint(buoyantVehicle.body?.position.x)
-          .y >= sea.getOriginalWaterSurfaceY()) ||
-      (buoyantVehicle.body &&
-        buoyantVehicle.body?.position.y <
-          sea.getWaterSurfaceAndMaxHeightAtPoint(
-            buoyantVehicle.body?.position.x
-          ).y -
+      (body.minY >= size[1] * size[0] * 1.5 &&
+        body &&
+        getWaterSurfaceAndMaxHeightAtPoint(sea, body?.positionX).y >=
+          getOriginalWaterSurfaceY(sea)) ||
+      (body &&
+        body?.positionY <
+          getWaterSurfaceAndMaxHeightAtPoint(sea, body?.positionX).y -
             3 * size[1]) ||
-      Math.abs(buoyantVehicle.body.angle) > 5
+      Math.abs(body.angle) > 5
     ) {
-      // console.log('====sinked', buoyantVehicle.body.label);
-      buoyantVehicle.isSinked = true;
-      args.dispatcher.emitEvent(BUOYANT_VEHICLE_SINKED_EVENT(buoyantVehicle));
+      // console.log('====sinked', body.label);
+      runOnJS(onSinked)();
       // buoyantVehicle.isAttacking = false;
     }
+    //@ts-ignore
+    body = null;
   }
 
   protected applyFriction(

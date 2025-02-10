@@ -73,12 +73,12 @@ class Animations {
     }
 
     // If the animation has a label, associate it with the animation ID
-    if (newAnimation.config.label) {
+    if (newAnimation.config?.label) {
       this.mapLabelToAnimationId.set(newAnimation.config.label, id);
     }
 
     // If the animation belongs to groups, associate it with those groups
-    if (newAnimation.config.groups) {
+    if (newAnimation.config?.groups) {
       newAnimation.config.groups.forEach((group) => {
         if (!this.mapGroupToAnimations.has(group)) {
           this.mapGroupToAnimations.set(group, []);
@@ -113,12 +113,12 @@ class Animations {
     this.allAnimations.delete(animationObj.id);
 
     // Remove from label map
-    if (animationObj.config.label) {
+    if (animationObj.config?.label) {
       this.mapLabelToAnimationId.delete(animationObj.config.label);
     }
 
     // Remove from group map
-    if (animationObj.config.groups) {
+    if (animationObj.config?.groups) {
       animationObj.config.groups.forEach((group) => {
         const groupAnimations = this.mapGroupToAnimations.get(group);
         if (groupAnimations) {
@@ -257,7 +257,7 @@ class Animations {
       if (direction.value === -1) {
         progress = 1 - progress; // Reverse the progress if in backward mode (yoyo)
       }
-      const onAnimateDone = (done: boolean) => {
+      let onAnimateDone = (done: boolean) => {
         // Handle completion of one animation cycle
         if (done) {
           onDone();
@@ -295,6 +295,8 @@ class Animations {
             }
           }
         }
+        //@ts-ignore
+        setTimeout(() => (onAnimateDone = null), 100);
       };
 
       animation.update(

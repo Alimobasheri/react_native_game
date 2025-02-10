@@ -1,16 +1,16 @@
-import { VEHICLE_TYPE_IDENTIFIERS } from "@/constants/vehicle";
-import { Vehicle } from "../Vehicle/Vehicle";
-import { BoatConfig, BoatTrail, IBoat } from "./types";
-import { DIRECTION, ENTITIES_KEYS } from "@/constants/configs";
-import Matter from "matter-js";
-import { Ship } from "../Ship/Ship";
-import { getDirection } from "@/utils/getDirection";
-import { RNGE_Entities } from "@/systems/types";
-import { BoatView } from "@/components/BoatView";
-import { CollisionsSystem } from "@/systems/CollisionsSystem/CollisionsSystem";
-import { GameLoopSystem } from "@/systems/GameLoopSystem/GameLoopSystem";
-import { Sea } from "../Sea/Sea";
-import { Entities, Entity } from "@/containers/ReactNativeSkiaGameEngine";
+import { VEHICLE_TYPE_IDENTIFIERS } from '@/constants/vehicle';
+import { Vehicle } from '../Vehicle/Vehicle';
+import { BoatConfig, BoatTrail, IBoat } from './types';
+import { DIRECTION, ENTITIES_KEYS } from '@/constants/configs';
+import Matter from 'matter-js';
+import { Ship } from '../Ship/Ship';
+import { getDirection } from '@/utils/getDirection';
+import { RNGE_Entities } from '@/systems/types';
+import { BoatView } from '@/components/BoatView';
+import { CollisionsSystem } from '@/systems/CollisionsSystem/CollisionsSystem';
+import { GameLoopSystem } from '@/systems/GameLoopSystem/GameLoopSystem';
+import { Sea } from '../Sea/Sea';
+import { Entities, Entity } from '@/containers/ReactNativeSkiaGameEngine';
 
 export class Boat extends Vehicle implements IBoat {
   protected _isAttacking: boolean = false;

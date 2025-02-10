@@ -79,9 +79,9 @@ export const Basic: Story = {
         <ReactNativeSkiaGameEngine onEventListeners={{}}>
           <SeaGroupComponent />
           <Group>
-            {/* <SeaViewShader {...args} layerIndex={2} /> */}
+            <SeaViewShader {...args} layerIndex={2} />
             <SeaViewShader {...args} layerIndex={1} />
-            {/* <SeaViewShader {...args} layerIndex={0} /> */}
+            <SeaViewShader {...args} layerIndex={0} />
           </Group>
           <Swipe />
         </ReactNativeSkiaGameEngine>
