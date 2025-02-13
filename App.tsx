@@ -6,6 +6,7 @@ import { View } from 'react-native';
 import Constants from 'expo-constants';
 import { Game } from '@/containers/Game/index-rnsge';
 LogBox.ignoreAllLogs();
+
 function App() {
   return (
     <SafeAreaProvider style={{ flex: 1 }}>

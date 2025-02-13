@@ -14,7 +14,7 @@ import { Point2D, WaterSurfacePoint } from '@/types/globals';
 import { VEHICLE_TYPE_IDENTIFIERS } from '@/constants/vehicle';
 import { Sea } from '@/Game/Entities/Sea/Sea';
 import { GameLoopSystem } from '../GameLoopSystem/GameLoopSystem';
-import { Entities, Entity } from '@/containers/ReactNativeSkiaGameEngine';
+import { Entities, Entity, uid } from '@/containers/ReactNativeSkiaGameEngine';
 import { BUOYANT_VEHICLE_SINKED_EVENT } from '@/constants/events';
 import {
   getDefaultLayer,
@@ -22,8 +22,15 @@ import {
   getOriginalWaterSurfaceY,
   getWaterSurfaceAndMaxHeightAtPoint,
 } from '@/Game/Entities/Sea/worklets';
-import { runOnJS, runOnUI } from 'react-native-reanimated';
+import { makeMutable, runOnJS, runOnUI } from 'react-native-reanimated';
 import { IWaveSystemProps } from '@/Game/Entities/Wave/types';
+import {
+  createCleanCopy,
+  createCleanCopyFromStructure,
+  createSharedCopy,
+  SharedValueTree,
+  structs,
+} from './functions';
 
 /**
  * Along the x axis of body bounds, find the slope of water surface and applies it to the buoyant body's vehicle to show it rotating to water surface
@@ -33,54 +40,76 @@ import { IWaveSystemProps } from '@/Game/Entities/Wave/types';
  */
 const applyAngleByWave = (
   submergedDepth: number,
-  body: {
-    minX: number;
-    maxX: number;
-    minY: number;
-    maxY: number;
-    positionX: number;
-    positionY: number;
-    area: number;
-    mass: number;
-    angle: number;
-  },
+  body: SharedValueTree<Matter.Body>,
   sea: SeaSystemProps,
   setAngle: (angle: number) => void
 ): void => {
   'worklet';
   if (submergedDepth > 0) {
-    const bodyLength = body.maxX - body.minX;
+    const bodyLength = body.value.bounds.max.x - body.value.bounds.min.x;
     const numberOfPoints = 5; // Number of points to sample along the body's length
     let totalSlope = 0;
 
     for (let i = 0; i <= numberOfPoints; i++) {
-      const pointX = body.minX + (i * bodyLength) / numberOfPoints;
+      const pointX =
+        body.value.bounds.min.x + (i * bodyLength) / numberOfPoints;
       totalSlope += getWaterSurfaceAndMaxHeightAtPoint(sea, pointX).y;
     }
 
-    const x2 = body.minX;
-    const x1 = body.maxX;
+    const x2 = body.value.bounds.min.x;
+    const x1 = body.value.bounds.max.x;
     const y2 = getWaterSurfaceAndMaxHeightAtPoint(sea, x2).maxWaveHeight;
     const y1 = getWaterSurfaceAndMaxHeightAtPoint(sea, x1).maxWaveHeight;
     const averageSlope = (y2 - y1) / (x2 - x1);
     const targetAngle = Math.atan(averageSlope);
-    const diffAngle = targetAngle - body.angle;
+    const diffAngle = targetAngle - body.value.angle;
     if (Math.abs(diffAngle) > 0.01) {
-      runOnJS(setAngle)(body.angle + diffAngle * 0.5);
+      runOnJS(setAngle)(body.value.angle + diffAngle * 0.5);
     }
   }
 };
+
+const performanceArr: number[] = [];
 
 export class PhysicsSystem implements IPhysicsSystem {
   protected _engine: Matter.Engine;
   protected _render = 0;
   protected _curr = 0;
+  bodiesMap: Map<
+    number,
+    { JSBody: Matter.Body; UIBody: SharedValueTree<Matter.Body> }
+  > = new Map();
+  _statesMap: Map<number, any> = new Map();
   buoyantUiWorklet: any;
   sinkUiWorklet: any;
+  applyFrictionUiWorklet: any;
   constructor() {
     this._engine = Matter.Engine.create();
     this.buoyantUiWorklet = runOnUI(this.applyBuoyantForce);
     this.sinkUiWorklet = runOnUI(this.applySinkStatus);
+    this.applyFrictionUiWorklet = runOnUI(this.applyFriction);
+
+    Matter.Events.on(this._engine, 'afterUpdate', () => {
+      const start = global.nativePerformanceNow();
+      Matter.Composite.allBodies(this._engine.world).forEach((body) => {
+        const shared = this.bodiesMap.get(body.id)?.UIBody;
+        if (!shared) return;
+        shared.value = createCleanCopyFromStructure(
+          body,
+          structs.get(`${body.id}`)
+        );
+      });
+      const performance = global.nativePerformanceNow() - start;
+      if (performanceArr.length === 10) {
+        performanceArr.shift();
+      }
+      performanceArr.push(performance);
+      const averagePerformance =
+        performanceArr.length > 0
+          ? performanceArr.reduce((a, b) => a + b, 0) / performanceArr.length
+          : 0;
+      // console.log(averagePerformance);
+    });
   }
   systemInstance(entities: RNGE_Entities, args: RNGE_System_Args) {
     this.update(entities, args);
@@ -95,8 +124,18 @@ export class PhysicsSystem implements IPhysicsSystem {
     return physicsSystem.systemInstance(entities, args);
   }
 
-  public addBodyToWorld(body: Matter.Body): void {
+  createBodyCopy(JSBody: Matter.Body) {
+    const UIBody = createSharedCopy(JSBody);
+    this.bodiesMap.set(JSBody.id, { JSBody, UIBody });
+    return UIBody;
+  }
+
+  public addBodyToWorld(
+    body: Matter.Body,
+    sharedBodyCopy: SharedValueTree<Matter.Body>
+  ): void {
     Matter.World.add(this._engine.world, body);
+    this.bodiesMap.set(body.id, { JSBody: body, UIBody: sharedBodyCopy });
   }
 
   public removeBodyFromWorld(body: Matter.Body): void {
@@ -105,8 +144,8 @@ export class PhysicsSystem implements IPhysicsSystem {
 
   protected update(entities: Entities, args: RNGE_System_Args): void {
     const { time } = args;
-    this.updateBuoyantVehicles(entities, args);
     Matter.Engine.update(this._engine);
+    this.updateBuoyantVehicles(entities, args);
   }
 
   protected updateBuoyantVehicles(
@@ -122,17 +161,8 @@ export class PhysicsSystem implements IPhysicsSystem {
       const buoyantVehicle = buoyantVehicleEntity.data;
       const sea = seaEntity.data;
       if (buoyantVehicle.isSinked || !buoyantVehicle.isInitialized) return;
-      const props = this.getBuoyantVehicleProps(buoyantVehicle, sea, args);
 
-      if (!props) return;
-
-      const {
-        body,
-        size,
-        submergedArea,
-        submergedDepth,
-        waterSurfaceYAtPoint,
-      } = props;
+      if (!buoyantVehicle.body) return;
 
       let seaProps: SeaSystemProps = {
         layers: sea.layers.map((layer) => ({
@@ -152,58 +182,51 @@ export class PhysicsSystem implements IPhysicsSystem {
         mainLayerIndex: sea.mainLayerIndex,
       };
 
-      let bodyProps = {
-        minX: body.bounds.min.x,
-        maxX: body.bounds.max.x,
-        minY: body.bounds.min.y,
-        maxY: body.bounds.max.y,
-        positionX: body.position.x,
-        positionY: body.position.y,
-        area: body.area,
-        mass: body.mass,
-        angle: body.angle,
-        label: body.label,
-      };
-
       let onSinked = () => {
         buoyantVehicle.isSinked = true;
         args.dispatcher.emitEvent(BUOYANT_VEHICLE_SINKED_EVENT(buoyantVehicle));
       };
-      this.sinkUiWorklet(bodyProps, size, seaProps, onSinked);
-
-      this.applyFriction(
-        body,
-        size,
-        submergedDepth,
-        submergedArea,
-        waterSurfaceYAtPoint
+      this.sinkUiWorklet(
+        buoyantVehicle.sharedBody,
+        buoyantVehicle.size,
+        seaProps,
+        onSinked
       );
 
-      // const surfacePoints = this.getSurfacePoints(
-      //   body,
-      //   size,
-      //   submergedDepth,
-      //   sea
-      // );
+      let matterBodySet = (key: string, value: any) => {
+        if (!buoyantVehicle.body) return;
+        Matter.Body.set(buoyantVehicle.body, key, value);
+      };
 
-      let applyMatterForce = (position: Matter.Vector, force: Matter.Vector) =>
-        Matter.Body.applyForce(body, position, force);
+      this.applyFrictionUiWorklet(
+        buoyantVehicle.sharedBody,
+        seaProps,
+        buoyantVehicle.size,
+        matterBodySet
+      );
 
-      let setAngle = (angle: number) => Matter.Body.setAngle(body, angle);
+      let applyMatterForce = (
+        position: Matter.Vector,
+        force: Matter.Vector
+      ) => {
+        if (!buoyantVehicle.body) return;
+        Matter.Body.applyForce(buoyantVehicle.body, position, force);
+      };
+
+      let setAngle = (angle: number) => {
+        if (!buoyantVehicle.body) return;
+        Matter.Body.setAngle(buoyantVehicle.body, angle);
+      };
 
       this.buoyantUiWorklet(
         args,
-        bodyProps,
-        size,
-        submergedDepth,
-        submergedArea,
+        buoyantVehicle.sharedBody,
+        buoyantVehicle.size,
         seaProps,
         applyMatterForce,
         setAngle
       );
       setTimeout(() => {
-        //@ts-ignore
-        bodyProps = null;
         //@ts-ignore
         seaProps = null;
         //@ts-ignore
@@ -276,69 +299,34 @@ export class PhysicsSystem implements IPhysicsSystem {
     }
     return points;
   }
-  protected getBuoyantVehicleProps(
-    buoyantVehicle: Vehicle,
-    sea: Sea,
-    args: RNGE_System_Args
-  ): BuoyantVehicleProps | undefined {
-    const { body, size } = buoyantVehicle;
-    if (!body) return;
-    const { bottomY: buoyantVehicleBottomY } = getVerticleBounds(body, size);
-
-    let waterSurfaceYAtPoint = sea.getWaterSurfaceAndMaxHeightAtPoint(
-      body.position.x
-    );
-    if (!waterSurfaceYAtPoint)
-      waterSurfaceYAtPoint = sea.getWaterSurfaceAndMaxHeightAtPoint(
-        body.position.x
-      );
-
-    const { submergedDepth, submergedArea } = getSubmergedArea(
-      body,
-      size,
-      waterSurfaceYAtPoint
-    );
-
-    return {
-      body,
-      size,
-      buoyantVehicleBottomY,
-      waterSurfaceYAtPoint,
-      submergedDepth,
-      submergedArea,
-    };
-  }
   protected applyBuoyantForce(
     args: RNGE_System_Args,
-    body: {
-      minX: number;
-      maxX: number;
-      minY: number;
-      maxY: number;
-      positionX: number;
-      positionY: number;
-      area: number;
-      mass: number;
-      angle: number;
-      label: string;
-    },
+    body: SharedValueTree<Matter.Body>,
     size: number[],
-    submergedDepth: number,
-    submergedArea: number,
     sea: SeaSystemProps,
     applyMatterForce: (position: Matter.Vector, force: Matter.Vector) => void,
     setAngle: (angle: number) => void
   ): void {
     'worklet';
+    const waterSurfaceYAtPoint = getWaterSurfaceAndMaxHeightAtPoint(
+      sea,
+      body.value.position.x
+    );
+    const { submergedArea, submergedDepth } = getSubmergedArea(
+      body,
+      size,
+      waterSurfaceYAtPoint
+    );
     if (submergedArea > 0) {
       applyAngleByWave(submergedDepth, body, sea, setAngle);
       for (let i = 0; i <= 4; i++) {
-        const x = i * (size[0] / 4) + body.minX;
-        if (x > body.maxX) break;
+        const x = i * (size[0] / 4) + body.value.bounds.min.x;
+        if (x > body.value.bounds.max.x) break;
         const force = getForceAtPoint(sea.waves, x);
         const y = getWaterSurfaceAndMaxHeightAtPoint(sea, x).y;
-        if (y > body.maxY) break;
-        const pointWidth = (body.maxX - body.minX) / 4;
+        if (y > body.value.bounds.max.y) break;
+        const pointWidth =
+          (body.value.bounds.max.x - body.value.bounds.min.x) / 4;
         force.y = force.y * pointWidth;
         const seaForce = { force, position: { x, y } };
         runOnJS(applyMatterForce)(seaForce.position, seaForce.force);
@@ -346,16 +334,16 @@ export class PhysicsSystem implements IPhysicsSystem {
 
       const clampedSubmergedArea = Math.max(
         0,
-        Math.min(Math.exp(submergedArea / (body.area * 0.25)), 1.5)
+        Math.min(Math.exp(submergedArea / (body.value.area * 0.25)), 1.5)
       );
 
       const antiGravityForce = {
         x: 0,
-        y: -1 * body.mass * clampedSubmergedArea * 0.001,
+        y: -1 * body.value.mass * clampedSubmergedArea * 0.001,
       };
-      // Matter.Body.applyForce(body, body.position, antiGravityForce);
+      // Matter.Body.value.applyForce(body, body.value.position, antiGravityForce);
       runOnJS(applyMatterForce)(
-        { x: body.positionX, y: body.positionY },
+        { x: body.value.position.x, y: body.value.position.y },
         antiGravityForce
       );
     }
@@ -366,18 +354,7 @@ export class PhysicsSystem implements IPhysicsSystem {
   }
 
   protected applySinkStatus(
-    body: {
-      minX: number;
-      maxX: number;
-      minY: number;
-      maxY: number;
-      positionX: number;
-      positionY: number;
-      area: number;
-      mass: number;
-      angle: number;
-      label: string;
-    },
+    body: SharedValueTree<Matter.Body>,
     size: number[],
     sea: SeaSystemProps,
     onSinked: () => void
@@ -385,15 +362,15 @@ export class PhysicsSystem implements IPhysicsSystem {
     'worklet';
     if (!body) return;
     if (
-      (body.minY >= size[1] * size[0] * 1.5 &&
+      (body.value.bounds.min.y >= size[1] * size[0] * 1.5 &&
         body &&
-        getWaterSurfaceAndMaxHeightAtPoint(sea, body?.positionX).y >=
+        getWaterSurfaceAndMaxHeightAtPoint(sea, body.value.position.x).y >=
           getOriginalWaterSurfaceY(sea)) ||
       (body &&
-        body?.positionY <
-          getWaterSurfaceAndMaxHeightAtPoint(sea, body?.positionX).y -
+        body.value.position.y <
+          getWaterSurfaceAndMaxHeightAtPoint(sea, body.value.position.x).y -
             3 * size[1]) ||
-      Math.abs(body.angle) > 5
+      Math.abs(body.value.angle) > 5
     ) {
       // console.log('====sinked', body.label);
       runOnJS(onSinked)();
@@ -404,21 +381,36 @@ export class PhysicsSystem implements IPhysicsSystem {
   }
 
   protected applyFriction(
-    body: Matter.Body,
+    body: SharedValueTree<Matter.Body>,
+    sea: SeaSystemProps,
     size: number[],
-    submergedDepth: number,
-    submergedArea: number,
-    waterSurfaceYAtPoint: WaterSurfacePoint
+    matterSetBody: (key: string, value: any) => void
   ): void {
+    'worklet';
     if (!body) return;
+    const waterSurfaceYAtPoint = getWaterSurfaceAndMaxHeightAtPoint(
+      sea,
+      body.value.position.x
+    );
+    const { submergedArea } = getSubmergedArea(
+      body,
+      size,
+      waterSurfaceYAtPoint
+    );
     if (submergedArea > 0) {
-      Matter.Body.set(body, 'frictionAir', 0.05);
-    } else if (body.position.y < waterSurfaceYAtPoint.y - (size[1] / 2) * 8) {
-      Matter.Body.set(body, 'frictionAir', 0.08);
-    } else if (body.position.y < waterSurfaceYAtPoint.y - (size[1] / 2) * 2) {
-      Matter.Body.set(body, 'frictionAir', 0.05);
+      runOnJS(matterSetBody)('frictionAir', 0.05);
+    } else if (
+      body.value.position.y <
+      waterSurfaceYAtPoint.y - (size[1] / 2) * 8
+    ) {
+      runOnJS(matterSetBody)('frictionAir', 0.08);
+    } else if (
+      body.value.position.y <
+      waterSurfaceYAtPoint.y - (size[1] / 2) * 2
+    ) {
+      runOnJS(matterSetBody)('frictionAir', 0.05);
     } else if (submergedArea < size[0] * size[1] * 0.2) {
-      Matter.Body.set(body, 'frictionAir', 0.05);
+      runOnJS(matterSetBody)('frictionAir', 0.05);
     }
   }
 

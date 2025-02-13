@@ -80,61 +80,61 @@ export class Boat extends Vehicle implements IBoat {
   }
 
   protected _attackShip(ship: Ship, sea: Sea): void {
-    if (!!this._body && !!ship.body) {
-      const direction = getDirection(this._body, ship.body);
+    if (!!this.body && !!ship.body) {
+      const direction = getDirection(this.body, ship.body);
       this._direction = direction;
       this._move(sea);
     }
   }
 
   protected _move(sea: Sea) {
-    if (!this._body) return;
+    if (!this.body) return;
     // Check if the boat is over water and at a stable angle
-    const boatPosition = this._body.position;
+    const boatPosition = this.body.position;
     const waterSurfaceAtBoat = sea.getWaterSurfaceAndMaxHeightAtPoint(
       boatPosition.x
     ).y;
     const isOverWater =
       boatPosition.y + this.getSize()[1] / 2 >= waterSurfaceAtBoat;
     const angleThreshold = Math.PI / 12; // 15 degrees threshold
-    const isStable = Math.abs(this._body.angle) < angleThreshold;
+    const isStable = Math.abs(this.body.angle) < angleThreshold;
 
     if (!(isOverWater && isStable)) return;
-    const currentVelocityX = this._body.velocity.x;
+    const currentVelocityX = this.body.velocity.x;
     let newVelocityX = currentVelocityX;
     if (this._direction === DIRECTION.LEFT) {
       newVelocityX =
         currentVelocityX <= 0 ? currentVelocityX - this._acceleration : 0;
       if (Math.abs(newVelocityX) >= this._maxVelocityX)
         newVelocityX = -this._maxVelocityX;
-      Matter.Body.setVelocity(this._body, {
+      Matter.Body.setVelocity(this.body, {
         x: newVelocityX,
-        y: this._body.velocity.y,
+        y: this.body.velocity.y,
       });
     } else if (this._direction === DIRECTION.RIGHT) {
       newVelocityX =
         currentVelocityX >= 0 ? currentVelocityX + this._acceleration : 0;
       if (Math.abs(newVelocityX) >= this._maxVelocityX)
         newVelocityX = this._maxVelocityX;
-      Matter.Body.setVelocity(this._body, {
+      Matter.Body.setVelocity(this.body, {
         x: newVelocityX,
-        y: this._body.velocity.y,
+        y: this.body.velocity.y,
       });
     }
     this._applyTilt();
   }
 
   protected _applyTilt(): void {
-    if (!this._body) return;
-    if (Math.abs(this._body.velocity.x) > 5) {
+    if (!this.body) return;
+    if (Math.abs(this.body.velocity.x) > 5) {
       const maxTiltAngle = Math.PI / 8; // Adjust the tilt angle as needed
       const tiltFactor = 0.01; // Adjust the factor to control the tilting effect
-      const targetTilt = this._body.velocity.x * tiltFactor; // Reverse the tilt direction
+      const targetTilt = this.body.velocity.x * tiltFactor; // Reverse the tilt direction
       const clampedTilt = Math.max(
         -maxTiltAngle,
         Math.min(maxTiltAngle, targetTilt)
       );
-      Matter.Body.setAngle(this._body, -clampedTilt);
+      Matter.Body.setAngle(this.body, -clampedTilt);
     }
   }
 
@@ -158,8 +158,8 @@ export class Boat extends Vehicle implements IBoat {
     //     collision.frame === currentFrame && collision.boatLabel === this._label
     // );
     // console.log(
-    //   "🚀 ~ Boat ~ _onUpdate ~ this._body.velocity.y:",
-    //   this._body?.velocity.y
+    //   "🚀 ~ Boat ~ _onUpdate ~ this.body.velocity.y:",
+    //   this.body?.velocity.y
     // );
     if (hasThisBoatCollided) {
       this.takeDamage(100);

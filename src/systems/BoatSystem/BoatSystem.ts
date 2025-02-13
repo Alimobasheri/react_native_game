@@ -121,8 +121,8 @@ export class BoatSystem implements IBoatSystem {
       createdTime: args.time.current,
       // gameLoopSystem.currentFrame
     });
-    if (boat?.body) {
-      physicsSystem.data.current.addBodyToWorld(boat?.body);
+    if (boat?.body && boat.sharedBody) {
+      physicsSystem.data.current.addBodyToWorld(boat?.body, boat.sharedBody);
       entities.addEntity(
         new Entity<Boat>(boat, {
           groups: [ENTITIES_KEYS.BOAT_GROUP, BUOYANTS_GROUP, VEHICLES_GROUP],
