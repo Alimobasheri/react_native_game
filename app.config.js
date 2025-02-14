@@ -36,9 +36,9 @@ export default ({ config }) => {
         tsconfigPaths: true,
       },
       extra: {
-        // eas: {
-        //   projectId: "20ce35ae-97ab-4ba1-adde-5d8111be3d8a",
-        // },
+        eas: {
+          projectId: '20ce35ae-97ab-4ba1-adde-5d8111be3d8a',
+        },
         storybookEnabled: process.env.STORYBOOK_ENABLED,
       },
     },
