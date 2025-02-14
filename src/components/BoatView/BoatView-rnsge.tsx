@@ -1,31 +1,28 @@
-import { FC, useEffect, useMemo, useState } from 'react';
+import { FC, MutableRefObject, useEffect, useMemo, useState } from 'react';
 import {
   Group,
-  Rect,
-  Skia,
   Image,
   useImage,
-  Shadow,
-  Paint,
-  Circle,
-  vec,
-  Path,
-  LinearGradient,
-  Transforms2d,
   SkPoint,
+  Transforms3d,
 } from '@shopify/react-native-skia';
 import { DIRECTION, TRAIL_FADE_DURATION } from '../../constants/configs';
 import { EntityRendererProps } from '@/constants/views';
 import { Boat } from '@/Game/Entities/Boat/Boat';
 import {
+  Entity,
   useEntityInstance,
   useEntityMemoizedValue,
-  useEntityValue,
 } from '@/containers/ReactNativeSkiaGameEngine';
 import { SharedValue, useDerivedValue } from 'react-native-reanimated';
 
 export const BoatView: FC<{ entityId: string }> = ({ entityId }) => {
-  const { entity, found } = useEntityInstance<Boat>(entityId);
+  const { entity, found } = useEntityInstance<Boat>(entityId) as {
+    entity: MutableRefObject<Entity<Boat>>;
+    found: MutableRefObject<boolean>;
+  };
+  const [sharedBody, _] = useState(entity.current.data.sharedBody);
+
   const imageSource = useEntityMemoizedValue<Boat, number>(
     entityId,
     'imageSource'
@@ -45,53 +42,21 @@ export const BoatView: FC<{ entityId: string }> = ({ entityId }) => {
     () => (found ? entity.current?.data.body.position.y : 0),
     [found]
   );
-  const x = useEntityValue<Boat, number>(entityId, 'body', {
-    processor: (body: Matter.Body | undefined) => {
-      if (!body) return NaN;
-      return body.position.x;
-    },
-  }) as SharedValue<number>;
-
-  const y = useEntityValue<Boat, number>(entityId, 'body', {
-    processor: (body: Matter.Body | undefined) => {
-      if (!body) return NaN;
-      return body.position.y;
-    },
-  }) as SharedValue<number>;
-
-  const angle = useEntityValue<Boat, number>(entityId, 'body', {
-    processor: (body: Matter.Body | undefined) => {
-      if (!body) return NaN;
-      return body.angle;
-    },
-  }) as SharedValue<number>;
 
   const origin = useDerivedValue(() => {
     return {
-      x: x.value - (size?.[0] || 0) / 2,
-      y: y.value - (size?.[1] || 0) / 2,
+      x: (sharedBody?.value.position.x || 0) - (size?.[0] || 0) / 2,
+      y: (sharedBody?.value.position.y || 0) - (size?.[1] || 0) / 2,
     };
-  }, []);
-
-  const translateX = useDerivedValue<number>(() => {
-    return x.value - initialX;
-  }, [x]);
-
-  const translateY = useDerivedValue<number>(() => {
-    return y.value - initialY;
-  }, [y]);
+  }, [sharedBody]);
 
   const transform = useDerivedValue<Transforms2d>(() => {
     return [
-      { rotate: angle.value },
-      { translateX: translateX.value },
-      { translateY: translateY.value },
+      { rotate: sharedBody?.value.angle },
+      { translateX: (sharedBody?.value.position.x || 0) - initialX },
+      { translateY: (sharedBody?.value.position.y || 0) - initialY },
     ];
-  }, [angle, translateX, translateY]);
-
-  const imageRotateTransform = useDerivedValue<Transforms2d>(() => {
-    return [{ rotate: angle.value }];
-  }, [angle]);
+  }, [sharedBody]);
 
   const imageOrigin = useDerivedValue<SkPoint>(() => {
     return { x: initialX - size[0] / 2, y: initialY - size[1] / 2 };
@@ -105,11 +70,11 @@ export const BoatView: FC<{ entityId: string }> = ({ entityId }) => {
     return initialY - size[1] / 2;
   }, [initialY, size[1]]);
 
-  const imageTransform = useDerivedValue<Transforms2d>(() => {
+  const imageTransform = useDerivedValue<Transforms3d>(() => {
     return [{ scaleX: -1 }];
-  }, [translateX, translateY]);
+  }, []);
 
-  const imageDirectionTranslateX = useDerivedValue<Transforms2d>(() => {
+  const imageDirectionTranslateX = useDerivedValue<Transforms3d>(() => {
     return [{ translateX: -size[0] }];
   }, [size?.[0]]);
 

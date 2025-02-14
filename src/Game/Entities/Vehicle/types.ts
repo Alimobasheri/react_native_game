@@ -1,5 +1,6 @@
-import { VEHICLE_TYPE_IDENTIFIERS } from "@/constants/vehicle";
-import { RNGE_Entities, RNGE_System_Args } from "@/systems/types";
+import { VEHICLE_TYPE_IDENTIFIERS } from '@/constants/vehicle';
+import { SharedValueTree } from '@/systems/PhysicsSystem/functions';
+import { RNGE_Entities, RNGE_System_Args } from '@/systems/types';
 
 /**
  * Reperesents a vehicle's must general features.
@@ -8,10 +9,11 @@ import { RNGE_Entities, RNGE_System_Args } from "@/systems/types";
  * @interface IVehicle
  */
 export interface IVehicle {
+  sharedBody: SharedValueTree<Matter.Body> | null;
   /**
    * The Matter physical body of the ship.
    */
-  get body(): Matter.Body | null;
+  body: Matter.Body | null;
   /**
    * Is the vehicle affected by buoyant force inside water?
    * @returns {boolean}
@@ -46,14 +48,6 @@ export interface IVehicle {
    * Matter body label and entities_key
    */
   get label(): string;
-  /**
-   * Maximum velocity the vehicle can reach in x direction
-   */
-  get maxVelocityX(): number;
-  /**
-   * Velocity / frame
-   */
-  get acceleration(): number;
   /**
    * Updates property values for size and other properties.
    */

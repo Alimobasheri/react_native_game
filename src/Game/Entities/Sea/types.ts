@@ -1,15 +1,18 @@
-import { Point2D, WaterSurfacePoint } from "@/types/globals";
-import { IWave } from "../Wave/types";
-import { FC, JSX } from "react";
-import { EntityRendererProps } from "@/constants/views";
-import { Sea } from "./Sea";
+import { Point2D, WaterSurfacePoint } from '@/types/globals';
+import { IWave, IWaveSystemProps } from '../Wave/types';
+import { FC, JSX } from 'react';
+import { EntityRendererProps } from '@/constants/views';
+import { Sea } from './Sea';
+import { SharedValue } from 'react-native-reanimated';
+import { EventDispatcher } from '@/containers/ReactNativeSkiaGameEngine';
+import { pick } from 'lodash';
 
 export type SurfacePointMap = Map<number, WaterSurfacePoint>;
 
 export enum WaveSource {
-  TOUCH = "touch",
-  DISTURBANCE = "disturbance",
-  FLOW = "FLOW",
+  TOUCH = 'touch',
+  DISTURBANCE = 'disturbance',
+  FLOW = 'FLOW',
 }
 
 export type InitiateWaveConfig = {
@@ -19,7 +22,6 @@ export type InitiateWaveConfig = {
   phase?: number;
   time?: number;
   speed?: number;
-  initialForce?: number;
   source: WaveSource;
   layerIndex?: number;
 };
@@ -52,10 +54,6 @@ export interface ISea {
    * @returns {IWave} The new created wave.
    */
   initiateWave: (config: InitiateWaveConfig) => IWave;
-  /**
-   * Renders the sea using SeaView Component.
-   */
-  renderer: FC<EntityRendererProps<ISea>>;
   /**
    * Given an x-coordinate, returns water surface by combining all active waves affecting that point.
    * @param x x-coordinate of the point
@@ -114,4 +112,10 @@ export type SeaConfig = {
   flowAmplitude?: number;
   flowFrequency?: number;
   flowSpeed?: number;
+  emitEvent?: EventDispatcher['emitEvent'];
 };
+
+export type SeaSystemProps = {
+  layers: SeaSystemProps[];
+  waves: IWave['props'][];
+} & Pick<Sea, 'y' | 'width' | 'height' | 'layersCount' | 'mainLayerIndex'>;

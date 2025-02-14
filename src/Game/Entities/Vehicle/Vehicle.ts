@@ -13,6 +13,68 @@ import { GameLoopSystem } from '@/systems/GameLoopSystem/GameLoopSystem';
 import { ENTITIES_KEYS } from '@/constants/configs';
 import EventEmitter from 'react-native/Libraries/vendor/emitter/EventEmitter';
 import { Entities } from '@/containers/ReactNativeSkiaGameEngine';
+import {
+  createSharedCopy,
+  SharedValueTree,
+} from '@/systems/PhysicsSystem/functions';
+
+function createDeepProxy(
+  target: any,
+  sharedCopy: any,
+  neglectedKeys: string[] = []
+): any {
+  const neglectedPaths = neglectedKeys.map((key) => key.split('.'));
+
+  return new Proxy(target, {
+    get(obj, prop, receiver) {
+      const propStr = String(prop);
+
+      // Check if this prop is a direct neglected key at this level
+      const isNeglected = neglectedPaths.some(
+        (path) => path.length > 0 && path[0] === propStr && path.length === 1
+      );
+
+      if (isNeglected) {
+        return Reflect.get(obj, prop, receiver);
+      }
+
+      const value = Reflect.get(obj, prop, receiver);
+
+      // Proceed to proxy if it's an object (excluding arrays)
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        // Compute the child's neglected keys by processing the paths
+        const childNeglectedKeys = neglectedPaths
+          .filter((path) => path.length > 0 && path[0] === propStr)
+          .map((path) => path.slice(1).join('.'));
+
+        return createDeepProxy(value, sharedCopy?.[prop], childNeglectedKeys);
+      }
+
+      return value;
+    },
+
+    set(obj, prop, value) {
+      const propStr = String(prop);
+
+      // Check if this prop is a direct neglected key at this level
+      const isNeglected = neglectedPaths.some(
+        (path) => path.length > 0 && path[0] === propStr && path.length === 1
+      );
+
+      if (isNeglected) {
+        return Reflect.set(obj, prop, value);
+      }
+
+      const success = Reflect.set(obj, prop, value);
+
+      if (sharedCopy && sharedCopy[prop]) {
+        sharedCopy[prop].value = value;
+      }
+
+      return success;
+    },
+  });
+}
 
 export class Vehicle extends EventEmitter implements IVehicle {
   protected _x: number;
@@ -22,15 +84,17 @@ export class Vehicle extends EventEmitter implements IVehicle {
   protected _createdTime: number;
   protected _isSinked: boolean | undefined;
   protected _isInitialized: boolean = false;
-  protected _body: Matter.Body | null = null;
+  originalBody: Matter.Body | null = null;
+  body: Matter.Body | null = null;
+  sharedBody: SharedValueTree<Matter.Body> | null = null;
   protected _health: number;
   protected _isDestroyed: boolean = false;
   protected _size: number[] = [NaN, NaN];
   protected _mass: number = 1;
   protected _type: VEHICLE_TYPE_IDENTIFIERS;
   protected _label: string;
-  protected _maxVelocityX: number;
-  protected _acceleration: number = DEFAULT_VEHICLE_ACCELERATION;
+  maxVelocityX: number;
+  acceleration: number = DEFAULT_VEHICLE_ACCELERATION;
   protected _minFramesBeforeInitialization: number =
     DEFAULT_MIN_FRAMES_BEFORE_INITIALIZATION;
   protected _minTimeBeforeInitialization: number =
@@ -67,26 +131,23 @@ export class Vehicle extends EventEmitter implements IVehicle {
     this._health = initialHealth ?? DEFAULT_VEHICLE_HEALTH;
     this._type = type;
     this._label = label;
-    this._maxVelocityX = maxVelocityX || DEFAULT_VEHICLE_MAX_VELOCITY_X;
-    this._acceleration = acceleration || DEFAULT_VEHICLE_ACCELERATION;
+    this.maxVelocityX = maxVelocityX || DEFAULT_VEHICLE_MAX_VELOCITY_X;
+    this.acceleration = acceleration || DEFAULT_VEHICLE_ACCELERATION;
     this._mass = mass ?? this._mass;
     this._createdTime = createdTime;
   }
 
   protected initialize(): void {
-    this._body = this.createBody();
+    const body = this.createBody();
+    this.body = body;
   }
 
   public get type(): VEHICLE_TYPE_IDENTIFIERS {
     return this._type;
   }
 
-  public get body(): Matter.Body | null {
-    return this._body;
-  }
-
   public getAcceleration(deltaTime: number): Matter.Vector | undefined {
-    if (!this._body) return;
+    if (!this.body) return;
 
     return this._currentAcceleration;
   }
@@ -127,10 +188,10 @@ export class Vehicle extends EventEmitter implements IVehicle {
     // const gameLoopSystem: GameLoopSystem =
     //   entities[ENTITIES_KEYS.GAME_LOOP_SYSTEM];
     this._size = this.getSize();
-    if (!!this._body) {
+    if (!!this.body) {
       this._currentAcceleration = {
-        x: (this._body.velocity.x - this._previousVelocity.x) / delta,
-        y: (this._body.velocity.y - this._previousVelocity.y) / delta,
+        x: (this.body.velocity.x - this._previousVelocity.x) / delta,
+        y: (this.body.velocity.y - this._previousVelocity.y) / delta,
       };
     }
     // if (this._type === VEHICLE_TYPE_IDENTIFIERS.BOAT) {
@@ -140,7 +201,7 @@ export class Vehicle extends EventEmitter implements IVehicle {
     //     this._minTimeBeforeInitialization
     //   );
     // }
-    if (!this._isInitialized && !!this._body) {
+    if (!this._isInitialized && !!this.body) {
       this.keepBodyStable();
       if (
         time.current - this._createdTime >=
@@ -155,14 +216,6 @@ export class Vehicle extends EventEmitter implements IVehicle {
 
   public get health(): number {
     return this._health;
-  }
-
-  public get maxVelocityX(): number {
-    return this._maxVelocityX;
-  }
-
-  public get acceleration(): number {
-    return this._acceleration;
   }
 
   public getPosition(): number[] {
@@ -181,18 +234,19 @@ export class Vehicle extends EventEmitter implements IVehicle {
       size[1],
       { label: this._label, density: 0.004, restitution: 0.5 }
     );
+    this.sharedBody = createSharedCopy(vehicleBody, `${vehicleBody.id}`);
     return vehicleBody;
   }
 
   protected keepBodyStable() {
-    if (this._body) {
+    if (this.body) {
       const position = this.getPosition();
-      Matter.Body.setPosition(this._body, {
+      Matter.Body.setPosition(this.body, {
         x: position[0],
         y: position[1],
       });
-      Matter.Body.setVelocity(this._body, { x: 0, y: 0 });
-      Matter.Body.setAngularVelocity(this._body, 0);
+      Matter.Body.setVelocity(this.body, { x: 0, y: 0 });
+      Matter.Body.setAngularVelocity(this.body, 0);
     }
   }
 

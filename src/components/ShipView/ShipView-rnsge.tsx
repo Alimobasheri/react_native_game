@@ -22,6 +22,7 @@ import {
 import { useFrameEffect } from '@/containers/ReactNativeSkiaGameEngine/hooks/useFrameEffect';
 import { useReRenderCount } from '@/hooks/useReRenderCount';
 import { PhysicsSystem } from '@/systems/PhysicsSystem/PhysicsSystem';
+import { SharedValueTree } from '@/systems/PhysicsSystem/functions';
 import { ShipSystem } from '@/systems/ShipSystem/ShipSystem';
 import {
   Canvas,
@@ -43,6 +44,7 @@ import {
   useCallback,
   useMemo,
   useRef,
+  useState,
 } from 'react';
 import {
   runOnUI,
@@ -99,50 +101,26 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
     groups: [VEHICLES_GROUP, BUOYANTS_GROUP],
   }) as Entity<Ship>;
 
-  const x = useEntityValue<Ship, number>(shipEntity.id, 'body', {
-    processor: (body: Matter.Body | undefined) => {
-      if (!body) return NaN;
-      return body.position.x;
-    },
-  }) as SharedValue<number>;
-
-  const y = useEntityValue<Ship, number>(shipEntity.id, 'body', {
-    processor: (body: Matter.Body | undefined) => {
-      if (!body) return NaN;
-      return body.position.y;
-    },
-  }) as SharedValue<number>;
-
-  const angle = useEntityValue<Ship, number>(shipEntity.id, 'body', {
-    processor: (body: Matter.Body | undefined) => {
-      if (!body) return NaN;
-      return body.angle;
-    },
-  }) as SharedValue<number>;
+  const [sharedBody, _] = useState(shipEntity.data.sharedBody);
 
   const size = useEntityValue<Ship, [number, number]>(shipEntity.id, 'size', {
     defaultValue: [0, 0],
   }) as SharedValue<[number, number]>;
 
   const origin = useDerivedValue(() => {
-    return { x: x.value - size.value[0] / 2, y: y.value - size.value[1] / 2 };
-  }, [size]);
-
-  const translateX = useDerivedValue<number>(() => {
-    return x.value - initialX;
-  }, [x]);
-
-  const translateY = useDerivedValue<number>(() => {
-    return y.value - initialY;
-  }, [y]);
+    return {
+      x: (sharedBody?.value.position.x || 0) - size.value[0] / 2,
+      y: (sharedBody?.value.position.y || 0) - size.value[1] / 2,
+    };
+  }, [size, sharedBody, sharedBody]);
 
   const transform = useDerivedValue<Transforms3d>(() => {
     return [
-      { rotate: angle.value },
-      { translateX: translateX.value },
-      { translateY: translateY.value },
+      { rotate: sharedBody?.value.angle },
+      { translateX: (sharedBody?.value.position.x || 0) - initialX },
+      { translateY: (sharedBody?.value.position.y || 0) - initialY },
     ];
-  }, [angle, translateX, translateY]);
+  }, [sharedBody]);
 
   const shipSystem = useMemo(() => new ShipSystem(), []);
   const systemCallback: system = useCallback(
@@ -157,7 +135,8 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
     if (!found) return;
     if (addedBodyToWorld.current) return;
     physicsSystemInstance.current?.data.current.addBodyToWorld(
-      shipEntity.data.body
+      shipEntity.data.body,
+      shipEntity.data.sharedBody
     );
     addedBodyToWorld.current = true;
   }, [found]);

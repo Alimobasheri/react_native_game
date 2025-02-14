@@ -1,3 +1,4 @@
+import { SharedValueTree } from '@/systems/PhysicsSystem/functions';
 import { WaterSurfacePoint } from '@/types/globals';
 import Matter from 'matter-js';
 
@@ -20,12 +21,14 @@ export type getSubmergedAreaReturnValue = {
  * @returns {getSubmergedAreaReturnValue} depth and area of covered body space
  */
 export function getSubmergedArea(
-  body: Matter.Body,
+  body: SharedValueTree<Matter.Body>,
   size: number[],
   surfaceY: WaterSurfacePoint
 ): getSubmergedAreaReturnValue {
+  'worklet';
   // Calculate the submerged depth based on the boat's position relative to the wave
-  const submergedDepth = body.bounds.max.y * Math.cos(body.angle) - surfaceY.y;
+  const submergedDepth =
+    body.value.bounds.max.y * Math.cos(body.value.angle) - surfaceY.y;
   // if (body.label.includes('ship'))
   //   console.log('🚀 ~ submergedDepth:', submergedDepth);
   const submergedArea =

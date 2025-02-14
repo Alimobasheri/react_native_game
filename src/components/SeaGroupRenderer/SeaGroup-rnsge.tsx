@@ -35,6 +35,7 @@ import { useEntityMemoizedValue } from '@/containers/ReactNativeSkiaGameEngine/h
 import { SeaView } from '../SeaView/SeaView-rnsge';
 import { SeaViewShader } from '../SeaView/SeaView-rnsge-shader';
 import { Boats } from '../Boats';
+import { useDispatchEvent } from '@/containers/ReactNativeSkiaGameEngine/hooks/useDispatchEvent';
 
 export type SeaGroupEntities = {
   [key: string]: Sea | Ship | Boat;
@@ -46,13 +47,33 @@ export type seaGroupEntity = {
 };
 export const SeaGroup: FC<{}> = (props) => {
   const { width, height } = useCanvasDimensions();
-  const seaEntity = useAddEntity(new Sea(getSeaConfigDefaults(width, height)), {
-    label: ENTITIES_KEYS.SEA,
-  });
-  const seaSystem = useRef<SeaSystem>(new SeaSystem(ENGINES.RNSGE));
-  const systemCallback: system = useCallback((entities, args) => {
-    seaSystem.current.systemInstanceRNSGE(seaEntity, args);
+  const emitEvent = useDispatchEvent();
+
+  const seaConfig = useMemo(() => {
+    return new Sea({
+      ...getSeaConfigDefaults(width || 0, height || 0),
+      emitEvent,
+    });
   }, []);
+  const seaEntity = useAddEntity<Sea>(seaConfig, {
+    label: 'sea',
+  });
+
+  const seaSystem = useRef(new SeaSystem(ENGINES.RNSGE));
+
+  useAddEntity(seaSystem, {
+    label: ENTITIES_KEYS.SEA_SYSTEM_INSTANCE,
+  });
+
+  const systemCallback: system = useCallback((entities, args) => {
+    const seaSystemEn = entities.getEntityByLabel<typeof seaSystem>(
+      ENTITIES_KEYS.SEA_SYSTEM_INSTANCE
+    );
+    const sea = entities.getEntityByLabel(ENTITIES_KEYS.SEA);
+    if (!sea || !seaSystemEn) return;
+    seaSystemEn.data.current.systemInstanceRNSGE(sea, args);
+  }, []);
+
   useSystem(systemCallback);
   const layersCount = useEntityMemoizedValue<Sea, number>(
     seaEntity.id,

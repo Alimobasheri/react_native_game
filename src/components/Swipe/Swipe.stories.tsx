@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { Text, View } from 'react-native';
 import { FC, useCallback, useEffect, useMemo, useRef } from 'react';
-import { SeaViewShader } from './SeaView-rnsge-shader';
 import { Sea } from '@/Game/Entities/Sea/Sea';
 import { ENTITIES_KEYS, getSeaConfigDefaults } from '@/constants/configs';
 import {
@@ -15,15 +14,13 @@ import { Blend, Fill, Group, Rect } from '@shopify/react-native-skia';
 import { SeaSystem } from '@/systems/SeaSystem/SeaSystem';
 import { ENGINES } from '@/systems/types';
 import { Swipe } from '../Swipe';
-import { useCreateState } from '@/Game/Entities/State/useCreateState';
-import { InitialGameState } from '@/constants/gameState';
-import { useDispatchEvent } from '@/containers/ReactNativeSkiaGameEngine/hooks/useDispatchEvent';
+import { SeaViewShader } from '../SeaView/SeaView-rnsge-shader';
 
 const meta = {
-  title: 'Sea View Shader',
-  component: SeaViewShader,
+  title: 'Swipe',
+  component: Swipe,
   args: {},
-} satisfies Meta<typeof SeaViewShader>;
+} satisfies Meta<typeof Swipe>;
 
 export default meta;
 
@@ -32,19 +29,21 @@ type Story = StoryObj<typeof meta>;
 const SeaGroupComponent: FC<{}> = (props) => {
   const dimensions = useCanvasDimensions();
   if (!dimensions.width || !dimensions.height) return null;
-  useCreateState({
-    ...InitialGameState,
-    isRunning: true,
-  });
-  const emitEvent = useDispatchEvent();
+  const config = useMemo(() => {
+    if (!dimensions.width || !dimensions.height) return {};
+    const width = dimensions.width * 1.2;
 
-  const seaConfig = useMemo(() => {
-    return new Sea({
-      ...getSeaConfigDefaults(dimensions.width || 0, dimensions.height || 0),
-      emitEvent,
-    });
-  }, []);
-  const seaEntitiy = useAddEntity<Sea>(seaConfig, {
+    return {
+      x: width / 2,
+      y: dimensions.height * 0.7,
+      width: width,
+      height: dimensions.height * 0.3,
+      layersCount: 3,
+      mainLayerIndex: 1,
+      gradientColors: WATER_GRADIENT_COLORS[0],
+    };
+  }, [dimensions.width, dimensions.height]);
+  const seaEntitiy = useAddEntity<Sea>(new Sea(config), {
     label: 'sea',
   });
 
@@ -55,12 +54,12 @@ const SeaGroupComponent: FC<{}> = (props) => {
   });
 
   useSystem((entities, args) => {
-    const seaSystemEn = entities.getEntityByLabel<typeof seaSystem>(
+    const seaSystem = entities.getEntityByLabel(
       ENTITIES_KEYS.SEA_SYSTEM_INSTANCE
     );
     const sea = entities.getEntityByLabel(ENTITIES_KEYS.SEA);
-    if (!sea || !seaSystemEn) return;
-    seaSystemEn.data.current.systemInstanceRNSGE(sea, args);
+    if (!sea || !seaSystem) return;
+    seaSystem.data.current.systemInstanceRNSGE(sea, args);
   });
 
   return null;
@@ -79,9 +78,7 @@ export const Basic: Story = {
         <ReactNativeSkiaGameEngine onEventListeners={{}}>
           <SeaGroupComponent />
           <Group>
-            <SeaViewShader {...args} layerIndex={2} />
             <SeaViewShader {...args} layerIndex={1} />
-            <SeaViewShader {...args} layerIndex={0} />
           </Group>
           <Swipe />
         </ReactNativeSkiaGameEngine>

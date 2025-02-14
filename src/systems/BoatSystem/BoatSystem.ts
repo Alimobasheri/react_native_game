@@ -77,7 +77,7 @@ export class BoatSystem implements IBoatSystem {
         }
       });
     }
-    return this.removeKilledBoatsFromEntitiesAndPhysics(entities);
+    this.removeKilledBoatsFromEntitiesAndPhysics(entities);
   }
 
   protected _findBoatsInEntities(entities: Entities): Entity<Boat>[] {
@@ -121,8 +121,8 @@ export class BoatSystem implements IBoatSystem {
       createdTime: args.time.current,
       // gameLoopSystem.currentFrame
     });
-    if (boat?.body) {
-      physicsSystem.data.current.addBodyToWorld(boat?.body);
+    if (boat?.body && boat.sharedBody) {
+      physicsSystem.data.current.addBodyToWorld(boat?.body, boat.sharedBody);
       entities.addEntity(
         new Entity<Boat>(boat, {
           groups: [ENTITIES_KEYS.BOAT_GROUP, BUOYANTS_GROUP, VEHICLES_GROUP],
@@ -158,9 +158,10 @@ export class BoatSystem implements IBoatSystem {
     const { body } = boat;
     if (!body) return;
     const size = boat.getSize();
-    const waterSurfaceAtX = sea.getWaterSurfaceAndMaxHeightAtPoint(
-      body.position.x
-    ).y;
+    const waterSurfaceAtX = 0;
+    // sea.getWaterSurfaceAndMaxHeightAtPoint(
+    //   body.position.x
+    // ).y;
     if (
       body.position.y <= waterSurfaceAtX + size[1] / 2 &&
       body.position.y >= waterSurfaceAtX - size[1] / 2
@@ -179,7 +180,8 @@ export class BoatSystem implements IBoatSystem {
     if (boat.trail.length > 20) boat.trail.shift(); // Limit the boat.trail length
     // Update the y-coordinate of each boat.trail point based on the water surface
     boat.trail.forEach((trailPoint) => {
-      trailPoint.y = sea.getWaterSurfaceAndMaxHeightAtPoint(trailPoint.x).y;
+      trailPoint.y = 0;
+      // sea.getWaterSurfaceAndMaxHeightAtPoint(trailPoint.x).y;
     });
     // Remove boat.trail points that are older than TRAIL_FADE_DURATION
     const now = Date.now();

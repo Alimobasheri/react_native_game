@@ -1,4 +1,3 @@
-import { SeaView } from '@/components/SeaView';
 import { IWave, WaveConfig } from '../Wave/types';
 import {
   ISea,
@@ -7,17 +6,18 @@ import {
   SurfacePointMap,
   WaveSource,
 } from './types';
-import { Point2D, WaterSurfacePoint } from '@/types/globals';
+import { WaterSurfacePoint } from '@/types/globals';
 import { Wave } from '@/Game/Entities/Wave/Wave';
 import {
-  DEFAULT_MINIMUM_AMPLITUDE,
   layerFlowConfigs,
-  MAXIMUM_INITIAL_AMPLITUDE,
-  MAXIMUM_INITIAL_FREQUENCY,
-  MINIMUM_INITIAL_FREQUENCY,
   WATER_GRADIENT_COLORS,
 } from '@/constants/waterConfigs';
 import Matter from 'matter-js';
+import { makeMutable, runOnUI, SharedValue } from 'react-native-reanimated';
+import React from 'react';
+import { EventDispatcher } from '@/containers/ReactNativeSkiaGameEngine';
+import { SEA_ADD_WAVE_EVENT } from '@/constants/events';
+import { resetWave, updateWave } from '../Wave/worklets';
 
 export class Sea implements ISea {
   protected _x: number;
@@ -37,6 +37,7 @@ export class Sea implements ISea {
   protected _layersCount: number = 1;
   protected _mainLayerIndex: number = 0;
   public gradientColors: string[] | undefined;
+  protected _emitEvent?: EventDispatcher['emitEvent'];
 
   constructor({
     x,
@@ -51,6 +52,7 @@ export class Sea implements ISea {
     flowAmplitude = 1,
     flowFrequency = 1,
     flowSpeed = 1,
+    emitEvent,
   }: SeaConfig) {
     this._x = x;
     this._y = y;
@@ -59,6 +61,7 @@ export class Sea implements ISea {
     this._windowWidth = windowWidth;
     this._windowHeight = windowHeight;
     this.gradientColors = gradientColors;
+    this._emitEvent = emitEvent;
     if (!!layersCount) this._layersCount = layersCount;
     if (typeof mainLayerIndex !== 'undefined')
       this._mainLayerIndex = mainLayerIndex;
@@ -66,8 +69,9 @@ export class Sea implements ISea {
     if (this._layersCount > 1) {
       this.createLayers();
     } else {
-      this.waves.push(
+      this._waves.push(
         new Wave({
+          isFlowing: true,
           dimensions: { width: this._windowWidth, height: this._windowHeight },
           source: WaveSource.FLOW,
           x: this.startingX,
@@ -76,9 +80,28 @@ export class Sea implements ISea {
           speed: flowSpeed,
         })
       );
+      this._waves.push(
+        new Wave({
+          isFlowing: false,
+          dimensions: { width: this._windowWidth, height: this._windowHeight },
+          source: WaveSource.TOUCH,
+          x: 0,
+          initialAmplitude: 0,
+          initialFrequency: 0,
+          speed: 0,
+        })
+      );
       this._layers[0] = this;
     }
     // this.setWaterSurfacePoints();
+  }
+
+  get x(): number {
+    return this._x;
+  }
+
+  get y(): number {
+    return this._y;
   }
 
   get width(): number {
@@ -106,17 +129,23 @@ export class Sea implements ISea {
     return this._layers;
   }
 
+  get layersCount(): number {
+    return this._layersCount;
+  }
+
   get mainLayerIndex(): number {
     return this._mainLayerIndex;
   }
 
   update(deltaTime?: number | undefined): void {
     this._layers.forEach((layer, idx) => {
-      layer._waves.forEach((wave) => wave.update(deltaTime));
+      layer._waves.forEach((wave, idx) => {
+        runOnUI(updateWave)(wave.props, deltaTime);
+      });
       // layer.setWaterSurfacePoints();
-      layer._waves = layer._waves.filter(
-        (wave) => !wave.isExpired() || wave.source === WaveSource.FLOW
-      );
+      // layer._waves = layer._waves.filter(
+      //   (wave) => !wave.isExpired() || wave.source === WaveSource.FLOW
+      // );
     });
   }
 
@@ -152,12 +181,12 @@ export class Sea implements ISea {
     phase,
     time,
     speed,
-    initialForce,
     source,
     layerIndex,
   }: InitiateWaveConfig): IWave {
     const layer: Sea = this.getDefaultLayer(layerIndex);
     const waveConfig: WaveConfig = {
+      isFlowing: true,
       dimensions: { width: this._windowWidth, height: this._windowHeight },
       x,
       initialAmplitude: amplitude,
@@ -166,11 +195,12 @@ export class Sea implements ISea {
       initialTime: time,
       source,
       speed,
-      initialForce,
     };
-    const wave = new Wave(waveConfig);
-    layer._waves.push(wave);
-    return wave;
+    const touchWave = layer._waves[1];
+    runOnUI(resetWave)(touchWave.props, waveConfig);
+    if (this._emitEvent)
+      this._emitEvent(SEA_ADD_WAVE_EVENT(layer, layer.waves));
+    return touchWave;
   }
   getWaterSurfaceAndMaxHeightAtPoint(
     x: number,
@@ -186,24 +216,30 @@ export class Sea implements ISea {
     });
     return { x, y: surface, maxWaveHeight };
   }
-  getForceAtPoint(x: number, layerIndex?: number): Matter.Vector {
-    const layer: Sea = this.getDefaultLayer(layerIndex);
-    const force = Matter.Vector.create(0, 0);
-    layer._waves.forEach((wave, index) => {
+  static getForceAtPoint(
+    waves: IWave[],
+    x: number,
+    layerIndex?: number
+  ): Matter.Vector {
+    const force = { x: 0, y: 0 };
+    waves.forEach((wave, index) => {
       if (index !== 0) {
-        const maxAmplitude = wave.maxAmplitude;
-        const distance = wave.getDistance(x);
-        const decayFactor = wave.getDecayFactorAtDistance(distance);
+        if (wave.isFlowing) {
+          const distance = wave.getDistance(x);
+          const decayFactor = wave.getDecayFactorAtDistance(distance);
 
-        const xAcceleration = wave.getXAcceleration();
+          const xAcceleration = wave.getXAcceleration();
 
-        const yForce =
-          ((maxAmplitude * decayFactor * Math.sin(distance * wave.frequency)) /
-            0.2) *
-          0.01 *
-          0.01;
-        if (yForce > 0) force.y -= yForce;
-        force.x += xAcceleration * decayFactor * 0.001 * 0.01;
+          const yForce =
+            ((wave.maxAmplitude.value *
+              decayFactor *
+              Math.sin(distance * wave.frequency.value)) /
+              0.2) *
+            0.01 *
+            0.01;
+          if (yForce > 0) force.y -= yForce;
+          force.x += xAcceleration * decayFactor * 0.001 * 0.01;
+        }
       }
     });
     return force;
@@ -248,5 +284,4 @@ export class Sea implements ISea {
       layer = this._layers[layerIndex];
     return layer;
   }
-  renderer = SeaView;
 }

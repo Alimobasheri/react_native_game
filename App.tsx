@@ -6,6 +6,7 @@ import { View } from 'react-native';
 import Constants from 'expo-constants';
 import { Game } from '@/containers/Game/index-rnsge';
 LogBox.ignoreAllLogs();
+
 function App() {
   return (
     <SafeAreaProvider style={{ flex: 1 }}>
@@ -28,7 +29,7 @@ const styles = StyleSheet.create({
 // Default to rendering your app
 let AppEntryPoint = App;
 
-// // Render Storybook if storybookEnabled is true
+// Render Storybook if storybookEnabled is true
 // if (Constants?.expoConfig?.extra?.storybookEnabled === 'true') {
 //   LogBox.ignoreAllLogs(true);
 //   AppEntryPoint = require('./.storybook').default;

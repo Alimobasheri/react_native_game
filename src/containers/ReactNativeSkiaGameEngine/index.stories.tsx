@@ -38,6 +38,8 @@ import { ActiveAnimation } from './services/Animations';
 import { createTimingAnimation, easeInOutQuad } from './utils';
 import { create } from 'zustand';
 import { createFadeTransition } from './utils/transitions/createFadeTransition';
+import { InitialGameState } from '@/constants/gameState';
+import { useCreateState } from '@/Game/Entities/State/useCreateState';
 
 const SubComponent: FC<{}> = (props) => {
   const renderCount = useReRenderCount();
@@ -90,6 +92,9 @@ type Story = StoryObj<typeof meta>;
 const GameScene = () => {
   const dimensions = useCanvasDimensions();
   if (!dimensions?.width || !dimensions?.height) return null;
+  useCreateState({
+    ...InitialGameState,
+  });
   return (
     <Scene
       defaultSceneName={'gameScene'}
@@ -134,7 +139,6 @@ export const Basic: Story = {
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
       <View style={{ flex: 1, width: '100%', height: '100%' }}>
         <ReactNativeSkiaGameEngine {...args}>
-          <StateEntity isRunning={false} />
           <GameScene />
         </ReactNativeSkiaGameEngine>
       </View>

@@ -6,6 +6,7 @@ import { EventDispatcher } from '../../services';
 import { OnEventListeners } from '../../types/Events';
 import Animations from '../../services/Animations';
 import { runOnUI } from 'react-native-reanimated';
+import { RNGE_System_Args } from '@/systems/types';
 
 /**
  * Options for the useGameLoop hook
@@ -59,7 +60,7 @@ export function useGameLoop(
 
   const update = useCallback((deltaTime: number, now: number, then: number) => {
     if (running.current) {
-      systems.current.update(entities.current, {
+      const args: RNGE_System_Args = {
         events: events.current,
         dispatcher: dispatcher.current,
         time: {
@@ -70,7 +71,8 @@ export function useGameLoop(
         touches: [],
         screen: {},
         layout: {},
-      });
+      };
+      systems.current.update(entities.current, args);
 
       animations.current.updateAnimations({ now });
       events.current.forEach((event) => {
@@ -86,8 +88,13 @@ export function useGameLoop(
 
   const gameLoop = useCallback((now: number, then: number) => {
     const deltaTime = now - then; // Calculate time difference between frames
+    const start = global.nativePerformanceNow();
     update(deltaTime, now, then); // Run the update
-    requestAnimationFrame((nextTime) => gameLoop(nextTime, now)); // Loop
+    const time = global.nativePerformanceNow() - start;
+    setTimeout(
+      () => requestAnimationFrame((nextTime) => gameLoop(nextTime, now)),
+      time < 100 / 60 ? 100 / 60 - time : 0
+    ); // Loop
   }, []);
 
   const start = useCallback(() => {
@@ -103,7 +110,7 @@ export function useGameLoop(
   useEffect(() => {
     // Add a listener to capture all events dispatched during the game loop
     const listener = dispatcher.current.addListenerToAllEvents((data) => {
-      events.current.push(data);
+      setTimeout(() => events.current.push(data), 10);
     });
 
     // Cleanup function to remove event listeners when component unmounts
