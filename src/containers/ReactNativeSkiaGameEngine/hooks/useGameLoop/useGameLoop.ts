@@ -88,8 +88,13 @@ export function useGameLoop(
 
   const gameLoop = useCallback((now: number, then: number) => {
     const deltaTime = now - then; // Calculate time difference between frames
+    const start = global.nativePerformanceNow();
     update(deltaTime, now, then); // Run the update
-    requestAnimationFrame((nextTime) => gameLoop(nextTime, now)); // Loop
+    const time = global.nativePerformanceNow() - start;
+    setTimeout(
+      () => requestAnimationFrame((nextTime) => gameLoop(nextTime, now)),
+      time < 100 / 60 ? 100 / 60 - time : 0
+    ); // Loop
   }, []);
 
   const start = useCallback(() => {
