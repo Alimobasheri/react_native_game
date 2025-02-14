@@ -119,6 +119,14 @@ export class Boat extends Vehicle implements IBoat {
         matterSetVelocity
       );
       this._applyTilt();
+      setTimeout(() => {
+        //@ts-ignore
+        seaProps = null;
+        //@ts-ignore
+        boatProps = null;
+        //@ts-ignore
+        matterSetVelocity = null;
+      });
     }
   }
 
