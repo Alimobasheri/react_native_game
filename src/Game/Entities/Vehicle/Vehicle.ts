@@ -93,8 +93,8 @@ export class Vehicle extends EventEmitter implements IVehicle {
   protected _mass: number = 1;
   protected _type: VEHICLE_TYPE_IDENTIFIERS;
   protected _label: string;
-  protected _maxVelocityX: number;
-  protected _acceleration: number = DEFAULT_VEHICLE_ACCELERATION;
+  maxVelocityX: number;
+  acceleration: number = DEFAULT_VEHICLE_ACCELERATION;
   protected _minFramesBeforeInitialization: number =
     DEFAULT_MIN_FRAMES_BEFORE_INITIALIZATION;
   protected _minTimeBeforeInitialization: number =
@@ -131,8 +131,8 @@ export class Vehicle extends EventEmitter implements IVehicle {
     this._health = initialHealth ?? DEFAULT_VEHICLE_HEALTH;
     this._type = type;
     this._label = label;
-    this._maxVelocityX = maxVelocityX || DEFAULT_VEHICLE_MAX_VELOCITY_X;
-    this._acceleration = acceleration || DEFAULT_VEHICLE_ACCELERATION;
+    this.maxVelocityX = maxVelocityX || DEFAULT_VEHICLE_MAX_VELOCITY_X;
+    this.acceleration = acceleration || DEFAULT_VEHICLE_ACCELERATION;
     this._mass = mass ?? this._mass;
     this._createdTime = createdTime;
   }
@@ -216,14 +216,6 @@ export class Vehicle extends EventEmitter implements IVehicle {
 
   public get health(): number {
     return this._health;
-  }
-
-  public get maxVelocityX(): number {
-    return this._maxVelocityX;
-  }
-
-  public get acceleration(): number {
-    return this._acceleration;
   }
 
   public getPosition(): number[] {

@@ -1,6 +1,6 @@
 import { VEHICLE_TYPE_IDENTIFIERS } from '@/constants/vehicle';
 import { Vehicle } from '../Vehicle/Vehicle';
-import { BoatConfig, BoatTrail, IBoat } from './types';
+import { BoatConfig, BoatSystemProps, BoatTrail, IBoat } from './types';
 import { DIRECTION, ENTITIES_KEYS } from '@/constants/configs';
 import Matter from 'matter-js';
 import { Ship } from '../Ship/Ship';
@@ -11,12 +11,16 @@ import { CollisionsSystem } from '@/systems/CollisionsSystem/CollisionsSystem';
 import { GameLoopSystem } from '@/systems/GameLoopSystem/GameLoopSystem';
 import { Sea } from '../Sea/Sea';
 import { Entities, Entity } from '@/containers/ReactNativeSkiaGameEngine';
+import { move } from './worklets';
+import { runOnUI } from 'react-native-reanimated';
+import { SeaSystemProps } from '../Sea/types';
 
 export class Boat extends Vehicle implements IBoat {
   protected _isAttacking: boolean = false;
   protected _isBoat: boolean = true;
-  protected _direction: DIRECTION;
+  direction: DIRECTION;
   protected _trail: BoatTrail[] = [];
+  moveUIWorklet: typeof move;
 
   /**
    * Creates a Boat instance with configs.
@@ -45,15 +49,12 @@ export class Boat extends Vehicle implements IBoat {
       createdTime,
     });
     this._isAttacking = isAttacking ?? this._isAttacking;
-    this._direction = direction;
+    this.direction = direction;
+    this.moveUIWorklet = runOnUI(move);
   }
 
   public get isAttacking(): boolean {
     return this._isAttacking;
-  }
-
-  public get direction(): DIRECTION {
-    return this._direction;
   }
 
   public get isBoat(): boolean {
@@ -71,7 +72,7 @@ export class Boat extends Vehicle implements IBoat {
   public getPosition(): number[] {
     const position: number[] = [this._x, this._y];
     const size = this.getSize();
-    if (this._direction == DIRECTION.RIGHT) {
+    if (this.direction == DIRECTION.RIGHT) {
       position[0] = position[0] - size[0] / 2;
     } else {
       position[1] = position[1] + size[1] / 2;
@@ -82,8 +83,42 @@ export class Boat extends Vehicle implements IBoat {
   protected _attackShip(ship: Ship, sea: Sea): void {
     if (!!this.body && !!ship.body) {
       const direction = getDirection(this.body, ship.body);
-      this._direction = direction;
-      this._move(sea);
+      this.direction = direction;
+      if (!this.sharedBody) return;
+      let boatProps: BoatSystemProps = {
+        maxVelocityX: this.maxVelocityX,
+        direction: this.direction,
+        acceleration: this.acceleration,
+      };
+      let seaProps: SeaSystemProps = {
+        layers: sea.layers.map((layer) => ({
+          layers: [],
+          waves: layer.waves.map((wave) => wave.props),
+          y: layer.y,
+          width: layer.width,
+          height: layer.height,
+          layersCount: layer.layersCount,
+          mainLayerIndex: layer.mainLayerIndex,
+        })),
+        waves: sea.layers[sea.mainLayerIndex].waves.map((wave) => wave.props),
+        y: sea.y,
+        width: sea.width,
+        height: sea.height,
+        layersCount: sea.layersCount,
+        mainLayerIndex: sea.mainLayerIndex,
+      };
+      let matterSetVelocity = ({ x, y }: Matter.Vector) => {
+        if (!this.body) return;
+        Matter.Body.setVelocity(this.body, { x, y });
+      };
+      this.moveUIWorklet(
+        seaProps,
+        boatProps,
+        this.size,
+        this.sharedBody,
+        matterSetVelocity
+      );
+      this._applyTilt();
     }
   }
 
@@ -102,20 +137,20 @@ export class Boat extends Vehicle implements IBoat {
     if (!(isOverWater && isStable)) return;
     const currentVelocityX = this.body.velocity.x;
     let newVelocityX = currentVelocityX;
-    if (this._direction === DIRECTION.LEFT) {
+    if (this.direction === DIRECTION.LEFT) {
       newVelocityX =
-        currentVelocityX <= 0 ? currentVelocityX - this._acceleration : 0;
-      if (Math.abs(newVelocityX) >= this._maxVelocityX)
-        newVelocityX = -this._maxVelocityX;
+        currentVelocityX <= 0 ? currentVelocityX - this.acceleration : 0;
+      if (Math.abs(newVelocityX) >= this.maxVelocityX)
+        newVelocityX = -this.maxVelocityX;
       Matter.Body.setVelocity(this.body, {
         x: newVelocityX,
         y: this.body.velocity.y,
       });
-    } else if (this._direction === DIRECTION.RIGHT) {
+    } else if (this.direction === DIRECTION.RIGHT) {
       newVelocityX =
-        currentVelocityX >= 0 ? currentVelocityX + this._acceleration : 0;
-      if (Math.abs(newVelocityX) >= this._maxVelocityX)
-        newVelocityX = this._maxVelocityX;
+        currentVelocityX >= 0 ? currentVelocityX + this.acceleration : 0;
+      if (Math.abs(newVelocityX) >= this.maxVelocityX)
+        newVelocityX = this.maxVelocityX;
       Matter.Body.setVelocity(this.body, {
         x: newVelocityX,
         y: this.body.velocity.y,

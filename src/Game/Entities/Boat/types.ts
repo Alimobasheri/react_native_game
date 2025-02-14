@@ -1,7 +1,7 @@
-import Matter from "matter-js";
-import { VehicleConfig, IVehicle } from "../Vehicle/types";
-import { IGameConfig } from "@/Game/Master/GameConfig/types";
-import { DIRECTION } from "@/constants/configs";
+import Matter from 'matter-js';
+import { VehicleConfig, IVehicle } from '../Vehicle/types';
+import { IGameConfig } from '@/Game/Master/GameConfig/types';
+import { DIRECTION } from '@/constants/configs';
 
 export type BoatTrail = {
   x: number;
@@ -23,12 +23,6 @@ export interface IBoat extends IVehicle {
    */
   get isBoat(): boolean;
   /**
-   * Direction, the boat should move to attack the ship.
-   * Current value is either 1 or -1.
-   * @todo should reimplement this, by letting the boat trace the ship, instead of hardcoding the behavior.
-   */
-  get direction(): DIRECTION;
-  /**
    * An array of trail lines that follow a ship while speeding.
    * @todo define trail class and interface. Trails shoudl be created inside boat class by each update of frame.
    */
@@ -48,7 +42,7 @@ export type BoatConfig = {
    */
   direction: DIRECTION;
   createdTime: number;
-} & Omit<VehicleConfig, "isBuoyant" | "type">;
+} & Omit<VehicleConfig, 'isBuoyant' | 'type'>;
 
 export type commonBoatBuildsConfig = {
   x: number;
@@ -56,4 +50,10 @@ export type commonBoatBuildsConfig = {
   direction: DIRECTION;
   label: string;
   createdTime: number;
-} & Pick<IGameConfig, "windowWidth">;
+} & Pick<IGameConfig, 'windowWidth'>;
+
+export type BoatSystemProps = {
+  maxVelocityX: number;
+  acceleration: number;
+  direction: DIRECTION;
+};

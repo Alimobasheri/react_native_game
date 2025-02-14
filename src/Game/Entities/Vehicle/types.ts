@@ -49,14 +49,6 @@ export interface IVehicle {
    */
   get label(): string;
   /**
-   * Maximum velocity the vehicle can reach in x direction
-   */
-  get maxVelocityX(): number;
-  /**
-   * Velocity / frame
-   */
-  get acceleration(): number;
-  /**
    * Updates property values for size and other properties.
    */
   update(entities: RNGE_Entities, args: RNGE_System_Args): void;

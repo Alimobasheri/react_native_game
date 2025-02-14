@@ -144,8 +144,8 @@ export class PhysicsSystem implements IPhysicsSystem {
 
   protected update(entities: Entities, args: RNGE_System_Args): void {
     const { time } = args;
-    Matter.Engine.update(this._engine);
     this.updateBuoyantVehicles(entities, args);
+    Matter.Engine.update(this._engine);
   }
 
   protected updateBuoyantVehicles(

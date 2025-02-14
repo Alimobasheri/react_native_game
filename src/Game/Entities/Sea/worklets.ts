@@ -66,8 +66,7 @@ export const getForceAtPoint = (
             decayFactor *
             Math.sin(distance * wave.value.frequency.value)) /
             0.2) *
-          0.01 *
-          0.1;
+          0.01;
         if (yForce > 0) force.y -= yForce;
         force.x += xAcceleration * decayFactor * 0.001 * 0.01;
       }
