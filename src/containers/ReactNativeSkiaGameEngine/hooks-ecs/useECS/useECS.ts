@@ -17,12 +17,8 @@ export const useECS = (): UseECSReturnValue => {
   const ECS = useSharedValue<ECS | null>(null);
 
   const nextEntityId = useSharedValue(0);
-  const signatures = useMemo(() => {
-    return {};
-  }, []);
-  const components = useMemo(() => {
-    return {};
-  }, []);
+  const signatures = useSharedValue({});
+  const components = useSharedValue({});
 
   const initECS = useCallback(() => {
     'worklet';

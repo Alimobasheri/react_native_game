@@ -4,7 +4,7 @@ import { createEntityManager, Entity } from './entity';
 import { createComponentBitManager } from './componentBitManager';
 
 export type ECS = {
-  components: Record<string, ComponentStore<any>>;
+  components: SharedValue<Record<string, ComponentStore<any>>>;
   createEntity: () => number;
   createComponent: (componentName: string) => void;
   addComponent: <T>(entity: number, component: Component<T>) => void;
@@ -15,8 +15,8 @@ export type ECS = {
 
 export type ECSArgs = {
   nextEntityId: SharedValue<number>;
-  signatures: Record<Entity, number>;
-  components: Record<string, ComponentStore<any>>;
+  signatures: SharedValue<Record<Entity, number>>;
+  components: SharedValue<Record<string, ComponentStore<any>>>;
 };
 
 export const createECS = ({
@@ -30,28 +30,32 @@ export const createECS = ({
 
   const createComponent = (componentName: string) => {
     'worklet';
-    components[componentName] = createComponentStore();
+    components.value[componentName] = createComponentStore();
     bitManager.getComponentBit(componentName);
   };
 
   const addComponent = <T>(entity: Entity, component: Component<T>) => {
     'worklet';
     const componentBit = bitManager.getComponentBit(component.name);
-    signatures[entity] |= componentBit;
+    signatures.value[entity] |= componentBit;
+
+    components.value[component.name].add(entity, component.data);
   };
 
   const removeComponent = <T>(entity: Entity, componentName: string) => {
     const componentBit = bitManager.getComponentBit(componentName);
-    signatures[entity] &= ~componentBit;
+    signatures.value[entity] &= ~componentBit;
+
+    components.value[componentName].remove(entity);
   };
 
   const hasComponents = (entity: Entity, requiredBits: number): boolean => {
-    return (signatures[entity] & requiredBits) === requiredBits;
+    return (signatures.value[entity] & requiredBits) === requiredBits;
   };
 
   const componentExists = (componentName: string) => {
     'worklet';
-    return components[componentName] != undefined;
+    return components.value[componentName] != undefined;
   };
 
   const getEntitiesWithComponents = (requiredComponentNames: string[]) => {
@@ -61,7 +65,7 @@ export const createECS = ({
       0
     );
 
-    return Object.keys(signatures)
+    return Object.keys(signatures.value)
       .filter((id) => hasComponents(Number(id), requiredBits))
       .map(Number);
   };

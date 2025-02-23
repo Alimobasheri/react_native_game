@@ -62,7 +62,7 @@ export const ReactNativeTurboGameEngine: FC<PropsWithChildren<{}>> = ({
           y: Math.random() * 100,
         })
       );
-      if (Math.random() < 0.5) {
+      if (i % 2 === 0) {
         ECS.value.addComponent(
           entity,
           createVelocityComponent({
@@ -73,7 +73,8 @@ export const ReactNativeTurboGameEngine: FC<PropsWithChildren<{}>> = ({
       }
     }
   }, []);
-  useFrameCallback(() => {
+
+  const onFrame = useCallback(() => {
     'worklet';
     if (!ECS.value) {
       initECS();
@@ -88,16 +89,17 @@ export const ReactNativeTurboGameEngine: FC<PropsWithChildren<{}>> = ({
         'Position',
         'Velocity',
       ]);
+      console.log(result.length);
       for (let i = 0; i < result.length; i++) {
         const entity = result[i];
-        console.log(ECS.value.components.value['Position'].get(entity).x);
-        // +=
-        //   ECS.value.components.Velocity.get(entity).x;
-        // ECS.value.components.Position.get(entity).y +=
-        //   ECS.value.components.Velocity.get(entity).y;
+        ECS.value.components.value.Position.get(entity).x +=
+          ECS.value.components.value.Velocity.get(entity).x;
+        ECS.value.components.value.Position.get(entity).y +=
+          ECS.value.components.value.Velocity.get(entity).y;
       }
     }
-  });
+  }, [ECS]);
+  useFrameCallback(onFrame);
   return (
     <Canvas style={{ flex: 1 }}>
       <ECSProvider ecs={ECS}>
