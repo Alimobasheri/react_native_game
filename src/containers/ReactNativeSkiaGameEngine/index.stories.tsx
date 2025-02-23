@@ -308,18 +308,18 @@ const GameWithCameraControlScene = () => {
   );
 };
 
-export const CameraControl: Story = {
-  args: {
-    onEventListeners: {},
-  },
-  render: (args: any) => (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <View style={{ flex: 1, width: '100%', height: '100%' }}>
-        <ReactNativeSkiaGameEngine {...args}>
-          <StateEntity isRunning={true} />
-          <GameWithCameraControlScene />
-        </ReactNativeSkiaGameEngine>
-      </View>
-    </View>
-  ),
-};
+// export const CameraControl: Story = {
+//   args: {
+//     onEventListeners: {},
+//   },
+//   render: (args: any) => (
+//     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+//       <View style={{ flex: 1, width: '100%', height: '100%' }}>
+//         <ReactNativeSkiaGameEngine {...args}>
+//           <StateEntity isRunning={true} />
+//           <GameWithCameraControlScene />
+//         </ReactNativeSkiaGameEngine>
+//       </View>
+//     </View>
+//   ),
+// };
