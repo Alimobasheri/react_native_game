@@ -1,10 +1,16 @@
 import { Canvas } from '@shopify/react-native-skia';
-import { FC, PropsWithChildren, useCallback } from 'react';
+import { FC, PropsWithChildren, useCallback, useMemo } from 'react';
 import { useECS } from './hooks-ecs/useECS/useECS';
 import { ECSProvider } from './contexts-rntge/ECSContext/ECSProvider';
 import { MemoizedContainer } from './components/MemoizedContainer';
-import { useFrameCallback, useSharedValue } from 'react-native-reanimated';
+import {
+  SharedValue,
+  useFrameCallback,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { Component } from './services-ecs/component';
+import { System } from './services-ecs/system';
+import { ECS } from './services-ecs/ecs';
 
 export const ReactNativeTurboGameEngine: FC<PropsWithChildren<{}>> = ({
   children,
@@ -74,6 +80,23 @@ export const ReactNativeTurboGameEngine: FC<PropsWithChildren<{}>> = ({
     }
   }, []);
 
+  const movementSystem: System = useMemo(
+    () => ({
+      requiredComponents: ['Position', 'Velocity'],
+      process: (entities, components, deltaTime) => {
+        'worklet';
+        for (let i = 0; i < entities.length; i++) {
+          const entity = entities[i];
+          const position = components.Position.get(entity);
+          const velocity = components.Velocity.get(entity);
+          position.x += velocity.x * deltaTime;
+          position.y += velocity.y * deltaTime;
+        }
+      },
+    }),
+    []
+  );
+
   const onFrame = useCallback(() => {
     'worklet';
     if (!ECS.value) {
@@ -84,19 +107,10 @@ export const ReactNativeTurboGameEngine: FC<PropsWithChildren<{}>> = ({
     else if (createdEntity.value === false) {
       createdEntity.value = ECS.value.createEntity();
       createHundredsWithPosition();
+      ECS.value.registerSystem(movementSystem);
     } else {
-      const result = ECS.value.getEntitiesWithComponents([
-        'Position',
-        'Velocity',
-      ]);
-      console.log(result.length);
-      for (let i = 0; i < result.length; i++) {
-        const entity = result[i];
-        ECS.value.components.value.Position.get(entity).x +=
-          ECS.value.components.value.Velocity.get(entity).x;
-        ECS.value.components.value.Position.get(entity).y +=
-          ECS.value.components.value.Velocity.get(entity).y;
-      }
+      if (!!ECS && !!ECS.value)
+        ECS.value.runSystems(ECS as SharedValue<ECS>, 100 / 60);
     }
   }, [ECS]);
   useFrameCallback(onFrame);

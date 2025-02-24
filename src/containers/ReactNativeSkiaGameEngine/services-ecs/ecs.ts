@@ -2,6 +2,7 @@ import { SharedValue } from 'react-native-reanimated';
 import { Component, ComponentStore, createComponentStore } from './component';
 import { createEntityManager, Entity } from './entity';
 import { createComponentBitManager } from './componentBitManager';
+import { createSystemManager, System } from './system';
 
 export type ECS = {
   components: SharedValue<Record<string, ComponentStore<any>>>;
@@ -11,22 +12,27 @@ export type ECS = {
   removeComponent: (entity: Entity, componentName: string) => void;
   componentExists: (componentName: string) => boolean;
   getEntitiesWithComponents: (requiredComponentNames: string[]) => Entity[];
+  registerSystem: (system: System) => void;
+  runSystems: (ecs: SharedValue<ECS>, deltaTime: number) => void;
 };
 
 export type ECSArgs = {
   nextEntityId: SharedValue<number>;
   signatures: SharedValue<Record<Entity, number>>;
   components: SharedValue<Record<string, ComponentStore<any>>>;
+  systems: SharedValue<System[]>;
 };
 
 export const createECS = ({
   nextEntityId,
   components,
   signatures,
+  systems,
 }: ECSArgs): ECS => {
   'worklet';
   const createEntity = createEntityManager(nextEntityId, signatures);
   const bitManager = createComponentBitManager();
+  const systemManager = createSystemManager(systems);
 
   const createComponent = (componentName: string) => {
     'worklet';
@@ -43,6 +49,7 @@ export const createECS = ({
   };
 
   const removeComponent = <T>(entity: Entity, componentName: string) => {
+    'worklet';
     const componentBit = bitManager.getComponentBit(componentName);
     signatures.value[entity] &= ~componentBit;
 
@@ -50,6 +57,7 @@ export const createECS = ({
   };
 
   const hasComponents = (entity: Entity, requiredBits: number): boolean => {
+    'worklet';
     return (signatures.value[entity] & requiredBits) === requiredBits;
   };
 
@@ -78,5 +86,7 @@ export const createECS = ({
     removeComponent,
     componentExists,
     getEntitiesWithComponents,
+    registerSystem: systemManager.registerSystem,
+    runSystems: systemManager.runSystems,
   };
 };
