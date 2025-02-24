@@ -1,8 +1,9 @@
-import { SharedValue } from 'react-native-reanimated';
+import { makeMutable, SharedValue } from 'react-native-reanimated';
 import { Component, ComponentStore, createComponentStore } from './component';
 import { createEntityManager, Entity } from './entity';
 import { createComponentBitManager } from './componentBitManager';
 import { createSystemManager, System } from './system';
+import { EventQueueContextType } from '../hooks-ecs/useEventQueue/useEventQueue';
 
 export type ECS = {
   components: SharedValue<Record<string, ComponentStore<any>>>;
@@ -13,7 +14,12 @@ export type ECS = {
   componentExists: (componentName: string) => boolean;
   getEntitiesWithComponents: (requiredComponentNames: string[]) => Entity[];
   registerSystem: (system: System) => void;
-  runSystems: (ecs: SharedValue<ECS>, deltaTime: number) => void;
+  runSystems: (
+    ecs: SharedValue<ECS>,
+    eventQueue: EventQueueContextType,
+    deltaTime: number
+  ) => void;
+  removeEntity: (entity: Entity) => void;
 };
 
 export type ECSArgs = {
@@ -21,6 +27,7 @@ export type ECSArgs = {
   signatures: SharedValue<Record<Entity, number>>;
   components: SharedValue<Record<string, ComponentStore<any>>>;
   systems: SharedValue<System[]>;
+  eventQueue: EventQueueContextType;
 };
 
 export const createECS = ({
@@ -28,11 +35,29 @@ export const createECS = ({
   components,
   signatures,
   systems,
+  eventQueue,
 }: ECSArgs): ECS => {
   'worklet';
-  const createEntity = createEntityManager(nextEntityId, signatures);
+  const recycledEntities: Entity[] = [];
+  const createEntity = createEntityManager(
+    nextEntityId,
+    signatures,
+    recycledEntities
+  );
   const bitManager = createComponentBitManager();
   const systemManager = createSystemManager(systems);
+
+  const removeEntity = (entity: Entity) => {
+    'worklet';
+    for (const componentName in components.value) {
+      if (components.value[componentName].get(entity) !== undefined) {
+        removeComponent(entity, componentName);
+      }
+    }
+
+    signatures.value[entity] = 0;
+    recycledEntities.push(entity); // Store entity ID for reuse
+  };
 
   const createComponent = (componentName: string) => {
     'worklet';
@@ -88,5 +113,6 @@ export const createECS = ({
     getEntitiesWithComponents,
     registerSystem: systemManager.registerSystem,
     runSystems: systemManager.runSystems,
+    removeEntity,
   };
 };

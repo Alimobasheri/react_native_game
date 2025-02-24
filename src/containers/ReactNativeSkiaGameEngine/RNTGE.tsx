@@ -11,11 +11,14 @@ import {
 import { Component } from './services-ecs/component';
 import { System } from './services-ecs/system';
 import { ECS } from './services-ecs/ecs';
+import { useEventQueue } from './hooks-ecs/useEventQueue/useEventQueue';
+import { EventQueueProvider } from './contexts-rntge/EventQueueContext/EventQueueProvider';
 
 export const ReactNativeTurboGameEngine: FC<PropsWithChildren<{}>> = ({
   children,
 }) => {
-  const { ECS, initECS } = useECS();
+  const eventQueue = useEventQueue();
+  const { ECS, initECS } = useECS({ eventQueue });
   const createdEntity = useSharedValue<false | number>(false);
   const entityCount = useSharedValue(0);
 
@@ -83,7 +86,7 @@ export const ReactNativeTurboGameEngine: FC<PropsWithChildren<{}>> = ({
   const movementSystem: System = useMemo(
     () => ({
       requiredComponents: ['Position', 'Velocity'],
-      process: (entities, components, deltaTime) => {
+      process: (entities, components, eventQueue, deltaTime) => {
         'worklet';
         for (let i = 0; i < entities.length; i++) {
           const entity = entities[i];
@@ -91,6 +94,36 @@ export const ReactNativeTurboGameEngine: FC<PropsWithChildren<{}>> = ({
           const velocity = components.Velocity.get(entity);
           position.x += velocity.x * deltaTime;
           position.y += velocity.y * deltaTime;
+          if (
+            position.x > 100 ||
+            position.x < 0 ||
+            position.y > 100 ||
+            position.y < 0
+          ) {
+            eventQueue.addEvent({
+              type: 'out-of-boundary',
+              payload: entity,
+            });
+          }
+        }
+      },
+    }),
+    []
+  );
+
+  const killEntitySystem: System = useMemo(
+    () => ({
+      requiredEvents: ['out-of-boundary'],
+      requiredComponents: ['Position'],
+      process: (entities, components, eventQueue, deltaTime, ecs) => {
+        'worklet';
+        if (!ECS.value) return;
+        const outOfBoundaryEvents = eventQueue
+          .readEvents()
+          .filter((e) => e.type === 'out-of-boundary');
+        for (let i = 0; i < outOfBoundaryEvents.length; i++) {
+          const entity = outOfBoundaryEvents[i].payload;
+          ecs.value.removeEntity(entity);
         }
       },
     }),
@@ -99,6 +132,7 @@ export const ReactNativeTurboGameEngine: FC<PropsWithChildren<{}>> = ({
 
   const onFrame = useCallback(() => {
     'worklet';
+    eventQueue.clearEvents();
     if (!ECS.value) {
       initECS();
       return;
@@ -108,16 +142,19 @@ export const ReactNativeTurboGameEngine: FC<PropsWithChildren<{}>> = ({
       createdEntity.value = ECS.value.createEntity();
       createHundredsWithPosition();
       ECS.value.registerSystem(movementSystem);
+      ECS.value.registerSystem(killEntitySystem);
     } else {
       if (!!ECS && !!ECS.value)
-        ECS.value.runSystems(ECS as SharedValue<ECS>, 100 / 60);
+        ECS.value.runSystems(ECS as SharedValue<ECS>, eventQueue, 100 / 60);
     }
   }, [ECS]);
   useFrameCallback(onFrame);
   return (
     <Canvas style={{ flex: 1 }}>
       <ECSProvider ecs={ECS}>
-        <MemoizedContainer>{children}</MemoizedContainer>
+        <EventQueueProvider eventQueue={eventQueue}>
+          <MemoizedContainer>{children}</MemoizedContainer>
+        </EventQueueProvider>
       </ECSProvider>
     </Canvas>
   );
