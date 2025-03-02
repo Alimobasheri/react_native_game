@@ -14,12 +14,19 @@ import { useEventQueue } from './hooks-ecs/useEventQueue/useEventQueue';
 import { EventQueueProvider } from './contexts-rntge/EventQueueContext/EventQueueProvider';
 import { PositionComponentName } from './internal/components/position';
 import { requestCreateEntity } from './internal/systems/requestCreateEntity';
+import { useDerivedMemory } from './hooks-ecs/useDerivedMemory/useDerivedMemory';
 
 export const ReactNativeTurboGameEngine: FC<PropsWithChildren<{}>> = ({
   children,
 }) => {
   const eventQueue = useEventQueue();
   const { ECS, state, initECS } = useECS({ eventQueue });
+  const {
+    derivedMemory,
+    derivedSystems,
+    addDerivedSystem,
+    updateDerivedMemory,
+  } = useDerivedMemory();
   const [shouldRender, setShouldRender] = useState(false);
   useAnimatedReaction(
     () => state.value,
@@ -51,19 +58,31 @@ export const ReactNativeTurboGameEngine: FC<PropsWithChildren<{}>> = ({
       initECS();
       defineComponents();
       registerInternalSystems();
+      if (!!ECS && !!ECS.value) {
+        const entity = ECS.value.createEntity();
+        ECS.value.addComponent(entity, {
+          name: PositionComponentName,
+          data: { x: 0, y: 0 },
+        });
+      }
       return;
     } else {
       if (!!ECS && !!ECS.value) {
         ECS.value.runSystems(ECS as SharedValue<ECS>, eventQueue, 100 / 60);
+        updateDerivedMemory(ECS, derivedSystems);
       }
     }
   }, [ECS]);
   useFrameCallback(onFrame);
   return (
     <Canvas style={{ flex: 1 }}>
-      <ECSProvider ecs={ECS}>
+      <ECSProvider
+        ecs={ECS}
+        addDerivedSystem={addDerivedSystem}
+        derivedMemory={derivedMemory}
+      >
         <EventQueueProvider eventQueue={eventQueue}>
-          <MemoizedContainer>{shouldRender && children}</MemoizedContainer>
+          {shouldRender && children}
         </EventQueueProvider>
       </ECSProvider>
     </Canvas>

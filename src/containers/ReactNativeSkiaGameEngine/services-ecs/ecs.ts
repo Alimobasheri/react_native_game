@@ -20,6 +20,7 @@ export type ECS = {
     deltaTime: number
   ) => void;
   removeEntity: (entity: Entity) => void;
+  getAllEntities: () => Entity[];
 };
 
 export type ECSArgs = {
@@ -103,6 +104,11 @@ export const createECS = ({
       .map(Number);
   };
 
+  const getAllEntities = () => {
+    'worklet';
+    return Object.keys(signatures.value).map(Number);
+  };
+
   return {
     components,
     createEntity,
@@ -114,5 +120,6 @@ export const createECS = ({
     registerSystem: systemManager.registerSystem,
     runSystems: systemManager.runSystems,
     removeEntity,
+    getAllEntities,
   };
 };

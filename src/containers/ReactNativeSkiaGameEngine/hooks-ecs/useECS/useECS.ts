@@ -1,12 +1,6 @@
-import {
-  MutableRefObject,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-} from 'react';
-import { createECS, ECS, ECSArgs } from '../../services-ecs/ecs';
-import { runOnUI, SharedValue, useSharedValue } from 'react-native-reanimated';
+import { useCallback } from 'react';
+import { createECS, ECS } from '../../services-ecs/ecs';
+import { SharedValue, useSharedValue } from 'react-native-reanimated';
 import { System } from '../../services-ecs/system';
 import { EventQueueContextType } from '../useEventQueue/useEventQueue';
 
