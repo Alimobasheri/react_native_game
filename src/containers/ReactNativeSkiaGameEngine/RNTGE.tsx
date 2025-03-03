@@ -15,6 +15,7 @@ import { EventQueueProvider } from './contexts-rntge/EventQueueContext/EventQueu
 import { PositionComponentName } from './internal/components/position';
 import { requestCreateEntity } from './internal/systems/requestCreateEntity';
 import { useDerivedMemory } from './hooks-ecs/useDerivedMemory/useDerivedMemory';
+import { requestAddSystem } from './internal/systems/requestAddSystem';
 
 export const ReactNativeTurboGameEngine: FC<PropsWithChildren<{}>> = ({
   children,
@@ -48,6 +49,7 @@ export const ReactNativeTurboGameEngine: FC<PropsWithChildren<{}>> = ({
   const registerInternalSystems = useCallback(() => {
     'worklet';
     if (!ECS.value) return;
+    ECS.value.registerSystem(requestAddSystem);
     ECS.value.registerSystem(requestCreateEntity);
   }, [ECS]);
 
@@ -58,13 +60,6 @@ export const ReactNativeTurboGameEngine: FC<PropsWithChildren<{}>> = ({
       initECS();
       defineComponents();
       registerInternalSystems();
-      if (!!ECS && !!ECS.value) {
-        const entity = ECS.value.createEntity();
-        ECS.value.addComponent(entity, {
-          name: PositionComponentName,
-          data: { x: 0, y: 0 },
-        });
-      }
       return;
     } else {
       if (!!ECS && !!ECS.value) {

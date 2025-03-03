@@ -13,7 +13,7 @@ export type ECS = {
   removeComponent: (entity: Entity, componentName: string) => void;
   componentExists: (componentName: string) => boolean;
   getEntitiesWithComponents: (requiredComponentNames: string[]) => Entity[];
-  registerSystem: (system: System) => void;
+  registerSystem: (system: System) => number;
   runSystems: (
     ecs: SharedValue<ECS>,
     eventQueue: EventQueueContextType,

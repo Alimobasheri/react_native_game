@@ -5,8 +5,8 @@ import { ComponentStore } from './component';
 import { EventQueueContextType } from '../hooks-ecs/useEventQueue/useEventQueue';
 
 export type System = {
-  requiredComponents?: string[]; // Entities must have these
-  requiredEvents?: string[]; // System runs only if these exist
+  requiredComponents?: string[];
+  requiredEvents?: string[];
   process: (
     entities: Entity[],
     components: Record<string, ComponentStore<any>>,
@@ -19,9 +19,15 @@ export type System = {
 export const createSystemManager = (systems: SharedValue<System[]>) => {
   'worklet';
 
-  const registerSystem = (system: System) => {
+  const systemIdMap: Record<number, number> = {}; // Maps systemId to index
+  let nextSystemId = 0;
+
+  const registerSystem = (system: System): number => {
     'worklet';
+    const systemId = nextSystemId++;
     systems.value.push(system);
+    systemIdMap[systemId] = systems.value.length - 1;
+    return systemId;
   };
 
   const runSystems = (
@@ -41,13 +47,12 @@ export const createSystemManager = (systems: SharedValue<System[]>) => {
           )
         : true;
 
-      if (!hasRequiredEvents) return;
+      if (!hasRequiredEvents) continue;
 
       const entities = system.requiredComponents
         ? ecs.value.getEntitiesWithComponents(system.requiredComponents)
         : [];
 
-      // Pass only necessary data to the system
       system.process(
         entities,
         ecs.value.components.value,
@@ -59,6 +64,7 @@ export const createSystemManager = (systems: SharedValue<System[]>) => {
   };
 
   return {
+    systemIdMap,
     registerSystem,
     runSystems,
   };
