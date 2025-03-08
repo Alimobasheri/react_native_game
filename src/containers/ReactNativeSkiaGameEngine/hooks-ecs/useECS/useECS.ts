@@ -1,6 +1,6 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { createECS, ECS } from '../../services-ecs/ecs';
-import { SharedValue, useSharedValue } from 'react-native-reanimated';
+import { runOnJS, SharedValue, useSharedValue } from 'react-native-reanimated';
 import { System } from '../../services-ecs/system';
 import { EventQueueContextType } from '../useEventQueue/useEventQueue';
 
@@ -29,6 +29,8 @@ export const useECS = ({ eventQueue }: UseECSArgs): UseECSReturnValue => {
   const components = useSharedValue({});
   const systems = useSharedValue<System[]>([]);
 
+  const jsSystems = useRef<System[]>([]);
+
   const initECS = useCallback(() => {
     'worklet';
     ECS.value = createECS({
@@ -37,9 +39,18 @@ export const useECS = ({ eventQueue }: UseECSArgs): UseECSReturnValue => {
       signatures,
       systems,
       eventQueue,
+      jsSystems,
     });
     state.value = ECSState.INITIALIZED;
-  }, [ECS, nextEntityId, components, signatures, systems, eventQueue]);
+  }, [
+    ECS,
+    nextEntityId,
+    components,
+    signatures,
+    systems,
+    jsSystems,
+    eventQueue,
+  ]);
 
   return { ECS, state, initECS };
 };

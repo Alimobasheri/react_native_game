@@ -4,6 +4,7 @@ import { createEntityManager, Entity } from './entity';
 import { createComponentBitManager } from './componentBitManager';
 import { createSystemManager, System } from './system';
 import { EventQueueContextType } from '../hooks-ecs/useEventQueue/useEventQueue';
+import { MutableRefObject } from 'react';
 
 export type ECS = {
   components: SharedValue<Record<string, ComponentStore<any>>>;
@@ -29,6 +30,7 @@ export type ECSArgs = {
   components: SharedValue<Record<string, ComponentStore<any>>>;
   systems: SharedValue<System[]>;
   eventQueue: EventQueueContextType;
+  jsSystems: MutableRefObject<System[]>;
 };
 
 export const createECS = ({
@@ -37,6 +39,7 @@ export const createECS = ({
   signatures,
   systems,
   eventQueue,
+  jsSystems,
 }: ECSArgs): ECS => {
   'worklet';
   const recycledEntities: Entity[] = [];
@@ -46,7 +49,7 @@ export const createECS = ({
     recycledEntities
   );
   const bitManager = createComponentBitManager();
-  const systemManager = createSystemManager(systems);
+  const systemManager = createSystemManager(systems, jsSystems);
 
   const removeEntity = (entity: Entity) => {
     'worklet';

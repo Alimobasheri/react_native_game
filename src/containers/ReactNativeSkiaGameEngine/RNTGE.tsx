@@ -16,6 +16,7 @@ import { PositionComponentName } from './internal/components/position';
 import { requestCreateEntity } from './internal/systems/requestCreateEntity';
 import { useDerivedMemory } from './hooks-ecs/useDerivedMemory/useDerivedMemory';
 import { requestAddSystem } from './internal/systems/requestAddSystem';
+import { requestAddMatterBody } from './internal/systems/physics/requestAddMatterBody';
 
 export const ReactNativeTurboGameEngine: FC<PropsWithChildren<{}>> = ({
   children,
@@ -51,11 +52,13 @@ export const ReactNativeTurboGameEngine: FC<PropsWithChildren<{}>> = ({
     if (!ECS.value) return;
     ECS.value.registerSystem(requestAddSystem);
     ECS.value.registerSystem(requestCreateEntity);
+    ECS.value.registerSystem(requestAddMatterBody);
   }, [ECS]);
 
   const onFrame = useCallback(() => {
     'worklet';
     eventQueue.clearEvents();
+    console.log(eventQueue.readEvents());
     if (state.value !== ECSState.INITIALIZED) {
       initECS();
       defineComponents();

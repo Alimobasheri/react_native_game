@@ -1,6 +1,6 @@
 import { Component } from '../../services-ecs/component';
 
-export const CreateEntityRequestType = 'CREATE_ENTITY_REQUEST';
+export const CreateEntityRequestType = 'CreateEntityRequest';
 export type CreateEntityRequest = {
   type: typeof CreateEntityRequestType;
   payload: {
@@ -9,7 +9,7 @@ export type CreateEntityRequest = {
   };
 };
 
-export const CreateEntityResponseType = 'CREATE_ENTITY_RESPONSE';
+export const CreateEntityResponseType = 'CreateEntityResponse';
 export type CreateEntityResponse = {
   type: typeof CreateEntityResponseType;
   payload: {

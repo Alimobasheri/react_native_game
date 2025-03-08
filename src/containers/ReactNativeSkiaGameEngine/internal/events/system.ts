@@ -1,6 +1,6 @@
 import { System } from '../../services-ecs/system';
 
-export const AddSystemRequestType = 'ADD_SYSTEM_REQUEST';
+export const AddSystemRequestType = 'AddSystemRequest';
 export type AddSystemRequest = {
   type: typeof AddSystemRequestType;
   payload: {
@@ -9,7 +9,7 @@ export type AddSystemRequest = {
   };
 };
 
-export const AddSystemResponseType = 'ADD_SYSTEM_RESPONSE';
+export const AddSystemResponseType = 'AddSystemResponse';
 export type AddSystemResponse = {
   type: typeof AddSystemResponseType;
   payload: {
