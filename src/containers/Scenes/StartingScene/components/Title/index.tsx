@@ -16,7 +16,9 @@ interface ITitleProps {
 }
 
 export const Title: FC<ITitleProps> = ({ x, y, width, height }) => {
-  const image = useImage(require('../../../../../../assets/game-title.png'));
+  const image = useImage(
+    require('../../../../../../assets/game-title.png')?.uri
+  );
   const scale = useSharedValue(1);
   const translateX = useDerivedValue(() => {
     return -width * (scale.value - 1) * 2;

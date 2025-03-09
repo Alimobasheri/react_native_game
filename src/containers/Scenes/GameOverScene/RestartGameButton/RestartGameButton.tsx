@@ -5,14 +5,19 @@ import {
   Group,
   InputRRect,
   LinearGradient,
+  Paragraph,
   rect,
   RoundedRect,
   SkFont,
+  Skia,
+  SkParagraph,
   SkRect,
   SkRRect,
   Text,
+  TextAlign,
   Transforms3d,
   useFont,
+  useFonts,
   useRSXformBuffer,
   useTexture,
   Vector,
@@ -36,6 +41,7 @@ import { Gesture } from 'react-native-gesture-handler';
 import { RESTART_GAME_EVENT } from '@/constants/events';
 import { useDispatchEvent } from '@/containers/ReactNativeSkiaGameEngine/hooks/useDispatchEvent';
 import { useCreateAnimation } from '@/containers/ReactNativeSkiaGameEngine/hooks/useCreateAnimation/useCreateAnimation';
+import { Platform } from 'react-native';
 
 export type RestartGameButtonProps = {
   x: number;
@@ -54,7 +60,7 @@ const RestartGradientColors = [
 ];
 
 export type ButtonTextureProps = {
-  font: SkFont;
+  paragraph: SkParagraph;
   buttonRect: DerivedValue<SkRRect>;
   shineStart: DerivedValue<Vector>;
   shineEnd: DerivedValue<Vector>;
@@ -62,7 +68,7 @@ export type ButtonTextureProps = {
 } & RestartGameButtonProps;
 
 const ButtonTexture: FC<ButtonTextureProps> = ({
-  font,
+  paragraph,
   buttonRect,
   shineStart,
   shineEnd,
@@ -71,10 +77,10 @@ const ButtonTexture: FC<ButtonTextureProps> = ({
   transform,
 }) => {
   const textX = useDerivedValue(() => {
-    return x - font.measureText(RestartText).width / 2;
+    return x - paragraph.getMaxWidth() / 2;
   });
   const textY = useDerivedValue(() => {
-    return y - font.measureText(RestartText).height / 2;
+    return y - paragraph.getHeight() / 2;
   });
   return (
     <Group transform={transform}>
@@ -87,12 +93,11 @@ const ButtonTexture: FC<ButtonTextureProps> = ({
         />
       </RoundedRect>
 
-      <Text
+      <Paragraph
         x={textX}
         y={textY}
-        text={RestartText}
-        font={font}
-        color={RestartTextColor}
+        paragraph={paragraph}
+        width={paragraph.getMaxWidth()}
         antiAlias
       />
     </Group>
@@ -100,10 +105,35 @@ const ButtonTexture: FC<ButtonTextureProps> = ({
 };
 
 export const RestartGameButton: FC<RestartGameButtonProps> = ({ x, y }) => {
-  const font = useFont(
-    require('../../../../../assets/fonts/Montserrat-SemiBold.ttf'),
-    RestartTextFontSize
-  );
+  const font = useFonts({
+    Montserrat: [
+      {
+        default: require('../../../../../assets/fonts/Montserrat-SemiBold.ttf'),
+      },
+    ],
+  });
+
+  const paragraph = useMemo(() => {
+    // Are the font loaded already?
+    if (!font) {
+      return null;
+    }
+    const paragraphStyle = {
+      textAlign: TextAlign.Center,
+    };
+    const textStyle = {
+      color: Skia.Color(RestartTextColor),
+      fontFamilies: ['Montserrat'],
+      fontSize: 50,
+    };
+    const para = Skia.ParagraphBuilder.Make(paragraphStyle, font)
+      .pushStyle(textStyle)
+      .addText(RestartText)
+      .pop()
+      .build();
+    para.layout(200);
+    return para;
+  }, [font]);
   const translateY = useSharedValue(0);
   const shinePosition = useSharedValue(0);
   const { addGesture, removeGesture } = useTouchHandler();
@@ -130,14 +160,14 @@ export const RestartGameButton: FC<RestartGameButtonProps> = ({ x, y }) => {
       'worklet';
       translateY.value =
         y -
-        (font?.getMetrics().bounds?.height || 0) / 2 -
-        progress.value * (y + (font?.getMetrics().bounds?.height || 0) / 2);
+        (paragraph?.getMaxWidth() || 0) / 2 -
+        progress.value * (y + (paragraph?.getHeight() || 0) / 2);
     },
   });
 
   useEffect(() => {
     if (font) {
-      translateY.value = y - (font?.getMetrics().bounds?.height || 0) / 2;
+      translateY.value = y - (paragraph?.getHeight() || 0) / 2;
       registerAnimation({ isRunning: true });
     }
 
@@ -152,11 +182,11 @@ export const RestartGameButton: FC<RestartGameButtonProps> = ({ x, y }) => {
     }, [translateY]);
 
   const textWidth = useMemo(() => {
-    return font?.measureText(RestartText).width || 0;
+    return paragraph?.getMaxWidth() || 0;
   }, [font]);
 
   const textHeight = useMemo(() => {
-    return font?.measureText(RestartText).height || 0;
+    return paragraph?.getMaxWidth() || 0;
   }, [font]);
 
   const buttonRect: DerivedValue<SkRRect> = useDerivedValue(() => {
@@ -227,11 +257,11 @@ export const RestartGameButton: FC<RestartGameButtonProps> = ({ x, y }) => {
     };
   }, [gesture]);
 
-  if (!font) return null;
+  if (!paragraph) return null;
 
   return (
     <ButtonTexture
-      font={font}
+      paragraph={paragraph}
       buttonRect={buttonRect}
       shineStart={shineStart}
       shineEnd={shineEnd}

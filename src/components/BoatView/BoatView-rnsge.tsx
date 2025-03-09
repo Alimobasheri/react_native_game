@@ -79,7 +79,7 @@ export const BoatView: FC<{ entityId: string }> = ({ entityId }) => {
   }, [size?.[0]]);
 
   if (!found) return;
-  const boatImage = useImage(imageSource);
+  const boatImage = useImage(imageSource?.uri);
   if (!boatImage) return null;
   // Create a smooth path for the trail with fading effect
   if (direction === DIRECTION.LEFT) {
