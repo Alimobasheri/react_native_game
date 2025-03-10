@@ -4,7 +4,7 @@ import { WithSkiaWeb } from '@shopify/react-native-skia/lib/module/web';
 import { version } from 'canvaskit-wasm/package.json';
 
 // @ts-ignore
-global.nativePerformanceNow = Date.now;
+global.nativePerformanceNow = performance.now.bind(performance);
 export const LoadGame: FC = () => {
   return (
     <View

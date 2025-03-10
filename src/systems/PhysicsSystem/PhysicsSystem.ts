@@ -163,7 +163,6 @@ export class PhysicsSystem implements IPhysicsSystem {
       if (buoyantVehicle.isSinked || !buoyantVehicle.isInitialized) return;
 
       if (!buoyantVehicle.body) return;
-
       let seaProps: SeaSystemProps = {
         layers: sea.layers.map((layer) => ({
           layers: [],

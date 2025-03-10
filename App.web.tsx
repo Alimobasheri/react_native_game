@@ -1,14 +1,10 @@
-import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { LogBox, StyleSheet, Text } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { View } from 'react-native';
-import { LoadGame } from 'Game/loadGame';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Landing } from '@/web/pages/Landing';
+import Navigation from '@/web/containers/navigation';
 import './global.css';
 LogBox.ignoreAllLogs();
 
@@ -35,7 +31,7 @@ function App() {
   return (
     <SafeAreaProvider style={{ flex: 1 }}>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <Landing />
+        <Navigation />
       </GestureHandlerRootView>
     </SafeAreaProvider>
   );

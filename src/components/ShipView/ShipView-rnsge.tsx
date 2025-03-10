@@ -121,7 +121,6 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
       { translateY: (sharedBody?.value.position.y || 0) - initialY },
     ];
   }, [sharedBody]);
-  console.log('🚀 ~ transform:', transform);
 
   const shipSystem = useMemo(() => new ShipSystem(), []);
   const systemCallback: system = useCallback(
@@ -204,10 +203,8 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
   }, [frameWidth, frameHeight, frameIndex]);
 
   const url = require('../../../assets/fisher_boat3.png');
-  console.log('🚀 ~ url:', url);
 
   const boatImage = useImage(url?.uri);
-  console.log('🚀 ~ boatImage:', boatImage);
   if (!boatImage) return null;
 
   return (
