@@ -35,6 +35,7 @@ export default ({ config }) => {
       },
       experiments: {
         tsconfigPaths: true,
+        baseUrl: '/react_native_game',
       },
       extra: {
         eas: {

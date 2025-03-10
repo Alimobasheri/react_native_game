@@ -33,7 +33,8 @@
       "bundler": "metro"
     },
     "experiments": {
-      "tsconfigPaths": true
+      "tsconfigPaths": true,
+      "baseUrl": "/react_native_game"
     },
     "extra": {
       "eas": {
