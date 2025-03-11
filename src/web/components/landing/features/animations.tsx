@@ -59,7 +59,7 @@ export const Animations: FC = () => {
         entering={FadeInUp.delay(600).duration(500)}
         className="flex flex-col items-start justify-start"
       >
-        <MontserratText weight="400" className="text-gray-500 text-lg">
+        <MontserratText weight="400" className="text-gray-700 text-lg">
           With the help of the inner Game Loop, you can add animations, attach
           them to your entities, and control them with helper hooks and
           functions. Fully leveraged to utilize latest react-native-reanimated

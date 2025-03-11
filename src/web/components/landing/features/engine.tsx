@@ -47,7 +47,7 @@ export const Engine: FC = () => {
         entering={FadeInUp.delay(600).duration(500)}
         className="flex flex-col items-start justify-start"
       >
-        <MontserratText weight="400" className="text-gray-500 text-lg">
+        <MontserratText weight="400" className="text-gray-700 text-lg">
           JSX syntax, components, contexts, hooks, and whatever that makes the
           React ecosystem great. All of these are supported, along ready-made
           components and hooks, following the best and cleanest practices.

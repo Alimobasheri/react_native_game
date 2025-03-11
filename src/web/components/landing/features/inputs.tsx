@@ -59,7 +59,7 @@ export const Inputs: FC = () => {
         entering={FadeInUp.delay(600).duration(500)}
         className="flex flex-col items-start justify-start"
       >
-        <MontserratText weight="400" className="text-gray-500 text-lg">
+        <MontserratText weight="400" className="text-gray-700 text-lg">
           An internal TouchDOM was implemented in order to facilitate
           registering gestures and tracking them all over the canvas. Worklet
           callbacks are attached to react-native-gesture-handler Gestures, and

@@ -24,6 +24,7 @@ export type FeatureViewProps = {
   scrollOffset: SharedValue<number>;
   extra?: ReactNode;
   bgColor?: string;
+  wrapperClassName?: string;
 };
 
 export const FeatureView: FC<PropsWithChildren<FeatureViewProps>> = ({
@@ -33,6 +34,7 @@ export const FeatureView: FC<PropsWithChildren<FeatureViewProps>> = ({
   scrollOffset,
   extra,
   bgColor = '#F2EFE7ff',
+  wrapperClassName,
   children,
 }) => {
   const viewRef = useAnimatedRef();
@@ -117,7 +119,7 @@ export const FeatureView: FC<PropsWithChildren<FeatureViewProps>> = ({
               [Align.Left, Align.Right].includes(align)
                 ? 'items-start'
                 : 'items-center'
-            }`}
+            } ${wrapperClassName}`}
             style={innerStyle}
           >
             {children}

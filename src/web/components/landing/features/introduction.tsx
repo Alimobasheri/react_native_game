@@ -108,7 +108,7 @@ export const Introduction: FC<IntroductionProps> = ({ mouseX, mouseY }) => {
       </Animated.View>
       <Animated.View
         entering={FadeInUp.delay(600).duration(500)}
-        className="flex flex-col items-center justify-start"
+        className="flex flex-col items-center justify-start mt-8"
       >
         <MontserratText weight="400" className="text-3xl text-white">
           A Game Fully Developed in React Native

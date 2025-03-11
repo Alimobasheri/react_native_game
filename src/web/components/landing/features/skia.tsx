@@ -57,7 +57,7 @@ export const Skia: FC = () => {
         entering={FadeInUp.delay(600).duration(500)}
         className="flex flex-col items-start justify-start"
       >
-        <MontserratText weight="400" className="text-gray-500 text-lg">
+        <MontserratText weight="400" className="text-gray-700 text-lg">
           React Native Skia brings the Skia Graphics Library to React Native.
           Skia serves as the graphics engine for Google Chrome and Chrome OS,
           Android, Flutter, Mozilla Firefox, Firefox OS, and many other

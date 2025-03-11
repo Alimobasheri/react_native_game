@@ -105,7 +105,10 @@ export const Landing: FC = () => {
             />
           </FeatureView>
           <View className="w-full flex-row justify-center items-center">
-            <MontserratText weight="300" className="text-xl mb-10">
+            <MontserratText
+              weight="300"
+              className="text-xl mb-10 text-white drop-shadow-md"
+            >
               Scroll to Learn More
             </MontserratText>
           </View>
@@ -113,36 +116,67 @@ export const Landing: FC = () => {
         <Section onLayout={createOnSectionLayout(1)}>
           <FeatureView
             index={1}
-            align={Align.Top}
+            align={Align.Left}
             sections={sections}
             scrollOffset={scrollOffset}
             bgColor="#9ACBD0ff"
+            extra={
+              <>
+                <PhoneMockup>
+                  <LoadGame />
+                </PhoneMockup>
+                <View className="w-full items-start mt-20">
+                  <MontserratText
+                    weight="300"
+                    className="text-lg text-gray-800 mb-4"
+                  >
+                    How to Play:
+                  </MontserratText>
+                  <MontserratText
+                    weight="300"
+                    className="text-lg text-gray-600"
+                  >
+                    1. Swipe up to start.
+                  </MontserratText>
+                  <MontserratText
+                    weight="300"
+                    className="text-lg text-gray-600"
+                  >
+                    2. When an enemy boat is attacking, swipe up to crash them
+                    with waves!
+                  </MontserratText>
+                  <MontserratText
+                    weight="300"
+                    className="text-lg text-gray-600"
+                  >
+                    3. Try Again!
+                  </MontserratText>
+                </View>
+              </>
+            }
+            wrapperClassName="justify-between py-20"
           >
-            <View className="flex-1 justify-between items-center h-full p-20">
-              <MontserratText weight="700" className="text-8xl">
-                Play in your browser!
+            <MontserratText
+              weight="500"
+              className="text-6xl text-orange-800 drop-shadow-xl"
+            >
+              Play in your browser!
+            </MontserratText>
+            <View className="flex flex-col gap-4">
+              <MontserratText weight="400" className="text-xl">
+                Waves Crash is an in-progress game that is developed using
+                React-Native and JavaScript libraries. It uses latest
+                React-Native libraries and is optimized for both web and mobile.
               </MontserratText>
-              <PhoneMockup>
-                <LoadGame />
-              </PhoneMockup>
-              <View className="w-full items-start">
-                <MontserratText
-                  weight="300"
-                  className="text-xl text-gray-800 mb-4"
-                >
-                  How to Play:
-                </MontserratText>
-                <MontserratText weight="300" className="text-xl text-gray-600">
-                  1. Swipe up to start.
-                </MontserratText>
-                <MontserratText weight="300" className="text-xl text-gray-600">
-                  2. When an enemy boat is attacking, swipe up to crash them
-                  with waves!
-                </MontserratText>
-                <MontserratText weight="300" className="text-xl text-gray-600">
-                  3. Try Again!
-                </MontserratText>
-              </View>
+              <MontserratText weight="400" className="text-xl">
+                You can play the game right here on the web. This is the same
+                result the code produces for mobile platforms!
+              </MontserratText>
+              <MontserratText weight="300" className="text-lg">
+                The web version can take a few moments to load. As it needs to
+                download `CanvasKit.wasm` from CDN, which is used for rendering
+                by Skia.
+              </MontserratText>
             </View>
           </FeatureView>
         </Section>
@@ -165,6 +199,7 @@ export const Landing: FC = () => {
             sections={sections}
             scrollOffset={scrollOffset}
             extra={<CodeBlock code={engineCode} />}
+            bgColor="#C8E6C9"
           >
             <Engine />
           </FeatureView>
@@ -176,6 +211,7 @@ export const Landing: FC = () => {
             sections={sections}
             scrollOffset={scrollOffset}
             extra={<CodeBlock code={skiaCode} />}
+            bgColor="#FFF9C4"
           >
             <Skia />
           </FeatureView>
@@ -187,6 +223,7 @@ export const Landing: FC = () => {
             sections={sections}
             scrollOffset={scrollOffset}
             extra={<CodeBlock code={animationsCode} />}
+            bgColor="#FFE0B2"
           >
             <Animations />
           </FeatureView>
@@ -198,6 +235,7 @@ export const Landing: FC = () => {
             sections={sections}
             scrollOffset={scrollOffset}
             extra={<CodeBlock code={inputsCode} />}
+            bgColor="#E1BEE7"
           >
             <Inputs />
           </FeatureView>
