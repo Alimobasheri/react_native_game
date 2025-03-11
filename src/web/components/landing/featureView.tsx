@@ -11,8 +11,10 @@ import Animated, {
 } from 'react-native-reanimated';
 
 export enum Align {
-  Left = 'left',
-  Right = 'right',
+  Left = 'flex-row',
+  Right = 'flex-row-reverse',
+  Top = 'flex-col',
+  Bottom = 'flex-col-reverse',
 }
 
 export type FeatureViewProps = {
@@ -21,6 +23,7 @@ export type FeatureViewProps = {
   sections: SharedValue<number[]>;
   scrollOffset: SharedValue<number>;
   extra?: ReactNode;
+  bgColor?: string;
 };
 
 export const FeatureView: FC<PropsWithChildren<FeatureViewProps>> = ({
@@ -29,6 +32,7 @@ export const FeatureView: FC<PropsWithChildren<FeatureViewProps>> = ({
   sections,
   scrollOffset,
   extra,
+  bgColor = '#F2EFE7ff',
   children,
 }) => {
   const viewRef = useAnimatedRef();
@@ -52,26 +56,12 @@ export const FeatureView: FC<PropsWithChildren<FeatureViewProps>> = ({
           sectionOffset.value - prevSectionHeight.value / 2 - 1,
           sectionOffset.value,
         ],
-        ['#ffffff00', '#F2EFE7ff']
+        ['#ffffff00', bgColor]
       ),
     };
   });
 
   const outerStyle = useAnimatedStyle(() => {
-    if (index === 1) {
-      console.log(
-        '====',
-        scrollOffset.value,
-        sectionOffset.value,
-        thisSectionHeight.value,
-        [
-          sectionOffset.value + thisSectionHeight.value * 0.8,
-          sectionOffset.value + thisSectionHeight.value,
-        ],
-        [12, 0],
-        Extrapolation.CLAMP
-      );
-    }
     return {
       opacity: interpolate(
         scrollOffset.value,
@@ -111,14 +101,11 @@ export const FeatureView: FC<PropsWithChildren<FeatureViewProps>> = ({
     };
   });
   return (
-    <Animated.View
-      ref={viewRef}
-      className={`flex-1  items-center ${
-        align === Align.Left ? 'flex-row' : 'flex-row-reverse'
-      }`}
-    >
+    <Animated.View ref={viewRef} className={`flex-1  items-center ${align}`}>
       <Animated.View
-        className="flex-1 p-10 flex-col max-w-[50%] h-full justify-center"
+        className={`flex-1 p-10 flex-col ${
+          [Align.Left, Align.Right].includes(align) ? 'w-[50%]' : 'w-[100%]'
+        } h-full justify-center`}
         style={bgStyle}
       >
         <Animated.View
@@ -126,7 +113,11 @@ export const FeatureView: FC<PropsWithChildren<FeatureViewProps>> = ({
           style={outerStyle}
         >
           <Animated.View
-            className="flex flex-col justify-between items-start"
+            className={`flex-1 flex flex-col justify-center ${
+              [Align.Left, Align.Right].includes(align)
+                ? 'items-start'
+                : 'items-center'
+            }`}
             style={innerStyle}
           >
             {children}

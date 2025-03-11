@@ -4,31 +4,33 @@ import { MontserratText } from '@/web/components/ui/montserratText/MontserratTex
 import Animated, { Easing, FadeIn, FadeInUp } from 'react-native-reanimated';
 import { CodeBlock } from '../../ui/codeBlock/codeBlock';
 
-export const skiaCode = `export const Sea = () => {
-  cosnt seaEntity = useAddEntity(new Sea(seaConfig));
-  
-  const uniforms = useDerivedValue(() => {
-    return {
-      wave: {
-        x: seaEntity.current.data.layers[0].waves[0].x.value,
-        amplitude: seaEntity.current.data.layers[0].waves[0].amplitude.value,
-        frequency: seaEntity.current.data.layers[0].waves[0].frequency.value,
-        speed: seaEntity.current.data.layers[0].waves[0].speed.value,
-        time: seaEntity.current.data.layers[0].waves[0].time.value,
-      },
-    };
-  })
-  const source = useMemo(() => createWaveShader()!, []);
-
-  return (
-    <Fill blendMode={'multiply'}>
-      <Shader source={source} uniforms={uniforms} />
-    </Fill>
-  )
-}
+export const inputsCode = `const touchHandler = useTouchHandler();
+const gesture = useMemo(
+  () => ({
+    gesture: Gesture.Pan()
+      .onChange((event) => {
+        if (!isRunning.value) return;
+        prevAcceleration.value = currentAcceleration.value;
+        currentAcceleration.value = event.velocityY - prevAcceleration.value;
+        runOnJS(initWave)(event, currentAcceleration.value);
+      })
+      .onEnd((event) => {
+        if (!isRunning.value) return;
+        currentAcceleration.value = 0;
+        runOnJS(onEnd)();
+      }),
+    rect: {
+      x,
+      y,
+      width,
+      height,
+    },
+  }),
+  []
+);
 `;
 
-export const Skia: FC = () => {
+export const Inputs: FC = () => {
   return (
     <>
       <Animated.View
@@ -39,7 +41,7 @@ export const Skia: FC = () => {
           weight="700"
           className="text-5xl font-black font-montserrat-bold text-black"
         >
-          Rendered By React-Native-Skia
+          Handle Gestures Like A Breeze!
         </MontserratText>
       </Animated.View>
       <Animated.View
@@ -47,10 +49,10 @@ export const Skia: FC = () => {
         className="flex flex-col items-start justify-start"
       >
         <MontserratText weight="400" className="text-2xl">
-          Render Shaders, Transform Groups, and much more.
+          Respond to gestures as soon as the user touches the screen.
         </MontserratText>
         <MontserratText weight="400" className="text-2xl">
-          All of that with no performance loss.
+          Running on UI thread.
         </MontserratText>
       </Animated.View>
       <Animated.View
@@ -58,10 +60,11 @@ export const Skia: FC = () => {
         className="flex flex-col items-start justify-start"
       >
         <MontserratText weight="400" className="text-gray-500 text-lg">
-          React Native Skia brings the Skia Graphics Library to React Native.
-          Skia serves as the graphics engine for Google Chrome and Chrome OS,
-          Android, Flutter, Mozilla Firefox, Firefox OS, and many other
-          products.
+          An internal TouchDOM was implemented in order to facilitate
+          registering gestures and tracking them all over the canvas. Worklet
+          callbacks are attached to react-native-gesture-handler Gestures, and
+          shared values are used to create gesture rects and update them
+          dynamically.
         </MontserratText>
       </Animated.View>
     </>

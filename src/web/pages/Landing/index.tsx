@@ -7,7 +7,7 @@ import {
   LayoutChangeEvent,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { FC, PropsWithChildren, useCallback, useMemo } from 'react';
+import { FC, PropsWithChildren, useCallback, useEffect, useMemo } from 'react';
 import { MontserratText } from '@/web/components/ui/montserratText/MontserratText';
 import { LoadGame } from 'Game/loadGame';
 import Animated, {
@@ -22,6 +22,7 @@ import Animated, {
   useDerivedValue,
   useScrollViewOffset,
   useSharedValue,
+  withTiming,
   ZoomInLeft,
 } from 'react-native-reanimated';
 import { AnimatedScrollView } from 'react-native-reanimated/lib/typescript/component/ScrollView';
@@ -36,21 +37,16 @@ import {
   Animations,
   animationsCode,
 } from '@/web/components/landing/features/animations';
+import { Inputs, inputsCode } from '@/web/components/landing/features/inputs';
 
 export const Landing: FC = () => {
-  const { height } = useWindowDimensions();
-  const sections = useSharedValue([0, 0, 0, 0]);
+  const sections = useSharedValue([0, 0, 0, 0, 0, 0]);
   const animatedScrollRef = useAnimatedRef<AnimatedScrollView>();
   const scrollOffset = useScrollViewOffset(animatedScrollRef);
-  const maxHeight = useMemo(() => height * 4, [height]);
-  const leftInterpolated = useDerivedValue(() => {
-    return interpolate(
-      scrollOffset.value,
-      sections.value.map((section) => section),
-      sections.value.map((_, index) => (index % 2 === 0 ? 50 : 0)),
-      Extrapolation.CLAMP
-    );
-  });
+
+  const introductionMouseX = useSharedValue(0);
+  const introductionMouseY = useSharedValue(0);
+
   const onLayout = (event: LayoutChangeEvent) => {
     console.log(event.nativeEvent.layout);
   };
@@ -67,6 +63,27 @@ export const Landing: FC = () => {
       onSectionLayout(event, index),
     [onSectionLayout]
   );
+
+  const introductionOnPointerMove: (event: MouseEvent) => void = useCallback(
+    (event) => {
+      'worklet';
+      introductionMouseX.value = event.pageX;
+      introductionMouseY.value = event.pageY;
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.addEventListener('mouseenter', introductionOnPointerMove);
+    window.addEventListener('mousemove', introductionOnPointerMove);
+
+    return () => {
+      if (typeof window === 'undefined') return;
+      window.removeEventListener('mouseenter', introductionOnPointerMove);
+      window.removeEventListener('mousemove', introductionOnPointerMove);
+    };
+  }, []);
   return (
     <View style={[styles.container]}>
       <Animated.ScrollView
@@ -74,19 +91,18 @@ export const Landing: FC = () => {
         ref={animatedScrollRef}
         contentContainerClassName={'w-full relative'}
       >
-        <Section onLayout={createOnSectionLayout(0)} className="bg-[#F2EFE7ff]">
+        <Section onLayout={createOnSectionLayout(0)} className="bg-wave">
           <FeatureView
             index={0}
-            align={Align.Left}
+            align={Align.Top}
             sections={sections}
             scrollOffset={scrollOffset}
-            extra={
-              <PhoneMockup>
-                <LoadGame />
-              </PhoneMockup>
-            }
+            bgColor="#6EC5E9"
           >
-            <Introduction />
+            <Introduction
+              mouseX={introductionMouseX}
+              mouseY={introductionMouseY}
+            />
           </FeatureView>
           <View className="w-full flex-row justify-center items-center">
             <MontserratText weight="300" className="text-xl mb-10">
@@ -97,6 +113,54 @@ export const Landing: FC = () => {
         <Section onLayout={createOnSectionLayout(1)}>
           <FeatureView
             index={1}
+            align={Align.Top}
+            sections={sections}
+            scrollOffset={scrollOffset}
+            bgColor="#9ACBD0ff"
+          >
+            <View className="flex-1 justify-between items-center h-full p-20">
+              <MontserratText weight="700" className="text-8xl">
+                Play in your browser!
+              </MontserratText>
+              <PhoneMockup>
+                <LoadGame />
+              </PhoneMockup>
+              <View className="w-full items-start">
+                <MontserratText
+                  weight="300"
+                  className="text-xl text-gray-800 mb-4"
+                >
+                  How to Play:
+                </MontserratText>
+                <MontserratText weight="300" className="text-xl text-gray-600">
+                  1. Swipe up to start.
+                </MontserratText>
+                <MontserratText weight="300" className="text-xl text-gray-600">
+                  2. When an enemy boat is attacking, swipe up to crash them
+                  with waves!
+                </MontserratText>
+                <MontserratText weight="300" className="text-xl text-gray-600">
+                  3. Try Again!
+                </MontserratText>
+              </View>
+            </View>
+          </FeatureView>
+        </Section>
+        <View className="w-full flex-col justify-center items-center -mt-10">
+          <View className="flex flex-col justify-center items-center p-10 bg-white shadow-xl gap-8  max-w-4xl">
+            <View>
+              <MontserratText
+                weight="700"
+                className="text-5xl font-black font-montserrat-bold text-black"
+              >
+                But How's it Made?
+              </MontserratText>
+            </View>
+          </View>
+        </View>
+        <Section onLayout={createOnSectionLayout(2)}>
+          <FeatureView
+            index={2}
             align={Align.Right}
             sections={sections}
             scrollOffset={scrollOffset}
@@ -105,9 +169,9 @@ export const Landing: FC = () => {
             <Engine />
           </FeatureView>
         </Section>
-        <Section onLayout={createOnSectionLayout(2)}>
+        <Section onLayout={createOnSectionLayout(3)}>
           <FeatureView
-            index={2}
+            index={3}
             align={Align.Left}
             sections={sections}
             scrollOffset={scrollOffset}
@@ -116,15 +180,26 @@ export const Landing: FC = () => {
             <Skia />
           </FeatureView>
         </Section>
-        <Section onLayout={createOnSectionLayout(3)}>
+        <Section onLayout={createOnSectionLayout(4)}>
           <FeatureView
-            index={3}
+            index={4}
             align={Align.Right}
             sections={sections}
             scrollOffset={scrollOffset}
             extra={<CodeBlock code={animationsCode} />}
           >
             <Animations />
+          </FeatureView>
+        </Section>
+        <Section onLayout={createOnSectionLayout(5)}>
+          <FeatureView
+            index={5}
+            align={Align.Left}
+            sections={sections}
+            scrollOffset={scrollOffset}
+            extra={<CodeBlock code={inputsCode} />}
+          >
+            <Inputs />
           </FeatureView>
         </Section>
       </Animated.ScrollView>

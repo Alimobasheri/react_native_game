@@ -23,7 +23,7 @@ export const Engine: FC = () => {
     <>
       <Animated.View
         entering={FadeInUp.easing(Easing.in(Easing.ease)).duration(500)}
-        className="flex-1 flex-col items-center justify-center"
+        className="flex-col items-center justify-center"
       >
         <MontserratText
           weight="700"

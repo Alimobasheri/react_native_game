@@ -11,7 +11,9 @@
     "storybook": "cross-env STORYBOOK_ENABLED='true' expo start --offline --clear",
     "storybook:ios": "cross-env STORYBOOK_ENABLED='true' expo ios",
     "storybook:android": "cross-env STORYBOOK_ENABLED='true' expo android",
-    "test": "jest --watchAll"
+    "test": "jest --watchAll",
+    "predeploy": "expo export -p web",
+    "deploy": "gh-pages --nojekyll -d dist"
   },
   "dependencies": {
     "@expo/metro-runtime": "~4.0.1",
@@ -61,6 +63,7 @@
     "@types/matter-js": "^0.19.6",
     "@types/react": "~18.3.12",
     "@types/react-native": "^0.73.0",
+    "gh-pages": "^6.3.0",
     "jest": "^29.7.0",
     "typescript": "~5.3.3"
   },

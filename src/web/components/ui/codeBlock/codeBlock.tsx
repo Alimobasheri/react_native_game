@@ -66,7 +66,7 @@ export const CodeBlock: FC<CodeBlockProps> = ({
   };
 
   return (
-    <View className="rounded-lg overflow-hidden my-4 w-full">
+    <View className="rounded-lg overflow-hidden my-4 w-full shadow-md">
       <View className="flex-row items-center justify-between bg-gray-100 px-4 py-2">
         <Text className="text-sm font-medium text-black">{language}</Text>
       </View>

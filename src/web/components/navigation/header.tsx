@@ -8,7 +8,7 @@ export const Header: FC<NativeStackHeaderProps> = (props) => {
   return (
     <View
       className={
-        'w-full h-[40px] flex-row justify-between items-center p-8 bg-white'
+        'w-full h-[40px] flex-row justify-between items-center p-8 bg-transparent'
       }
     >
       <View className="flex-col jusity-center items-center">
