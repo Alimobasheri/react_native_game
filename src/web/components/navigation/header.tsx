@@ -1,6 +1,6 @@
 import { NativeStackHeaderProps } from '@react-navigation/native-stack';
 import { FC } from 'react';
-import { View } from 'react-native';
+import { Linking, View } from 'react-native';
 import { MontserratText } from '../ui/montserratText/MontserratText';
 import { Link } from '@react-navigation/native';
 
@@ -17,26 +17,16 @@ export const Header: FC<NativeStackHeaderProps> = (props) => {
         </MontserratText>
       </View>
       <View className="flex flex-row justify-end items-center gap-8">
-        <Link screen={'about-me'}>
-          <MontserratText
-            weight="400"
-            className={`text-xl hover:text-blue-500 ${
-              props.route.path === '/about-me' ? 'text-blue-500' : 'text-black'
-            }`}
-          >
-            About Me
-          </MontserratText>
-        </Link>
-        <Link screen={'expo'}>
-          <MontserratText
-            weight="400"
-            className={`text-xl hover:text-blue-500 ${
-              props.route.path === '/about-me' ? 'text-blue-500' : 'text-black'
-            }`}
-          >
-            Expo
-          </MontserratText>
-        </Link>
+        <MontserratText
+          weight="400"
+          className={`text-xl hover:text-blue-500 ${
+            props.route.path === '/about-me' ? 'text-blue-500' : 'text-black'
+          }`}
+          // @ts-ignore
+          href="https://www.google.com/"
+        >
+          GitHub
+        </MontserratText>
       </View>
     </View>
   );

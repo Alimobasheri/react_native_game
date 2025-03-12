@@ -9,13 +9,11 @@ export const skiaCode = `export const Sea = () => {
   
   const uniforms = useDerivedValue(() => {
     return {
-      wave: {
-        x: seaEntity.current.data.layers[0].waves[0].x.value,
-        amplitude: seaEntity.current.data.layers[0].waves[0].amplitude.value,
-        frequency: seaEntity.current.data.layers[0].waves[0].frequency.value,
-        speed: seaEntity.current.data.layers[0].waves[0].speed.value,
-        time: seaEntity.current.data.layers[0].waves[0].time.value,
-      },
+      x: seaEntity.current.data.layers[0].waves[0].x.value,
+      amplitude: seaEntity.current.data.layers[0].waves[0].amplitude.value,
+      frequency: seaEntity.current.data.layers[0].waves[0].frequency.value,
+      speed: seaEntity.current.data.layers[0].waves[0].speed.value,
+      time: seaEntity.current.data.layers[0].waves[0].time.value,
     };
   })
   const source = useMemo(() => createWaveShader()!, []);

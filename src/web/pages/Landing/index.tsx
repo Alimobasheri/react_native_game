@@ -38,9 +38,10 @@ import {
   animationsCode,
 } from '@/web/components/landing/features/animations';
 import { Inputs, inputsCode } from '@/web/components/landing/features/inputs';
+import { Future } from '@/web/components/landing/features/future';
 
 export const Landing: FC = () => {
-  const sections = useSharedValue([0, 0, 0, 0, 0, 0]);
+  const sections = useSharedValue([0, 0, 0, 0, 0, 0, 0]);
   const animatedScrollRef = useAnimatedRef<AnimatedScrollView>();
   const scrollOffset = useScrollViewOffset(animatedScrollRef);
 
@@ -154,11 +155,11 @@ export const Landing: FC = () => {
                 </View>
               </>
             }
-            wrapperClassName="justify-between py-20"
+            wrapperClassName="justify-end py-20"
           >
             <MontserratText
               weight="500"
-              className="text-6xl text-orange-800 drop-shadow-xl"
+              className="text-5xl text-black drop-shadow-xl"
             >
               Play in your browser!
             </MontserratText>
@@ -180,19 +181,19 @@ export const Landing: FC = () => {
             </View>
           </FeatureView>
         </Section>
-        <View className="w-full flex-col justify-center items-center -mt-10">
-          <View className="flex flex-col justify-center items-center p-10 bg-white shadow-xl gap-8  max-w-4xl">
-            <View>
-              <MontserratText
-                weight="700"
-                className="text-5xl font-black font-montserrat-bold text-black"
-              >
-                But How's it Made?
-              </MontserratText>
+        <Section onLayout={createOnSectionLayout(2)}>
+          <View className="w-full flex-col justify-center items-center -mt-10">
+            <View className="flex flex-col justify-center items-center p-10 bg-white shadow-xl gap-8  max-w-4xl">
+              <View>
+                <MontserratText
+                  weight="700"
+                  className="text-5xl font-black font-montserrat-bold text-black"
+                >
+                  But How's it Made?
+                </MontserratText>
+              </View>
             </View>
           </View>
-        </View>
-        <Section onLayout={createOnSectionLayout(2)}>
           <FeatureView
             index={2}
             align={Align.Right}
@@ -238,6 +239,35 @@ export const Landing: FC = () => {
             bgColor="#E1BEE7"
           >
             <Inputs />
+          </FeatureView>
+        </Section>
+        <Section onLayout={createOnSectionLayout(6)}>
+          <FeatureView
+            index={6}
+            align={Align.Left}
+            sections={sections}
+            scrollOffset={scrollOffset}
+            bgColor="white"
+            wrapperClassName="justify-center items-center max-w-xl"
+            extra={
+              <View className="flex flex-col gap-4">
+                <MontserratText weight="400" className="text-gray-700 text-lg">
+                  The new version shifts my whole OOP approach into the
+                  funcitonal realm. Systems should entirely be worklets,
+                  everything should entirely be connected through events, and
+                  all shared values should be referenced only once.
+                </MontserratText>
+                <MontserratText weight="400" className="text-gray-700 text-lg">
+                  It has taken me more than 9 months to research, learn,
+                  improve, and structure this whole system. It's still going to
+                  need a bit more. That's why I need to find remote jobs with
+                  better payments, that will let me have more time, and a free
+                  mindset to develop it.
+                </MontserratText>
+              </View>
+            }
+          >
+            <Future />
           </FeatureView>
         </Section>
       </Animated.ScrollView>
