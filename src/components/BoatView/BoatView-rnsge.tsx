@@ -15,6 +15,7 @@ import {
   useEntityMemoizedValue,
 } from '@/containers/ReactNativeSkiaGameEngine';
 import { SharedValue, useDerivedValue } from 'react-native-reanimated';
+import { Platform } from 'react-native';
 
 export const BoatView: FC<{ entityId: string }> = ({ entityId }) => {
   const { entity, found } = useEntityInstance<Boat>(entityId) as {
@@ -79,7 +80,9 @@ export const BoatView: FC<{ entityId: string }> = ({ entityId }) => {
   }, [size?.[0]]);
 
   if (!found) return;
-  const boatImage = useImage(imageSource?.uri);
+  const boatImage = useImage(
+    Platform.OS === 'web' ? imageSource?.uri : imageSource
+  );
   if (!boatImage) return null;
   // Create a smooth path for the trail with fading effect
   if (direction === DIRECTION.LEFT) {

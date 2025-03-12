@@ -48,7 +48,7 @@ export type RestartGameButtonProps = {
   y: number;
 };
 
-const ButtonPadding = 10;
+const ButtonPadding = 2;
 const RestartText = 'Restart';
 const RestartTextFontSize = 24;
 const RestartButtonColor = 'rgba(255, 255, 255, 0.3)';
@@ -124,7 +124,7 @@ export const RestartGameButton: FC<RestartGameButtonProps> = ({ x, y }) => {
     const textStyle = {
       color: Skia.Color(RestartTextColor),
       fontFamilies: ['Montserrat'],
-      fontSize: 50,
+      fontSize: 24,
     };
     const para = Skia.ParagraphBuilder.Make(paragraphStyle, font)
       .pushStyle(textStyle)
@@ -206,7 +206,7 @@ export const RestartGameButton: FC<RestartGameButtonProps> = ({ x, y }) => {
     return {
       x:
         buttonRect.value.rect.x +
-        shinePosition.value * (buttonRect.value.rect.width + 200) -
+        shinePosition.value * (buttonRect.value.rect.width + 10) -
         200,
       y: buttonRect.value.rect.y + translateY.value,
     };
@@ -216,7 +216,7 @@ export const RestartGameButton: FC<RestartGameButtonProps> = ({ x, y }) => {
     return {
       x:
         buttonRect.value.rect.x +
-        shinePosition.value * (buttonRect.value.rect.width + 200),
+        shinePosition.value * (buttonRect.value.rect.width + 10),
       y:
         buttonRect.value.rect.y +
         buttonRect.value.rect.height +

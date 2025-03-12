@@ -46,6 +46,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { Platform } from 'react-native';
 import {
   runOnUI,
   SharedValue,
@@ -204,7 +205,7 @@ export const ShipView: FC<IShipViewProps> = ({ seaEntityId }) => {
 
   const url = require('../../../assets/fisher_boat3.png');
 
-  const boatImage = useImage(url?.uri);
+  const boatImage = useImage(Platform.OS === 'web' ? url?.uri : url);
   if (!boatImage) return null;
 
   return (

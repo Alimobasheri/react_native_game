@@ -90,28 +90,6 @@ export const MainScene: FC<PropsWithChildren> = ({ children }) => {
   useEventListener(RESTART_GAME_EVENT.type, () => {
     runOnUI(restartGameCallback)();
   });
-
-  useAnimatedReaction(
-    () => [
-      isGamePlayExited.value,
-      isRunning.value,
-      isGameOver.value,
-      isHomeScene.value,
-    ],
-    (data) => {
-      console.log(
-        'Main Scene State',
-        'isGamePlayExited',
-        data[0],
-        'isRunning',
-        data[1],
-        'isGameOver',
-        data[2],
-        'isHomeScene',
-        data[3]
-      );
-    }
-  );
   return (
     <Scene defaultSceneName={Scenes.Main} width={0} height={0} isActive={true}>
       <GamePlayScene></GamePlayScene>

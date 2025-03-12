@@ -180,7 +180,9 @@ export const ActionCameraControl = () => {
         isRunning: true,
         animation: createTimingAnimation(
           camera.rotate.value,
-          -(shipAngle.value || 0) / 4,
+          (shipAngle.value || 0) > 0
+            ? Math.max(-(shipAngle.value || 0) / 4, -0.15)
+            : Math.min(-(shipAngle.value || 0) / 4, 0.15),
           60,
           easeInOutQuad
         ),

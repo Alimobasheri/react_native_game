@@ -6,6 +6,7 @@ import {
 import { useCreateAnimation } from '@/containers/ReactNativeSkiaGameEngine/hooks/useCreateAnimation/useCreateAnimation';
 import { Group, Image, useImage } from '@shopify/react-native-skia';
 import { FC, useDebugValue, useEffect } from 'react';
+import { Platform } from 'react-native';
 import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
 
 interface ITitleProps {
@@ -16,9 +17,10 @@ interface ITitleProps {
 }
 
 export const Title: FC<ITitleProps> = ({ x, y, width, height }) => {
-  const image = useImage(
-    require('../../../../../../assets/game-title.png')?.uri
+  const imageRequire = useImage(
+    require('../../../../../../assets/game-title.png')
   );
+  const image = Platform.OS === 'web' ? imageRequire?.uri : imageRequire;
   const scale = useSharedValue(1);
   const translateX = useDerivedValue(() => {
     return -width * (scale.value - 1) * 2;

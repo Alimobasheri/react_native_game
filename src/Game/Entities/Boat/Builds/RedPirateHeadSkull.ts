@@ -9,7 +9,7 @@ export class RedPirateHeadSkull extends Boat {
     super(config);
     this._windowWidth = config.windowWidth;
     this.initialize();
-    this.acceleration = this._windowWidth * 0.0001;
+    this.acceleration = this._windowWidth * 0.0005;
   }
   public getSize(): number[] {
     const size = [

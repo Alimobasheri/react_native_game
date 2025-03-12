@@ -16,7 +16,7 @@ interface IGameOverTitleProps {
 export const GameOverTitle: FC<IGameOverTitleProps> = ({ x, y }) => {
   const font = useFont(
     require('../../../../../assets/fonts/Montserrat-SemiBold.ttf'),
-    66
+    36
   );
   const translateY = useSharedValue(0);
   useSceneTransitioning({
