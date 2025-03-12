@@ -1,5 +1,5 @@
-import { ScreenTopUI } from "@/Game/Entities/ScreenTopUI/ScreenTopUI";
-import { EntityRendererProps } from "@/constants/views";
+import { ScreenTopUI } from '@/Game/Entities/ScreenTopUI/ScreenTopUI';
+import { EntityRendererProps } from '@/constants/views';
 import {
   Group,
   Image,
@@ -14,34 +14,34 @@ import {
   vec,
   SkPath,
   TileMode,
-} from "@shopify/react-native-skia";
-import { FC } from "react";
-import { Platform, useWindowDimensions } from "react-native";
+} from '@shopify/react-native-skia';
+import { FC } from 'react';
+import { Platform, useWindowDimensions } from 'react-native';
 
 export const TopUIView: FC<EntityRendererProps<ScreenTopUI>> = ({
   entity: { coinsCount, boatsDestroyed },
 }) => {
   const { width, height } = useWindowDimensions();
   const font = useFont(
-    require("../../../assets/fonts/Montserrat-SemiBold.ttf"),
+    require('../../../assets/fonts/Montserrat-SemiBold.ttf'),
     36
   );
   const coinSize = [30, 30];
   const coinPosition = { x: width - coinSize[0] * 2, y: coinSize[1] };
-  const coinImage = useImage(require("../../../assets/coin_icon.png"));
+  const coinImage = useImage(require('../../../assets/coin_icon.png'));
   const destroyedBoatSize = [30, 30];
   const destroyedBoatPosition = {
     x: width / 2 - destroyedBoatSize[0],
     y: destroyedBoatSize[1],
   };
   const destroyedBoatImage = useImage(
-    require("../../../assets/destroyed_boat_icon.png")
+    require('../../../assets/destroyed_boat_icon.png')
   );
 
   const gradientShader = Skia.Shader.MakeLinearGradient(
     { x: width / 2 - destroyedBoatSize[0] / 2 - 100, y: destroyedBoatSize[1] },
     { x: width / 2 + destroyedBoatSize[0] / 2 + 100, y: destroyedBoatSize[1] },
-    [Skia.Color("white"), Skia.Color("silver")],
+    [Skia.Color('white'), Skia.Color('silver')],
     null,
     TileMode.Clamp
   );

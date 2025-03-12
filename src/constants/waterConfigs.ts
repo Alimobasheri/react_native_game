@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 export const DEFAULT_PHASE_STEP = 0.2;
 export const DEFAULT_TIME_STEP = 0.5;
 export const DEFAULT_AMPLITUDE_MULTIPLIER = 0.97;

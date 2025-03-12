@@ -163,7 +163,6 @@ export class PhysicsSystem implements IPhysicsSystem {
       if (buoyantVehicle.isSinked || !buoyantVehicle.isInitialized) return;
 
       if (!buoyantVehicle.body) return;
-
       let seaProps: SeaSystemProps = {
         layers: sea.layers.map((layer) => ({
           layers: [],
@@ -319,14 +318,14 @@ export class PhysicsSystem implements IPhysicsSystem {
     );
     if (submergedArea > 0) {
       applyAngleByWave(submergedDepth, body, sea, setAngle);
-      for (let i = 0; i <= 4; i++) {
-        const x = i * (size[0] / 4) + body.value.bounds.min.x;
+      for (let i = 0; i <= 8; i++) {
+        const x = i * (size[0] / 8) + body.value.bounds.min.x;
         if (x > body.value.bounds.max.x) break;
         const force = getForceAtPoint(sea.waves, x);
         const y = getWaterSurfaceAndMaxHeightAtPoint(sea, x).y;
         if (y > body.value.bounds.max.y) break;
         const pointWidth =
-          (body.value.bounds.max.x - body.value.bounds.min.x) / 4;
+          (body.value.bounds.max.x - body.value.bounds.min.x) / 8;
         force.y = force.y * pointWidth;
         const seaForce = { force, position: { x, y } };
         runOnJS(applyMatterForce)(seaForce.position, seaForce.force);

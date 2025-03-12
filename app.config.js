@@ -31,9 +31,11 @@ export default ({ config }) => {
       },
       web: {
         favicon: './assets/favicon.png',
+        bundler: 'metro',
       },
       experiments: {
         tsconfigPaths: true,
+        baseUrl: '/react_native_game',
       },
       extra: {
         eas: {
@@ -41,6 +43,7 @@ export default ({ config }) => {
         },
         storybookEnabled: process.env.STORYBOOK_ENABLED,
       },
+      plugins: ['expo-font'],
     },
   };
 };

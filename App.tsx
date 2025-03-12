@@ -3,8 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LogBox, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { View } from 'react-native';
-import Constants from 'expo-constants';
-import { Game } from '@/containers/Game/index-rnsge';
+import { LoadGame } from 'Game/loadGame';
 LogBox.ignoreAllLogs();
 
 function App() {
@@ -13,7 +12,7 @@ function App() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <View style={[styles.container]}>
           <StatusBar hidden />
-          <Game />
+          <LoadGame />
         </View>
       </GestureHandlerRootView>
     </SafeAreaProvider>
