@@ -1,10 +1,12 @@
-import { Body } from 'matter-js';
+import { Body, IBodyDefinition } from 'matter-js';
+import { CreateMatterBodyArgs } from '../systems/physics/bodiesTypes';
 
 export const AddMatterBodyRequestType = 'AddMatterBodyRequest';
 export type AddMatterBodyRequest = {
   type: typeof AddMatterBodyRequestType;
   payload: {
-    body: Body;
+    args: CreateMatterBodyArgs;
+    entityId: number;
     responseSubId: string;
   };
 };
@@ -14,6 +16,7 @@ export type AddMatterBodyResponse = {
   type: typeof AddMatterBodyResponseType;
   payload: {
     success: boolean;
+    bodyId: number;
   };
   subscriptionId: string;
 };

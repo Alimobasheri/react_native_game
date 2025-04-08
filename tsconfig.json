@@ -2,9 +2,11 @@
   "compilerOptions": {
     "strict": true,
     "baseUrl": ".",
+    "allowJs": true,
     "paths": {
       "@/*": ["src/*"]
     }
   },
+  "include": ["src/**/*", "index.d.ts"],
   "extends": "expo/tsconfig.base"
 }

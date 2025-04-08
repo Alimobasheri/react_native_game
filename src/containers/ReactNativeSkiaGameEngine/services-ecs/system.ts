@@ -71,43 +71,6 @@ export const createSystemManager = (
     'worklet';
     const events = eventQueue.readEvents();
 
-    for (let i = 0; i < jsSystems.current.length; i++) {
-      const system = jsSystems.current[i];
-
-      const hasRequiredEvents = system.requiredEvents
-        ? system.requiredEvents.some((event) =>
-            events.some((e) => e.type === event)
-          )
-        : true;
-
-      if (!hasRequiredEvents) continue;
-
-      const entities = system.requiredComponents
-        ? ecs.value.getEntitiesWithComponents(system.requiredComponents)
-        : [];
-
-      if (system.context === SystemContext.JS) {
-        runJSSystem(() => {
-          system.process(
-            entities,
-            ecs.value.components.value,
-            eventQueue,
-            deltaTime,
-            ecs
-          );
-        });
-        continue;
-      } else {
-        system.process(
-          entities,
-          ecs.value.components.value,
-          eventQueue,
-          deltaTime,
-          ecs
-        );
-      }
-    }
-
     for (let i = 0; i < systems.value.length; i++) {
       const system = systems.value[i];
 
@@ -122,27 +85,13 @@ export const createSystemManager = (
       const entities = system.requiredComponents
         ? ecs.value.getEntitiesWithComponents(system.requiredComponents)
         : [];
-
-      if (system.context === SystemContext.JS) {
-        runJSSystem(() => {
-          system.process(
-            entities,
-            ecs.value.components.value,
-            eventQueue,
-            deltaTime,
-            ecs
-          );
-        });
-        continue;
-      } else {
-        system.process(
-          entities,
-          ecs.value.components.value,
-          eventQueue,
-          deltaTime,
-          ecs
-        );
-      }
+      system.process(
+        entities,
+        ecs.value.components.value,
+        eventQueue,
+        deltaTime,
+        ecs
+      );
     }
   };
 

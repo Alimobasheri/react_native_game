@@ -1,11 +1,12 @@
-import { Body } from 'matter-js';
+import { IBodyDefinition } from 'matter-js';
 
 export const MatterBodyComponentName = 'matterBody';
-export type MatterBodyComponentData = Body;
+export type MatterBodyComponentData = IBodyDefinition;
 
-export const createMatterBodyComponent = (body: Body) => {
+export const createMatterBodyComponent = (options: IBodyDefinition) => {
+  'worklet';
   return {
     name: MatterBodyComponentName,
-    data: body,
+    data: options,
   };
 };

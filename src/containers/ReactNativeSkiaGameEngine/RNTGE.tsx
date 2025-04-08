@@ -17,6 +17,9 @@ import { requestCreateEntity } from './internal/systems/requestCreateEntity';
 import { useDerivedMemory } from './hooks-ecs/useDerivedMemory/useDerivedMemory';
 import { requestAddSystem } from './internal/systems/requestAddSystem';
 import { requestAddMatterBody } from './internal/systems/physics/requestAddMatterBody';
+import { useMatterPhysics } from './hooks-ecs/useMatterPhysics/useMatterPhysics';
+import { MatterBodyComponentName } from './internal/components/matterBody';
+import { updateMatterWorld } from './internal/systems/physics/updateMatterWorld';
 
 export const ReactNativeTurboGameEngine: FC<PropsWithChildren<{}>> = ({
   children,
@@ -30,6 +33,7 @@ export const ReactNativeTurboGameEngine: FC<PropsWithChildren<{}>> = ({
     updateDerivedMemory,
   } = useDerivedMemory();
   const [shouldRender, setShouldRender] = useState(false);
+  const { initPhysics } = useMatterPhysics();
   useAnimatedReaction(
     () => state.value,
     (state) => {
@@ -43,7 +47,7 @@ export const ReactNativeTurboGameEngine: FC<PropsWithChildren<{}>> = ({
     'worklet';
     if (!ECS.value) return;
     ECS.value.createComponent(PositionComponentName);
-    ECS.value.createComponent('Velocity');
+    ECS.value.createComponent(MatterBodyComponentName);
     ECS.value.createComponent('health');
   }, [ECS]);
 
@@ -53,14 +57,17 @@ export const ReactNativeTurboGameEngine: FC<PropsWithChildren<{}>> = ({
     ECS.value.registerSystem(requestAddSystem);
     ECS.value.registerSystem(requestCreateEntity);
     ECS.value.registerSystem(requestAddMatterBody);
+    ECS.value.registerSystem(updateMatterWorld);
   }, [ECS]);
 
   const onFrame = useCallback(() => {
     'worklet';
     eventQueue.clearEvents();
-    console.log(eventQueue.readEvents());
+    if (eventQueue.readEvents().length > 0)
+      console.log(eventQueue.readEvents());
     if (state.value !== ECSState.INITIALIZED) {
       initECS();
+      initPhysics();
       defineComponents();
       registerInternalSystems();
       return;

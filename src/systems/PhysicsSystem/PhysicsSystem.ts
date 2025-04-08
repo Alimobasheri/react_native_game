@@ -8,7 +8,6 @@ import {
   SurfacePointMap,
 } from '@/Game/Entities/Sea/types';
 import Matter from 'matter-js';
-import { getVerticleBounds } from '@/utils/getVerticalBounds';
 import { getSubmergedArea, getSubmergedDepthAtX } from '@/utils/submergedDepth';
 import { Point2D, WaterSurfacePoint } from '@/types/globals';
 import { VEHICLE_TYPE_IDENTIFIERS } from '@/constants/vehicle';

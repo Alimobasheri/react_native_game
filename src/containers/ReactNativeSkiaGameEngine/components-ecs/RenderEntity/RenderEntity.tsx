@@ -1,9 +1,8 @@
 import { FC, useCallback } from 'react';
-import { PositionComponentName } from '../../internal/components/position';
 import { Rect, SkRect } from '@shopify/react-native-skia';
 import { useDerivedQuery } from '../../hooks-ecs/useDerivedQuery/useDerivedQuery';
-import { useDerivedValue } from 'react-native-reanimated';
 import { DerivedTransform } from '../../hooks-ecs/useDerivedMemory/useDerivedMemory';
+import { MatterBodyComponentName } from '../../internal/components/matterBody';
 
 export type RenderEntityProps = {
   entityId: number;
@@ -13,9 +12,17 @@ export const RenderEntity: FC<RenderEntityProps> = ({ entityId }) => {
   const transformToRect: DerivedTransform<SkRect> = useCallback(
     (entities, components) => {
       'worklet';
+      const component = components[MatterBodyComponentName].get(entityId);
+      if (!component)
+        return {
+          x: 0,
+          y: 0,
+          width: 0,
+          height: 0,
+        };
       return {
-        x: components[PositionComponentName].get(entityId).x,
-        y: components[PositionComponentName].get(entityId).y,
+        x: component.position.x,
+        y: component.position.y,
         width: 100,
         height: 100,
       };

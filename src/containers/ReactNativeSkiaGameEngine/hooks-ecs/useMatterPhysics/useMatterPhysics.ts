@@ -1,10 +1,19 @@
-import { Engine, World } from "matter-js"
-import { useRef } from "react"
+import { useCallback, useEffect, useRef } from 'react';
+import { runOnUI } from 'react-native-reanimated';
+import initMatter from './matter';
 
 export const useMatterPhysics = () => {
-  const engine = useRef(Engine.create())
+  const initPhysics = useCallback(() => {
+    'worklet';
+    if (typeof global.Matter === 'undefined') {
+      initMatter();
+    }
+    if (typeof global._RNTGE_ === 'undefined') {
+      global._RNTGE_ = { physics: { engine: global.Matter.Engine.create() } };
+    } else if (typeof global._RNTGE_ !== 'undefined') {
+      global._RNTGE_.physics = { engine: global.Matter.Engine.create() };
+    }
+  }, []);
 
-  const addBody = (body: Matter.Body) => {
-    World.add(engine.current.world, body)
-  }
-}
+  return { initPhysics };
+};
