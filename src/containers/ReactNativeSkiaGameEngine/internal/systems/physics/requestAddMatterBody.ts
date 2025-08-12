@@ -19,7 +19,7 @@ function createMatterBodyFromPayload(payload: AddMatterBodyRequest['payload']) {
     case 'rectangle': {
       const { x, y, width, height, options: bodyOptions } = options;
       console.log('🚀 ~ createMatterBodyFromPayload ~ options:', options);
-      return global.Matter.Bodies.rectangle(
+      return global.MatterReanimated.Bodies.rectangle(
         x,
         y,
         width,
@@ -30,7 +30,7 @@ function createMatterBodyFromPayload(payload: AddMatterBodyRequest['payload']) {
 
     case 'trapezoid': {
       const { x, y, width, height, slope, options: bodyOptions } = options;
-      return global.Matter.Bodies.trapezoid(
+      return global.MatterReanimated.Bodies.trapezoid(
         x,
         y,
         width,
@@ -42,7 +42,7 @@ function createMatterBodyFromPayload(payload: AddMatterBodyRequest['payload']) {
 
     case 'circle': {
       const { x, y, radius, maxSides, options: bodyOptions } = options;
-      return global.Matter.Bodies.circle(
+      return global.MatterReanimated.Bodies.circle(
         x,
         y,
         radius,
@@ -53,7 +53,7 @@ function createMatterBodyFromPayload(payload: AddMatterBodyRequest['payload']) {
 
     case 'polygon': {
       const { x, y, sides, radius, options: bodyOptions } = options;
-      return global.Matter.Bodies.polygon(
+      return global.MatterReanimated.Bodies.polygon(
         x,
         y,
         sides,
@@ -73,7 +73,7 @@ function createMatterBodyFromPayload(payload: AddMatterBodyRequest['payload']) {
         minimumArea,
         removeDuplicatePoints,
       } = options;
-      return global.Matter.Bodies.fromVertices(
+      return global.MatterReanimated.Bodies.fromVertices(
         x,
         y,
         vertexSets,
@@ -105,7 +105,10 @@ export const requestAddMatterBody: System = {
       const body = createMatterBodyFromPayload(payload);
       console.log('🚀 ~ body:', body.velocity);
 
-      global.Matter.Composite.add(global._RNTGE_.physics.engine.world, [body]);
+      global.MatterReanimated.Composite.add(
+        global._RNTGE_.physics.engine.world,
+        [body]
+      );
 
       ecs.value.addComponent(payload.entityId, {
         name: MatterBodyComponentName,
