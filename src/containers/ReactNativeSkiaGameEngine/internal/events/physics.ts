@@ -1,5 +1,8 @@
 import { Body, IBodyDefinition } from 'matter-js';
-import { CreateMatterBodyArgs } from '../systems/physics/bodiesTypes';
+import {
+  BatchMatterBodyArgs,
+  CreateMatterBodyArgs,
+} from '../systems/physics/bodiesTypes';
 
 export const AddMatterBodyRequestType = 'AddMatterBodyRequest';
 export type AddMatterBodyRequest = {
@@ -17,6 +20,25 @@ export type AddMatterBodyResponse = {
   payload: {
     success: boolean;
     bodyId: number;
+  };
+  subscriptionId: string;
+};
+
+export const AddMatterBodyBatchRequestType = 'AddMatterBodyBatchRequest';
+export type AddMatterBodyBatchRequest = {
+  type: typeof AddMatterBodyBatchRequestType;
+  payload: {
+    batch: BatchMatterBodyArgs[];
+    responseSubId: string;
+  };
+};
+
+export const AddMatterBodyBatchResponseType = 'AddMatterBodyBatchResponse';
+export type AddMatterBodyBatchResponse = {
+  type: typeof AddMatterBodyBatchResponseType;
+  payload: {
+    success: boolean;
+    bodyIds: number[];
   };
   subscriptionId: string;
 };

@@ -15,17 +15,22 @@ export type SubscriptionCallback = (event: ExternalEvent) => void;
 
 export type EventQueueContextType = {
   subscriptions: MutableRefObject<Map<string, (payload: any) => void>>;
+  nextExternalEvents: SharedValue<ExternalEvent[]>;
   addEvent: (event: Event) => void;
   addEventJS: (event: Event) => void;
   addExternalEvent: (event: ExternalEvent) => void;
   readEvents: () => EventQueue;
   clearEvents: () => void;
   subscribeJS: (callback: SubscriptionCallback) => string;
+  addAwaitingExternalEvent: (event: ExternalEvent) => void;
+  callAllAwaitingExternalEvents: () => void;
+  callAllAwaitingExternalEventsJS: () => void;
 };
 
 export const useEventQueue = (): EventQueueContextType => {
   const eventStore = useSharedValue<EventQueue>([]);
   const nextEvents = useSharedValue<EventQueue>([]);
+  const nextExternalEvents = useSharedValue<ExternalEvent[]>([]);
 
   const subscriptions = useRef<Map<string, (payload: any) => void>>(new Map());
 
@@ -42,7 +47,7 @@ export const useEventQueue = (): EventQueueContextType => {
     (event: ExternalEvent) => {
       const callback = subscriptions.current.get(event.subscriptionId);
       if (callback) {
-        runOnJS(callback)(event);
+        callback(event);
       }
     },
     [subscriptions]
@@ -52,6 +57,23 @@ export const useEventQueue = (): EventQueueContextType => {
     'worklet';
     runOnJS(callSubscriptionJS)(event);
   };
+
+  const addAwaitingExternalEvent = useCallback((event: ExternalEvent) => {
+    'worklet';
+    nextExternalEvents.value = [...nextExternalEvents.value, event];
+  }, []);
+
+  const callAllAwaitingExternalEventsJS = useCallback(() => {
+    nextExternalEvents.value.forEach((event) => {
+      callSubscriptionJS(event);
+    });
+    nextExternalEvents.value = [];
+  }, [callSubscriptionJS]);
+
+  const callAllAwaitingExternalEvents = useCallback(() => {
+    'worklet';
+    runOnJS(callAllAwaitingExternalEventsJS)();
+  }, [callAllAwaitingExternalEventsJS]);
 
   const readEvents = useCallback(() => {
     'worklet';
@@ -72,11 +94,15 @@ export const useEventQueue = (): EventQueueContextType => {
 
   return {
     subscriptions,
+    nextExternalEvents,
     addEvent,
     addEventJS,
     addExternalEvent,
     readEvents,
     clearEvents,
     subscribeJS,
+    addAwaitingExternalEvent,
+    callAllAwaitingExternalEvents,
+    callAllAwaitingExternalEventsJS,
   };
 };

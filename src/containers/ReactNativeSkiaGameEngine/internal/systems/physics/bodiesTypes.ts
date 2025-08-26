@@ -78,3 +78,8 @@ export type CreateMatterBodyArgs =
   | { type: 'circle'; options: MatterCircleArgs }
   | { type: 'polygon'; options: MatterPolygonArgs }
   | { type: 'fromVertices'; options: MatterFromVerticesArgs };
+
+export type BatchMatterBodyArgs = {
+  args: CreateMatterBodyArgs;
+  entityId: number;
+};

@@ -17,3 +17,21 @@ export type CreateEntityResponse = {
   };
   subscriptionId: string;
 };
+
+export const createEntityBatchRequestType = 'CreateEntityBatchRequest';
+export type CreateEntityBatchRequest = {
+  type: typeof createEntityBatchRequestType;
+  payload: {
+    batch: CreateEntityRequest['payload']['components'][];
+    responseSubId: string;
+  };
+};
+
+export const createEntityBatchResponseType = 'CreateEntityBatchResponse';
+export type CreateEntityBatchResponse = {
+  type: typeof createEntityBatchResponseType;
+  payload: {
+    batchEntityId: CreateEntityResponse['payload']['entityId'][];
+  };
+  subscriptionId: string;
+};

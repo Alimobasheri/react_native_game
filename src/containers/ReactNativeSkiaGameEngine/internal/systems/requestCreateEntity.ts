@@ -25,7 +25,7 @@ export const requestCreateEntity: System = {
         payload: { entityId: entity },
         subscriptionId: payload.responseSubId,
       };
-      eventQueue.addExternalEvent(responseEvent);
+      eventQueue.addAwaitingExternalEvent(responseEvent);
     }
   },
 };

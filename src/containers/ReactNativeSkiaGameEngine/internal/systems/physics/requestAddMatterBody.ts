@@ -18,7 +18,6 @@ function createMatterBodyFromPayload(payload: AddMatterBodyRequest['payload']) {
   switch (type) {
     case 'rectangle': {
       const { x, y, width, height, options: bodyOptions } = options;
-      console.log('🚀 ~ createMatterBodyFromPayload ~ options:', options);
       return global.MatterReanimated.Bodies.rectangle(
         x,
         y,
@@ -100,10 +99,8 @@ export const requestAddMatterBody: System = {
       .filter((e) => e.type === AddMatterBodyRequestType);
     for (let i = 0; i < events.length; i++) {
       const payload: AddMatterBodyRequest['payload'] = events[i].payload;
-      console.log('🚀 ~ payload:', payload);
 
       const body = createMatterBodyFromPayload(payload);
-      console.log('🚀 ~ body:', body.velocity);
 
       global.MatterReanimated.Composite.add(
         global._RNTGE_.physics.engine.world,
@@ -119,7 +116,7 @@ export const requestAddMatterBody: System = {
         payload: { success: true, bodyId: body.id },
         subscriptionId: payload.responseSubId,
       };
-      eventQueue.addExternalEvent(responseEvent);
+      eventQueue.addAwaitingExternalEvent(responseEvent);
     }
   },
 };

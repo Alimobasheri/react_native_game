@@ -1,20 +1,33 @@
 import { useEffect } from 'react';
 import { DerivedSystem } from '../useDerivedMemory/useDerivedMemory';
 import { useECSContext } from '../useECSContext/useECSContext';
-import { useDerivedValue } from 'react-native-reanimated';
+import {
+  useDerivedValue,
+  useFrameCallback,
+  useSharedValue,
+} from 'react-native-reanimated';
 
-export type UseDerivedQueryArgs = {
-  key: string;
+export type UseDerivedQueryArgs<T> = {
+  defaultValue: T;
   transform?: DerivedSystem['transform'];
 };
 
-export const useDerivedQuery = ({ key, transform }: UseDerivedQueryArgs) => {
+export const useDerivedQuery = <T>({
+  defaultValue,
+  transform,
+}: UseDerivedQueryArgs<T>) => {
   const ecsContext = useECSContext();
-  useEffect(() => {
-    if (transform) ecsContext.addDerivedSystem({ key, transform });
-  }, [ecsContext, key, transform]);
+  const value = useSharedValue<T>(defaultValue);
 
-  return useDerivedValue(() => {
-    return ecsContext.derivedMemory.value[key];
+  useFrameCallback(() => {
+    'worklet';
+    if (!ecsContext.ecs.value || !transform) return;
+
+    const derivedValue = transform(
+      ecsContext.ecs.value?.getAllEntities(),
+      ecsContext.ecs.value?.components.value
+    );
+    value.value = derivedValue;
   });
+  return value;
 };
