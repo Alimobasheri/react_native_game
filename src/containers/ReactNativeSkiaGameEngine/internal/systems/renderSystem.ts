@@ -4,6 +4,7 @@ import {
   SkPicture,
   SkPath,
   PaintStyle,
+  SkImage,
 } from '@shopify/react-native-skia';
 import { RenderComponentData, RenderComponentName } from '../components/render';
 import { SharedValue } from 'react-native-reanimated';
@@ -46,7 +47,8 @@ const createPathFromShape = (
 
 const createAndCacheEntityPicture = (
   components: Record<string, ComponentStore<any>>,
-  entityId: Entity
+  entityId: Entity,
+  imageCache: SharedValue<Record<string, SkImage>>
 ): SkPicture | null => {
   'worklet';
   const renderData: RenderComponentData | undefined =
@@ -59,27 +61,66 @@ const createAndCacheEntityPicture = (
   const recorder = Skia.PictureRecorder();
   const canvas = recorder.beginRecording();
 
-  const skPath = createPathFromShape(renderData);
-
-  if (skPath) {
-    const fillPaint = Skia.Paint();
-    fillPaint.setAntiAlias(true);
-    fillPaint.setStyle(PaintStyle.Fill);
-    fillPaint.setColor(Skia.Color(renderData.fillColor || '#0099ff'));
-    if (renderData.opacity) {
-      fillPaint.setAlphaf(renderData.opacity);
-    }
-    canvas.drawPath(skPath, fillPaint);
-
-    if (renderData.strokeColor) {
-      const strokePaint = Skia.Paint();
-      strokePaint.setStyle(PaintStyle.Stroke);
-      strokePaint.setStrokeWidth(renderData.lineWidth || 1);
-      strokePaint.setColor(Skia.Color(renderData.strokeColor || '#2E3440'));
-      if (renderData.opacity) {
-        strokePaint.setAlphaf(renderData.opacity);
+  if (renderData.image) {
+    let image = imageCache.value[renderData.image];
+    if (image) {
+      let width = image.width();
+      let height = image.height();
+      if (renderData.shape.type === 'rectangle') {
+        width = renderData.shape.width;
+        height = renderData.shape.height;
+      } else if (renderData.shape.type === 'circle') {
+        width = renderData.shape.radius * 2;
+        height = renderData.shape.radius * 2;
       }
-      canvas.drawPath(skPath, strokePaint);
+
+      const destRect = Skia.XYWHRect(-width / 2, -height / 2, width, height);
+      canvas.drawImageRect(
+        image,
+        Skia.XYWHRect(0, 0, image.width(), image.height()),
+        destRect,
+        Skia.Paint()
+      );
+    } else {
+      // Draw a fallback shape if image decoding fails, making bugs visible.
+      const errorPaint = Skia.Paint();
+      errorPaint.setColor(Skia.Color('magenta'));
+      let size = 0;
+      if (renderData.shape.type === 'rectangle') {
+        size = Math.max(renderData.shape.width, renderData.shape.height);
+      } else if (renderData.shape.type === 'circle') {
+        size = renderData.shape.radius * 2;
+      } else {
+        size = 50; // Default size for polygons or unknown shapes
+      }
+      canvas.drawRect(
+        Skia.XYWHRect(-size / 2, -size / 2, size, size),
+        errorPaint
+      );
+    }
+  } else {
+    const skPath = createPathFromShape(renderData);
+
+    if (skPath) {
+      const fillPaint = Skia.Paint();
+      fillPaint.setAntiAlias(true);
+      fillPaint.setStyle(PaintStyle.Fill);
+      fillPaint.setColor(Skia.Color(renderData.fillColor || '#0099ff'));
+      if (renderData.opacity) {
+        fillPaint.setAlphaf(renderData.opacity);
+      }
+      canvas.drawPath(skPath, fillPaint);
+
+      if (renderData.strokeColor) {
+        const strokePaint = Skia.Paint();
+        strokePaint.setStyle(PaintStyle.Stroke);
+        strokePaint.setStrokeWidth(renderData.lineWidth || 1);
+        strokePaint.setColor(Skia.Color(renderData.strokeColor || '#2E3440'));
+        if (renderData.opacity) {
+          strokePaint.setAlphaf(renderData.opacity);
+        }
+        canvas.drawPath(skPath, strokePaint);
+      }
     }
   }
 
@@ -89,7 +130,8 @@ const createAndCacheEntityPicture = (
 export const renderSystem = (
   picture: SharedValue<SkPicture | null>,
   dimensions: SharedValue<{ width: number; height: number }>,
-  pictureCache: SharedValue<Record<number, SkPicture>>
+  pictureCache: SharedValue<Record<number, SkPicture>>,
+  imageCache: SharedValue<Record<string, SkImage>>
 ): System => {
   'worklet';
   return {
@@ -117,7 +159,8 @@ export const renderSystem = (
         if (renderData.isDirty || !entityPicture) {
           const newEntityPicture = createAndCacheEntityPicture(
             components,
-            entity
+            entity,
+            imageCache
           );
           if (newEntityPicture) {
             pictureCache.value[entity] = newEntityPicture;

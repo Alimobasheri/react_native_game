@@ -1,4 +1,4 @@
-import { Canvas, Skia, SkPicture } from '@shopify/react-native-skia';
+import { Canvas, SkImage, SkPicture } from '@shopify/react-native-skia';
 import {
   FC,
   PropsWithChildren,
@@ -34,20 +34,30 @@ import { RenderEntities } from './components-ecs/RenderEntities.tsx/RenderEntiti
 import { renderSystem } from './internal/systems/renderSystem';
 import { requestCreateEntityBatch } from './internal/systems/requestCreateEntityBatch';
 import { requestAddMatterBodyBatch } from './internal/systems/physics/requestAddMatterBodyBatch';
+import { loadImageAssets } from './services-ecs/image-store';
 
 export interface ReactNativeTurboGameEngineProps {
   componentNames: string[];
+  images: Record<string, any>;
 }
 
 export const ReactNativeTurboGameEngine: FC<
   PropsWithChildren<ReactNativeTurboGameEngineProps>
-> = ({ componentNames, children }) => {
+> = ({ componentNames, images, children }) => {
   const setDimensions = useRNTGEStore((state) => state.setDimensions);
   const dimensions = useSharedValue({ width: 0, height: 0 });
   const eventQueue = useEventQueue();
   const { ECS, state, initECS } = useECS({ eventQueue });
   const picture = useSharedValue<SkPicture | null>(null);
   const pictureCache = useSharedValue<Record<number, SkPicture>>({});
+  const imageCache = useSharedValue<Record<string, SkImage>>({});
+
+  useEffect(() => {
+    loadImageAssets(images, (loadedImageCache) => {
+      imageCache.value = loadedImageCache;
+    });
+  }, [images]);
+
   const {
     derivedMemory,
     derivedSystems,
@@ -85,8 +95,10 @@ export const ReactNativeTurboGameEngine: FC<
     ECS.value.registerSystem(requestAddMatterBody);
     ECS.value.registerSystem(requestAddMatterBodyBatch);
     ECS.value.registerSystem(updateMatterWorld);
-    ECS.value.registerSystem(renderSystem(picture, dimensions, pictureCache));
-  }, [ECS, picture, dimensions, pictureCache]);
+    ECS.value.registerSystem(
+      renderSystem(picture, dimensions, pictureCache, imageCache)
+    );
+  }, [ECS, picture, dimensions, pictureCache, imageCache]);
 
   const onFrame = useCallback(() => {
     'worklet';

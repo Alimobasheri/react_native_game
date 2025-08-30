@@ -11,6 +11,7 @@ export const ShipView: FC<{ x: number }> = ({ x }) => {
         shape: { type: 'rectangle', width: 100, height: 100 },
         fillColor: '#ff0000',
         visible: true,
+        image: 'ship',
       }),
     ],
     []

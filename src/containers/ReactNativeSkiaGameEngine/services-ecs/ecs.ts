@@ -18,8 +18,7 @@ export type ECS = {
   runSystems: (
     ecs: SharedValue<ECS>,
     eventQueue: EventQueueContextType,
-    deltaTime: number,
-    renderRuntime: any | null
+    deltaTime: number
   ) => void;
   removeEntity: (entity: Entity) => void;
   getAllEntities: () => Entity[];

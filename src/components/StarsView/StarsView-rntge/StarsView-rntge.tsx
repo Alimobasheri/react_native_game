@@ -21,7 +21,7 @@ export const StarsView = () => {
     for (let i = 0; i < StarsCount; i++) {
       const cx = Math.random() * windowWidth;
       const cy = Math.random() * windowHeight;
-      const r = Math.random() * 2 + 1;
+      const r = 5;
       const fill = 'white';
 
       batch.push([
@@ -30,6 +30,7 @@ export const StarsView = () => {
           shape: { type: 'circle', radius: r },
           fillColor: fill,
           visible: true,
+          image: 'star',
         }),
       ]);
     }
