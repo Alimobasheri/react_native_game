@@ -1,4 +1,10 @@
-import { Canvas, SkImage, SkPicture } from '@shopify/react-native-skia';
+import {
+  Canvas,
+  Skia,
+  SkImage,
+  SkPicture,
+  SkRuntimeEffect,
+} from '@shopify/react-native-skia';
 import {
   FC,
   PropsWithChildren,
@@ -38,12 +44,13 @@ import { loadImageAssets } from './services-ecs/image-store';
 
 export interface ReactNativeTurboGameEngineProps {
   componentNames: string[];
-  images: Record<string, any>;
+  images?: Record<string, any>;
+  shaders?: Record<string, string>;
 }
 
 export const ReactNativeTurboGameEngine: FC<
   PropsWithChildren<ReactNativeTurboGameEngineProps>
-> = ({ componentNames, images, children }) => {
+> = ({ componentNames, images, shaders, children }) => {
   const setDimensions = useRNTGEStore((state) => state.setDimensions);
   const dimensions = useSharedValue({ width: 0, height: 0 });
   const eventQueue = useEventQueue();
@@ -52,8 +59,31 @@ export const ReactNativeTurboGameEngine: FC<
   const pictureCache = useSharedValue<Record<number, SkPicture>>({});
   const imageCache = useSharedValue<Record<string, SkImage>>({});
 
+  const shaderEffects = useSharedValue<Record<string, SkRuntimeEffect>>({});
+
+  // Compile shaders once on mount
   useEffect(() => {
-    loadImageAssets(images, (loadedImageCache) => {
+    if (shaders) {
+      const compiledShaders = Object.fromEntries(
+        Object.entries(shaders).map(([key, source]) => {
+          const effect = Skia.RuntimeEffect.Make(source);
+          if (!effect) {
+            // In a real scenario, provide more robust error handling
+            console.error(`Failed to compile shader: ${key}`);
+            return [key, null];
+          }
+          return [key, effect];
+        })
+      );
+      //@ts-ignore
+      shaderEffects.value = Object.fromEntries(
+        Object.entries(compiledShaders).filter(([, effect]) => effect !== null)
+      );
+    }
+  }, [shaders]);
+
+  useEffect(() => {
+    loadImageAssets(images ?? {}, (loadedImageCache) => {
       imageCache.value = loadedImageCache;
     });
   }, [images]);
@@ -96,9 +126,9 @@ export const ReactNativeTurboGameEngine: FC<
     ECS.value.registerSystem(requestAddMatterBodyBatch);
     ECS.value.registerSystem(updateMatterWorld);
     ECS.value.registerSystem(
-      renderSystem(picture, dimensions, pictureCache, imageCache)
+      renderSystem(picture, dimensions, pictureCache, imageCache, shaderEffects)
     );
-  }, [ECS, picture, dimensions, pictureCache, imageCache]);
+  }, [ECS, picture, dimensions, pictureCache, imageCache, shaderEffects]);
 
   const onFrame = useCallback(() => {
     'worklet';

@@ -1,5 +1,6 @@
 import { IBodyDefinition } from 'matter-js';
 import { PositionComponentData } from './position';
+import { SharedValue } from 'react-native-reanimated';
 
 export const RenderComponentName = 'render';
 
@@ -20,6 +21,11 @@ export type RenderShapePolygon = {
   vertices: { x: number; y: number }[];
 };
 
+export interface ShaderInfo {
+  key: string; // The key provided to the RNTGE component's `shaders` prop
+  uniforms: Record<string, SharedValue<number | number[]>>;
+}
+
 // The new RenderComponentData using the discriminated union for shapes
 export interface RenderComponentData {
   shape: RenderShapeRectangle | RenderShapeCircle | RenderShapePolygon;
@@ -32,6 +38,7 @@ export interface RenderComponentData {
   image?: string;
   zIndex?: number;
   isDirty?: boolean;
+  shader?: ShaderInfo;
 }
 
 // Update the creation utility function

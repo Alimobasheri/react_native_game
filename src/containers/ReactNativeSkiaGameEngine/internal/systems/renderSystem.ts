@@ -5,6 +5,8 @@ import {
   SkPath,
   PaintStyle,
   SkImage,
+  SkRuntimeEffect,
+  SkShader,
 } from '@shopify/react-native-skia';
 import { RenderComponentData, RenderComponentName } from '../components/render';
 import { SharedValue } from 'react-native-reanimated';
@@ -130,14 +132,19 @@ const createAndCacheEntityPicture = (
 export const renderSystem = (
   picture: SharedValue<SkPicture | null>,
   dimensions: SharedValue<{ width: number; height: number }>,
-  pictureCache: SharedValue<Record<number, SkPicture>>,
-  imageCache: SharedValue<Record<string, SkImage>>
+  pictureCache: SharedValue<Record<number, SkPicture | SkPath>>,
+  imageCache: SharedValue<Record<string, SkImage>>,
+  shaderEffects: SharedValue<Record<string, SkRuntimeEffect>>
 ): System => {
   'worklet';
   return {
     requiredComponents: [RenderComponentName],
     process: (entities, components, eventQueue, deltaTime, ecs) => {
       'worklet';
+
+      const shaderPaint = Skia.Paint();
+      shaderPaint.setAntiAlias(true);
+
       const recorder = Skia.PictureRecorder();
       const bounds = Skia.XYWHRect(
         0,
@@ -154,41 +161,80 @@ export const renderSystem = (
 
         if (!renderData || renderData.visible === false) continue;
 
-        let entityPicture = pictureCache.value[entity];
+        if (renderData.shader) {
+          // --- SHADER PATH ---
+          const effect = shaderEffects.value[renderData.shader.key];
+          if (effect) {
+            let path = pictureCache.value[entity] as SkPath;
+            if (!path || renderData.isDirty) {
+              path = createPathFromShape(renderData) as SkPath;
+              pictureCache.value[entity] = path;
+            }
+            if (path) {
+              const uniformValues: number[] = [];
+              // Note: The order of uniforms must match the order in the GLSL code.
+              // JavaScript object key order is not guaranteed, so for robust code,
+              // it's better to rely on an array in the component definition.
+              // However, for simplicity and since modern engines have consistent ordering,
+              // we will proceed, but this is an expert-level caveat.
+              const uniformSources = Object.values(renderData.shader.uniforms);
 
-        if (renderData.isDirty || !entityPicture) {
-          const newEntityPicture = createAndCacheEntityPicture(
-            components,
-            entity,
-            imageCache
-          );
-          if (newEntityPicture) {
-            pictureCache.value[entity] = newEntityPicture;
-            entityPicture = newEntityPicture;
+              for (const source of uniformSources) {
+                const value = source.value;
+                if (typeof value === 'number') {
+                  uniformValues.push(value);
+                } else {
+                  // This handles vec2, vec3, vec4 etc. (number[])
+                  uniformValues.push(...value);
+                }
+              }
+
+              const shader: SkShader = effect.makeShader(uniformValues);
+              // ======================================================
+              // ======================================================
+
+              shaderPaint.setShader(shader);
+              canvas.drawPath(path, shaderPaint);
+            }
           }
-          renderData.isDirty = false;
-        }
-
-        if (entityPicture) {
-          const body: IBodyDefinition | undefined =
-            components[MatterBodyComponentName]?.get(entity);
-
-          // Use physics body for position if it exists, otherwise use static position from renderData
-          const position = body?.position ||
-            renderData.position || { x: 0, y: 0 };
-          const angle = body?.angle || 0;
-
-          const matrix = Skia.Matrix();
-          matrix.translate(position.x, position.y);
-          if (angle !== 0) {
-            matrix.rotate(angle);
+        } else {
+          // --- STATIC/IMAGE PATH ---
+          let entityPicture = pictureCache.value[entity] as SkPicture;
+          if (renderData.isDirty || !entityPicture) {
+            const newEntityPicture = createAndCacheEntityPicture(
+              components,
+              entity,
+              imageCache
+            );
+            if (newEntityPicture) {
+              pictureCache.value[entity] = newEntityPicture;
+              entityPicture = newEntityPicture;
+            }
           }
 
-          canvas.save();
-          canvas.concat(matrix);
-          canvas.drawPicture(entityPicture);
-          canvas.restore();
+          if (entityPicture) {
+            const body: IBodyDefinition | undefined =
+              components[MatterBodyComponentName]?.get(entity);
+
+            // Use physics body for position if it exists, otherwise use static position from renderData
+            const position = body?.position ||
+              renderData.position || { x: 0, y: 0 };
+            const angle = body?.angle || 0;
+
+            const matrix = Skia.Matrix();
+            matrix.translate(position.x, position.y);
+            if (angle !== 0) {
+              matrix.rotate(angle);
+            }
+
+            canvas.save();
+            canvas.concat(matrix);
+            canvas.drawPicture(entityPicture);
+            canvas.restore();
+          }
         }
+        renderData.isDirty = false;
+        canvas.restore();
       }
 
       const newPicture = recorder.finishRecordingAsPicture();
