@@ -7,6 +7,7 @@ import {
   SkImage,
   SkRuntimeEffect,
   SkShader,
+  BlendMode,
 } from '@shopify/react-native-skia';
 import { RenderComponentData, RenderComponentName } from '../components/render';
 import { SharedValue } from 'react-native-reanimated';
@@ -84,7 +85,6 @@ const createAndCacheEntityPicture = (
         Skia.Paint()
       );
     } else {
-      // Draw a fallback shape if image decoding fails, making bugs visible.
       const errorPaint = Skia.Paint();
       errorPaint.setColor(Skia.Color('magenta'));
       let size = 0;
@@ -93,7 +93,7 @@ const createAndCacheEntityPicture = (
       } else if (renderData.shape.type === 'circle') {
         size = renderData.shape.radius * 2;
       } else {
-        size = 50; // Default size for polygons or unknown shapes
+        size = 50;
       }
       canvas.drawRect(
         Skia.XYWHRect(-size / 2, -size / 2, size, size),
@@ -161,8 +161,26 @@ export const renderSystem = (
 
         if (!renderData || renderData.visible === false) continue;
 
+        // --- START OF REFACTORED CODE ---
+
+        // 1. Universal Transformation Logic
+        const body: IBodyDefinition | undefined =
+          components[MatterBodyComponentName]?.get(entity);
+        const position = body?.position ||
+          renderData.position || { x: 0, y: 0 };
+        const angle = body?.angle || 0;
+
+        const matrix = Skia.Matrix();
+        matrix.translate(position.x, position.y);
+        if (angle !== 0) {
+          matrix.rotate(angle);
+        }
+
+        canvas.save();
+        canvas.concat(matrix);
+
+        // 2. Conditional Rendering Logic
         if (renderData.shader) {
-          // --- SHADER PATH ---
           const effect = shaderEffects.value[renderData.shader.key];
           if (effect) {
             let path = pictureCache.value[entity] as SkPath;
@@ -172,33 +190,23 @@ export const renderSystem = (
             }
             if (path) {
               const uniformValues: number[] = [];
-              // Note: The order of uniforms must match the order in the GLSL code.
-              // JavaScript object key order is not guaranteed, so for robust code,
-              // it's better to rely on an array in the component definition.
-              // However, for simplicity and since modern engines have consistent ordering,
-              // we will proceed, but this is an expert-level caveat.
               const uniformSources = Object.values(renderData.shader.uniforms);
 
               for (const source of uniformSources) {
-                const value = source.value;
+                const value = source;
                 if (typeof value === 'number') {
                   uniformValues.push(value);
                 } else {
-                  // This handles vec2, vec3, vec4 etc. (number[])
                   uniformValues.push(...value);
                 }
               }
 
               const shader: SkShader = effect.makeShader(uniformValues);
-              // ======================================================
-              // ======================================================
-
               shaderPaint.setShader(shader);
               canvas.drawPath(path, shaderPaint);
             }
           }
         } else {
-          // --- STATIC/IMAGE PATH ---
           let entityPicture = pictureCache.value[entity] as SkPicture;
           if (renderData.isDirty || !entityPicture) {
             const newEntityPicture = createAndCacheEntityPicture(
@@ -213,28 +221,15 @@ export const renderSystem = (
           }
 
           if (entityPicture) {
-            const body: IBodyDefinition | undefined =
-              components[MatterBodyComponentName]?.get(entity);
-
-            // Use physics body for position if it exists, otherwise use static position from renderData
-            const position = body?.position ||
-              renderData.position || { x: 0, y: 0 };
-            const angle = body?.angle || 0;
-
-            const matrix = Skia.Matrix();
-            matrix.translate(position.x, position.y);
-            if (angle !== 0) {
-              matrix.rotate(angle);
-            }
-
-            canvas.save();
-            canvas.concat(matrix);
             canvas.drawPicture(entityPicture);
-            canvas.restore();
           }
         }
-        renderData.isDirty = false;
+
+        // 3. Universal Cleanup Logic
         canvas.restore();
+        renderData.isDirty = false;
+
+        // --- END OF REFACTORED CODE ---
       }
 
       const newPicture = recorder.finishRecordingAsPicture();
