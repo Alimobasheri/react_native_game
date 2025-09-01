@@ -12,6 +12,11 @@ export type ECS = {
   createComponent: (componentName: string) => void;
   addComponent: <T>(entity: number, component: Component<T>) => void;
   removeComponent: (entity: Entity, componentName: string) => void;
+  updateComponent: <T>(
+    entity: Entity,
+    componentName: string,
+    recipe: (component: T) => void
+  ) => void;
   componentExists: (componentName: string) => boolean;
   getEntitiesWithComponents: (requiredComponentNames: string[]) => Entity[];
   registerSystem: (system: System) => number;
@@ -77,6 +82,26 @@ export const createECS = ({
     components.value[component.name].add(entity, component.data);
   };
 
+  const updateComponent = <T>(
+    entity: Entity,
+    componentName: string,
+    recipe: (component: T) => void
+  ) => {
+    'worklet';
+    const componentStore = components.value[componentName];
+    if (!componentStore) {
+      // In a production engine, you might want to log this error.
+      // For now, we fail silently.
+      return;
+    }
+
+    const componentData = componentStore.get(entity) as T | undefined;
+
+    if (componentData) {
+      recipe(componentData);
+    }
+  };
+
   const removeComponent = <T>(entity: Entity, componentName: string) => {
     'worklet';
     const componentBit = bitManager.getComponentBit(componentName);
@@ -118,6 +143,7 @@ export const createECS = ({
     createComponent,
     addComponent,
     removeComponent,
+    updateComponent,
     componentExists,
     getEntitiesWithComponents,
     registerSystem: systemManager.registerSystem,

@@ -23,7 +23,7 @@ export type RenderShapePolygon = {
 
 export interface ShaderInfo {
   key: string; // The key provided to the RNTGE component's `shaders` prop
-  uniforms: Record<string, SharedValue<number | number[]>>;
+  uniforms: Record<string, number | number[]>;
 }
 
 // The new RenderComponentData using the discriminated union for shapes

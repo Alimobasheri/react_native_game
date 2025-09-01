@@ -5,6 +5,7 @@ export type ComponentStore<T> = {
   get: (entity: Entity) => T | undefined;
   add: (entity: Entity, component: T) => void;
   remove: (entity: Entity) => void;
+  update: (entity: Entity, data: T) => void;
 };
 
 const MAX_PAGE_SIZE = 64;
@@ -57,20 +58,34 @@ export const createComponentStore = <T>(): ComponentStore<T> => {
     size--;
   };
 
-  const get = (entity: Entity) => {
+  const getIndex = (entity: Entity): number | undefined => {
     'worklet';
     const pageIndex = getPage(entity);
     const offset = getOffset(entity);
 
     if (pageIndex >= pages.length || pages[pageIndex][offset] === 0)
       return undefined;
-    const index = pages[pageIndex][offset] - 1;
-    return dense[index];
+    return pages[pageIndex][offset] - 1;
+  };
+
+  const get = (entity: Entity) => {
+    'worklet';
+    const index = getIndex(entity);
+    return index !== undefined ? dense[index] : undefined;
+  };
+
+  const update = (entity: Entity, data: T) => {
+    'worklet';
+    const index = getIndex(entity);
+    if (index !== undefined) {
+      dense[index] = data;
+    }
   };
 
   return {
     get,
     add,
     remove,
+    update,
   };
 };

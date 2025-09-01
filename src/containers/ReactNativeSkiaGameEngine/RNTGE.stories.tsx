@@ -17,6 +17,8 @@ import {
 } from '@/Shaders/WaveShader/waveShader';
 import { shaderNoiseFuncWithRandom } from '@/Shaders/common/noise';
 import { ShaderStar } from '@/components/StarsView/StarsView-rntge/ShaderStar';
+import { SeaGroup } from '@/components/SeaGroupRenderer/SeaGroup-rntge';
+import { SeaLayerComponentName } from '@/Game/ecs-components/SeaLayer';
 
 const meta = {
   title: 'React Native Turbo Game Engine',
@@ -30,7 +32,7 @@ type Story = StoryObj<typeof meta>;
 
 const { width: windowWidth } = Dimensions.get('window');
 
-export const WaterRippleShader = `
+const WaterRippleShader = `
   uniform float iTime;
   uniform vec2 iResolution; // Example uniforms
   uniform vec2 iCenter;
@@ -43,12 +45,24 @@ export const WaterRippleShader = `
   }
 `;
 
+const seaShader = `
+    ${waveShaderUniforms}
+    ${shaderNoiseFuncWithRandom}
+    ${waveShaderGetDecayFunc}
+    ${waveShaderFoamIntensityFunc}
+    ${waveShaderYPosition}
+    ${waveShaderWaveMaskFunc}
+    ${waveShaderWaterMaskFunc}
+    ${waveShaderMainFunc}
+  `;
+
 export const Basic: Story = {
   args: {
-    componentNames: ['star'],
+    componentNames: ['star', SeaLayerComponentName],
     images: { ship: ship, star: star },
     shaders: {
-      water: WaterRippleShader, // Pass GLSL string
+      water: WaterRippleShader,
+      sea: seaShader,
     },
   },
   render: (args: any) => (
@@ -57,8 +71,9 @@ export const Basic: Story = {
         <ReactNativeTurboGameEngine {...args}>
           <SkyBackground />
           <StarsView />
-          <ShaderStar x={windowWidth / 2} y={windowWidth / 2} />
+          {/* <ShaderStar x={windowWidth / 2} y={windowWidth / 2} /> */}
           <ShipView x={windowWidth / 2} />
+          <SeaGroup />
         </ReactNativeTurboGameEngine>
       </View>
     </View>
