@@ -7,6 +7,7 @@ import { SkyBackground } from '@/components/SkyBackground/SkyBackground-rntge';
 import { StarsView } from '@/components/StarsView/StarsView-rntge/StarsView-rntge';
 import { ship, star } from '../../assets/images';
 import {
+  sourceCode,
   waveShaderFoamIntensityFunc,
   waveShaderGetDecayFunc,
   waveShaderMainFunc,
@@ -62,7 +63,7 @@ export const Basic: Story = {
     images: { ship: ship, star: star },
     shaders: {
       water: WaterRippleShader,
-      sea: seaShader,
+      sea: sourceCode,
     },
   },
   render: (args: any) => (

@@ -42,3 +42,19 @@ export type AddMatterBodyBatchResponse = {
   };
   subscriptionId: string;
 };
+
+export const RemoveMatterBodyRequestType = 'RemoveMatterBodyRequest';
+export type RemoveMatterBodyRequest = {
+  type: typeof RemoveMatterBodyRequestType;
+  payload: {
+    entityId: number;
+  };
+};
+
+export const RemoveMatterBodyBatchRequestType = 'RemoveMatterBodyBatchRequest';
+export type RemoveMatterBodyBatchRequest = {
+  type: typeof RemoveMatterBodyBatchRequestType;
+  payload: {
+    entityIds: number[];
+  };
+};

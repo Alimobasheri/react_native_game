@@ -35,3 +35,19 @@ export type CreateEntityBatchResponse = {
   };
   subscriptionId: string;
 };
+
+export const RemoveEntityRequestType = 'RemoveEntityRequest';
+export type RemoveEntityRequest = {
+  type: typeof RemoveEntityRequestType;
+  payload: {
+    entityId: number;
+  };
+};
+
+export const RemoveEntityBatchRequestType = 'RemoveEntityBatchRequest';
+export type RemoveEntityBatchRequest = {
+  type: typeof RemoveEntityBatchRequestType;
+  payload: {
+    entityIds: number[];
+  };
+};
