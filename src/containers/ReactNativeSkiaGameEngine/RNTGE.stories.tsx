@@ -3,9 +3,10 @@ import { ReactNativeTurboGameEngine } from './RNTGE';
 import { Dimensions, View } from 'react-native';
 import { MemoizedContainer } from './components/MemoizedContainer';
 import { ShipView } from '@/components/ShipView/ShipView-rntge';
+import { SurferView } from '@/components/SurferView/SurferView-rntge';
 import { SkyBackground } from '@/components/SkyBackground/SkyBackground-rntge';
 import { StarsView } from '@/components/StarsView/StarsView-rntge/StarsView-rntge';
-import { ship, star } from '../../assets/images';
+import { ship, star, surfer } from '../../assets/images';
 import {
   sourceCode,
   waveShaderFoamIntensityFunc,
@@ -60,7 +61,7 @@ const seaShader = `
 export const Basic: Story = {
   args: {
     componentNames: ['star', SeaLayerComponentName],
-    images: { ship: ship, star: star },
+    images: { ship: ship, star: star, surfer: surfer },
     shaders: {
       water: WaterRippleShader,
       sea: sourceCode,
@@ -73,7 +74,8 @@ export const Basic: Story = {
           <SkyBackground />
           <StarsView />
           {/* <ShaderStar x={windowWidth / 2} y={windowWidth / 2} /> */}
-          <ShipView x={windowWidth / 2} />
+          {/* <ShipView x={windowWidth / 2} /> */}
+          <SurferView x={windowWidth / 2 - 100} y={200} />
           <SeaGroup />
         </ReactNativeTurboGameEngine>
       </View>

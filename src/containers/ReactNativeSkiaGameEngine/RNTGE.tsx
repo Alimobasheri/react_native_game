@@ -2,6 +2,7 @@ import {
   Canvas,
   Skia,
   SkImage,
+  SkPath,
   SkPicture,
   SkRuntimeEffect,
 } from '@shopify/react-native-skia';
@@ -17,6 +18,7 @@ import { ECSState, useECS } from './hooks-ecs/useECS/useECS';
 import { ECSProvider } from './contexts-rntge/ECSContext/ECSProvider';
 import { MemoizedContainer } from './components/MemoizedContainer';
 import {
+  FrameInfo,
   runOnJS,
   SharedValue,
   useAnimatedReaction,
@@ -56,7 +58,7 @@ export const ReactNativeTurboGameEngine: FC<
   const eventQueue = useEventQueue();
   const { ECS, state, initECS } = useECS({ eventQueue });
   const picture = useSharedValue<SkPicture | null>(null);
-  const pictureCache = useSharedValue<Record<number, SkPicture>>({});
+  const pictureCache = useSharedValue<Record<number, SkPicture | SkPath>>({});
   const imageCache = useSharedValue<Record<string, SkImage>>({});
 
   const shaderEffects = useSharedValue<Record<string, SkRuntimeEffect>>({});
@@ -130,32 +132,39 @@ export const ReactNativeTurboGameEngine: FC<
     );
   }, [ECS, picture, dimensions, pictureCache, imageCache, shaderEffects]);
 
-  const onFrame = useCallback(() => {
-    'worklet';
-    if (global.gc) global.gc();
-    if (eventQueue.nextExternalEvents.value.length > 0) return;
-    eventQueue.clearEvents();
-    if (state.value !== ECSState.INITIALIZED) {
-      initECS();
-      initPhysics();
-      defineComponents();
-      registerInternalSystems();
-      return;
-    } else {
-      if (!!ECS && !!ECS.value) {
-        ECS.value.runSystems(ECS as SharedValue<ECS>, eventQueue, 100 / 60);
+  const onFrame = useCallback(
+    (frameInfo: FrameInfo) => {
+      'worklet';
+      if (global.gc) global.gc();
+      if (eventQueue.nextExternalEvents.value.length > 0) return;
+      eventQueue.clearEvents();
+      if (state.value !== ECSState.INITIALIZED) {
+        initECS();
+        initPhysics();
+        defineComponents();
+        registerInternalSystems();
+        return;
+      } else {
+        if (!!ECS && !!ECS.value) {
+          ECS.value.runSystems(
+            ECS as SharedValue<ECS>,
+            eventQueue,
+            frameInfo.timeSincePreviousFrame ?? 0
+          );
+        }
       }
-    }
-    eventQueue.callAllAwaitingExternalEvents();
-  }, [
-    ECS,
-    state,
-    eventQueue,
-    initECS,
-    initPhysics,
-    defineComponents,
-    registerInternalSystems,
-  ]);
+      eventQueue.callAllAwaitingExternalEvents();
+    },
+    [
+      ECS,
+      state,
+      eventQueue,
+      initECS,
+      initPhysics,
+      defineComponents,
+      registerInternalSystems,
+    ]
+  );
   useFrameCallback(onFrame);
   return (
     <Canvas
