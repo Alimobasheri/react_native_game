@@ -7,7 +7,7 @@ import { createStarComponentJS } from '@/data-components/StarComponent';
 import { useAddMatterBodyBatch } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useAddMatterBodyBatch/useAddMatterBodyBatch';
 import { CreateMatterBodyArgs } from '@/containers/ReactNativeSkiaGameEngine/internal/systems/physics/bodiesTypes';
 
-const StarsCount = 1000;
+const StarsCount = 50;
 
 export const StarsView = () => {
   const { width: windowWidth, height: windowHeight } = useCanvasDimensions();
