@@ -62,10 +62,12 @@ const seaLayerShaderSystem: System = {
           const uniforms = renderComponent.shader.uniforms;
 
           uniforms.iTime = seaLayerComponent.waves[0].time;
-          uniforms.height = seaLayerComponent.height;
+          uniforms.height =
+            seaLayerComponent.height / seaLayerComponent.windowHeight;
           uniforms.heightOffset =
+            0.5 +
             (seaLayerComponent.layerIndex * seaLayerComponent.height) /
-            (seaLayerComponent.windowHeight || 1);
+              seaLayerComponent.windowHeight;
           uniforms.frequency = seaLayerComponent.waves[0].frequency;
           uniforms.amplitude = seaLayerComponent.waves[0].amplitude;
           uniforms.speed = seaLayerComponent.waves[0].speed;
@@ -180,45 +182,52 @@ export const SeaGroup: FC = () => {
   }, []);
 
   const seaLayerEntitiesBatch: Component<any>[][] = useMemo(() => {
-    return seaLayerComponentsBatch.map((layerData, index) => [
-      createSeaLayerComponent(layerData),
-      createRenderComponent({
-        shape: {
-          type: 'rectangle',
-          width: layerData.width,
-          height: layerData.height,
-        },
-        fillColor: layerData.gradientColors[0],
-        visible: true,
-        position: { x: layerData.x, y: layerData.y },
-        shader: {
-          key: 'sea',
-          uniforms: {
-            iTime: 0,
-            height,
-            heightOffset:
-              (index * layerData.height) / (layerData.windowHeight || 1),
-            frequency: layerData.waves[0].frequency,
-            amplitude: layerData.waves[0].amplitude,
-            speed: layerData.waves[0].speed,
-            dynamicWaveX: layerData.waves[1].x,
-            dynamicWave: [
-              layerData.waves[1].amplitude,
-              layerData.waves[1].frequency,
-              layerData.waves[1].speed,
-              layerData.waves[1].time,
-            ],
-            heightOffsetFreq: 0.5,
-            heightOffsetAmp: 0.0,
-            waterColor: [28, 163, 236].map((c) => c / 255),
-            canvasSize: [
-              layerData.windowWidth || 0,
-              layerData.windowHeight || 0,
-            ],
+    return seaLayerComponentsBatch
+      .map((layerData, index) => [
+        createSeaLayerComponent(layerData),
+        createRenderComponent({
+          shape: {
+            type: 'rectangle',
+            width: layerData.windowWidth,
+            height: layerData.windowHeight,
           },
-        },
-      }),
-    ]);
+          fillColor: layerData.gradientColors[0],
+          visible: true,
+          position: {
+            x: layerData.windowWidth / 2,
+            y: layerData.windowHeight / 2,
+          },
+          shader: {
+            key: 'sea',
+            uniforms: {
+              iTime: 0,
+              height: layerData.height,
+              heightOffset:
+                0.3 +
+                (layerData.layerIndex * layerData.height) /
+                  layerData.windowHeight,
+              frequency: layerData.waves[0].frequency,
+              amplitude: layerData.waves[0].amplitude,
+              speed: layerData.waves[0].speed,
+              dynamicWaveX: layerData.waves[1].x,
+              dynamicWave: [
+                layerData.waves[1].amplitude,
+                layerData.waves[1].frequency,
+                layerData.waves[1].speed,
+                layerData.waves[1].time,
+              ],
+              heightOffsetFreq: 0.5,
+              heightOffsetAmp: 0.0,
+              waterColor: [28, 163, 236].map((c) => c / 255),
+              canvasSize: [
+                layerData.windowWidth || 0,
+                layerData.windowHeight || 0,
+              ],
+            },
+          },
+        }),
+      ])
+      .reverse();
   }, [seaLayerComponentsBatch]);
 
   useAddEntityBatch({ batch: seaLayerEntitiesBatch });

@@ -142,9 +142,6 @@ export const renderSystem = (
     process: (entities, components, eventQueue, deltaTime, ecs) => {
       'worklet';
 
-      const shaderPaint = Skia.Paint();
-      shaderPaint.setAntiAlias(true);
-
       const recorder = Skia.PictureRecorder();
       const bounds = Skia.XYWHRect(
         0,
@@ -181,6 +178,8 @@ export const renderSystem = (
 
         // 2. Conditional Rendering Logic
         if (renderData.shader) {
+          const shaderPaint = Skia.Paint();
+          shaderPaint.setAntiAlias(true);
           const effect = shaderEffects.value[renderData.shader.key];
           if (effect) {
             let path = pictureCache.value[entity] as SkPath;
@@ -195,15 +194,18 @@ export const renderSystem = (
               for (const source of uniformSources) {
                 const value = source;
                 if (typeof value === 'number') {
-                  uniformValues.push(value);
+                  uniformValues.push(value > 1 ? value * 1.0 : value);
                 } else {
                   uniformValues.push(...value);
                 }
               }
-
               const shader: SkShader = effect.makeShader(uniformValues);
+              shaderPaint.setStyle(PaintStyle.Fill);
+              shaderPaint.setBlendMode(BlendMode.Multiply);
               shaderPaint.setShader(shader);
+              shaderPaint.setAntiAlias(true);
               canvas.drawPath(path, shaderPaint);
+              shaderPaint.dispose();
             }
           }
         } else {

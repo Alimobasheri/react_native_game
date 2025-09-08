@@ -107,7 +107,16 @@ export const createWaveShader = () => {
     ${waveShaderMainFunc}
   `)!;
 };
-
+export const sourceCode = `
+    ${waveShaderUniforms}
+    ${shaderNoiseFuncWithRandom}
+    ${waveShaderGetDecayFunc}
+    ${waveShaderFoamIntensityFunc}
+    ${waveShaderYPosition}
+    ${waveShaderWaveMaskFunc}
+    ${waveShaderWaterMaskFunc}
+    ${waveShaderMainFunc}
+  `;
 export const useWaveShaderUniforms = ({
   frequency,
   amplitude,
