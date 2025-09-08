@@ -26,6 +26,17 @@ export interface ShaderInfo {
   uniforms: Record<string, number | number[]>;
 }
 
+export interface SpriteInfo {
+  frameWidth: number;
+  frameHeight: number;
+  totalFrames: number;
+  framesPerRow: number;
+  frameDuration: number; // Duration of each frame in milliseconds
+  loop: boolean;
+  currentFrame?: number; // Current frame index (managed by system)
+  lastFrameTime?: number; // Last time frame was updated (managed by system)
+}
+
 // The new RenderComponentData using the discriminated union for shapes
 export interface RenderComponentData {
   shape: RenderShapeRectangle | RenderShapeCircle | RenderShapePolygon;
@@ -36,6 +47,7 @@ export interface RenderComponentData {
   lineWidth?: number;
   opacity?: number;
   image?: string;
+  sprite?: SpriteInfo; // Sprite animation data
   zIndex?: number;
   isDirty?: boolean;
   shader?: ShaderInfo;

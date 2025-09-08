@@ -48,10 +48,40 @@ const createPathFromShape = (
   return skPath;
 };
 
+const updateSpriteAnimation = (
+  renderData: RenderComponentData,
+  deltaTime: number
+): void => {
+  'worklet';
+  if (!renderData.sprite) return;
+
+  const currentTime = Date.now();
+  if (renderData.sprite.lastFrameTime === undefined) {
+    renderData.sprite.lastFrameTime = currentTime;
+    renderData.sprite.currentFrame = 0;
+    return;
+  }
+
+  const elapsed = currentTime - renderData.sprite.lastFrameTime;
+  if (elapsed >= renderData.sprite.frameDuration) {
+    const nextFrame = (renderData.sprite.currentFrame || 0) + 1;
+    if (nextFrame >= renderData.sprite.totalFrames) {
+      renderData.sprite.currentFrame = renderData.sprite.loop
+        ? 0
+        : renderData.sprite.totalFrames - 1;
+    } else {
+      renderData.sprite.currentFrame = nextFrame;
+    }
+    renderData.sprite.lastFrameTime = currentTime;
+    renderData.isDirty = true; // Force re-render when frame changes
+  }
+};
+
 const createAndCacheEntityPicture = (
   components: Record<string, ComponentStore<any>>,
   entityId: Entity,
-  imageCache: SharedValue<Record<string, SkImage>>
+  imageCache: SharedValue<Record<string, SkImage>>,
+  deltaTime?: number
 ): SkPicture | null => {
   'worklet';
   const renderData: RenderComponentData | undefined =
@@ -59,6 +89,11 @@ const createAndCacheEntityPicture = (
 
   if (!renderData || renderData.visible === false) {
     return null;
+  }
+
+  // Update sprite animation if present
+  if (renderData.sprite && deltaTime !== undefined) {
+    updateSpriteAnimation(renderData, deltaTime);
   }
 
   const recorder = Skia.PictureRecorder();
@@ -69,6 +104,29 @@ const createAndCacheEntityPicture = (
     if (image) {
       let width = image.width();
       let height = image.height();
+      let sourceRect = Skia.XYWHRect(0, 0, image.width(), image.height());
+
+      // Handle sprite rendering
+      if (renderData.sprite) {
+        const currentFrame = renderData.sprite.currentFrame || 0;
+        const row = Math.floor(currentFrame / renderData.sprite.framesPerRow);
+        const col = currentFrame % renderData.sprite.framesPerRow;
+
+        const sourceX = col * renderData.sprite.frameWidth;
+        const sourceY = row * renderData.sprite.frameHeight;
+
+        sourceRect = Skia.XYWHRect(
+          sourceX,
+          sourceY,
+          renderData.sprite.frameWidth,
+          renderData.sprite.frameHeight
+        );
+
+        width = renderData.sprite.frameWidth;
+        height = renderData.sprite.frameHeight;
+      }
+
+      // Override dimensions based on shape if specified
       if (renderData.shape.type === 'rectangle') {
         width = renderData.shape.width;
         height = renderData.shape.height;
@@ -78,12 +136,13 @@ const createAndCacheEntityPicture = (
       }
 
       const destRect = Skia.XYWHRect(-width / 2, -height / 2, width, height);
-      canvas.drawImageRect(
-        image,
-        Skia.XYWHRect(0, 0, image.width(), image.height()),
-        destRect,
-        Skia.Paint()
-      );
+      const paint = Skia.Paint();
+      paint.setAntiAlias(true);
+      if (renderData.opacity) {
+        paint.setAlphaf(renderData.opacity);
+      }
+
+      canvas.drawImageRect(image, sourceRect, destRect, paint);
     } else {
       const errorPaint = Skia.Paint();
       errorPaint.setColor(Skia.Color('magenta'));
@@ -210,11 +269,12 @@ export const renderSystem = (
           }
         } else {
           let entityPicture = pictureCache.value[entity] as SkPicture;
-          if (renderData.isDirty || !entityPicture) {
+          if (renderData.isDirty || !entityPicture || renderData.sprite) {
             const newEntityPicture = createAndCacheEntityPicture(
               components,
               entity,
-              imageCache
+              imageCache,
+              deltaTime
             );
             if (newEntityPicture) {
               pictureCache.value[entity] = newEntityPicture;
