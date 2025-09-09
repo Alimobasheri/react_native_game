@@ -1,6 +1,7 @@
 import { IBodyDefinition } from 'matter-js';
 import { PositionComponentData } from './position';
 import { SharedValue } from 'react-native-reanimated';
+import { BlendMode } from '@shopify/react-native-skia';
 
 export const RenderComponentName = 'render';
 
@@ -51,6 +52,7 @@ export interface RenderComponentData {
   zIndex?: number;
   isDirty?: boolean;
   shader?: ShaderInfo;
+  blendMode?: BlendMode;
 }
 
 // Update the creation utility function

@@ -6,6 +6,7 @@ export type StarComponentData = {
   cy: number;
   radius: number;
   color: string;
+  speed: number;
 };
 
 export type StarComponent = Component<StarComponentData>;
@@ -15,16 +16,29 @@ export type StarInitialArgs = {
   cy: number;
   radius: number;
   color: string;
+  speed: number;
 };
 
 export const createStarComponentJS = (
-  initial: StarInitialArgs = { cx: 0, cy: 0, radius: 0, color: '#fff' }
+  initial: StarInitialArgs = {
+    cx: 0,
+    cy: 0,
+    radius: 0,
+    color: '#fff',
+    speed: 0,
+  }
 ): StarComponent => {
   return { name: StarComponentName, data: initial };
 };
 
 export const createStarComponent = (
-  initial: StarInitialArgs = { cx: 0, cy: 0, radius: 0, color: '#fff' }
+  initial: StarInitialArgs = {
+    cx: 0,
+    cy: 0,
+    radius: 0,
+    color: '#fff',
+    speed: 0,
+  }
 ): StarComponent => {
   'worklet';
   return { name: StarComponentName, data: initial };

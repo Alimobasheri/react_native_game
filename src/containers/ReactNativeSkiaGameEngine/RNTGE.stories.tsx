@@ -76,8 +76,9 @@ export const Basic: Story = {
           <StarsView />
           {/* <ShaderStar x={windowWidth / 2} y={windowWidth / 2} /> */}
           {/* <ShipView x={windowWidth / 2} /> */}
-          <SeaGroup />
-          <SurferView x={windowWidth / 9} y={windowHeight * 0.7} />
+          <SeaGroup>
+            <SurferView x={windowWidth / 9} y={windowHeight * 0.7} />
+          </SeaGroup>
         </ReactNativeTurboGameEngine>
       </View>
     </View>

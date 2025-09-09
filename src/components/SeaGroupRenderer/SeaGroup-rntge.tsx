@@ -1,28 +1,17 @@
-import { getSeaConfigDefaults } from '@/constants/configs';
-import {
-  layerFlowConfigs,
-  WATER_GRADIENT_COLORS,
-} from '@/constants/waterConfigs';
-import {
-  useCanvasDimensions,
-  useAddEntityBatch,
-  useAddSystem,
-} from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs';
-import {
-  createRenderComponent,
-  RenderComponentData,
-  RenderComponentName,
-} from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import { Component } from '@/containers/ReactNativeSkiaGameEngine/services-ecs';
 import { System } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/system';
 import {
-  createSeaLayerComponent,
-  createWave,
+  RenderComponentData,
+  RenderComponentName,
+} from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
+import {
   SeaLayerComponentData,
   SeaLayerComponentName,
-  WaveSource,
 } from '@/Game/ecs-components/SeaLayer';
 import { FC, useMemo } from 'react';
+import { useAddSystem } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs';
+import { SeaLayerProvider } from './SeaLayerContext';
+import { SeaLayer } from './SeaLayer';
 
 interface SeaLayerShaderInfoUniforms {
   iTime: number;
@@ -39,7 +28,7 @@ interface SeaLayerShaderInfoUniforms {
   canvasSize: [number, number];
 }
 
-const seaLayerShaderSystem: System = {
+export const seaLayerShaderSystem: System = {
   requiredComponents: [SeaLayerComponentName, RenderComponentName],
   process: (entities, components, e, d, ecs) => {
     'worklet';
@@ -88,7 +77,7 @@ const seaLayerShaderSystem: System = {
   },
 };
 
-const updateWaveSystem: System = {
+export const updateWaveSystem: System = {
   requiredComponents: [SeaLayerComponentName],
   process: (entities, components, e, deltaTime) => {
     'worklet';
@@ -110,130 +99,20 @@ const updateWaveSystem: System = {
   },
 };
 
-export const SeaGroup: FC = () => {
-  const { width, height } = useCanvasDimensions();
-  const seaBaseConfig = useMemo(() => {
-    return getSeaConfigDefaults(width, height);
-  }, [width, height]);
+interface SeaGroupProps {
+  children: React.ReactNode;
+}
 
-  const seaLayerComponentsBatch = useMemo(() => {
-    const layers: SeaLayerComponentData[] = [];
-    const {
-      x,
-      y,
-      width,
-      height,
-      windowHeight,
-      windowWidth,
-      layersCount = 3,
-    } = seaBaseConfig;
-    for (let i = 0; i < (seaBaseConfig.layersCount ?? 3); i++) {
-      const gradientColors =
-        WATER_GRADIENT_COLORS[i % WATER_GRADIENT_COLORS.length];
-      const flowConfig = layerFlowConfigs[i];
-
-      const layerY = y + height - (height / layersCount) * i;
-      const startingX = x;
-      const startingY = layerY - height / 2;
-
-      const layerData: SeaLayerComponentData = {
-        x: x,
-        y: layerY,
-        width: width,
-        height: height / layersCount,
-        gradientColors,
-        flowAmplitude: flowConfig.flowAmplitude,
-        flowFrequency: flowConfig.flowFrequency,
-        flowSpeed: flowConfig.flowSpeed,
-        windowWidth: windowWidth,
-        windowHeight: windowHeight,
-        layerIndex: i,
-        startingX,
-        startingY,
-        waves: [],
-      };
-
-      const staticWave = createWave({
-        isFlowing: true,
-        dimensions: { width, height },
-        x: startingX,
-        amplitude: flowConfig.flowAmplitude,
-        frequency: flowConfig.flowFrequency,
-        speed: flowConfig.flowSpeed,
-        source: WaveSource.FLOW,
-      });
-
-      const touchWave = createWave({
-        isFlowing: false,
-        dimensions: { width, height },
-        x: 0,
-        amplitude: 0,
-        frequency: 0,
-        speed: 0,
-        source: WaveSource.TOUCH,
-      });
-
-      layerData.waves.push(staticWave);
-      layerData.waves.push(touchWave);
-
-      layers.push(layerData);
-    }
-    return layers;
-  }, []);
-
-  const seaLayerEntitiesBatch: Component<any>[][] = useMemo(() => {
-    return seaLayerComponentsBatch
-      .map((layerData, index) => [
-        createSeaLayerComponent(layerData),
-        createRenderComponent({
-          shape: {
-            type: 'rectangle',
-            width: layerData.windowWidth,
-            height: layerData.windowHeight,
-          },
-          fillColor: layerData.gradientColors[0],
-          visible: true,
-          position: {
-            x: layerData.windowWidth / 2,
-            y: layerData.windowHeight / 2,
-          },
-          shader: {
-            key: 'sea',
-            uniforms: {
-              iTime: 0,
-              height: layerData.height,
-              heightOffset:
-                0.3 +
-                (layerData.layerIndex * layerData.height) /
-                  layerData.windowHeight,
-              frequency: layerData.waves[0].frequency,
-              amplitude: layerData.waves[0].amplitude,
-              speed: layerData.waves[0].speed,
-              dynamicWaveX: layerData.waves[1].x,
-              dynamicWave: [
-                layerData.waves[1].amplitude,
-                layerData.waves[1].frequency,
-                layerData.waves[1].speed,
-                layerData.waves[1].time,
-              ],
-              heightOffsetFreq: 0.5,
-              heightOffsetAmp: 0.0,
-              waterColor: [28, 163, 236].map((c) => c / 255),
-              canvasSize: [
-                layerData.windowWidth || 0,
-                layerData.windowHeight || 0,
-              ],
-            },
-          },
-        }),
-      ])
-      .reverse();
-  }, [seaLayerComponentsBatch]);
-
-  useAddEntityBatch({ batch: seaLayerEntitiesBatch });
-
+export const SeaGroup: FC<SeaGroupProps> = ({ children }) => {
   useAddSystem({ system: updateWaveSystem });
   useAddSystem({ system: seaLayerShaderSystem });
 
-  return null;
+  return (
+    <SeaLayerProvider>
+      <SeaLayer index={2} />
+      {children}
+      <SeaLayer index={1} />
+      <SeaLayer index={0} />
+    </SeaLayerProvider>
+  );
 };

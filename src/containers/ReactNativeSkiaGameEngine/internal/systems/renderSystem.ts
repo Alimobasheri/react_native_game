@@ -138,6 +138,7 @@ const createAndCacheEntityPicture = (
       const destRect = Skia.XYWHRect(-width / 2, -height / 2, width, height);
       const paint = Skia.Paint();
       paint.setAntiAlias(true);
+      paint.setBlendMode(renderData.blendMode || BlendMode.SrcOver);
       if (renderData.opacity) {
         paint.setAlphaf(renderData.opacity);
       }
@@ -260,7 +261,9 @@ export const renderSystem = (
               }
               const shader: SkShader = effect.makeShader(uniformValues);
               shaderPaint.setStyle(PaintStyle.Fill);
-              shaderPaint.setBlendMode(BlendMode.Multiply);
+              shaderPaint.setBlendMode(
+                renderData.blendMode || BlendMode.SrcOver
+              );
               shaderPaint.setShader(shader);
               shaderPaint.setAntiAlias(true);
               canvas.drawPath(path, shaderPaint);

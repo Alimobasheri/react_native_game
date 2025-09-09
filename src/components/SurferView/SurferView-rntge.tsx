@@ -6,6 +6,7 @@ import { createPositionComponent } from '@/containers/ReactNativeSkiaGameEngine/
 import { CreateMatterBodyArgs } from '@/containers/ReactNativeSkiaGameEngine/internal/systems/physics/bodiesTypes';
 import { createSurferComponent } from '@/Game/ecs-components/Surfer';
 import { SurferPhysicsSystem } from '@/systems/PhysicsSystem/SurferPhysicsSystem';
+import { BlendMode } from 'react-native';
 import { FC, useMemo } from 'react';
 
 const surferSize = 128;

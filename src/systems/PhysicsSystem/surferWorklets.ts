@@ -14,7 +14,7 @@ export const getWaterSurfaceHeightAtPoint = (
   'worklet';
 
   // Base water level - use the layer's Y position as the surface level
-  let surfaceHeight = seaLayer.y - seaLayer.height / 2;
+  let surfaceHeight = seaLayer.y;
 
   // Calculate wave contributions
   seaLayer.waves.forEach((wave: WaveData) => {
