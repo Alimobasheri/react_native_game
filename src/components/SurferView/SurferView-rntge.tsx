@@ -1,14 +1,22 @@
 import { useAddEntity } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useAddEntity/useAddEntity';
 import { useAddMatterBody } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useAddMatterBody/useAddMatterBody';
+import { useAddSystem } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useAddSystem/useAddSystem';
 import { createRenderComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
+import { createPositionComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/position';
 import { CreateMatterBodyArgs } from '@/containers/ReactNativeSkiaGameEngine/internal/systems/physics/bodiesTypes';
+import { createSurferComponent } from '@/Game/ecs-components/Surfer';
+import { SurferPhysicsSystem } from '@/systems/PhysicsSystem/SurferPhysicsSystem';
 import { FC, useMemo } from 'react';
+
+const surferSize = 128;
 
 export const SurferView: FC<{ x: number; y: number }> = ({ x, y }) => {
   const components = useMemo(
     () => [
+      createSurferComponent({ direction: 'right' }),
+      createPositionComponent({ x, y }),
       createRenderComponent({
-        shape: { type: 'rectangle', width: 72, height: 72 },
+        shape: { type: 'rectangle', width: surferSize, height: surferSize },
         fillColor: '#0099ff',
         visible: true,
         image: 'surfer',
@@ -22,7 +30,7 @@ export const SurferView: FC<{ x: number; y: number }> = ({ x, y }) => {
         },
       }),
     ],
-    []
+    [x, y]
   );
 
   const { entityId } = useAddEntity({ components });
@@ -33,12 +41,17 @@ export const SurferView: FC<{ x: number; y: number }> = ({ x, y }) => {
       options: {
         x,
         y,
-        width: 1024 / 3,
-        height: 1024 / 3,
+        width: surferSize, // Match render component size
+        height: surferSize,
         options: {
-          isStatic: true,
+          isStatic: false, // Allow physics simulation
+          density: 0.0001, // Very light density for floating
+          frictionAir: 0.01, // Some air friction
+          restitution: 0.2, // Some bounce
           collisionFilter: {
-            group: 0x0002, // Different collision group from ship
+            group: 0x0003, // Unique collision group for surfer
+            category: 0x0004,
+            mask: 0x0001 | 0x0002, // Can collide with default and ships
           },
         },
       },
@@ -47,6 +60,9 @@ export const SurferView: FC<{ x: number; y: number }> = ({ x, y }) => {
   );
 
   const { bodyId } = useAddMatterBody({ args: matterBodyArgs, entityId });
+
+  // Register the surfer physics system
+  useAddSystem({ system: SurferPhysicsSystem });
 
   return null;
 };

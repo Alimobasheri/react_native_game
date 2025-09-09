@@ -20,7 +20,7 @@ export const StarsView = () => {
     const batch: Component<any>[][] = [];
     for (let i = 0; i < StarsCount; i++) {
       const cx = Math.random() * windowWidth;
-      const cy = Math.random() * windowHeight;
+      const cy = (Math.random() * windowHeight) / 2;
       const r = 5;
       const fill = 'white';
 
@@ -28,6 +28,7 @@ export const StarsView = () => {
         createStarComponentJS({ cx, cy, radius: r, color: fill }),
         createRenderComponent({
           shape: { type: 'circle', radius: r },
+          position: { x: cx, y: cy },
           fillColor: fill,
           visible: true,
           image: 'star',
@@ -38,33 +39,6 @@ export const StarsView = () => {
   }, [windowWidth, windowHeight]);
 
   const { entityId: entityIds } = useAddEntityBatch({ batch: entityBatch });
-
-  const matterBodyBatch = useMemo(() => {
-    if (!entityIds || entityIds.length !== entityBatch.length) {
-      return [];
-    }
-
-    return entityIds.map((entityId, index) => {
-      const starData = entityBatch[index][0].data; // from createStarComponentJS
-      const args: CreateMatterBodyArgs = {
-        type: 'circle',
-        options: {
-          x: starData.cx,
-          y: starData.cy,
-          radius: starData.radius,
-          options: {
-            isStatic: true,
-            collisionFilter: {
-              group: 0x0002,
-            },
-          },
-        },
-      };
-      return { args, entityId };
-    });
-  }, [entityIds, entityBatch]);
-
-  useAddMatterBodyBatch({ batch: matterBodyBatch });
 
   return null;
 };
