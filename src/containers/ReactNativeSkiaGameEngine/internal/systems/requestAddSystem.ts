@@ -9,7 +9,7 @@ import {
 export const requestAddSystem: System = {
   requiredComponents: [],
   requiredEvents: [AddSystemRequestType],
-  process: (entities, components, eventQueue, deltaTime, ecs) => {
+  process: ({ eventQueue, ecs }) => {
     'worklet';
     const events = eventQueue
       .readEvents()

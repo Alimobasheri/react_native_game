@@ -45,7 +45,7 @@ function createMatterBodyFromPayload(
 export const requestAddMatterBodyBatch: System = {
   requiredComponents: [],
   requiredEvents: [AddMatterBodyBatchRequestType],
-  process: (entities, components, eventQueue, deltaTime, ecs) => {
+  process: ({ eventQueue, ecs }) => {
     'worklet';
     const events = eventQueue
       .readEvents()

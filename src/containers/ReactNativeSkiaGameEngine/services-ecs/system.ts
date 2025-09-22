@@ -4,23 +4,34 @@ import { Entity } from './entity';
 import { ComponentStore } from './component';
 import { EventQueueContextType } from '../hooks-ecs/useEventQueue/useEventQueue';
 import { MutableRefObject } from 'react';
+import { Assets } from '../types-ecs/assets';
 
 export enum SystemContext {
   JS = 'JS',
   UI = 'UI',
 }
 
+export type SystemProcessArgs = {
+  entities: Entity[];
+  components: Record<string, ComponentStore<any>>;
+  eventQueue: EventQueueContextType;
+  deltaTime: number;
+  ecs: SharedValue<ECS>;
+  assets: SharedValue<Assets>;
+};
+
+export interface RunSystemsArgs {
+  ecs: SharedValue<ECS>;
+  eventQueue: EventQueueContextType;
+  deltaTime: number;
+  assets: SharedValue<Assets>;
+}
+
 export type System = {
   context?: SystemContext;
   requiredComponents?: string[];
   requiredEvents?: string[];
-  process: (
-    entities: Entity[],
-    components: Record<string, ComponentStore<any>>,
-    eventQueue: EventQueueContextType,
-    deltaTime: number,
-    ecs: SharedValue<ECS>
-  ) => void;
+  process: (args: SystemProcessArgs) => void;
 };
 
 export const runJSSystemJS = (
@@ -63,11 +74,12 @@ export const createSystemManager = (
     return systemId;
   };
 
-  const runSystems = (
-    ecs: SharedValue<ECS>,
-    eventQueue: EventQueueContextType,
-    deltaTime: number
-  ) => {
+  const runSystems = ({
+    ecs,
+    eventQueue,
+    deltaTime,
+    assets,
+  }: RunSystemsArgs) => {
     'worklet';
     const events = eventQueue.readEvents();
 
@@ -75,7 +87,7 @@ export const createSystemManager = (
       const system = systems.value[i];
 
       const hasRequiredEvents = system.requiredEvents
-        ? system.requiredEvents.some((event) =>
+        ? system.requiredEvents.some((event: string) =>
             events.some((e) => e.type === event)
           )
         : true;
@@ -85,13 +97,14 @@ export const createSystemManager = (
       const entities = system.requiredComponents
         ? ecs.value.getEntitiesWithComponents(system.requiredComponents)
         : [];
-      system.process(
+      system.process({
         entities,
-        ecs.value.components.value,
+        components: ecs.value.components.value,
         eventQueue,
         deltaTime,
-        ecs
-      );
+        ecs,
+        assets,
+      });
     }
   };
 

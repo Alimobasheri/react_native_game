@@ -25,7 +25,7 @@ export const createStarMovementSystem = (dimensions: {
 }): System => ({
   requiredComponents: [StarComponentName, RenderComponentName],
   context: SystemContext.UI,
-  process: (entities, components, eventQueue, deltaTime, ecs) => {
+  process: ({ entities, components, deltaTime, ecs }) => {
     'worklet';
 
     // Get canvas dimensions

@@ -9,7 +9,7 @@ import {
 export const requestCreateEntity: System = {
   requiredComponents: [],
   requiredEvents: [CreateEntityRequestType],
-  process: (entities, components, eventQueue, deltaTime, ecs) => {
+  process: ({ eventQueue, ecs }) => {
     'worklet';
     const events = eventQueue
       .readEvents()

@@ -15,6 +15,7 @@ import { ComponentStore } from '../../services-ecs';
 import { MatterBodyComponentName } from '../components/matterBody';
 import { IBodyDefinition } from 'matter-js';
 import { Entity } from '../../services-ecs/entity';
+import { SpriteComponentName } from '../components/sprite';
 
 const createPathFromShape = (
   renderData: RenderComponentData
@@ -48,33 +49,74 @@ const createPathFromShape = (
   return skPath;
 };
 
-const updateSpriteAnimation = (
+const getSpriteFrameInfo = (
   renderData: RenderComponentData,
-  deltaTime: number
-): void => {
+  spriteComponent?: any
+): { sourceRect: any; width: number; height: number } | null => {
   'worklet';
-  if (!renderData.sprite) return;
+  // Priority 1: Use SpriteComponent data (unified system)
+  if (spriteComponent && spriteComponent.currentFrame !== undefined) {
+    const currentFrame = spriteComponent.currentFrame || 0;
 
-  const currentTime = Date.now();
-  if (renderData.sprite.lastFrameTime === undefined) {
-    renderData.sprite.lastFrameTime = currentTime;
-    renderData.sprite.currentFrame = 0;
-    return;
-  }
-
-  const elapsed = currentTime - renderData.sprite.lastFrameTime;
-  if (elapsed >= renderData.sprite.frameDuration) {
-    const nextFrame = (renderData.sprite.currentFrame || 0) + 1;
-    if (nextFrame >= renderData.sprite.totalFrames) {
-      renderData.sprite.currentFrame = renderData.sprite.loop
-        ? 0
-        : renderData.sprite.totalFrames - 1;
-    } else {
-      renderData.sprite.currentFrame = nextFrame;
+    // Handle atlas-based sprites (variable frame sizes and positions)
+    if (spriteComponent.type === 'atlas') {
+      const frameData = spriteComponent.frameData[currentFrame];
+      if (frameData) {
+        return {
+          sourceRect: Skia.XYWHRect(
+            frameData.x,
+            frameData.y,
+            frameData.width,
+            frameData.height
+          ),
+          width: frameData.width,
+          height: frameData.height,
+        };
+      }
     }
-    renderData.sprite.lastFrameTime = currentTime;
-    renderData.isDirty = true; // Force re-render when frame changes
+
+    // Handle sprite sheet (uniform frame sizes)
+    if (spriteComponent.type === 'sprite') {
+      const framesPerRow = spriteComponent.framesPerRow || 4;
+      const frameWidth = spriteComponent.frameWidth || 64;
+      const frameHeight = spriteComponent.frameHeight || 64;
+
+      const row = Math.floor(currentFrame / framesPerRow);
+      const col = currentFrame % framesPerRow;
+
+      const sourceX = col * frameWidth;
+      const sourceY = row * frameHeight;
+
+      return {
+        sourceRect: Skia.XYWHRect(sourceX, sourceY, frameWidth, frameHeight),
+        width: frameWidth,
+        height: frameHeight,
+      };
+    }
   }
+
+  // Priority 2: Use legacy SpriteInfo (backward compatibility)
+  if (renderData.sprite) {
+    const currentFrame = renderData.sprite.currentFrame || 0;
+    const row = Math.floor(currentFrame / renderData.sprite.framesPerRow);
+    const col = currentFrame % renderData.sprite.framesPerRow;
+
+    const sourceX = col * renderData.sprite.frameWidth;
+    const sourceY = row * renderData.sprite.frameHeight;
+
+    return {
+      sourceRect: Skia.XYWHRect(
+        sourceX,
+        sourceY,
+        renderData.sprite.frameWidth,
+        renderData.sprite.frameHeight
+      ),
+      width: renderData.sprite.frameWidth,
+      height: renderData.sprite.frameHeight,
+    };
+  }
+
+  return null;
 };
 
 const createAndCacheEntityPicture = (
@@ -91,10 +133,8 @@ const createAndCacheEntityPicture = (
     return null;
   }
 
-  // Update sprite animation if present
-  if (renderData.sprite && deltaTime !== undefined) {
-    updateSpriteAnimation(renderData, deltaTime);
-  }
+  // Sprite animation is now handled by spriteUpdateSystem
+  // No need to update sprite animation here
 
   const recorder = Skia.PictureRecorder();
   const canvas = recorder.beginRecording();
@@ -106,24 +146,14 @@ const createAndCacheEntityPicture = (
       let height = image.height();
       let sourceRect = Skia.XYWHRect(0, 0, image.width(), image.height());
 
-      // Handle sprite rendering
-      if (renderData.sprite) {
-        const currentFrame = renderData.sprite.currentFrame || 0;
-        const row = Math.floor(currentFrame / renderData.sprite.framesPerRow);
-        const col = currentFrame % renderData.sprite.framesPerRow;
+      // Handle unified sprite rendering
+      const spriteComponent = components[SpriteComponentName]?.get(entityId);
+      const spriteFrameInfo = getSpriteFrameInfo(renderData, spriteComponent);
 
-        const sourceX = col * renderData.sprite.frameWidth;
-        const sourceY = row * renderData.sprite.frameHeight;
-
-        sourceRect = Skia.XYWHRect(
-          sourceX,
-          sourceY,
-          renderData.sprite.frameWidth,
-          renderData.sprite.frameHeight
-        );
-
-        width = renderData.sprite.frameWidth;
-        height = renderData.sprite.frameHeight;
+      if (spriteFrameInfo) {
+        sourceRect = spriteFrameInfo.sourceRect;
+        width = spriteFrameInfo.width;
+        height = spriteFrameInfo.height;
       }
 
       // Override dimensions based on shape if specified
@@ -199,7 +229,7 @@ export const renderSystem = (
   'worklet';
   return {
     requiredComponents: [RenderComponentName],
-    process: (entities, components, eventQueue, deltaTime, ecs) => {
+    process: ({ entities, components, eventQueue, deltaTime, ecs }) => {
       'worklet';
 
       const recorder = Skia.PictureRecorder();
@@ -272,7 +302,11 @@ export const renderSystem = (
           }
         } else {
           let entityPicture = pictureCache.value[entity] as SkPicture;
-          if (renderData.isDirty || !entityPicture || renderData.sprite) {
+          const spriteComponent = components[SpriteComponentName]?.get(entity);
+          const hasSpriteAnimation =
+            spriteComponent?.currentFrame !== undefined || renderData.sprite;
+
+          if (renderData.isDirty || !entityPicture || hasSpriteAnimation) {
             const newEntityPicture = createAndCacheEntityPicture(
               components,
               entity,

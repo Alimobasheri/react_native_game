@@ -8,7 +8,7 @@ import {
   SeaLayerComponentData,
   SeaLayerComponentName,
 } from '@/Game/ecs-components/SeaLayer';
-import { FC, useMemo } from 'react';
+import { FC } from 'react';
 import { useAddSystem } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs';
 import { SeaLayerProvider } from './SeaLayerContext';
 import { SeaLayer } from './SeaLayer';
@@ -30,7 +30,7 @@ interface SeaLayerShaderInfoUniforms {
 
 export const seaLayerShaderSystem: System = {
   requiredComponents: [SeaLayerComponentName, RenderComponentName],
-  process: (entities, components, e, d, ecs) => {
+  process: ({ entities, components, ecs }) => {
     'worklet';
     entities.forEach((entity) => {
       const seaLayerComponent: SeaLayerComponentData =
@@ -79,7 +79,7 @@ export const seaLayerShaderSystem: System = {
 
 export const updateWaveSystem: System = {
   requiredComponents: [SeaLayerComponentName],
-  process: (entities, components, e, deltaTime) => {
+  process: ({ entities, components, deltaTime }) => {
     'worklet';
     entities.forEach((entity) => {
       const seaLayerComponent: SeaLayerComponentData =

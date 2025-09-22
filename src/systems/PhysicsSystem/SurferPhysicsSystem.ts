@@ -31,7 +31,7 @@ import {
  */
 export const SurferPhysicsSystem: System = {
   requiredComponents: [SurferComponentName, MatterBodyComponentName],
-  process: (entities, components, eventQueue, deltaTime, ecs) => {
+  process: ({ entities, components, deltaTime, ecs }) => {
     'worklet';
 
     // Get all sea layer entities to find the main/centered layer

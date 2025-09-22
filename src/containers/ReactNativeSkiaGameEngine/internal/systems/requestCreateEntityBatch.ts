@@ -1,6 +1,3 @@
-// a batch version of requestCreateEntity System
-
-import { Entity } from '../../services-ecs/entity';
 import { System } from '../../services-ecs/system';
 import {
   CreateEntityBatchRequest,
@@ -12,7 +9,7 @@ import {
 export const requestCreateEntityBatch: System = {
   requiredComponents: [],
   requiredEvents: [createEntityBatchRequestType],
-  process: (entities, components, eventQueue, deltaTime, ecs) => {
+  process: ({ eventQueue, ecs }) => {
     'worklet';
     const events = eventQueue
       .readEvents()

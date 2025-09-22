@@ -1,6 +1,4 @@
-import { IBodyDefinition } from 'matter-js';
 import { PositionComponentData } from './position';
-import { SharedValue } from 'react-native-reanimated';
 import { BlendMode } from '@shopify/react-native-skia';
 
 export const RenderComponentName = 'render';

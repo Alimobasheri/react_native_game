@@ -11,6 +11,7 @@ import {
   PropsWithChildren,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
 } from 'react';
@@ -43,16 +44,33 @@ import { renderSystem } from './internal/systems/renderSystem';
 import { requestCreateEntityBatch } from './internal/systems/requestCreateEntityBatch';
 import { requestAddMatterBodyBatch } from './internal/systems/physics/requestAddMatterBodyBatch';
 import { loadImageAssets } from './services-ecs/image-store';
+import { AtlasData, ClipAnimationData } from './types-ecs/render';
+import { Assets } from './types-ecs/assets';
+import { AnimationClipComponentName } from './internal/components/animationClip';
+import { SpriteComponentName } from './internal/components/sprite';
+import { AnimatorStateComponentName } from './internal/components/animatorState';
+import { spriteUpdateSystem } from './internal/systems/animations/spriteUpdateSystem';
+import { animatorStateSystem } from './internal/systems/animations/animatorStateSystem';
+import { animationClipSystem } from './internal/systems/animations/animationClipSystem';
 
 export interface ReactNativeTurboGameEngineProps {
   componentNames: string[];
   images?: Record<string, any>;
   shaders?: Record<string, string>;
+  clipAnimations?: Record<string, ClipAnimationData>;
+  atlases?: Record<string, AtlasData>;
 }
 
 export const ReactNativeTurboGameEngine: FC<
   PropsWithChildren<ReactNativeTurboGameEngineProps>
-> = ({ componentNames, images, shaders, children }) => {
+> = ({
+  componentNames,
+  images,
+  shaders,
+  children,
+  clipAnimations,
+  atlases,
+}) => {
   const setDimensions = useRNTGEStore((state) => state.setDimensions);
   const dimensions = useSharedValue({ width: 0, height: 0 });
   const eventQueue = useEventQueue();
@@ -61,10 +79,14 @@ export const ReactNativeTurboGameEngine: FC<
   const pictureCache = useSharedValue<Record<number, SkPicture | SkPath>>({});
   const imageCache = useSharedValue<Record<string, SkImage>>({});
 
+  const assets = useSharedValue<Assets>({
+    clipAnimations,
+    atlases,
+  });
   const shaderEffects = useSharedValue<Record<string, SkRuntimeEffect>>({});
 
   // Compile shaders once on mount
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (shaders) {
       const compiledShaders = Object.fromEntries(
         Object.entries(shaders).map(([key, source]) => {
@@ -112,6 +134,9 @@ export const ReactNativeTurboGameEngine: FC<
     if (!ECS.value) return;
     ECS.value.createComponent(PositionComponentName);
     ECS.value.createComponent(MatterBodyComponentName);
+    ECS.value.createComponent(SpriteComponentName);
+    ECS.value.createComponent(AnimationClipComponentName);
+    ECS.value.createComponent(AnimatorStateComponentName);
     ECS.value.createComponent(RenderComponentName);
     componentNames.forEach(
       (name) => ECS.value && ECS.value.createComponent(name)
@@ -126,6 +151,9 @@ export const ReactNativeTurboGameEngine: FC<
     ECS.value.registerSystem(requestCreateEntityBatch);
     ECS.value.registerSystem(requestAddMatterBody);
     ECS.value.registerSystem(requestAddMatterBodyBatch);
+    ECS.value.registerSystem(animationClipSystem);
+    ECS.value.registerSystem(spriteUpdateSystem);
+    ECS.value.registerSystem(animatorStateSystem);
     ECS.value.registerSystem(updateMatterWorld);
     ECS.value.registerSystem(
       renderSystem(picture, dimensions, pictureCache, imageCache, shaderEffects)
@@ -146,11 +174,12 @@ export const ReactNativeTurboGameEngine: FC<
         return;
       } else {
         if (!!ECS && !!ECS.value) {
-          ECS.value.runSystems(
-            ECS as SharedValue<ECS>,
+          ECS.value.runSystems({
+            ecs: ECS as SharedValue<ECS>,
             eventQueue,
-            frameInfo.timeSincePreviousFrame ?? 0
-          );
+            deltaTime: frameInfo.timeSincePreviousFrame ?? 0,
+            assets: assets,
+          });
         }
       }
       eventQueue.callAllAwaitingExternalEvents();

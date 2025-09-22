@@ -9,7 +9,7 @@ import {
 export const requestRemoveEntityBatch: System = {
   requiredComponents: [],
   requiredEvents: [RemoveEntityBatchRequestType],
-  process: (entities, components, eventQueue, deltaTime, ecs) => {
+  process: ({ eventQueue, ecs }) => {
     'worklet';
     const events = eventQueue
       .readEvents()

@@ -2,9 +2,10 @@ import { makeMutable, SharedValue } from 'react-native-reanimated';
 import { Component, ComponentStore, createComponentStore } from './component';
 import { createEntityManager, Entity } from './entity';
 import { createComponentBitManager } from './componentBitManager';
-import { createSystemManager, System } from './system';
+import { createSystemManager, RunSystemsArgs, System } from './system';
 import { EventQueueContextType } from '../hooks-ecs/useEventQueue/useEventQueue';
 import { MutableRefObject } from 'react';
+import { AtlasData, ClipAnimationData } from '../types-ecs/render';
 
 export type ECS = {
   components: SharedValue<Record<string, ComponentStore<any>>>;
@@ -20,11 +21,7 @@ export type ECS = {
   componentExists: (componentName: string) => boolean;
   getEntitiesWithComponents: (requiredComponentNames: string[]) => Entity[];
   registerSystem: (system: System) => number;
-  runSystems: (
-    ecs: SharedValue<ECS>,
-    eventQueue: EventQueueContextType,
-    deltaTime: number
-  ) => void;
+  runSystems: (args: RunSystemsArgs) => void;
   removeEntity: (entity: Entity) => void;
   getAllEntities: () => Entity[];
 };

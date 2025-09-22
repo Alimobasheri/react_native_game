@@ -4,7 +4,7 @@ import { RemoveEntityRequest, RemoveEntityRequestType } from '../events/entity';
 export const requestRemoveEntity: System = {
   requiredComponents: [],
   requiredEvents: [RemoveEntityRequestType],
-  process: (entities, components, eventQueue, deltaTime, ecs) => {
+  process: ({ eventQueue, ecs }) => {
     'worklet';
     const events = eventQueue
       .readEvents()

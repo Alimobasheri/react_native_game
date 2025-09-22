@@ -92,7 +92,7 @@ function createMatterBodyFromPayload(payload: AddMatterBodyRequest['payload']) {
 export const requestAddMatterBody: System = {
   requiredComponents: [],
   requiredEvents: [AddMatterBodyRequestType],
-  process: (entities, components, eventQueue, deltaTime, ecs) => {
+  process: ({ eventQueue, ecs }) => {
     'worklet';
     const events = eventQueue
       .readEvents()

@@ -3,32 +3,61 @@ import { useAddMatterBody } from '@/containers/ReactNativeSkiaGameEngine/hooks-e
 import { useAddSystem } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useAddSystem/useAddSystem';
 import { createRenderComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import { createPositionComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/position';
+import { createSpriteSheetAnimatedComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/sprite';
+import { createAnimationClipComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/animationClip';
+import { createAnimatorStateComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/animatorState';
 import { CreateMatterBodyArgs } from '@/containers/ReactNativeSkiaGameEngine/internal/systems/physics/bodiesTypes';
 import { createSurferComponent } from '@/Game/ecs-components/Surfer';
 import { SurferPhysicsSystem } from '@/systems/PhysicsSystem/SurferPhysicsSystem';
+import { hashString } from '@/containers/ReactNativeSkiaGameEngine/utils/hasString';
 import { BlendMode } from 'react-native';
 import { FC, useMemo } from 'react';
 
 const surferSize = 128;
 
-export const SurferView: FC<{ x: number; y: number }> = ({ x, y }) => {
+export const SurferView: FC<{ x: number; y: number; relaxed?: boolean }> = ({
+  x,
+  y,
+  relaxed = false,
+}) => {
   const components = useMemo(
     () => [
       createSurferComponent({ direction: 'right' }),
       createPositionComponent({ x, y }),
+
+      // Advanced animation system with state-based frame selection
+      createSpriteSheetAnimatedComponent('surfer', {
+        frameWidth: 1024 / 4, // 256px per frame
+        frameHeight: 1024 / 4, // 256px per frame
+        framesPerRow: 4, // 4x4 grid
+        totalFrames: 16,
+        frameDuration: 150,
+        loop: true,
+        isPlaying: true,
+      }),
+
+      // Animation clip component for state-based animation
+      createAnimationClipComponent({
+        assetId: 'surferAnimations',
+        clipId: 'surfing', // Start with surfing animation
+        frameIndex: 0,
+        elapsedTime: 0,
+        speed: 1.0,
+        isPlaying: true,
+      }),
+
+      // Animator state with relaxed parameter
+      createAnimatorStateComponent({
+        stateMachineId: 'surferAnimations',
+        currentStateId: hashString('surfing'),
+        parameters: { relaxed: false },
+      }),
+
       createRenderComponent({
         shape: { type: 'rectangle', width: surferSize, height: surferSize },
         fillColor: '#0099ff',
         visible: true,
         image: 'surfer',
-        sprite: {
-          frameWidth: 1024 / 3, // 1024 / 16 = 64 (assuming 4x4 grid)
-          frameHeight: 1024 / 3, // 1024 / 16 = 64
-          totalFrames: 9,
-          framesPerRow: 3, // 4x4 grid
-          frameDuration: 120, // 100ms per frame for smooth animation
-          loop: true,
-        },
       }),
     ],
     [x, y]

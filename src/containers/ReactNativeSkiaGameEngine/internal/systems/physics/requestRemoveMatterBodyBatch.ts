@@ -10,7 +10,7 @@ import { MatterBodyComponentName } from '../../components/matterBody';
 export const requestRemoveMatterBodyBatch: System = {
   requiredComponents: [],
   requiredEvents: [RemoveMatterBodyBatchRequestType],
-  process: (entities, components, eventQueue, deltaTime, ecs) => {
+  process: ({ components, eventQueue, ecs }) => {
     'worklet';
     const events = eventQueue
       .readEvents()
