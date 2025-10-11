@@ -1,13 +1,6 @@
-import {
-  FC,
-  MutableRefObject,
-  PropsWithChildren,
-  useEffect,
-  useMemo,
-} from 'react';
+import { FC, PropsWithChildren, useMemo } from 'react';
 import { ECS } from '../../services-ecs/ecs';
 import { ECSContext } from './ECSContext';
-import { MemoizedContainer } from '../../components/MemoizedContainer';
 import { SharedValue } from 'react-native-reanimated';
 import { DerivedSystem } from '../../hooks-ecs/useDerivedMemory/useDerivedMemory';
 

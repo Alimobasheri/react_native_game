@@ -47,3 +47,37 @@ export const loadImageAssets = async (
   // Return the cache wrapped in a SharedValue.
   cb(loadedImages);
 };
+
+export const loadImageAssetsNative = async (assets: ImageAssetMap) => {
+  'worklet';
+  console.log('Loading image assets on UI thread:', Object.keys(assets));
+  const imageEntries = await Promise.all(
+    Object.entries(assets).map(async ([key, assetSource]) => {
+      // Resolve the asset source to a URI that Skia can load.
+      const source = Image.resolveAssetSource(assetSource);
+      if (!source) {
+        return [key, null];
+      }
+      // Load the image data from the URI asynchronously.
+      const imageData = await Skia.Data.fromURI(source.uri);
+      if (!imageData) {
+        return [key, null];
+      }
+      // Decode the data into an SkImage.
+      const image = Skia.Image.MakeImageFromEncoded(imageData);
+      if (!image) {
+        return [key, null];
+      }
+      return [key, image];
+    })
+  );
+
+  // Filter out any images that failed to load and create the cache record.
+  const loadedImages = Object.fromEntries(
+    imageEntries.filter(([, image]) => image !== null)
+  );
+
+  console.log('Loaded images:', Object.keys(loadedImages));
+
+  global._RNTGE_.imageCache = { ...global._RNTGE_.imageCache, ...loadedImages };
+};

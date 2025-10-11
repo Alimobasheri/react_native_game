@@ -122,10 +122,10 @@ const getSpriteFrameInfo = (
 const createAndCacheEntityPicture = (
   components: Record<string, ComponentStore<any>>,
   entityId: Entity,
-  imageCache: SharedValue<Record<string, SkImage>>,
   deltaTime?: number
 ): SkPicture | null => {
   'worklet';
+  const imageCache = global._RNTGE_.imageCache;
   const renderData: RenderComponentData | undefined =
     components[RenderComponentName].get(entityId);
 
@@ -140,7 +140,7 @@ const createAndCacheEntityPicture = (
   const canvas = recorder.beginRecording();
 
   if (renderData.image) {
-    let image = imageCache.value[renderData.image];
+    let image = imageCache[renderData.image];
     if (image) {
       let width = image.width();
       let height = image.height();
@@ -222,15 +222,16 @@ const createAndCacheEntityPicture = (
 export const renderSystem = (
   picture: SharedValue<SkPicture | null>,
   dimensions: SharedValue<{ width: number; height: number }>,
-  pictureCache: SharedValue<Record<number, SkPicture | SkPath>>,
-  imageCache: SharedValue<Record<string, SkImage>>,
-  shaderEffects: SharedValue<Record<string, SkRuntimeEffect>>
+  pictureCache: SharedValue<Record<number, SkPicture | SkPath>>
 ): System => {
   'worklet';
   return {
     requiredComponents: [RenderComponentName],
     process: ({ entities, components, eventQueue, deltaTime, ecs }) => {
       'worklet';
+
+      const imageCache = global._RNTGE_.imageCache;
+      const shaderEffects = global._RNTGE_.shaderCache;
 
       const recorder = Skia.PictureRecorder();
       const bounds = Skia.XYWHRect(
@@ -270,7 +271,7 @@ export const renderSystem = (
         if (renderData.shader) {
           const shaderPaint = Skia.Paint();
           shaderPaint.setAntiAlias(true);
-          const effect = shaderEffects.value[renderData.shader.key];
+          const effect = shaderEffects[renderData.shader.key];
           if (effect) {
             let path = pictureCache.value[entity] as SkPath;
             if (!path || renderData.isDirty) {
@@ -310,7 +311,6 @@ export const renderSystem = (
             const newEntityPicture = createAndCacheEntityPicture(
               components,
               entity,
-              imageCache,
               deltaTime
             );
             if (newEntityPicture) {

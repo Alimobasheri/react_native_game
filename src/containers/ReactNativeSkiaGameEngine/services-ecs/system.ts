@@ -5,6 +5,7 @@ import { ComponentStore } from './component';
 import { EventQueueContextType } from '../hooks-ecs/useEventQueue/useEventQueue';
 import { MutableRefObject } from 'react';
 import { Assets } from '../types-ecs/assets';
+import { SkImage, SkPath, SkPicture } from '@shopify/react-native-skia';
 
 export enum SystemContext {
   JS = 'JS',

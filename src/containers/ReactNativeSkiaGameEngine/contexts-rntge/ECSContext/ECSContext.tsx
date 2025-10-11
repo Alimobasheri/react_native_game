@@ -2,6 +2,7 @@ import { createContext, MutableRefObject } from 'react';
 import { ECS } from '../../services-ecs/ecs';
 import { SharedValue } from 'react-native-reanimated';
 import { DerivedSystem } from '../../hooks-ecs/useDerivedMemory/useDerivedMemory';
+import { SkImage } from '@shopify/react-native-skia';
 
 export type ECSContextType = {
   ecs: SharedValue<ECS | null>;

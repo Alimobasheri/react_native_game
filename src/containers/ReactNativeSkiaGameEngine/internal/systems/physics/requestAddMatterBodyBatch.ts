@@ -47,6 +47,7 @@ export const requestAddMatterBodyBatch: System = {
   requiredEvents: [AddMatterBodyBatchRequestType],
   process: ({ eventQueue, ecs }) => {
     'worklet';
+    if (!global._RNTGE_.physics) return;
     const events = eventQueue
       .readEvents()
       .filter((e) => e.type === AddMatterBodyBatchRequestType);

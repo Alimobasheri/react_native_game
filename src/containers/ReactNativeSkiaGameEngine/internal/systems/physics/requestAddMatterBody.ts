@@ -94,6 +94,7 @@ export const requestAddMatterBody: System = {
   requiredEvents: [AddMatterBodyRequestType],
   process: ({ eventQueue, ecs }) => {
     'worklet';
+    if (!global._RNTGE_.physics) return;
     const events = eventQueue
       .readEvents()
       .filter((e) => e.type === AddMatterBodyRequestType);

@@ -1,5 +1,9 @@
 import { Meta, StoryObj } from '@storybook/react/*';
 import { ReactNativeTurboGameEngine } from './RNTGE';
+import { Scene } from './components-rntge/Scene/Scene';
+import { Preload } from './components-rntge/Scene/Preload';
+import { Content } from './components-rntge/Scene/Content';
+import { Asset } from './components-rntge/Scene/Asset';
 import { Dimensions, View, TouchableOpacity, Text } from 'react-native';
 import React from 'react';
 import { MemoizedContainer } from './components/MemoizedContainer';
@@ -37,97 +41,9 @@ type Story = StoryObj<typeof meta>;
 
 const { width: windowWidth, height: windowHeight } = Dimensions.get('window');
 
-const WaterRippleShader = `
-  uniform float iTime;
-  uniform vec2 iResolution; // Example uniforms
-  uniform vec2 iCenter;
-
-  half4 main(vec2 fragCoord) {
-    vec2 uv = (fragCoord - iCenter) / iResolution.x;
-    float dist = length(uv);
-    float ripple = sin(dist * 20.0 - iTime * 4.0) / (dist * 40.0 + 1.0);
-    return half4(0.2 + ripple, 0.5 + ripple, 1.0, 1.0);
-  }
-`;
-
-const seaShader = `
-    ${waveShaderUniforms}
-    ${shaderNoiseFuncWithRandom}
-    ${waveShaderGetDecayFunc}
-    ${waveShaderFoamIntensityFunc}
-    ${waveShaderYPosition}
-    ${waveShaderWaveMaskFunc}
-    ${waveShaderWaterMaskFunc}
-    ${waveShaderMainFunc}
-  `;
-
 export const Basic: Story = {
   args: {
     componentNames: ['star', SeaLayerComponentName, SurferComponentName],
-    images: { ship, star, surfer },
-    shaders: {
-      water: WaterRippleShader,
-      sea: sourceCode,
-    },
-    clipAnimations: {
-      surferAnimations: {
-        clips: {
-          surfing: {
-            name: 'surfing',
-            frames: [
-              { sprite: 'surfer_frame_0', duration: 150 },
-              { sprite: 'surfer_frame_1', duration: 150 },
-              { sprite: 'surfer_frame_2', duration: 150 },
-              { sprite: 'surfer_frame_3', duration: 150 },
-              { sprite: 'surfer_frame_4', duration: 150 },
-              { sprite: 'surfer_frame_5', duration: 150 },
-              { sprite: 'surfer_frame_6', duration: 150 },
-              { sprite: 'surfer_frame_7', duration: 150 },
-              { sprite: 'surfer_frame_8', duration: 150 },
-            ],
-            loop: true,
-          },
-          relaxed: {
-            name: 'relaxed',
-            frameOffset: 9, // Universal frame mapping - offset by 9 to get frames 9-15
-            frames: [
-              { sprite: 'surfer_frame_9', duration: 200 },
-              { sprite: 'surfer_frame_10', duration: 200 },
-              { sprite: 'surfer_frame_11', duration: 200 },
-              { sprite: 'surfer_frame_12', duration: 200 },
-              { sprite: 'surfer_frame_13', duration: 200 },
-              { sprite: 'surfer_frame_14', duration: 200 },
-              { sprite: 'surfer_frame_15', duration: 200 },
-            ],
-            loop: true,
-          },
-        },
-        stateMachine: {
-          initialState: 'surfing',
-          parameters: { relaxed: false },
-          transitions: [
-            {
-              from: 'surfing',
-              to: 'relaxed',
-              condition: {
-                param: 'relaxed',
-                value: true,
-                op: TransitionOp.EQUAL,
-              },
-            },
-            {
-              from: 'relaxed',
-              to: 'surfing',
-              condition: {
-                param: 'relaxed',
-                value: false,
-                op: TransitionOp.EQUAL,
-              },
-            },
-          ],
-        },
-      },
-    },
   },
   render: (args: any) => {
     const [isRelaxed, setIsRelaxed] = React.useState(false);
@@ -136,41 +52,87 @@ export const Basic: Story = {
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <View style={{ flex: 1, width: '100%', height: '100%' }}>
           <ReactNativeTurboGameEngine {...args}>
-            <SkyBackground />
-            <StarsView />
-            <SeaGroup>
-              <SurferView
-                x={windowWidth / 9}
-                y={windowHeight * 0.7}
-                relaxed={isRelaxed}
-              />
-            </SeaGroup>
+            <Scene name="Root">
+              <Preload>
+                <Asset type="image" name="ship" uriOrBase64={ship} />
+                <Asset type="image" name="star" uriOrBase64={star} />
+                <Asset type="image" name="surfer" uriOrBase64={surfer} />
+                <Asset type="shader" name="sea" source={sourceCode} />
+                <Asset
+                  type="animation"
+                  name="surferAnimations"
+                  clip={{
+                    clips: {
+                      surfing: {
+                        name: 'surfing',
+                        frames: [
+                          { sprite: 'surfer_frame_0', duration: 150 },
+                          { sprite: 'surfer_frame_1', duration: 150 },
+                          { sprite: 'surfer_frame_2', duration: 150 },
+                          { sprite: 'surfer_frame_3', duration: 150 },
+                          { sprite: 'surfer_frame_4', duration: 150 },
+                          { sprite: 'surfer_frame_5', duration: 150 },
+                          { sprite: 'surfer_frame_6', duration: 150 },
+                          { sprite: 'surfer_frame_7', duration: 150 },
+                          { sprite: 'surfer_frame_8', duration: 150 },
+                        ],
+                        loop: true,
+                      },
+                      relaxed: {
+                        name: 'relaxed',
+                        frameOffset: 9,
+                        frames: [
+                          { sprite: 'surfer_frame_9', duration: 200 },
+                          { sprite: 'surfer_frame_10', duration: 200 },
+                          { sprite: 'surfer_frame_11', duration: 200 },
+                          { sprite: 'surfer_frame_12', duration: 200 },
+                          { sprite: 'surfer_frame_13', duration: 200 },
+                          { sprite: 'surfer_frame_14', duration: 200 },
+                          { sprite: 'surfer_frame_15', duration: 200 },
+                        ],
+                        loop: true,
+                      },
+                    },
+                    stateMachine: {
+                      initialState: 'surfing',
+                      parameters: { relaxed: false },
+                      transitions: [
+                        {
+                          from: 'surfing',
+                          to: 'relaxed',
+                          condition: {
+                            param: 'relaxed',
+                            value: true,
+                            op: TransitionOp.EQUAL,
+                          },
+                        },
+                        {
+                          from: 'relaxed',
+                          to: 'surfing',
+                          condition: {
+                            param: 'relaxed',
+                            value: false,
+                            op: TransitionOp.EQUAL,
+                          },
+                        },
+                      ],
+                    },
+                  }}
+                />
+              </Preload>
+              <Content>
+                <SkyBackground />
+                <StarsView />
+                <SeaGroup>
+                  <SurferView
+                    x={windowWidth / 9}
+                    y={windowHeight * 0.7}
+                    relaxed={isRelaxed}
+                  />
+                </SeaGroup>
+              </Content>
+            </Scene>
           </ReactNativeTurboGameEngine>
-
-          {/* Animation control button */}
-          <View
-            style={{
-              position: 'absolute',
-              top: 50,
-              left: 20,
-              backgroundColor: 'rgba(0,0,0,0.7)',
-              padding: 10,
-              borderRadius: 5,
-            }}
-          >
-            <TouchableOpacity
-              onPress={() => setIsRelaxed(!isRelaxed)}
-              style={{
-                backgroundColor: isRelaxed ? '#4CAF50' : '#FF9800',
-                padding: 10,
-                borderRadius: 5,
-              }}
-            >
-              <Text style={{ color: 'white', fontWeight: 'bold' }}>
-                {isRelaxed ? 'Relaxed' : 'Surfing'}
-              </Text>
-            </TouchableOpacity>
-          </View>
         </View>
       </View>
     );

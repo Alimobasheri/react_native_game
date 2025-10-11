@@ -36,22 +36,22 @@ export const SurferView: FC<{ x: number; y: number; relaxed?: boolean }> = ({
         isPlaying: true,
       }),
 
-      // Animation clip component for state-based animation
-      createAnimationClipComponent({
-        assetId: 'surferAnimations',
-        clipId: 'surfing', // Start with surfing animation
-        frameIndex: 0,
-        elapsedTime: 0,
-        speed: 1.0,
-        isPlaying: true,
-      }),
+      // // Animation clip component for state-based animation
+      // createAnimationClipComponent({
+      //   assetId: 'surferAnimations',
+      //   clipId: 'surfing', // Start with surfing animation
+      //   frameIndex: 0,
+      //   elapsedTime: 0,
+      //   speed: 1.0,
+      //   isPlaying: true,
+      // }),
 
       // Animator state with relaxed parameter
-      createAnimatorStateComponent({
-        stateMachineId: 'surferAnimations',
-        currentStateId: hashString('surfing'),
-        parameters: { relaxed: false },
-      }),
+      // createAnimatorStateComponent({
+      //   stateMachineId: 'surferAnimations',
+      //   currentStateId: hashString('surfing'),
+      //   parameters: { relaxed: false },
+      // }),
 
       createRenderComponent({
         shape: { type: 'rectangle', width: surferSize, height: surferSize },

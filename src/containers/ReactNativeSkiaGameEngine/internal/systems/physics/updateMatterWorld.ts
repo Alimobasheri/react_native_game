@@ -5,7 +5,8 @@ export const updateMatterWorld: System = {
     'worklet';
     if (
       typeof global.MatterReanimated === 'undefined' ||
-      typeof global._RNTGE_ === 'undefined'
+      typeof global._RNTGE_ === 'undefined' ||
+      !global._RNTGE_.physics
     )
       return;
     global.MatterReanimated.Engine.update(global._RNTGE_.physics.engine);

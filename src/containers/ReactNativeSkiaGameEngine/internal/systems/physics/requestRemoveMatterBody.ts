@@ -10,6 +10,7 @@ export const requestRemoveMatterBody: System = {
   requiredEvents: [RemoveMatterBodyRequestType],
   process: ({ components, eventQueue, ecs }) => {
     'worklet';
+    if (!global._RNTGE_.physics) return;
     const events = eventQueue
       .readEvents()
       .filter((e) => e.type === RemoveMatterBodyRequestType);

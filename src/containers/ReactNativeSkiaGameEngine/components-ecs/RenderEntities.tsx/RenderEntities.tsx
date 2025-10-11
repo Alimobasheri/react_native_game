@@ -3,7 +3,7 @@ import { FC } from 'react';
 import { SharedValue } from 'react-native-reanimated';
 
 export type RenderEntitiesProps = {
-  picture: SharedValue<SkPicture | null>;
+  picture: SharedValue<SkPicture>;
 };
 
 export const RenderEntities: FC<RenderEntitiesProps> = ({ picture }) => {

@@ -3,3 +3,8 @@ export * from './context';
 export * from './hooks';
 export * from './services';
 export * from './utils';
+export * from './RNTGE';
+export * from './components-rntge/Scene/Scene';
+export * from './components-rntge/Scene/Preload';
+export * from './components-rntge/Scene/Content';
+export * from './components-rntge/Scene/Asset';

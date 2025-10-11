@@ -1,23 +1,6 @@
-import {
-  Canvas,
-  Skia,
-  SkImage,
-  SkPath,
-  SkPicture,
-  SkRuntimeEffect,
-} from '@shopify/react-native-skia';
-import {
-  FC,
-  PropsWithChildren,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { Canvas, SkPath, SkPicture } from '@shopify/react-native-skia';
+import { FC, PropsWithChildren, useCallback, useState } from 'react';
 import { ECSState, useECS } from './hooks-ecs/useECS/useECS';
-import { ECSProvider } from './contexts-rntge/ECSContext/ECSProvider';
-import { MemoizedContainer } from './components/MemoizedContainer';
 import {
   FrameInfo,
   runOnJS,
@@ -31,7 +14,6 @@ import { useEventQueue } from './hooks-ecs/useEventQueue/useEventQueue';
 import { EventQueueProvider } from './contexts-rntge/EventQueueContext/EventQueueProvider';
 import { PositionComponentName } from './internal/components/position';
 import { requestCreateEntity } from './internal/systems/requestCreateEntity';
-import { useDerivedMemory } from './hooks-ecs/useDerivedMemory/useDerivedMemory';
 import { requestAddSystem } from './internal/systems/requestAddSystem';
 import { requestAddMatterBody } from './internal/systems/physics/requestAddMatterBody';
 import { useMatterPhysics } from './hooks-ecs/useMatterPhysics/useMatterPhysics';
@@ -43,7 +25,6 @@ import { RenderEntities } from './components-ecs/RenderEntities.tsx/RenderEntiti
 import { renderSystem } from './internal/systems/renderSystem';
 import { requestCreateEntityBatch } from './internal/systems/requestCreateEntityBatch';
 import { requestAddMatterBodyBatch } from './internal/systems/physics/requestAddMatterBodyBatch';
-import { loadImageAssets } from './services-ecs/image-store';
 import { AtlasData, ClipAnimationData } from './types-ecs/render';
 import { Assets } from './types-ecs/assets';
 import { AnimationClipComponentName } from './internal/components/animationClip';
@@ -52,72 +33,33 @@ import { AnimatorStateComponentName } from './internal/components/animatorState'
 import { spriteUpdateSystem } from './internal/systems/animations/spriteUpdateSystem';
 import { animatorStateSystem } from './internal/systems/animations/animatorStateSystem';
 import { animationClipSystem } from './internal/systems/animations/animationClipSystem';
+import { registerSceneSystem } from './internal/systems/scene/registerSceneSystem';
+import { sceneStateSystem } from './internal/systems/scene/sceneStateSystem';
+import { assetPreloadSystem } from './internal/systems/scene/assetPreloadSystem';
+import { Scene } from './components-rntge/Scene/Scene';
+import { SceneComponentName } from './internal/components/scene';
 
 export interface ReactNativeTurboGameEngineProps {
   componentNames: string[];
-  images?: Record<string, any>;
-  shaders?: Record<string, string>;
   clipAnimations?: Record<string, ClipAnimationData>;
   atlases?: Record<string, AtlasData>;
 }
 
 export const ReactNativeTurboGameEngine: FC<
   PropsWithChildren<ReactNativeTurboGameEngineProps>
-> = ({
-  componentNames,
-  images,
-  shaders,
-  children,
-  clipAnimations,
-  atlases,
-}) => {
+> = ({ componentNames, children, clipAnimations, atlases }) => {
   const setDimensions = useRNTGEStore((state) => state.setDimensions);
   const dimensions = useSharedValue({ width: 0, height: 0 });
   const eventQueue = useEventQueue();
   const { ECS, state, initECS } = useECS({ eventQueue });
   const picture = useSharedValue<SkPicture | null>(null);
   const pictureCache = useSharedValue<Record<number, SkPicture | SkPath>>({});
-  const imageCache = useSharedValue<Record<string, SkImage>>({});
 
   const assets = useSharedValue<Assets>({
-    clipAnimations,
-    atlases,
+    clipAnimations: clipAnimations ?? {},
+    atlases: atlases ?? {},
   });
-  const shaderEffects = useSharedValue<Record<string, SkRuntimeEffect>>({});
 
-  // Compile shaders once on mount
-  useLayoutEffect(() => {
-    if (shaders) {
-      const compiledShaders = Object.fromEntries(
-        Object.entries(shaders).map(([key, source]) => {
-          const effect = Skia.RuntimeEffect.Make(source);
-          if (!effect) {
-            // In a real scenario, provide more robust error handling
-            console.error(`Failed to compile shader: ${key}`);
-            return [key, null];
-          }
-          return [key, effect];
-        })
-      );
-      //@ts-ignore
-      shaderEffects.value = Object.fromEntries(
-        Object.entries(compiledShaders).filter(([, effect]) => effect !== null)
-      );
-    }
-  }, [shaders]);
-
-  useEffect(() => {
-    loadImageAssets(images ?? {}, (loadedImageCache) => {
-      imageCache.value = loadedImageCache;
-    });
-  }, [images]);
-
-  const {
-    derivedMemory,
-    derivedSystems,
-    addDerivedSystem,
-    updateDerivedMemory,
-  } = useDerivedMemory();
   const [shouldRender, setShouldRender] = useState(false);
   const { initPhysics } = useMatterPhysics();
   useAnimatedReaction(
@@ -132,6 +74,7 @@ export const ReactNativeTurboGameEngine: FC<
   const defineComponents = useCallback(() => {
     'worklet';
     if (!ECS.value) return;
+    ECS.value.createComponent(SceneComponentName);
     ECS.value.createComponent(PositionComponentName);
     ECS.value.createComponent(MatterBodyComponentName);
     ECS.value.createComponent(SpriteComponentName);
@@ -155,10 +98,11 @@ export const ReactNativeTurboGameEngine: FC<
     ECS.value.registerSystem(spriteUpdateSystem);
     ECS.value.registerSystem(animatorStateSystem);
     ECS.value.registerSystem(updateMatterWorld);
-    ECS.value.registerSystem(
-      renderSystem(picture, dimensions, pictureCache, imageCache, shaderEffects)
-    );
-  }, [ECS, picture, dimensions, pictureCache, imageCache, shaderEffects]);
+    ECS.value.registerSystem(registerSceneSystem);
+    ECS.value.registerSystem(sceneStateSystem);
+    ECS.value.registerSystem(assetPreloadSystem);
+    ECS.value.registerSystem(renderSystem(picture, dimensions, pictureCache));
+  }, [ECS, picture, dimensions, pictureCache]);
 
   const onFrame = useCallback(
     (frameInfo: FrameInfo) => {
@@ -167,6 +111,11 @@ export const ReactNativeTurboGameEngine: FC<
       if (eventQueue.nextExternalEvents.value.length > 0) return;
       eventQueue.clearEvents();
       if (state.value !== ECSState.INITIALIZED) {
+        global._RNTGE_ = {
+          physics: undefined,
+          imageCache: {},
+          shaderCache: {},
+        };
         initECS();
         initPhysics();
         defineComponents();
@@ -207,20 +156,14 @@ export const ReactNativeTurboGameEngine: FC<
         dimensions.value = { width, height };
       }}
     >
-      <ECSProvider
-        ecs={ECS}
-        addDerivedSystem={addDerivedSystem}
-        derivedMemory={derivedMemory}
-      >
-        <EventQueueProvider eventQueue={eventQueue}>
-          {shouldRender && (
-            <>
-              {children}
-              <RenderEntities picture={picture} />
-            </>
-          )}
-        </EventQueueProvider>
-      </ECSProvider>
+      <EventQueueProvider eventQueue={eventQueue}>
+        {shouldRender && (
+          <>
+            <Scene name="Root">{children}</Scene>
+            <RenderEntities picture={picture as SharedValue<SkPicture>} />
+          </>
+        )}
+      </EventQueueProvider>
     </Canvas>
   );
 };
