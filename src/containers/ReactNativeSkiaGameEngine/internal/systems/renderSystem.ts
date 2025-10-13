@@ -16,6 +16,8 @@ import { MatterBodyComponentName } from '../components/matterBody';
 import { IBodyDefinition } from 'matter-js';
 import { Entity } from '../../services-ecs/entity';
 import { SpriteComponentName } from '../components/sprite';
+import { TextComponentData, TextComponentName } from '../components/text';
+import { renderTextForEntity } from '../utils/textRenderer';
 
 const createPathFromShape = (
   renderData: RenderComponentData
@@ -121,13 +123,14 @@ const getSpriteFrameInfo = (
 
 const createAndCacheEntityPicture = (
   components: Record<string, ComponentStore<any>>,
-  entityId: Entity,
-  deltaTime?: number
+  entityId: Entity
 ): SkPicture | null => {
   'worklet';
   const imageCache = global._RNTGE_.imageCache;
   const renderData: RenderComponentData | undefined =
     components[RenderComponentName].get(entityId);
+  const textComponent: TextComponentData | undefined =
+    components[TextComponentName].get(entityId);
 
   if (!renderData || renderData.visible === false) {
     return null;
@@ -139,7 +142,15 @@ const createAndCacheEntityPicture = (
   const recorder = Skia.PictureRecorder();
   const canvas = recorder.beginRecording();
 
-  if (renderData.image) {
+  if (textComponent) {
+    const text = renderTextForEntity(
+      canvas,
+      entityId,
+      renderData,
+      textComponent
+    );
+    if (!text) return null;
+  } else if (renderData.image) {
     let image = imageCache[renderData.image];
     if (image) {
       let width = image.width();
@@ -249,8 +260,6 @@ export const renderSystem = (
 
         if (!renderData || renderData.visible === false) continue;
 
-        // --- START OF REFACTORED CODE ---
-
         // 1. Universal Transformation Logic
         const body: IBodyDefinition | undefined =
           components[MatterBodyComponentName]?.get(entity);
@@ -303,6 +312,7 @@ export const renderSystem = (
           }
         } else {
           let entityPicture = pictureCache.value[entity] as SkPicture;
+
           const spriteComponent = components[SpriteComponentName]?.get(entity);
           const hasSpriteAnimation =
             spriteComponent?.currentFrame !== undefined || renderData.sprite;
@@ -310,11 +320,15 @@ export const renderSystem = (
           if (renderData.isDirty || !entityPicture || hasSpriteAnimation) {
             const newEntityPicture = createAndCacheEntityPicture(
               components,
-              entity,
-              deltaTime
+              entity
             );
             if (newEntityPicture) {
               pictureCache.value[entity] = newEntityPicture;
+              if (components[TextComponentName]?.get(entity))
+                console.log(
+                  '🚀 ~ renderSystem ~ entityPicture:',
+                  newEntityPicture
+                );
               entityPicture = newEntityPicture;
             }
           }

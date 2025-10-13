@@ -17,4 +17,14 @@ declare namespace _RNTGE_ {
   var shaderCache: Record<string, SkRuntimeEffect>;
   var atlasCache: Record<string, AtlasData>;
   var clipAnimationCache: Record<string, ClipAnimationData>;
+  var fontCache: Record<string, { typeface: SkTypeface; family: string }>;
+  var textCache: Record<
+    string,
+    {
+      paragraph: Paragraph;
+      width: number;
+      height: number;
+      lastHash: string | null;
+    }
+  >;
 }

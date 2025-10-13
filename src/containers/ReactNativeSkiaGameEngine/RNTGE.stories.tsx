@@ -28,6 +28,7 @@ import { SeaGroup } from '@/components/SeaGroupRenderer/SeaGroup-rntge';
 import { SeaLayerComponentName } from '@/Game/ecs-components/SeaLayer';
 import { SurferComponentName } from '@/Game/ecs-components/Surfer';
 import { TransitionOp } from '@/containers/ReactNativeSkiaGameEngine/types-ecs/render';
+import { SwipeToPlay } from '../Scenes/StartingScene/components/SwipeToPlay/index-rntge';
 
 const meta = {
   title: 'React Native Turbo Game Engine',
@@ -54,6 +55,12 @@ export const Basic: Story = {
           <ReactNativeTurboGameEngine {...args}>
             <Scene name="Root">
               <Preload>
+                <Asset
+                  id="Montserrat"
+                  type="font"
+                  family="Montserrat"
+                  resource={require('../../../assets/fonts/Montserrat-SemiBold.ttf')}
+                />
                 <Asset type="image" name="ship" uriOrBase64={ship} />
                 <Asset type="image" name="star" uriOrBase64={star} />
                 <Asset type="image" name="surfer" uriOrBase64={surfer} />
@@ -130,6 +137,7 @@ export const Basic: Story = {
                     relaxed={isRelaxed}
                   />
                 </SeaGroup>
+                <SwipeToPlay />
               </Content>
             </Scene>
           </ReactNativeTurboGameEngine>

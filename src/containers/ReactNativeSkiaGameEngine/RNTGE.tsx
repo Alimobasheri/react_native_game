@@ -38,6 +38,7 @@ import { sceneStateSystem } from './internal/systems/scene/sceneStateSystem';
 import { assetPreloadSystem } from './internal/systems/scene/assetPreloadSystem';
 import { Scene } from './components-rntge/Scene/Scene';
 import { SceneComponentName } from './internal/components/scene';
+import { TextComponentName } from './internal/components/text';
 
 export interface ReactNativeTurboGameEngineProps {
   componentNames: string[];
@@ -73,6 +74,7 @@ export const ReactNativeTurboGameEngine: FC<
     ECS.value.createComponent(SpriteComponentName);
     ECS.value.createComponent(AnimationClipComponentName);
     ECS.value.createComponent(AnimatorStateComponentName);
+    ECS.value.createComponent(TextComponentName);
     ECS.value.createComponent(RenderComponentName);
     componentNames.forEach(
       (name) => ECS.value && ECS.value.createComponent(name)
@@ -110,6 +112,8 @@ export const ReactNativeTurboGameEngine: FC<
           shaderCache: {},
           atlasCache: {},
           clipAnimationCache: {},
+          fontCache: {},
+          textCache: {},
         };
         initECS();
         initPhysics();

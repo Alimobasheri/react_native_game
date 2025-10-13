@@ -24,6 +24,7 @@ import {
   loadClipAnimationsOnUI,
 } from '../../loaders-ecs';
 import { runOnUI } from 'react-native-reanimated';
+import { loadFontAssets } from '../../loaders-ecs/fonts';
 
 export type PreloadProps = PropsWithChildren<{
   onProgress?: (loaded: number, total: number) => void;
@@ -88,6 +89,8 @@ export const Preload: FC<PreloadProps> = ({ children, onProgress }) => {
           return acc;
         }, {} as Record<string, any>)
     );
+
+    loadFontAssets(assetsRef.current.filter((asset) => asset.type === 'font'));
 
     const req: AssetPreloadRequest = {
       type: AssetPreloadRequestType,
