@@ -8,7 +8,7 @@ import {
 export const assetPreloadSystem: System = {
   requiredComponents: [],
   requiredEvents: [AssetPreloadRequestType],
-  process: ({ eventQueue, assets }) => {
+  process: ({ eventQueue }) => {
     'worklet';
     const events = eventQueue
       .readEvents()
@@ -28,17 +28,14 @@ export const assetPreloadSystem: System = {
       for (let j = 0; j < payload.items.length; j++) {
         const item = payload.items[j];
         if (item.type === 'atlas') {
-          const atlases = assets.value.atlases || {};
+          const atlases = global._RNTGE_.atlasCache;
           atlases[item.name] = item.data;
-          // imageCache.value = { ...imageCache.value, atlases };
         } else if (item.type === 'animation') {
-          const clips = assets.value.clipAnimations || {};
+          const clips = global._RNTGE_.clipAnimationCache;
           clips[item.name] = item.clip;
-          // imageCache.value = { ...imageCache.value, clipAnimations: clips };
         }
         loaded++;
       }
-      console.log('assetPreloadSystem', payload.sceneKey, loaded, total);
       eventQueue.addAwaitingExternalEvent({
         type: AssetPreloadDoneType,
         payload: { sceneKey: payload.sceneKey },

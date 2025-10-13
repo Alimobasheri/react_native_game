@@ -41,24 +41,17 @@ import { SceneComponentName } from './internal/components/scene';
 
 export interface ReactNativeTurboGameEngineProps {
   componentNames: string[];
-  clipAnimations?: Record<string, ClipAnimationData>;
-  atlases?: Record<string, AtlasData>;
 }
 
 export const ReactNativeTurboGameEngine: FC<
   PropsWithChildren<ReactNativeTurboGameEngineProps>
-> = ({ componentNames, children, clipAnimations, atlases }) => {
+> = ({ componentNames, children }) => {
   const setDimensions = useRNTGEStore((state) => state.setDimensions);
   const dimensions = useSharedValue({ width: 0, height: 0 });
   const eventQueue = useEventQueue();
   const { ECS, state, initECS } = useECS({ eventQueue });
   const picture = useSharedValue<SkPicture | null>(null);
   const pictureCache = useSharedValue<Record<number, SkPicture | SkPath>>({});
-
-  const assets = useSharedValue<Assets>({
-    clipAnimations: clipAnimations ?? {},
-    atlases: atlases ?? {},
-  });
 
   const [shouldRender, setShouldRender] = useState(false);
   const { initPhysics } = useMatterPhysics();
@@ -115,6 +108,8 @@ export const ReactNativeTurboGameEngine: FC<
           physics: undefined,
           imageCache: {},
           shaderCache: {},
+          atlasCache: {},
+          clipAnimationCache: {},
         };
         initECS();
         initPhysics();
@@ -127,7 +122,6 @@ export const ReactNativeTurboGameEngine: FC<
             ecs: ECS as SharedValue<ECS>,
             eventQueue,
             deltaTime: frameInfo.timeSincePreviousFrame ?? 0,
-            assets: assets,
           });
         }
       }

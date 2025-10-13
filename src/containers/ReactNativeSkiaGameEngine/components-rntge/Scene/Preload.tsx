@@ -17,7 +17,13 @@ import {
   AssetPreloadProgressType,
 } from './events';
 import { EventQueueContext } from '../../contexts-rntge/EventQueueContext/EventQueueContext';
-import { loadImageAssets, loadShaderAssets } from '../../loaders-ecs';
+import {
+  loadAtlasesOnUI,
+  loadImageAssets,
+  loadShaderAssets,
+  loadClipAnimationsOnUI,
+} from '../../loaders-ecs';
+import { runOnUI } from 'react-native-reanimated';
 
 export type PreloadProps = PropsWithChildren<{
   onProgress?: (loaded: number, total: number) => void;
@@ -63,6 +69,24 @@ export const Preload: FC<PreloadProps> = ({ children, onProgress }) => {
           acc[asset.name] = asset.source;
           return acc;
         }, {} as Record<string, string>)
+    );
+
+    runOnUI(loadAtlasesOnUI)(
+      assetsRef.current
+        .filter((asset) => asset.type === 'atlas')
+        .reduce((acc, asset) => {
+          acc[asset.name] = asset.data;
+          return acc;
+        }, {} as Record<string, any>)
+    );
+
+    runOnUI(loadClipAnimationsOnUI)(
+      assetsRef.current
+        .filter((asset) => asset.type === 'animation')
+        .reduce((acc, asset) => {
+          acc[asset.name] = asset.clip;
+          return acc;
+        }, {} as Record<string, any>)
     );
 
     const req: AssetPreloadRequest = {

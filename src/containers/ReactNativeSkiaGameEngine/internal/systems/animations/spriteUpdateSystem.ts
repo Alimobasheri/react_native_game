@@ -62,9 +62,9 @@ const updateAdvancedSpriteAnimation = (
 
 export const spriteUpdateSystem: System = {
   requiredComponents: [SpriteComponentName],
-  process: ({ entities, components, eventQueue, deltaTime, ecs, assets }) => {
+  process: ({ entities, components, deltaTime }) => {
     'worklet';
-    const animationAssets = assets.value.clipAnimations;
+    const animationAssets = global._RNTGE_.clipAnimationCache;
 
     entities.forEach((entity) => {
       const sprite = components[SpriteComponentName].get(entity);

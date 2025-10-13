@@ -7,10 +7,10 @@ import { ClipAnimationData } from '@/containers/ReactNativeSkiaGameEngine/types-
 
 export const animationClipSystem: System = {
   requiredComponents: [AnimationClipComponentName],
-  process: ({ entities, components, eventQueue, deltaTime, ecs, assets }) => {
+  process: ({ entities, components, eventQueue, deltaTime }) => {
     'worklet';
     const animationAssets: Record<string, ClipAnimationData> =
-      assets.value.clipAnimations;
+      global._RNTGE_.clipAnimationCache;
 
     entities.forEach((entity) => {
       const clipPlayer: AnimationClipComponentData =

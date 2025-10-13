@@ -18,14 +18,12 @@ export type SystemProcessArgs = {
   eventQueue: EventQueueContextType;
   deltaTime: number;
   ecs: SharedValue<ECS>;
-  assets: SharedValue<Assets>;
 };
 
 export interface RunSystemsArgs {
   ecs: SharedValue<ECS>;
   eventQueue: EventQueueContextType;
   deltaTime: number;
-  assets: SharedValue<Assets>;
 }
 
 export type System = {
@@ -75,12 +73,7 @@ export const createSystemManager = (
     return systemId;
   };
 
-  const runSystems = ({
-    ecs,
-    eventQueue,
-    deltaTime,
-    assets,
-  }: RunSystemsArgs) => {
+  const runSystems = ({ ecs, eventQueue, deltaTime }: RunSystemsArgs) => {
     'worklet';
     const events = eventQueue.readEvents();
 
@@ -104,7 +97,6 @@ export const createSystemManager = (
         eventQueue,
         deltaTime,
         ecs,
-        assets,
       });
     }
   };

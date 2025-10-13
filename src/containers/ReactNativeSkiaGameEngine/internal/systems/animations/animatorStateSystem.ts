@@ -35,11 +35,11 @@ const compare = (param: any, value: any, op: TransitionOp) => {
 
 export const animatorStateSystem: System = {
   requiredComponents: [AnimatorStateComponentName, AnimationClipComponentName],
-  process: ({ entities, components, assets }) => {
+  process: ({ entities, components }) => {
     'worklet';
 
     const animationAssets: Record<string, ClipAnimationData> =
-      assets.value.clipAnimations;
+      global._RNTGE_.clipAnimationCache;
 
     entities.forEach((entity) => {
       const animator: AnimatorStateComponentData =
