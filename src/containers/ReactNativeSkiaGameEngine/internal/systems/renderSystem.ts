@@ -324,11 +324,6 @@ export const renderSystem = (
             );
             if (newEntityPicture) {
               pictureCache.value[entity] = newEntityPicture;
-              if (components[TextComponentName]?.get(entity))
-                console.log(
-                  '🚀 ~ renderSystem ~ entityPicture:',
-                  newEntityPicture
-                );
               entityPicture = newEntityPicture;
             }
           }
