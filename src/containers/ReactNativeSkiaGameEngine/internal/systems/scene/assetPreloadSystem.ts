@@ -14,13 +14,11 @@ export const assetPreloadSystem: System = {
     const events = eventQueue
       .readEvents()
       .filter((e) => e.type === AssetPreloadRequestType);
-    console.log('🚀 ~ events:', events);
 
     for (let i = 0; i < events.length; i++) {
       const payload = events[i].payload as AssetPreloadRequest['payload'];
 
       const total = payload.items.length;
-      console.log('🚀 ~ total:', total);
       let loaded = 0;
 
       for (let j = 0; j < payload.items.length; j++) {
