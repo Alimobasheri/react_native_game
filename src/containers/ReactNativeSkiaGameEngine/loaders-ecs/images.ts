@@ -4,18 +4,16 @@ import { runOnUI } from 'react-native-reanimated';
 
 export type ImageAssetMap = Record<string, ReturnType<typeof require>>;
 
-export type ImageCache = Record<string, SkImage>;
-
-export const loadImagesOnUI = (
-  loadedImages: Record<string, SkImage | null>
-) => {
-  'worklet';
-  global._RNTGE_ = global._RNTGE_ || {};
-  global._RNTGE_.imageCache = { ...global._RNTGE_.imageCache, ...loadedImages };
+export type LoadedImage = {
+  type: 'image';
+  name: string;
+  data: SkImage | null;
 };
 
-export const loadImageAssets = async (assets: ImageAssetMap) => {
-  const imageEntries = await Promise.all(
+export const loadImageAssets = async (
+  assets: ImageAssetMap
+): Promise<LoadedImage[]> => {
+  const imageEntries = await Promise.allSettled(
     Object.entries(assets).map(async ([key, assetSource]) => {
       // Resolve the asset source to a URI that Skia can load.
       const source = Image.resolveAssetSource(assetSource);
@@ -36,10 +34,24 @@ export const loadImageAssets = async (assets: ImageAssetMap) => {
     })
   );
 
-  // Filter out any images that failed to load and create the cache record.
-  const loadedImages: Record<string, SkImage | null> = Object.fromEntries(
-    imageEntries.filter(([, image]) => image !== null)
-  );
+  // Map all results (fulfilled and rejected) into the LoadedImage structure.
+  const loadedImages: LoadedImage[] = imageEntries.map((result, index) => {
+    if (result.status === 'fulfilled') {
+      const [name, data] = result.value as [string, SkImage | null];
+      return {
+        type: 'image',
+        name,
+        data: data as SkImage | null,
+      };
+    } else {
+      const name = Object.keys(assets)[index];
+      return {
+        type: 'image',
+        name,
+        data: null,
+      };
+    }
+  });
 
-  runOnUI(loadImagesOnUI)(loadedImages);
+  return loadedImages;
 };

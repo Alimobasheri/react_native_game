@@ -1,4 +1,4 @@
-import { Skia } from '@shopify/react-native-skia';
+import { Skia, SkTypeface } from '@shopify/react-native-skia';
 import { runOnUI } from 'react-native-reanimated';
 
 type FontAsset = {
@@ -18,7 +18,18 @@ export type FontDataSource = {
   };
 };
 
-const createTypefaceOnUI = async (
+export type LoadedTypeface = {
+  typeface: SkTypeface;
+  family: string;
+};
+
+export type LoadedFont = {
+  type: 'font';
+  name: string;
+  data: LoadedTypeface;
+};
+
+const createTypeface = async (
   id: string,
   family: string,
   dataBase64OrUri: {
@@ -26,9 +37,6 @@ const createTypefaceOnUI = async (
     bytes?: Uint8Array;
   }
 ) => {
-  'worklet';
-  if (global._RNTGE_.fontCache[id]) return global._RNTGE_.fontCache[id];
-
   try {
     let skData = null;
     if (dataBase64OrUri.bytes) {
@@ -44,14 +52,11 @@ const createTypefaceOnUI = async (
       );
       return null;
     }
-    // ADJUST HERE: create typeface. API may be Skia.Typeface.Make or Skia.FontMgr.MakeTypeface
     let typeface = null;
     try {
-      // Try different fallbacks depending on RN-Skia version
       if (Skia.Typeface && Skia.Typeface.MakeFreeTypeFaceFromData) {
         typeface = Skia.Typeface.MakeFreeTypeFaceFromData(skData);
       } else if (Skia.Font && typeof Skia.Font === 'function') {
-        // less likely; rely on family string fallback
         typeface = null;
       }
     } catch (err) {
@@ -61,34 +66,39 @@ const createTypefaceOnUI = async (
       );
       typeface = null;
     }
-
-    // Save into global cache
-    global._RNTGE_.fontCache[id] = {
+    if (!typeface) return null;
+    return {
       typeface,
       family: family,
     };
-    return global._RNTGE_.fontCache[id];
   } catch (err) {
     console.log('[RNTGE][fontLoader] UI-thread createTypeface error', err);
     return null;
   }
 };
 
-const createTypefacesOnUI = async (sources: FontDataSource[]) => {
-  'worklet';
-  global._RNTGE_ = global._RNTGE_ || {};
-  global._RNTGE_.fontCache = global._RNTGE_.fontCache || {};
+export const createTypefaces = async (sources: FontDataSource[]) => {
+  const loadedTypefaces: Record<string, LoadedTypeface> = {};
 
   for (const source of sources) {
-    await createTypefaceOnUI(source.id, source.family, source.dataBase64OrUri);
+    const loadedTypeface = await createTypeface(
+      source.id,
+      source.family,
+      source.dataBase64OrUri
+    );
+    if (loadedTypeface !== null) loadedTypefaces[source.id] = loadedTypeface;
   }
+
+  return loadedTypefaces;
 };
 
 /**
  * Main Thread: Loads font assets, converting bundled resources to bytes,
  * and then sends the data sources to the UI thread.
  */
-export async function loadFontAssets(assets: FontAsset[]) {
+export async function loadFontAssets(
+  assets: FontAsset[]
+): Promise<LoadedFont[]> {
   // Use 'sources' for the list of data to be sent to the UI thread
   const sources: FontDataSource[] = [];
 
@@ -145,5 +155,13 @@ export async function loadFontAssets(assets: FontAsset[]) {
     }
   }
 
-  runOnUI(createTypefacesOnUI)(sources);
+  const loadedTypefaces: Record<string, LoadedTypeface> = await createTypefaces(
+    sources
+  );
+
+  return Object.entries(loadedTypefaces).map(([name, loadedTypeface]) => ({
+    type: 'font',
+    name,
+    data: loadedTypeface,
+  }));
 }

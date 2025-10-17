@@ -1,3 +1,11 @@
+import {
+  LoadedAtlas,
+  LoadedClipAnimation,
+  LoadedImage,
+  LoadedShader,
+} from '../../loaders-ecs';
+import { LoadedFont } from '../../loaders-ecs/fonts';
+
 // JS -> UI
 export const SceneRegisterRequestType = 'rntge/scene/register' as const;
 export type SceneRegisterRequest = {
@@ -35,7 +43,13 @@ export type AssetPreloadRequest = {
   type: typeof AssetPreloadRequestType;
   payload: {
     sceneKey: string;
-    items: Array<any>;
+    items: Array<
+      | LoadedImage
+      | LoadedShader
+      | LoadedAtlas
+      | LoadedClipAnimation
+      | LoadedFont
+    >;
     subscriptionId: string; // preload subscription (progress)
     sceneSubscriptionId: string; // scene subscription (done)
   };

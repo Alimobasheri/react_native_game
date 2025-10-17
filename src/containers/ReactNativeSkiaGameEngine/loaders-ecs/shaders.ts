@@ -1,33 +1,40 @@
 import { Skia, SkRuntimeEffect } from '@shopify/react-native-skia';
-import { runOnUI } from 'react-native-reanimated';
 
 export type ShadersCache = Record<string, SkRuntimeEffect>;
 
-export const loadShadersNative = (loadedShaders: ShadersCache) => {
-  'worklet';
-
-  global._RNTGE_.shaderCache = {
-    ...global._RNTGE_.shaderCache,
-    ...loadedShaders,
-  };
+export type LoadedShader = {
+  type: 'shader';
+  name: string;
+  data: SkRuntimeEffect;
 };
 
-export const loadShaderAssets = async (assets: Record<string, string>) => {
+export const loadShaderAssets = (
+  assets: Record<string, string>
+): LoadedShader[] => {
   if (assets) {
     const compiledShaders = Object.fromEntries(
       Object.entries(assets).reduce((acc, [key, source]) => {
         const effect = Skia.RuntimeEffect.Make(source);
         if (!effect) {
+          console.warn(
+            "[RNTGE] Warning: Couldn't make RuntimeEffect for shader:",
+            key
+          );
           return acc;
         }
         return acc.concat([[key, effect]]);
       }, [] as [string, SkRuntimeEffect][])
     );
 
-    let loadedShaders: ShadersCache = Object.fromEntries(
-      Object.entries(compiledShaders).filter(([, effect]) => effect !== null)
-    );
+    let loadedShaders: LoadedShader[] = Object.entries(compiledShaders)
+      .filter(([, effect]) => effect !== null)
+      .map(([name, data]) => ({
+        type: 'shader',
+        name,
+        data,
+      }));
 
-    runOnUI(loadShadersNative)(loadedShaders);
+    return loadedShaders;
   }
+  return [];
 };

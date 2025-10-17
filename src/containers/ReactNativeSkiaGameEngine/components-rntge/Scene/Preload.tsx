@@ -1,6 +1,7 @@
 import React, {
   FC,
   PropsWithChildren,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -22,6 +23,8 @@ import {
   loadImageAssets,
   loadShaderAssets,
   loadClipAnimationsOnUI,
+  LoadedClipAnimation,
+  LoadedAtlas,
 } from '../../loaders-ecs';
 import { runOnUI } from 'react-native-reanimated';
 import { loadFontAssets } from '../../loaders-ecs/fonts';
@@ -53,8 +56,8 @@ export const Preload: FC<PreloadProps> = ({ children, onProgress }) => {
     notifyPreloadMounted(preloadSubscriptionId);
   }, [preloadSubscriptionId]);
 
-  useEffect(() => {
-    loadImageAssets(
+  const loadAssetsAndSendToUI = useCallback(async () => {
+    const loadedImages = await loadImageAssets(
       assetsRef.current
         .filter((asset) => asset.type === 'image')
         .reduce((acc, asset) => {
@@ -63,7 +66,7 @@ export const Preload: FC<PreloadProps> = ({ children, onProgress }) => {
         }, {} as Record<string, any>)
     );
 
-    loadShaderAssets(
+    const loadedShaders = loadShaderAssets(
       assetsRef.current
         .filter((asset) => asset.type === 'shader')
         .reduce((acc, asset) => {
@@ -71,37 +74,43 @@ export const Preload: FC<PreloadProps> = ({ children, onProgress }) => {
           return acc;
         }, {} as Record<string, string>)
     );
-
-    runOnUI(loadAtlasesOnUI)(
-      assetsRef.current
-        .filter((asset) => asset.type === 'atlas')
-        .reduce((acc, asset) => {
-          acc[asset.name] = asset.data;
-          return acc;
-        }, {} as Record<string, any>)
+    const loadedAtlases: LoadedAtlas[] = assetsRef.current
+      .filter((asset) => asset.type === 'atlas')
+      .map((item) => ({
+        type: item.type,
+        name: item.name,
+        data: item.data,
+      }));
+    const loadedAnimationClips: LoadedClipAnimation[] = assetsRef.current
+      .filter((asset) => asset.type === 'animation')
+      .map((item) => ({
+        type: item.type,
+        name: item.name,
+        data: item.data,
+      }));
+    const loadedFonts = await loadFontAssets(
+      assetsRef.current.filter((asset) => asset.type === 'font')
     );
-
-    runOnUI(loadClipAnimationsOnUI)(
-      assetsRef.current
-        .filter((asset) => asset.type === 'animation')
-        .reduce((acc, asset) => {
-          acc[asset.name] = asset.clip;
-          return acc;
-        }, {} as Record<string, any>)
-    );
-
-    loadFontAssets(assetsRef.current.filter((asset) => asset.type === 'font'));
-
     const req: AssetPreloadRequest = {
       type: AssetPreloadRequestType,
       payload: {
         sceneKey,
-        items: assetsRef.current,
+        items: [
+          ...loadedImages,
+          ...loadedShaders,
+          ...loadedAtlases,
+          ...loadedAnimationClips,
+          ...loadedFonts,
+        ],
         subscriptionId: preloadSubscriptionId,
         sceneSubscriptionId,
       },
     };
     eventQueue.addEventJS(req);
+  }, []);
+
+  useEffect(() => {
+    loadAssetsAndSendToUI();
   }, [sceneKey, preloadSubscriptionId]);
 
   const value = useMemo(

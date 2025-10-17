@@ -91,6 +91,7 @@ export const createSystemManager = (
       const entities = system.requiredComponents
         ? ecs.value.getEntitiesWithComponents(system.requiredComponents)
         : [];
+      // console.log('=====', system.requiredComponents);
       system.process({
         entities,
         components: ecs.value.components.value,

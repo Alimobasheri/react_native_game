@@ -1,5 +1,11 @@
 import { ClipAnimationData } from '../types-ecs/render';
 
+export type LoadedClipAnimation = {
+  type: 'animation';
+  name: string;
+  data: ClipAnimationData;
+};
+
 export const loadClipAnimationsOnUI = async (
   animations: Record<string, ClipAnimationData>
 ) => {
