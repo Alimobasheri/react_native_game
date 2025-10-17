@@ -4,8 +4,6 @@ import {
   SkPicture,
   SkPath,
   PaintStyle,
-  SkImage,
-  SkRuntimeEffect,
   SkShader,
   BlendMode,
 } from '@shopify/react-native-skia';

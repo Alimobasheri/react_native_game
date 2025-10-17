@@ -102,7 +102,7 @@ export function buildParagraphForText(textComponent: TextComponentData) {
   const SkparagraphStyle: SkParagraphStyle = {
     textAlign: align,
     maxLines: wrap ? 0 : 1, // 0 => unlimited
-    ellipsis: textComponent.ellipsis,
+    ellipsis: textComponent.ellipsis || '...',
     heightMultiplier: lineHeight ? lineHeight / fontSize : 1,
   };
 
@@ -185,16 +185,12 @@ export function renderTextForEntity(
         lastHash: newHash,
       };
       textComponent.isDirty = false;
-      built.paragraph.paint(
-        canvas,
-        renderComponent.position?.x || 0,
-        renderComponent.position?.y || 0
-      );
+      built.paragraph.paint(canvas, 0, 0);
       return built;
       return null;
     } catch (e) {
       console.warn(
-        '[RNTGE] Failed to build paragraph for text entit 2',
+        '[RNTGE] Failed to build paragraph for text entity',
         entityId,
         e
       );
