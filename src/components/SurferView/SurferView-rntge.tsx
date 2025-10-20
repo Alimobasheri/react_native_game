@@ -4,13 +4,9 @@ import { useAddSystem } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/u
 import { createRenderComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import { createPositionComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/position';
 import { createSpriteSheetAnimatedComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/sprite';
-import { createAnimationClipComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/animationClip';
-import { createAnimatorStateComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/animatorState';
 import { CreateMatterBodyArgs } from '@/containers/ReactNativeSkiaGameEngine/internal/systems/physics/bodiesTypes';
 import { createSurferComponent } from '@/Game/ecs-components/Surfer';
 import { SurferPhysicsSystem } from '@/systems/PhysicsSystem/SurferPhysicsSystem';
-import { hashString } from '@/containers/ReactNativeSkiaGameEngine/utils/hasString';
-import { BlendMode } from 'react-native';
 import { FC, useMemo } from 'react';
 
 const surferSize = 128;
@@ -36,22 +32,22 @@ export const SurferView: FC<{ x: number; y: number; relaxed?: boolean }> = ({
         isPlaying: true,
       }),
 
-      // Animation clip component for state-based animation
-      createAnimationClipComponent({
-        assetId: 'surferAnimations',
-        clipId: 'surfing', // Start with surfing animation
-        frameIndex: 0,
-        elapsedTime: 0,
-        speed: 1.0,
-        isPlaying: true,
-      }),
+      // // Animation clip component for state-based animation
+      // createAnimationClipComponent({
+      //   assetId: 'surferAnimations',
+      //   clipId: 'surfing', // Start with surfing animation
+      //   frameIndex: 0,
+      //   elapsedTime: 0,
+      //   speed: 1.0,
+      //   isPlaying: true,
+      // }),
 
-      // Animator state with relaxed parameter
-      createAnimatorStateComponent({
-        stateMachineId: 'surferAnimations',
-        currentStateId: hashString('surfing'),
-        parameters: { relaxed: false },
-      }),
+      // // Animator state with relaxed parameter
+      // createAnimatorStateComponent({
+      //   stateMachineId: 'surferAnimations',
+      //   currentStateId: hashString('surfing'),
+      //   parameters: { relaxed: false },
+      // }),
 
       createRenderComponent({
         shape: { type: 'rectangle', width: surferSize, height: surferSize },
