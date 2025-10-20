@@ -5,11 +5,16 @@ import {
   AssetPreloadRequest,
   AssetPreloadRequestType,
 } from '../../../components-rntge/Scene/events';
+import {
+  createTypefaceOnUI,
+  createTypefacesOnUI,
+  LoadedFontSources,
+} from '@/containers/ReactNativeSkiaGameEngine/loaders-ecs';
 
 export const assetPreloadSystem: System = {
   requiredComponents: [],
   requiredEvents: [AssetPreloadRequestType],
-  process: ({ eventQueue }) => {
+  process: async ({ eventQueue }) => {
     'worklet';
     const events = eventQueue
       .readEvents()
@@ -20,6 +25,8 @@ export const assetPreloadSystem: System = {
 
       const total = payload.items.length;
       let loaded = 0;
+
+      const fontsToLoad: LoadedFontSources[] = [];
 
       for (let j = 0; j < payload.items.length; j++) {
         const item = payload.items[j];
@@ -34,7 +41,12 @@ export const assetPreloadSystem: System = {
             break;
           case 'font':
             const fonts = global._RNTGE_.fontCache;
-            fonts[item.name] = item.data;
+            const typeface = createTypefaceOnUI(
+              item.name,
+              item.data.family,
+              item.data.base64
+            );
+            if (typeface) fonts[item.name] = typeface;
             break;
           case 'atlas':
             const atlases = global._RNTGE_.atlasCache;

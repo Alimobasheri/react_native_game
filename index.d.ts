@@ -2,7 +2,11 @@ import {
   AtlasData,
   ClipAnimationData,
 } from '@/containers/ReactNativeSkiaGameEngine/types-ecs/render';
-import { SkImage, SkRuntimeEffect } from '@shopify/react-native-skia';
+import {
+  SkImage,
+  SkRuntimeEffect,
+  SkParagraph,
+} from '@shopify/react-native-skia';
 
 export = _RNTGE_;
 export as namespace _RNTGE_;
@@ -21,7 +25,7 @@ declare namespace _RNTGE_ {
   var textCache: Record<
     string,
     {
-      paragraph: Paragraph;
+      paragraph: SkParagraph;
       width: number;
       height: number;
       lastHash: string | null;

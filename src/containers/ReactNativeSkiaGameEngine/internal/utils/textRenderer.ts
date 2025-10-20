@@ -101,9 +101,7 @@ export function buildParagraphForText(textComponent: TextComponentData) {
 
   const SkparagraphStyle: SkParagraphStyle = {
     textAlign: align,
-    maxLines: wrap ? 0 : 1, // 0 => unlimited
     ellipsis: textComponent.ellipsis || '...',
-    heightMultiplier: lineHeight ? lineHeight / fontSize : 1,
   };
 
   // SkTextStyle
@@ -179,15 +177,12 @@ export function renderTextForEntity(
         return null;
       }
       cache[key] = {
-        paragraph: built.paragraph,
-        width: built.width,
-        height: built.height,
+        ...built,
         lastHash: newHash,
       };
       textComponent.isDirty = false;
       built.paragraph.paint(canvas, 0, 0);
-      return built;
-      return null;
+      return cache[key];
     } catch (e) {
       console.warn(
         '[RNTGE] Failed to build paragraph for text entity',
@@ -198,11 +193,7 @@ export function renderTextForEntity(
     }
   } else {
     // Use cached paragraph
-    paragraphEntry.paragraph.paint(
-      canvas,
-      renderComponent.position?.x || 0,
-      renderComponent.position?.y || 0
-    );
+    paragraphEntry.paragraph.paint(canvas, 0, 0);
     return paragraphEntry;
   }
 }

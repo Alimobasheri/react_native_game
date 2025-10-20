@@ -4,7 +4,6 @@ import { runOnUI } from 'react-native-reanimated';
 type FontAsset = {
   type: 'font';
   id: string;
-  uri?: string; // remote or file:// or asset URI string
   resource?: number; // require(...) bundled resource number
   family?: string;
 };
@@ -12,8 +11,7 @@ type FontAsset = {
 export type FontDataSource = {
   id: string;
   family: string;
-  dataBase64OrUri: {
-    uri?: string;
+  base64: {
     bytes?: Uint8Array;
   };
 };
@@ -23,27 +21,31 @@ export type LoadedTypeface = {
   family: string;
 };
 
+export type LoadedFontSources = {
+  type: 'font';
+  name: string;
+  data: FontDataSource;
+};
+
 export type LoadedFont = {
   type: 'font';
   name: string;
   data: LoadedTypeface;
 };
 
-const createTypeface = async (
+export const createTypefaceOnUI = (
   id: string,
   family: string,
-  dataBase64OrUri: {
-    uri?: string;
+  base64: {
     bytes?: Uint8Array;
   }
 ) => {
+  'worklet';
   try {
     let skData = null;
-    if (dataBase64OrUri.bytes) {
+    if (base64.bytes) {
       // create Data from bytes (bundle require)
-      skData = Skia.Data.fromBytes(dataBase64OrUri.bytes);
-    } else if (dataBase64OrUri.uri) {
-      skData = await Skia.Data.fromURI(dataBase64OrUri.uri);
+      skData = Skia.Data.fromBytes(base64.bytes);
     }
     if (!skData) {
       console.log(
@@ -77,14 +79,15 @@ const createTypeface = async (
   }
 };
 
-export const createTypefaces = async (sources: FontDataSource[]) => {
+export const createTypefacesOnUI = async (sources: FontDataSource[]) => {
+  'worklet';
   const loadedTypefaces: Record<string, LoadedTypeface> = {};
 
   for (const source of sources) {
-    const loadedTypeface = await createTypeface(
+    const loadedTypeface = await createTypefaceOnUI(
       source.id,
       source.family,
-      source.dataBase64OrUri
+      source.base64
     );
     if (loadedTypeface !== null) loadedTypefaces[source.id] = loadedTypeface;
   }
@@ -98,7 +101,7 @@ export const createTypefaces = async (sources: FontDataSource[]) => {
  */
 export async function loadFontAssets(
   assets: FontAsset[]
-): Promise<LoadedFont[]> {
+): Promise<LoadedFontSources[]> {
   // Use 'sources' for the list of data to be sent to the UI thread
   const sources: FontDataSource[] = [];
 
@@ -124,7 +127,7 @@ export async function loadFontAssets(
             sources.push({
               id,
               family: asset.family || '',
-              dataBase64OrUri: { bytes },
+              base64: { bytes },
             });
             continue; // Continue to next asset
           }
@@ -136,16 +139,6 @@ export async function loadFontAssets(
         }
       }
 
-      if (asset.uri) {
-        // --- Existing Logic: Use URI for external/remote files ---
-        sources.push({
-          id,
-          family: asset.family || '',
-          dataBase64OrUri: { uri: asset.uri },
-        });
-        continue;
-      }
-
       console.warn(
         '[RNTGE][fontLoader] No valid uri or resource found for font asset:',
         id
@@ -155,13 +148,9 @@ export async function loadFontAssets(
     }
   }
 
-  const loadedTypefaces: Record<string, LoadedTypeface> = await createTypefaces(
-    sources
-  );
-
-  return Object.entries(loadedTypefaces).map(([name, loadedTypeface]) => ({
+  return sources.map((source) => ({
     type: 'font',
-    name,
-    data: loadedTypeface,
+    name: source.id,
+    data: source,
   }));
 }

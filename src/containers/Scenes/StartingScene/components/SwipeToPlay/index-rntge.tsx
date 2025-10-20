@@ -17,16 +17,17 @@ export const SwipeToPlay: FC<{}> = () => {
         fontSize: 24,
         color: Skia.Color('white'),
         align: TextAlign.Center,
+        maxWidth: 200,
       }),
       createRenderComponent({
-        shape: { type: 'rectangle', width: 200, height: 50 },
-        position: { x: dimensions.width / 2, y: dimensions.height - 100 },
+        shape: { type: 'rectangle', width: 200, height: 100 },
+        position: { x: dimensions.width / 2 - 100, y: dimensions.height - 50 },
         visible: true,
       }),
     ];
   }, []);
 
-  const { entityId } = useAddEntity({ components });
+  useAddEntity({ components });
 
   return null;
 };
