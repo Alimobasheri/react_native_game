@@ -29,6 +29,42 @@ import { SeaLayerComponentName } from '@/Game/ecs-components/SeaLayer';
 import { SurferComponentName } from '@/Game/ecs-components/Surfer';
 import { TransitionOp } from '@/containers/ReactNativeSkiaGameEngine/types-ecs/render';
 import { SwipeToPlay } from '../Scenes/StartingScene/components/SwipeToPlay/index-rntge';
+import { useAddEntity } from './hooks-ecs/useAddEntity/useAddEntity';
+import { createRenderComponent } from './internal/components/render';
+import { createPositionComponent } from './internal/components/position';
+import { createTouchComponent } from './internal/components/touch';
+import { FC } from 'react';
+
+// Simple touch test component to debug the touch system
+const TouchTestComponent: FC<{ x: number; y: number }> = ({ x, y }) => {
+  const components = [
+    createRenderComponent({
+      shape: { type: 'rectangle', width: 1000, height: 1000 },
+      position: { x, y },
+      fillColor: 'transparent',
+      visible: true,
+      zIndex: 10,
+    }),
+    createTouchComponent({
+      onGestureStart: (data) => {
+        'worklet';
+        console.log('TouchTestComponent: onGestureStart', data);
+        // For now, just log - state changes need to be handled differently in ECS
+      },
+      onGesture: (data) => {
+        'worklet';
+        console.log('TouchTestComponent: onGesture', data);
+      },
+      onGestureEnd: (data) => {
+        'worklet';
+        console.log('TouchTestComponent: onGestureEnd', data);
+      },
+    }),
+  ];
+
+  const { entityId } = useAddEntity({ components });
+  return null;
+};
 
 const meta = {
   title: 'React Native Turbo Game Engine',
@@ -137,6 +173,7 @@ export const Basic: Story = {
                     relaxed={isRelaxed}
                   />
                 </SeaGroup>
+                <TouchTestComponent x={0} y={0} />
                 <SwipeToPlay />
               </Content>
             </Scene>

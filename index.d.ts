@@ -31,4 +31,12 @@ declare namespace _RNTGE_ {
       lastHash: string | null;
     }
   >;
+  var TouchState:
+    | {
+        activePointers: Map<
+          number,
+          { entityId: number | null; captured: boolean }
+        >;
+      }
+    | undefined;
 }

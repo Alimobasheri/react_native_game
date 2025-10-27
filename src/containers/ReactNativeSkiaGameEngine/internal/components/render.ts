@@ -3,20 +3,27 @@ import { BlendMode } from '@shopify/react-native-skia';
 
 export const RenderComponentName = 'render';
 
+// Define shape type enum
+export enum ShapeTypes {
+  Rectangle = 'rectangle',
+  Circle = 'circle',
+  Polygon = 'polygon',
+}
+
 // Define the individual shape types for our discriminated union
 export type RenderShapeRectangle = {
-  type: 'rectangle';
+  type: ShapeTypes.Rectangle;
   width: number;
   height: number;
 };
 
 export type RenderShapeCircle = {
-  type: 'circle';
+  type: ShapeTypes.Circle;
   radius: number;
 };
 
 export type RenderShapePolygon = {
-  type: 'polygon';
+  type: ShapeTypes.Polygon;
   vertices: { x: number; y: number }[];
 };
 

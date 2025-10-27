@@ -39,6 +39,11 @@ import { assetPreloadSystem } from './internal/systems/scene/assetPreloadSystem'
 import { Scene } from './components-rntge/Scene/Scene';
 import { SceneComponentName } from './internal/components/scene';
 import { TextComponentName } from './internal/components/text';
+import { TouchComponentName } from './internal/components/touch';
+import { touchSystem } from './internal/systems/touchSystem';
+import { TouchOverlay } from './components-rntge/Input/TouchOverlay';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { StyleSheet } from 'react-native';
 
 export interface ReactNativeTurboGameEngineProps {
   componentNames: string[];
@@ -70,6 +75,7 @@ export const ReactNativeTurboGameEngine: FC<
     if (!ECS.value) return;
     ECS.value.createComponent(SceneComponentName);
     ECS.value.createComponent(PositionComponentName);
+    ECS.value.createComponent(TouchComponentName);
     ECS.value.createComponent(MatterBodyComponentName);
     ECS.value.createComponent(SpriteComponentName);
     ECS.value.createComponent(AnimationClipComponentName);
@@ -96,6 +102,7 @@ export const ReactNativeTurboGameEngine: FC<
     ECS.value.registerSystem(registerSceneSystem);
     ECS.value.registerSystem(sceneStateSystem);
     ECS.value.registerSystem(assetPreloadSystem);
+    ECS.value.registerSystem(touchSystem);
     ECS.value.registerSystem(renderSystem(picture, dimensions, pictureCache));
   }, [ECS, picture, dimensions, pictureCache]);
 
@@ -114,6 +121,12 @@ export const ReactNativeTurboGameEngine: FC<
           clipAnimationCache: {},
           fontCache: {},
           textCache: {},
+          TouchState: {
+            activePointers: new Map<
+              number,
+              { entityId: number | null; captured: boolean }
+            >(),
+          },
         };
         initECS();
         initPhysics();
@@ -143,25 +156,30 @@ export const ReactNativeTurboGameEngine: FC<
   );
   useFrameCallback(onFrame);
   return (
-    <Canvas
-      style={{ flex: 1 }}
-      onLayout={({
-        nativeEvent: {
-          layout: { width, height },
-        },
-      }) => {
-        setDimensions(width, height);
-        dimensions.value = { width, height };
-      }}
-    >
-      <EventQueueProvider eventQueue={eventQueue}>
-        {shouldRender && (
-          <>
-            <Scene name="Root">{children}</Scene>
-            <RenderEntities picture={picture as SharedValue<SkPicture>} />
-          </>
-        )}
-      </EventQueueProvider>
-    </Canvas>
+    <>
+      <Canvas
+        style={{ flex: 1 }}
+        onLayout={({
+          nativeEvent: {
+            layout: { width, height },
+          },
+        }) => {
+          setDimensions(width, height);
+          dimensions.value = { width, height };
+        }}
+      >
+        <EventQueueProvider eventQueue={eventQueue}>
+          {shouldRender && (
+            <>
+              <Scene name="Root">{children}</Scene>
+              <RenderEntities picture={picture as SharedValue<SkPicture>} />
+            </>
+          )}
+        </EventQueueProvider>
+      </Canvas>
+      <GestureHandlerRootView style={StyleSheet.absoluteFill}>
+        <TouchOverlay eventQueue={eventQueue} />
+      </GestureHandlerRootView>
+    </>
   );
 };
