@@ -174,56 +174,89 @@ export const touchSystem: System = {
       const pointerId = ev.pointerId ?? 0;
       const evtType = ev.eventType;
 
+      // Helper function to find hit entity by boundary checking
+      const findHitEntity = () => {
+        let hitEntity: number | null = null;
+        let hitPriority = -Infinity;
+
+        for (let i = gestureEntities.length - 1; i >= 0; i--) {
+          const ent = gestureEntities[i];
+          const renderData: RenderComponentData | undefined =
+            components[RenderComponentName].get(ent);
+          if (!renderData || renderData.visible === false) continue;
+
+          let pos = renderData.position ?? { x: 0, y: 0 };
+          const gestureComp = components[componentName]?.get(ent) as any;
+          const shape = getShapeForGestureEntity(renderData, gestureComp);
+
+          let collided = false;
+          if (!shape) {
+            continue;
+          }
+          switch (shape.type) {
+            case ShapeTypes.Rectangle: {
+              const w = shape.width ?? 0;
+              const h = shape.height ?? 0;
+              collided = pointInRect(px, py, pos.x, pos.y, w, h);
+              break;
+            }
+            case ShapeTypes.Circle: {
+              const r = shape.radius ?? 0;
+              collided = pointInCircle(px, py, pos.x, pos.y, r);
+              break;
+            }
+            case ShapeTypes.Polygon: {
+              if (!shape.vertices) break;
+              const vertices = shape.vertices.map(
+                (v: { x: number; y: number }) => ({
+                  x: v.x + pos.x,
+                  y: v.y + pos.y,
+                })
+              );
+              collided = pointInPolygon(px, py, vertices);
+              break;
+            }
+          }
+          if (!collided) continue;
+
+          const priority = gestureComp?.priority ?? renderData.zIndex ?? 0;
+          if (priority > hitPriority) {
+            hitEntity = ent;
+            hitPriority = priority;
+
+            if (gestureComp?.capture) break;
+          }
+        }
+        return hitEntity;
+      };
+
       let hitEntity: number | null = null;
-      let hitPriority = -Infinity;
 
-      for (let i = gestureEntities.length - 1; i >= 0; i--) {
-        const ent = gestureEntities[i];
-        const renderData: RenderComponentData | undefined =
-          components[RenderComponentName].get(ent);
-        if (!renderData || renderData.visible === false) continue;
-
-        let pos = renderData.position ?? { x: 0, y: 0 };
-        const gestureComp = components[componentName]?.get(ent) as any;
-        const shape = getShapeForGestureEntity(renderData, gestureComp);
-
-        let collided = false;
-        if (!shape) {
-          continue;
-        }
-        switch (shape.type) {
-          case ShapeTypes.Rectangle: {
-            const w = shape.width ?? 0;
-            const h = shape.height ?? 0;
-            collided = pointInRect(px, py, pos.x, pos.y, w, h);
-            break;
-          }
-          case ShapeTypes.Circle: {
-            const r = shape.radius ?? 0;
-            collided = pointInCircle(px, py, pos.x, pos.y, r);
-            break;
-          }
-          case ShapeTypes.Polygon: {
-            if (!shape.vertices) break;
-            const vertices = shape.vertices.map(
-              (v: { x: number; y: number }) => ({
-                x: v.x + pos.x,
-                y: v.y + pos.y,
-              })
-            );
-            collided = pointInPolygon(px, py, vertices);
-            break;
+      if (gestureKind === GestureKinds.Pan) {
+        if (evtType === TouchEventTypes.Start) {
+          hitEntity = findHitEntity();
+        } else if (
+          evtType === TouchEventTypes.Move ||
+          evtType === TouchEventTypes.End ||
+          evtType === TouchEventTypes.Cancel
+        ) {
+          const active = gestureState.activePointers.get(pointerId);
+          if (active?.entityId !== null) {
+            const gestureComp = components[componentName]?.get(
+              active.entityId
+            ) as any;
+            if (gestureComp?.checkBoundsOnUpdate) {
+              hitEntity = findHitEntity();
+              if (hitEntity !== active.entityId) {
+                hitEntity = null;
+              }
+            } else {
+              hitEntity = active.entityId;
+            }
           }
         }
-        if (!collided) continue;
-
-        const priority = gestureComp?.priority ?? renderData.zIndex ?? 0;
-        if (priority > hitPriority) {
-          hitEntity = ent;
-          hitPriority = priority;
-
-          if (gestureComp?.capture) break;
-        }
+      } else {
+        hitEntity = findHitEntity();
       }
 
       if (hitEntity !== null) {

@@ -124,6 +124,7 @@ export const PanComponentName = 'pan';
 export interface PanComponentData {
   priority?: number;
   capture?: boolean;
+  checkBoundsOnUpdate?: boolean;
   shape?: {
     type: ShapeTypes;
     width?: number;
