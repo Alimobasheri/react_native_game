@@ -61,7 +61,7 @@ export type TouchInputEvent = {
 // Touch Component Definitions
 export const TouchComponentName = 'touch';
 
-export type TouchGestureCallback = (data: {
+export type TouchGestureCallback<T = GestureUnionPayload> = (data: {
   entityId: number;
   pointerId: number;
   x: number;
@@ -69,6 +69,7 @@ export type TouchGestureCallback = (data: {
   type: string;
   timestamp: number;
   raw?: any;
+  gesture: T;
 }) => void;
 
 export interface TouchComponentData {
@@ -107,7 +108,10 @@ export interface TapComponentData {
     radius?: number;
     vertices?: { x: number; y: number }[];
   };
-  onTap?: TouchGestureCallback;
+  onTap?: TouchGestureCallback<{
+    kind: GestureKinds.Tap;
+    data: TapGestureHandlerEventPayload;
+  }>;
 }
 
 export const createTapComponent = (options: TapComponentData) => {
@@ -132,9 +136,18 @@ export interface PanComponentData {
     radius?: number;
     vertices?: { x: number; y: number }[];
   };
-  onPanStart?: TouchGestureCallback;
-  onPanUpdate?: TouchGestureCallback;
-  onPanEnd?: TouchGestureCallback;
+  onPanStart?: TouchGestureCallback<{
+    kind: GestureKinds.Pan;
+    data: PanGestureHandlerEventPayload;
+  }>;
+  onPanUpdate?: TouchGestureCallback<{
+    kind: GestureKinds.Pan;
+    data: PanGestureHandlerEventPayload;
+  }>;
+  onPanEnd?: TouchGestureCallback<{
+    kind: GestureKinds.Pan;
+    data: PanGestureHandlerEventPayload;
+  }>;
 }
 
 export const createPanComponent = (options: PanComponentData) => {
@@ -158,7 +171,10 @@ export interface LongPressComponentData {
     radius?: number;
     vertices?: { x: number; y: number }[];
   };
-  onLongPress?: TouchGestureCallback;
+  onLongPress?: TouchGestureCallback<{
+    kind: GestureKinds.LongPress;
+    data: LongPressGestureHandlerEventPayload;
+  }>;
 }
 
 export const createLongPressComponent = (options: LongPressComponentData) => {

@@ -77,6 +77,7 @@ export const SeaLayerProvider: React.FC<SeaLayerProviderProps> = ({
         layerIndex: i,
         startingX,
         startingY,
+        isMainLayer: i === 1,
         waves: [],
       };
 

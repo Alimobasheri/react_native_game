@@ -3,6 +3,7 @@ import { useAddEntity } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs';
 import {
   createRenderComponent,
   RenderComponentName,
+  ShapeTypes,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import {
   createSeaLayerComponent,
@@ -28,7 +29,7 @@ export const SeaLayer: React.FC<SeaLayerProps> = ({ index }) => {
       createSeaLayerComponent(layerConfig),
       createRenderComponent({
         shape: {
-          type: 'rectangle',
+          type: ShapeTypes.Rectangle,
           width: layerConfig.windowWidth,
           height: layerConfig.windowHeight,
         },

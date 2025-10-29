@@ -61,6 +61,7 @@ export type SeaLayerComponentData = {
   flowAmplitude: number;
   flowFrequency: number;
   flowSpeed: number;
+  isMainLayer: boolean;
   waves: WaveData[];
 };
 

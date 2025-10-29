@@ -1,7 +1,10 @@
 import { useAddEntity } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useAddEntity/useAddEntity';
 import { useAddMatterBody } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useAddMatterBody/useAddMatterBody';
 import { useAddSystem } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useAddSystem/useAddSystem';
-import { createRenderComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
+import {
+  createRenderComponent,
+  ShapeTypes,
+} from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import { createPositionComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/position';
 import { createSpriteSheetAnimatedComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/sprite';
 import { CreateMatterBodyArgs } from '@/containers/ReactNativeSkiaGameEngine/internal/systems/physics/bodiesTypes';
@@ -50,7 +53,11 @@ export const SurferView: FC<{ x: number; y: number; relaxed?: boolean }> = ({
       // }),
 
       createRenderComponent({
-        shape: { type: 'rectangle', width: surferSize, height: surferSize },
+        shape: {
+          type: ShapeTypes.Rectangle,
+          width: surferSize,
+          height: surferSize,
+        },
         fillColor: '#0099ff',
         visible: true,
         image: 'surfer',

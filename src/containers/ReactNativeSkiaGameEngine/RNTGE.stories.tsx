@@ -42,6 +42,7 @@ import {
   createLongPressComponent,
 } from './internal/components/touch';
 import { FC } from 'react';
+import { Swipe } from '@/components/Swipe/index-rntge';
 
 // Test components for different gesture types
 const TapTestComponent: FC<{ x: number; y: number }> = ({ x, y }) => {
@@ -224,10 +225,11 @@ export const Basic: Story = {
                     y={windowHeight * 0.7}
                     relaxed={isRelaxed}
                   />
+                  <Swipe />
                 </SeaGroup>
                 {/* Test components for different gesture types */}
                 {/* <TapTestComponent x={50} y={50} /> */}
-                <PanTestComponent x={50} y={50} />
+                {/* <PanTestComponent x={50} y={50} /> */}
                 {/* <LongPressTestComponent x={350} y={50} /> */}
                 <SwipeToPlay />
               </Content>

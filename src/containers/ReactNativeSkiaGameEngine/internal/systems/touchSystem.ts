@@ -268,6 +268,7 @@ export const touchSystem: System = {
           y: py,
           timestamp: ev.timestamp,
           raw: ev.meta,
+          gesture: ev.gesture,
         };
 
         if (gestureKind === GestureKinds.Pan) {

@@ -1,4 +1,3 @@
-import { Component } from '@/containers/ReactNativeSkiaGameEngine/services-ecs';
 import { System } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/system';
 import {
   RenderComponentData,
