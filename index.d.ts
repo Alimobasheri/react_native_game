@@ -7,6 +7,8 @@ import {
   SkRuntimeEffect,
   SkParagraph,
 } from '@shopify/react-native-skia';
+import { ECS } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/ecs';
+import { SharedValue } from 'react-native-reanimated';
 
 export = _RNTGE_;
 export as namespace _RNTGE_;
@@ -33,10 +35,15 @@ declare namespace _RNTGE_ {
   >;
   var TouchState:
     | {
-        activePointers: Map<
-          number,
-          { entityId: number | null; captured: boolean }
-        >;
+        pan: {
+          activePointers: Map<
+            number,
+            { entityId: number | null; captured: boolean }
+          >;
+        };
+        tap: {};
+        longPress: {};
       }
     | undefined;
+  var ecs: SharedValue<ECS | null> | undefined;
 }

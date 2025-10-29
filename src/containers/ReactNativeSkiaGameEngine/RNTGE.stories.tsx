@@ -30,34 +30,86 @@ import { SurferComponentName } from '@/Game/ecs-components/Surfer';
 import { TransitionOp } from '@/containers/ReactNativeSkiaGameEngine/types-ecs/render';
 import { SwipeToPlay } from '../Scenes/StartingScene/components/SwipeToPlay/index-rntge';
 import { useAddEntity } from './hooks-ecs/useAddEntity/useAddEntity';
-import { createRenderComponent } from './internal/components/render';
+import {
+  createRenderComponent,
+  ShapeTypes,
+  RenderComponentData,
+} from './internal/components/render';
 import { createPositionComponent } from './internal/components/position';
-import { createTouchComponent } from './internal/components/touch';
+import {
+  createTapComponent,
+  createPanComponent,
+  createLongPressComponent,
+} from './internal/components/touch';
 import { FC } from 'react';
 
-// Simple touch test component to debug the touch system
-const TouchTestComponent: FC<{ x: number; y: number }> = ({ x, y }) => {
+// Test components for different gesture types
+const TapTestComponent: FC<{ x: number; y: number }> = ({ x, y }) => {
   const components = [
     createRenderComponent({
-      shape: { type: 'rectangle', width: 1000, height: 1000 },
+      shape: { type: ShapeTypes.Rectangle, width: 100, height: 100 },
       position: { x, y },
-      fillColor: 'transparent',
+      fillColor: 'rgba(255, 0, 0, 0.5)', // Red for tap
       visible: true,
       zIndex: 10,
     }),
-    createTouchComponent({
-      onGestureStart: (data) => {
+    createTapComponent({
+      onTap: (data) => {
         'worklet';
-        console.log('TouchTestComponent: onGestureStart', data);
-        // For now, just log - state changes need to be handled differently in ECS
       },
-      onGesture: (data) => {
+    }),
+  ];
+
+  const { entityId } = useAddEntity({ components });
+  return null;
+};
+
+const PanTestComponent: FC<{ x: number; y: number }> = ({ x, y }) => {
+  const components = [
+    createRenderComponent({
+      shape: { type: ShapeTypes.Rectangle, width: 100, height: 100 },
+      position: { x, y },
+      fillColor: 'rgba(0, 255, 0, 0.5)', // Green for pan
+      visible: true,
+      zIndex: 10,
+    }),
+    createPanComponent({
+      onPanUpdate: (data) => {
         'worklet';
-        console.log('TouchTestComponent: onGesture', data);
+
+        // Move the entity to follow the pointer
+        if (global._RNTGE_.ecs?.value) {
+          global._RNTGE_.ecs.value.updateComponent<RenderComponentData>(
+            data.entityId,
+            'render',
+            (renderComponent) => {
+              renderComponent.position = { x: data.x, y: data.y };
+            }
+          );
+        }
       },
-      onGestureEnd: (data) => {
+      onPanEnd: (data) => {
         'worklet';
-        console.log('TouchTestComponent: onGestureEnd', data);
+      },
+    }),
+  ];
+
+  const { entityId } = useAddEntity({ components });
+  return null;
+};
+
+const LongPressTestComponent: FC<{ x: number; y: number }> = ({ x, y }) => {
+  const components = [
+    createRenderComponent({
+      shape: { type: ShapeTypes.Rectangle, width: 100, height: 100 },
+      position: { x, y },
+      fillColor: 'rgba(0, 0, 255, 0.5)', // Blue for long press
+      visible: true,
+      zIndex: 10,
+    }),
+    createLongPressComponent({
+      onLongPress: (data) => {
+        'worklet';
       },
     }),
   ];
@@ -173,7 +225,10 @@ export const Basic: Story = {
                     relaxed={isRelaxed}
                   />
                 </SeaGroup>
-                <TouchTestComponent x={0} y={0} />
+                {/* Test components for different gesture types */}
+                {/* <TapTestComponent x={50} y={50} /> */}
+                <PanTestComponent x={50} y={50} />
+                {/* <LongPressTestComponent x={350} y={50} /> */}
                 <SwipeToPlay />
               </Content>
             </Scene>

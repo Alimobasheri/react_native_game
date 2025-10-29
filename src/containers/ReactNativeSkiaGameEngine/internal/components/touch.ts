@@ -62,6 +62,7 @@ export type TouchInputEvent = {
 export const TouchComponentName = 'touch';
 
 export type TouchGestureCallback = (data: {
+  entityId: number;
   pointerId: number;
   x: number;
   y: number;
@@ -89,6 +90,80 @@ export const createTouchComponent = (options: TouchComponentData) => {
   'worklet';
   return {
     name: TouchComponentName,
+    data: options,
+  };
+};
+
+// Tap Component Definitions
+export const TapComponentName = 'tap';
+
+export interface TapComponentData {
+  priority?: number;
+  capture?: boolean;
+  shape?: {
+    type: ShapeTypes;
+    width?: number;
+    height?: number;
+    radius?: number;
+    vertices?: { x: number; y: number }[];
+  };
+  onTap?: TouchGestureCallback;
+}
+
+export const createTapComponent = (options: TapComponentData) => {
+  'worklet';
+  return {
+    name: TapComponentName,
+    data: options,
+  };
+};
+
+// Pan Component Definitions
+export const PanComponentName = 'pan';
+
+export interface PanComponentData {
+  priority?: number;
+  capture?: boolean;
+  shape?: {
+    type: ShapeTypes;
+    width?: number;
+    height?: number;
+    radius?: number;
+    vertices?: { x: number; y: number }[];
+  };
+  onPanStart?: TouchGestureCallback;
+  onPanUpdate?: TouchGestureCallback;
+  onPanEnd?: TouchGestureCallback;
+}
+
+export const createPanComponent = (options: PanComponentData) => {
+  'worklet';
+  return {
+    name: PanComponentName,
+    data: options,
+  };
+};
+
+// LongPress Component Definitions
+export const LongPressComponentName = 'longPress';
+
+export interface LongPressComponentData {
+  priority?: number;
+  capture?: boolean;
+  shape?: {
+    type: ShapeTypes;
+    width?: number;
+    height?: number;
+    radius?: number;
+    vertices?: { x: number; y: number }[];
+  };
+  onLongPress?: TouchGestureCallback;
+}
+
+export const createLongPressComponent = (options: LongPressComponentData) => {
+  'worklet';
+  return {
+    name: LongPressComponentName,
     data: options,
   };
 };

@@ -10,6 +10,12 @@ import {
   TouchInputEvent,
   GestureKinds,
   TouchEventTypes,
+  TapComponentName,
+  TapComponentData,
+  PanComponentName,
+  PanComponentData,
+  LongPressComponentName,
+  LongPressComponentData,
 } from '../components/touch';
 
 export const TouchInputEventType = 'rntge/touch/input' as const;
@@ -25,7 +31,9 @@ const pointInRect = (
   'worklet';
   const left = centerX - width / 2;
   const top = centerY - height / 2;
-  return px >= left && px <= left + width && py >= top && py <= top + height;
+  const result =
+    px >= left && px <= left + width && py >= top && py <= top + height;
+  return result;
 };
 
 const pointInCircle = (
@@ -69,6 +77,15 @@ function getShapeForEntity(
   return shape;
 }
 
+function getShapeForGestureEntity(
+  render?: RenderComponentData,
+  gestureComp?: { shape?: any }
+) {
+  'worklet';
+  const shape = gestureComp?.shape ?? render?.shape;
+  return shape;
+}
+
 export const touchSystem: System = {
   requiredComponents: [RenderComponentName],
   requiredEvents: [TouchInputEventType],
@@ -83,17 +100,18 @@ export const touchSystem: System = {
 
     if (!global._RNTGE_.TouchState) {
       global._RNTGE_.TouchState = {
-        activePointers: new Map<
-          number,
-          { entityId: number | null; captured: boolean }
-        >(),
+        pan: {
+          activePointers: new Map<
+            number,
+            { entityId: number | null; captured: boolean }
+          >(),
+        },
+        tap: {},
+        longPress: {},
       };
     }
     const state = global._RNTGE_.TouchState;
 
-    const touchEntities = ecs.value.getEntitiesWithComponents([
-      TouchComponentName,
-    ]);
     for (let evIndex = 0; evIndex < events.length; evIndex++) {
       const ev = events[evIndex].payload;
 
@@ -119,23 +137,55 @@ export const touchSystem: System = {
         }
       }
 
+      const gestureKind = ev.gesture.kind;
+      let componentName: string;
+      let gestureEntities: number[];
+      let gestureState: any;
+
+      switch (gestureKind) {
+        case GestureKinds.Pan:
+          componentName = PanComponentName;
+          gestureEntities = ecs.value.getEntitiesWithComponents([
+            RenderComponentName,
+            PanComponentName,
+          ]);
+          gestureState = state.pan;
+          break;
+        case GestureKinds.Tap:
+          componentName = TapComponentName;
+          gestureEntities = ecs.value.getEntitiesWithComponents([
+            RenderComponentName,
+            TapComponentName,
+          ]);
+          gestureState = state.tap;
+          break;
+        case GestureKinds.LongPress:
+          componentName = LongPressComponentName;
+          gestureEntities = ecs.value.getEntitiesWithComponents([
+            RenderComponentName,
+            LongPressComponentName,
+          ]);
+          gestureState = state.longPress;
+          break;
+        default:
+          continue;
+      }
+
       const pointerId = ev.pointerId ?? 0;
       const evtType = ev.eventType;
 
       let hitEntity: number | null = null;
       let hitPriority = -Infinity;
 
-      for (let i = touchEntities.length - 1; i >= 0; i--) {
-        const ent = touchEntities[i];
+      for (let i = gestureEntities.length - 1; i >= 0; i--) {
+        const ent = gestureEntities[i];
         const renderData: RenderComponentData | undefined =
           components[RenderComponentName].get(ent);
         if (!renderData || renderData.visible === false) continue;
 
         let pos = renderData.position ?? { x: 0, y: 0 };
-        const shape = getShapeForEntity(
-          renderData,
-          components[TouchComponentName]?.get(ent)
-        );
+        const gestureComp = components[componentName]?.get(ent) as any;
+        const shape = getShapeForGestureEntity(renderData, gestureComp);
 
         let collided = false;
         if (!shape) {
@@ -155,132 +205,135 @@ export const touchSystem: System = {
           }
           case ShapeTypes.Polygon: {
             if (!shape.vertices) break;
-            const vertices = shape.vertices.map((v) => ({
-              x: v.x + pos.x,
-              y: v.y + pos.y,
-            }));
+            const vertices = shape.vertices.map(
+              (v: { x: number; y: number }) => ({
+                x: v.x + pos.x,
+                y: v.y + pos.y,
+              })
+            );
             collided = pointInPolygon(px, py, vertices);
             break;
           }
         }
         if (!collided) continue;
 
-        const touchComp = components[TouchComponentName]?.get(ent) as
-          | TouchComponentData
-          | undefined;
-        const priority = touchComp?.priority ?? renderData.zIndex ?? 0;
+        const priority = gestureComp?.priority ?? renderData.zIndex ?? 0;
         if (priority > hitPriority) {
           hitEntity = ent;
           hitPriority = priority;
 
-          if (touchComp?.capture) break;
+          if (gestureComp?.capture) break;
         }
       }
 
-      if (
-        evtType === TouchEventTypes.Start ||
-        evtType === TouchEventTypes.Tap ||
-        evtType === TouchEventTypes.LongPress
-      ) {
-        state.activePointers.set(pointerId, {
+      if (hitEntity !== null) {
+        const gestureComp = components[componentName]?.get(hitEntity) as any;
+        const payload = {
           entityId: hitEntity,
-          captured: !!(hitEntity !== null),
-        });
-        if (hitEntity !== null) {
-          const touchComp = components[TouchComponentName]?.get(hitEntity) as
-            | TouchComponentData
-            | undefined;
-          const payload = {
-            pointerId,
-            x: px,
-            y: py,
-            type: evtType,
-            timestamp: ev.timestamp,
-            raw: ev.meta,
-          };
+          pointerId,
+          x: px,
+          y: py,
+          timestamp: ev.timestamp,
+          raw: ev.meta,
+        };
 
-          if (touchComp?.onGestureStart) {
-            try {
-              (touchComp.onGestureStart as any)(payload);
-            } catch (err) {
-              // if callback is JS-only, route via eventQueue to JS
-              eventQueue.addAwaitingExternalEvent({
-                type: 'rntge/touch/callback',
-                payload: {
-                  entityId: hitEntity,
-                  name: 'onGestureStart',
-                  data: payload,
-                },
-                subscriptionId: '',
-              });
+        if (gestureKind === GestureKinds.Pan) {
+          if (evtType === TouchEventTypes.Start) {
+            gestureState.activePointers.set(pointerId, {
+              entityId: hitEntity,
+              captured: !!gestureComp?.capture,
+            });
+            if (gestureComp?.onPanStart) {
+              try {
+                (gestureComp.onPanStart as any)(payload);
+              } catch (err) {
+                eventQueue.addAwaitingExternalEvent({
+                  type: 'rntge/touch/callback',
+                  payload: {
+                    entityId: hitEntity,
+                    name: 'onPanStart',
+                    data: payload,
+                  },
+                  subscriptionId: '',
+                });
+              }
             }
-          }
-        } else {
-          // no entity hit — optionally nothing
-        }
-      } else if (evtType === TouchEventTypes.Move) {
-        const active = state.activePointers.get(pointerId);
-        const targetEntity = active?.entityId ?? null;
-        if (targetEntity !== null) {
-          const touchComp = components[TouchComponentName]?.get(
-            targetEntity
-          ) as TouchComponentData | undefined;
-          if (touchComp?.onGesture) {
-            try {
-              (touchComp.onGesture as any)({
-                pointerId,
-                x: px,
-                y: py,
-                type: TouchEventTypes.Move,
-                timestamp: ev.timestamp,
-              });
-            } catch (err) {
-              eventQueue.addAwaitingExternalEvent({
-                type: 'rntge/touch/callback',
-                payload: {
-                  entityId: targetEntity,
-                  name: 'onGesture',
-                  data: { pointerId, x: px, y: py },
-                },
-                subscriptionId: '',
-              });
+          } else if (evtType === TouchEventTypes.Move) {
+            const active = gestureState.activePointers.get(pointerId);
+            if (active?.entityId === hitEntity && gestureComp?.onPanUpdate) {
+              try {
+                (gestureComp.onPanUpdate as any)(payload);
+              } catch (err) {
+                eventQueue.addAwaitingExternalEvent({
+                  type: 'rntge/touch/callback',
+                  payload: {
+                    entityId: hitEntity,
+                    name: 'onPanUpdate',
+                    data: payload,
+                  },
+                  subscriptionId: '',
+                });
+              }
             }
-          }
-        }
-      } else if (
-        evtType === TouchEventTypes.End ||
-        evtType === TouchEventTypes.Cancel
-      ) {
-        const active = state.activePointers.get(pointerId);
-        const targetEntity = active?.entityId ?? null;
-        if (targetEntity !== null) {
-          const touchComp = components[TouchComponentName]?.get(
-            targetEntity
-          ) as TouchComponentData | undefined;
-          if (touchComp?.onGestureEnd) {
-            try {
-              (touchComp.onGestureEnd as any)({
-                pointerId,
-                x: px,
-                y: py,
-                type: evtType,
-                timestamp: ev.timestamp,
-              });
-            } catch (err) {
-              eventQueue.addAwaitingExternalEvent({
-                type: 'rntge/touch/callback',
-                payload: {
-                  entityId: targetEntity,
-                  name: 'onGestureEnd',
-                  data: { pointerId, x: px, y: py },
-                },
-                subscriptionId: '',
-              });
+          } else if (
+            evtType === TouchEventTypes.End ||
+            evtType === TouchEventTypes.Cancel
+          ) {
+            const active = gestureState.activePointers.get(pointerId);
+            if (active?.entityId === hitEntity && gestureComp?.onPanEnd) {
+              try {
+                (gestureComp.onPanEnd as any)(payload);
+              } catch (err) {
+                eventQueue.addAwaitingExternalEvent({
+                  type: 'rntge/touch/callback',
+                  payload: {
+                    entityId: hitEntity,
+                    name: 'onPanEnd',
+                    data: payload,
+                  },
+                  subscriptionId: '',
+                });
+              }
             }
+            gestureState.activePointers.delete(pointerId);
+          }
+        } else if (
+          gestureKind === GestureKinds.Tap &&
+          evtType === TouchEventTypes.Tap &&
+          gestureComp?.onTap
+        ) {
+          try {
+            (gestureComp.onTap as any)(payload);
+          } catch (err) {
+            eventQueue.addAwaitingExternalEvent({
+              type: 'rntge/touch/callback',
+              payload: {
+                entityId: hitEntity,
+                name: 'onTap',
+                data: payload,
+              },
+              subscriptionId: '',
+            });
+          }
+        } else if (
+          gestureKind === GestureKinds.LongPress &&
+          evtType === TouchEventTypes.LongPress &&
+          gestureComp?.onLongPress
+        ) {
+          try {
+            (gestureComp.onLongPress as any)(payload);
+          } catch (err) {
+            eventQueue.addAwaitingExternalEvent({
+              type: 'rntge/touch/callback',
+              payload: {
+                entityId: hitEntity,
+                name: 'onLongPress',
+                data: payload,
+              },
+              subscriptionId: '',
+            });
           }
         }
-        // cleanup pointer
-        state.activePointers.delete(pointerId);
       }
     } // end events loop
   },

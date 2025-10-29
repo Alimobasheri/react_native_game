@@ -39,7 +39,12 @@ import { assetPreloadSystem } from './internal/systems/scene/assetPreloadSystem'
 import { Scene } from './components-rntge/Scene/Scene';
 import { SceneComponentName } from './internal/components/scene';
 import { TextComponentName } from './internal/components/text';
-import { TouchComponentName } from './internal/components/touch';
+import {
+  TouchComponentName,
+  TapComponentName,
+  PanComponentName,
+  LongPressComponentName,
+} from './internal/components/touch';
 import { touchSystem } from './internal/systems/touchSystem';
 import { TouchOverlay } from './components-rntge/Input/TouchOverlay';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -76,6 +81,9 @@ export const ReactNativeTurboGameEngine: FC<
     ECS.value.createComponent(SceneComponentName);
     ECS.value.createComponent(PositionComponentName);
     ECS.value.createComponent(TouchComponentName);
+    ECS.value.createComponent(TapComponentName);
+    ECS.value.createComponent(PanComponentName);
+    ECS.value.createComponent(LongPressComponentName);
     ECS.value.createComponent(MatterBodyComponentName);
     ECS.value.createComponent(SpriteComponentName);
     ECS.value.createComponent(AnimationClipComponentName);
@@ -122,11 +130,16 @@ export const ReactNativeTurboGameEngine: FC<
           fontCache: {},
           textCache: {},
           TouchState: {
-            activePointers: new Map<
-              number,
-              { entityId: number | null; captured: boolean }
-            >(),
+            pan: {
+              activePointers: new Map<
+                number,
+                { entityId: number | null; captured: boolean }
+              >(),
+            },
+            tap: {},
+            longPress: {},
           },
+          ecs: ECS,
         };
         initECS();
         initPhysics();
