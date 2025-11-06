@@ -10,6 +10,7 @@ import { createSpriteSheetAnimatedComponent } from '@/containers/ReactNativeSkia
 import { CreateMatterBodyArgs } from '@/containers/ReactNativeSkiaGameEngine/internal/systems/physics/bodiesTypes';
 import { createSurferComponent } from '@/Game/ecs-components/Surfer';
 import { SurferPhysicsSystem } from '@/systems/PhysicsSystem/SurferPhysicsSystem';
+import { getSurferPhysicsConfig } from '@/systems/PhysicsSystem/surferPhysicsConfig';
 import { FC, useMemo } from 'react';
 
 const surferSize = 128;
@@ -21,7 +22,7 @@ export const SurferView: FC<{ x: number; y: number; relaxed?: boolean }> = ({
 }) => {
   const components = useMemo(
     () => [
-      createSurferComponent({ direction: 'right' }),
+      createSurferComponent({ direction: 'right', initialX: x }),
       createPositionComponent({ x, y }),
 
       // Advanced animation system with state-based frame selection
@@ -68,8 +69,10 @@ export const SurferView: FC<{ x: number; y: number; relaxed?: boolean }> = ({
 
   const { entityId } = useAddEntity({ components });
 
-  const matterBodyArgs: CreateMatterBodyArgs = useMemo(
-    () => ({
+  const matterBodyArgs: CreateMatterBodyArgs = useMemo(() => {
+    const physicsConfig = getSurferPhysicsConfig();
+
+    return {
       type: 'rectangle',
       options: {
         x,
@@ -78,9 +81,13 @@ export const SurferView: FC<{ x: number; y: number; relaxed?: boolean }> = ({
         height: surferSize,
         options: {
           isStatic: false, // Allow physics simulation
-          density: 0.0001, // Very light density for floating
-          frictionAir: 0.01, // Some air friction
-          restitution: 0.2, // Some bounce
+
+          // Physics properties from config
+          density: physicsConfig.density,
+          frictionAir: physicsConfig.frictionAir,
+          inertia: physicsConfig.inertia,
+          restitution: physicsConfig.restitution,
+
           collisionFilter: {
             group: 0x0003, // Unique collision group for surfer
             category: 0x0004,
@@ -88,9 +95,8 @@ export const SurferView: FC<{ x: number; y: number; relaxed?: boolean }> = ({
           },
         },
       },
-    }),
-    [x, y]
-  );
+    };
+  }, [x, y]);
 
   const { bodyId } = useAddMatterBody({ args: matterBodyArgs, entityId });
 

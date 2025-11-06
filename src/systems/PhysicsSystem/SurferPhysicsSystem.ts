@@ -13,9 +13,8 @@ import {
   PositionComponentData,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/position';
 import {
-  applySurferBuoyancy,
+  applyPlatformerSurferPhysics,
   applySurferFriction,
-  positionSurferOnSea,
 } from './surferWorklets';
 
 // No longer need external tracking - using component data instead
@@ -24,9 +23,9 @@ import {
  * SurferPhysicsSystem - A worklet-based physics system for the surfer character
  *
  * This system handles:
- * - Buoyancy forces based on sea wave heights
+ * - Platformer-style physics with locked x position
+ * - Vertical movement and rotation based on wave forces
  * - Friction when in contact with water
- * - Positioning the surfer on the centered sea layer
  * - Integration with Matter.js physics bodies through RNTGE
  */
 export const SurferPhysicsSystem: System = {
@@ -82,48 +81,30 @@ export const SurferPhysicsSystem: System = {
         return;
       }
 
-      // Check if this surfer needs initial positioning
-      const needsInitialPosition = !surferComponent.isPhysicsInitialized;
+      // Check if this surfer needs initial setup
+      const needsInitialSetup = !surferComponent.isPhysicsInitialized;
 
-      // Position surfer on the sea surface
-      positionSurferOnSea(
-        matterBody,
-        centeredSeaLayer,
-        (x: number, y: number) => {
-          // Update position component
-          ecs.value.updateComponent<PositionComponentData>(
-            surferEntity,
-            PositionComponentName,
-            (pos) => {
-              pos.x = x;
-              pos.y = y;
-            }
-          );
+      if (needsInitialSetup) {
+        // Initialize the initialX position from the current position
+        const currentX = matterBody.position.x;
 
-          // Update Matter.js body position
-          if (typeof global.MatterReanimated !== 'undefined') {
-            global.MatterReanimated.Body.setPosition(matterBody, { x, y });
+        ecs.value.updateComponent<SurferComponentData>(
+          surferEntity,
+          SurferComponentName,
+          (surfer) => {
+            surfer.initialX = currentX;
+            surfer.isPhysicsInitialized = true;
           }
+        );
+      }
 
-          // Mark as initialized in the component
-          if (needsInitialPosition) {
-            ecs.value.updateComponent<SurferComponentData>(
-              surferEntity,
-              SurferComponentName,
-              (surfer) => {
-                surfer.isPhysicsInitialized = true;
-              }
-            );
-          }
-        },
-        needsInitialPosition // Force update for initial positioning
-      );
-
-      // Apply buoyancy forces
-      applySurferBuoyancy(
+      // Apply platformer-style physics
+      applyPlatformerSurferPhysics(
         matterBody,
         centeredSeaLayer,
         deltaTime,
+        surferComponent.initialX,
+        needsInitialSetup,
         (
           position: { x: number; y: number },
           force: { x: number; y: number }
@@ -136,6 +117,22 @@ export const SurferPhysicsSystem: System = {
               force
             );
           }
+        },
+        (position: { x: number; y: number }) => {
+          // Set body position (used for x position locking)
+          if (typeof global.MatterReanimated !== 'undefined') {
+            global.MatterReanimated.Body.setPosition(matterBody, position);
+          }
+        }
+      );
+
+      // Update position component to reflect Matter.js body position
+      ecs.value.updateComponent<PositionComponentData>(
+        surferEntity,
+        PositionComponentName,
+        (pos) => {
+          pos.x = matterBody.position.x;
+          pos.y = matterBody.position.y;
         }
       );
 
