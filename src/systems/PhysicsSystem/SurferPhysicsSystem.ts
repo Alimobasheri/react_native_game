@@ -5,6 +5,7 @@ import {
 import {
   SurferComponentName,
   SurferComponentData,
+  SurferStateData,
 } from '@/Game/ecs-components/Surfer';
 import { SeaLayerComponentName } from '@/Game/ecs-components/SeaLayer';
 import { MatterBodyComponentName } from '@/containers/ReactNativeSkiaGameEngine/internal/components/matterBody';
@@ -72,7 +73,7 @@ export const SurferPhysicsSystem: System = {
 
     // Process all surfer entities
     entities.forEach((surferEntity) => {
-      const surferComponent = components[SurferComponentName].get(surferEntity);
+      let surferComponent = components[SurferComponentName].get(surferEntity);
       const matterBody = components[MatterBodyComponentName].get(surferEntity);
       const positionComponent =
         components[PositionComponentName].get(surferEntity);
@@ -94,9 +95,59 @@ export const SurferPhysicsSystem: System = {
           (surfer) => {
             surfer.initialX = currentX;
             surfer.isPhysicsInitialized = true;
+            // Initialize stateData if not present
+            if (!surfer.stateData) {
+              surfer.stateData = {
+                state: 'STABLE_SURFING',
+                timeInStateMs: 0,
+                rotationsCompleted: 0,
+                currentRotationRad: 0,
+                launchPower: 0,
+                targetRotations: null,
+                lastLandingWasPerfect: false,
+                scorePending: 0,
+              };
+            }
+          }
+        );
+        // Refresh component reference after initialization
+        surferComponent = components[SurferComponentName].get(surferEntity);
+      }
+
+      // Get or initialize stateData
+      let surferStateData = surferComponent.stateData;
+      if (!surferStateData) {
+        // Initialize default state if not present
+        surferStateData = {
+          state: 'STABLE_SURFING',
+          timeInStateMs: 0,
+          rotationsCompleted: 0,
+          currentRotationRad: 0,
+          launchPower: 0,
+          targetRotations: null,
+          lastLandingWasPerfect: false,
+          scorePending: 0,
+        };
+        // Save it to the component
+        ecs.value.updateComponent<SurferComponentData>(
+          surferEntity,
+          SurferComponentName,
+          (surfer) => {
+            surfer.stateData = surferStateData;
           }
         );
       }
+
+      // Create setter function for stateData
+      const setSurferStateData = (data: SurferStateData) => {
+        ecs.value.updateComponent<SurferComponentData>(
+          surferEntity,
+          SurferComponentName,
+          (surfer) => {
+            surfer.stateData = data;
+          }
+        );
+      };
 
       // Apply platformer-style physics
       applyPlatformerSurferPhysics(
@@ -123,7 +174,9 @@ export const SurferPhysicsSystem: System = {
           if (typeof global.MatterReanimated !== 'undefined') {
             global.MatterReanimated.Body.setPosition(matterBody, position);
           }
-        }
+        },
+        surferStateData,
+        setSurferStateData
       );
 
       // Update position component to reflect Matter.js body position

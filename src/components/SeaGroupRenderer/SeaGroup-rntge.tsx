@@ -6,6 +6,7 @@ import {
 import {
   SeaLayerComponentData,
   SeaLayerComponentName,
+  WaveSource,
 } from '@/Game/ecs-components/SeaLayer';
 import { FC } from 'react';
 import { useAddSystem } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs';
@@ -59,7 +60,11 @@ export const seaLayerShaderSystem: System = {
           uniforms.frequency = seaLayerComponent.waves[0].frequency;
           uniforms.amplitude = seaLayerComponent.waves[0].amplitude;
           uniforms.speed = seaLayerComponent.waves[0].speed;
-          uniforms.dynamicWaveX = seaLayerComponent.waves[1].x;
+          const entityCenterX =
+            renderComponent.position?.x ?? seaLayerComponent.windowWidth / 2;
+          const offset = entityCenterX - seaLayerComponent.windowWidth / 2;
+          uniforms.dynamicWaveX =
+            seaLayerComponent.waves[1].x - seaLayerComponent.windowWidth / 2;
 
           const dynamicWave = uniforms.dynamicWave as number[];
           dynamicWave[0] = seaLayerComponent.waves[1].amplitude;
@@ -88,11 +93,6 @@ export const updateWaveSystem: System = {
       seaLayerComponent.waves.forEach((wave) => {
         if (!wave.isFlowing) return;
         wave.time += deltaTime / 100;
-        // if(wave.source === WaveSource.FLOW) return
-        // wave.x += wave.speed * (deltaTime / 1000);
-        // if (wave.x > wave.dimensions.width) {
-        //   wave.x = wave.x - wave.dimensions.width;
-        // }
       });
     });
   },

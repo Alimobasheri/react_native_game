@@ -177,7 +177,7 @@ export const Swipe: FC<{}> = () => {
             }
             const touchWaveConfig = {
               isFlowing: true,
-              x: data.gesture.data.x - screenWidth / 2,
+              x: data.gesture.data.x,
               amplitude: waveAmplitude,
               frequency: waveFrequency,
               speed: waveVelocity,
