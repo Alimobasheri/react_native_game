@@ -12,6 +12,10 @@ export interface SurferPhysicsConfig {
   inertia: number;
   /** Restitution - bounciness (0 = no bounce, 1 = perfectly elastic) */
   restitution: number;
+  /** Buoyancy bobbing amplitude in pixels (gentle up/down oscillation) */
+  buoyancyAmplitude: number;
+  /** Buoyancy bobbing frequency in cycles per second */
+  buoyancyFrequency: number;
 }
 
 /**
@@ -22,6 +26,8 @@ export const DEFAULT_SURFER_PHYSICS_CONFIG: SurferPhysicsConfig = {
   frictionAir: 0.001, // Low air resistance
   inertia: 50000, // Moderate rotation resistance
   restitution: 0.3, // Low bounce
+  buoyancyAmplitude: 2, // Small amplitude (2-3 pixels) for gentle bobbing
+  buoyancyFrequency: 1.5, // cycles per second
 };
 
 /**

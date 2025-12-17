@@ -2,6 +2,7 @@ import {
   SeaLayerComponentData,
   WaveData,
 } from '@/Game/ecs-components/SeaLayer';
+import { getSurferPhysicsConfig } from './surferPhysicsConfig';
 
 /**
  * Calculate the water surface height at a specific x position for a sea layer
@@ -144,10 +145,10 @@ export const applyPlatformerSurferPhysics = (
   }
 
   // Simple sine wave oscillation for buoyancy effect (not real force, just visual)
-  // Small amplitude (2-3 pixels) and slow frequency for gentle bobbing
-  // Disabled for testing wave positioning
-  const buoyancyAmplitude = 0; // Set to 0 to disable bobbing
-  const buoyancyFrequency = 1.5; // cycles per second
+  // Gentle bobbing up and down on the water surface
+  const physicsConfig = getSurferPhysicsConfig();
+  const buoyancyAmplitude = physicsConfig.buoyancyAmplitude;
+  const buoyancyFrequency = physicsConfig.buoyancyFrequency;
   const buoyancyOffset =
     Math.sin(buoyancyTime * buoyancyFrequency * Math.PI * 2) *
     buoyancyAmplitude;
