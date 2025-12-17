@@ -12,6 +12,7 @@ import { FC } from 'react';
 import { useAddSystem } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs';
 import { SeaLayerProvider } from './SeaLayerContext';
 import { SeaLayer } from './SeaLayer';
+import { WAVE_DECAY_CONFIG } from '@/constants/waveConfigs';
 
 interface SeaLayerShaderInfoUniforms {
   iTime: number;
@@ -83,17 +84,87 @@ export const seaLayerShaderSystem: System = {
 
 export const updateWaveSystem: System = {
   requiredComponents: [SeaLayerComponentName],
-  process: ({ entities, components, deltaTime }) => {
+  process: ({ entities, components, deltaTime, ecs }) => {
     'worklet';
     entities.forEach((entity) => {
       const seaLayerComponent: SeaLayerComponentData =
         components[SeaLayerComponentName].get(entity);
       if (!seaLayerComponent) return;
 
+      // Update time for all flowing waves
       seaLayerComponent.waves.forEach((wave) => {
         if (!wave.isFlowing) return;
         wave.time += deltaTime / 100;
       });
+
+      // Decay touch waves (index 1) towards flow wave values
+      if (seaLayerComponent.waves.length > 1) {
+        const touchWave = seaLayerComponent.waves[1];
+        if (touchWave.source === WaveSource.TOUCH && touchWave.isFlowing) {
+          const flowAmplitude = seaLayerComponent.flowAmplitude;
+          const flowFrequency = seaLayerComponent.flowFrequency;
+          const flowSpeed = seaLayerComponent.flowSpeed;
+
+          // Convert deltaTime to seconds for decay calculations
+          const deltaSeconds = deltaTime / 1000;
+
+          // Calculate decayed values using config
+          const amplitudeDiff = touchWave.amplitude - flowAmplitude;
+          const newAmplitude =
+            flowAmplitude +
+            amplitudeDiff *
+              Math.pow(WAVE_DECAY_CONFIG.amplitudeDecayRate, deltaSeconds);
+
+          const frequencyDiff = touchWave.frequency - flowFrequency;
+          const newFrequency =
+            flowFrequency +
+            frequencyDiff *
+              Math.pow(WAVE_DECAY_CONFIG.frequencyDecayRate, deltaSeconds);
+
+          const speedDiff = touchWave.speed - flowSpeed;
+          const newSpeed =
+            flowSpeed +
+            speedDiff *
+              Math.pow(WAVE_DECAY_CONFIG.speedDecayRate, deltaSeconds);
+
+          // Check if wave should be removed based on config thresholds
+          const amplitudeCloseToFlow =
+            Math.abs(newAmplitude - flowAmplitude) <
+            flowAmplitude * WAVE_DECAY_CONFIG.amplitudeProximityThreshold;
+
+          const shouldRemove =
+            (newAmplitude <= WAVE_DECAY_CONFIG.minAmplitudeThreshold ||
+              amplitudeCloseToFlow) &&
+            Math.abs(newFrequency - flowFrequency) <
+              WAVE_DECAY_CONFIG.frequencyProximityThreshold &&
+            Math.abs(newSpeed - flowSpeed) <
+              WAVE_DECAY_CONFIG.speedProximityThreshold;
+
+          // Apply decay or remove wave through ECS update
+          ecs.value.updateComponent<SeaLayerComponentData>(
+            entity,
+            SeaLayerComponentName,
+            (component) => {
+              if (component.waves.length > 1) {
+                const wave = component.waves[1];
+                if (shouldRemove) {
+                  // Reset touch wave to inactive state
+                  wave.isFlowing = false;
+                  wave.amplitude = 0;
+                  wave.frequency = 0;
+                  wave.speed = 0;
+                  wave.time = 0;
+                } else {
+                  // Apply decay
+                  wave.amplitude = newAmplitude;
+                  wave.frequency = newFrequency;
+                  wave.speed = newSpeed;
+                }
+              }
+            }
+          );
+        }
+      }
     });
   },
 };
