@@ -6,6 +6,7 @@ import {
   SurferComponentName,
   SurferComponentData,
   SurferStateData,
+  SurferArcadeState,
 } from '@/Game/ecs-components/Surfer';
 import { SeaLayerComponentName } from '@/Game/ecs-components/SeaLayer';
 import { MatterBodyComponentName } from '@/containers/ReactNativeSkiaGameEngine/internal/components/matterBody';
@@ -98,7 +99,7 @@ export const SurferPhysicsSystem: System = {
             // Initialize stateData if not present
             if (!surfer.stateData) {
               surfer.stateData = {
-                state: 'STABLE_SURFING',
+                state: SurferArcadeState.STABLE_SURFING,
                 timeInStateMs: 0,
                 rotationsCompleted: 0,
                 currentRotationRad: 0,
@@ -119,7 +120,7 @@ export const SurferPhysicsSystem: System = {
       if (!surferStateData) {
         // Initialize default state if not present
         surferStateData = {
-          state: 'STABLE_SURFING',
+          state: SurferArcadeState.STABLE_SURFING,
           timeInStateMs: 0,
           rotationsCompleted: 0,
           currentRotationRad: 0,

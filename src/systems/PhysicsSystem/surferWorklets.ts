@@ -2,6 +2,7 @@ import {
   SeaLayerComponentData,
   WaveData,
 } from '@/Game/ecs-components/SeaLayer';
+import { SurferArcadeState } from '@/Game/ecs-components/Surfer';
 import { getSurferPhysicsConfig } from './surferPhysicsConfig';
 
 /**
@@ -106,6 +107,99 @@ export const getWaterSurfaceHeightAtPoint = (
 };
 
 /**
+ * Detect when wave peak is passing by surfer and calculate wave force impact
+ * Returns detection result and state recommendations
+ */
+export const detectWavePeakInteraction = (
+  surferX: number,
+  wave: WaveData,
+  seaLayer: SeaLayerComponentData
+): {
+  isPeakPassing: boolean;
+  waveForce: number;
+  shouldLoseBalance: boolean;
+  shouldLaunch: boolean;
+} => {
+  'worklet';
+
+  // If wave is not flowing, no interaction
+  if (!wave.isFlowing) {
+    return {
+      isPeakPassing: false,
+      waveForce: 0,
+      shouldLoseBalance: false,
+      shouldLaunch: false,
+    };
+  }
+
+  const physicsConfig = getSurferPhysicsConfig();
+
+  // Normalize surfer X coordinate (0-1 range)
+  const normalizedSurferX = surferX / seaLayer.windowWidth;
+
+  // Calculate wave peak position using same logic as getWaterSurfaceHeightAtPoint
+  // dynamicStX = normalizedSurferX + wave.speed * wave.time
+  const dynamicStX = normalizedSurferX + wave.speed * wave.time;
+
+  // Wave origin in normalized space
+  const waveOriginNormalized = wave.x / seaLayer.windowWidth;
+
+  // Distance calculation: from current position (with progression) to wave origin
+  // This will be 0 when the wave peak is at the surfer's position
+  const dynamicDistance = dynamicStX - waveOriginNormalized;
+
+  // Check if peak is passing (within detection threshold)
+  const isPeakPassing =
+    Math.abs(dynamicDistance) < physicsConfig.wavePeakDetectionThreshold;
+
+  if (!isPeakPassing) {
+    return {
+      isPeakPassing: false,
+      waveForce: 0,
+      shouldLoseBalance: false,
+      shouldLaunch: false,
+    };
+  }
+
+  // Calculate wave force factors
+  // Distance from origin in pixels (how far the wave has traveled)
+  const distanceFromOrigin = Math.abs(wave.x - surferX);
+
+  // Calculate decay factor based on distance traveled (matches shader decay)
+  // The decay is spatial - waves decay as they travel from origin
+  const normalizedDistanceTraveled = distanceFromOrigin / seaLayer.windowWidth;
+  const decayFactor = Math.exp(-8.0 * normalizedDistanceTraveled);
+
+  // Effective amplitude at surfer's position (decayed)
+  const effectiveAmplitude = wave.amplitude * decayFactor;
+
+  // Effective speed at surfer's position (using original speed for now)
+  const effectiveSpeed = wave.speed;
+
+  // Check if wave is coming from behind surfer
+  const isFromBehind = wave.x < surferX;
+  const behindPenalty = isFromBehind
+    ? physicsConfig.waveFromBehindPenalty
+    : 1.0;
+
+  // Calculate wave force: effective amplitude * effective speed * behind penalty
+  const waveForce = effectiveAmplitude * effectiveSpeed * behindPenalty;
+
+  // Determine state based on thresholds
+  const shouldLoseBalance =
+    waveForce >= physicsConfig.waveForceLosingBalanceThreshold;
+  const shouldLaunch =
+    !shouldLoseBalance && waveForce >= physicsConfig.waveForceLaunchThreshold;
+
+  return {
+    isPeakPassing: true,
+    waveForce,
+    shouldLoseBalance,
+    shouldLaunch,
+  };
+};
+
+/**
  * Simple arcade-style physics: static positioning over water with slight buoyancy oscillation
  */
 export const applyPlatformerSurferPhysics = (
@@ -152,6 +246,38 @@ export const applyPlatformerSurferPhysics = (
   const buoyancyOffset =
     Math.sin(buoyancyTime * buoyancyFrequency * Math.PI * 2) *
     buoyancyAmplitude;
+
+  // Check wave interaction only when surfer is in STABLE_SURFING state
+  if (
+    surferStateData &&
+    setSurferStateData &&
+    surferStateData.state === SurferArcadeState.STABLE_SURFING &&
+    seaLayer.waves.length > 1
+  ) {
+    // Use wave[1] as the dynamic touch wave
+    const dynamicWave = seaLayer.waves[1];
+    if (dynamicWave && dynamicWave.isFlowing) {
+      const waveInteraction = detectWavePeakInteraction(
+        initialX,
+        dynamicWave,
+        seaLayer
+      );
+
+      if (waveInteraction.isPeakPassing) {
+        // Update state based on wave force
+        if (waveInteraction.shouldLoseBalance) {
+          surferStateData.state = SurferArcadeState.LOSING_BALANCE;
+          surferStateData.timeInStateMs = 0;
+        } else if (waveInteraction.shouldLaunch) {
+          surferStateData.state = SurferArcadeState.WAVE_LAUNCH;
+          surferStateData.timeInStateMs = 0;
+          surferStateData.launchPower = waveInteraction.waveForce;
+        }
+        // Otherwise stay in STABLE_SURFING
+        setSurferStateData(surferStateData);
+      }
+    }
+  }
 
   // Position surfer: water surface + buoyancy oscillation
   // bottom = position.y + surferHeight/2, so position.y = waterSurfaceY - surferHeight/2

@@ -73,6 +73,36 @@ Simple arcade-style surfer physics using static positioning. Surfer follows wate
 - Prevents gravity accumulation
 - Works with static positioning to keep surfer in place
 
+## Wave Interaction
+
+**`detectWavePeakInteraction(surferX, wave, seaLayer)`**
+
+- Detects when wave[1] peak passes surfer position
+- Peak detection: `|dynamicDistance| < wavePeakDetectionThreshold`
+- Calculates wave force using decayed amplitude/speed at surfer position
+- Returns state recommendations based on force thresholds
+
+**Wave Force Calculation**
+
+- Distance traveled: `|wave.x - surferX|`
+- Decay factor: `exp(-8.0 * normalizedDistanceTraveled)` (matches shader decay)
+- Effective amplitude: `wave.amplitude * decayFactor`
+- Behind penalty: `1.5x` multiplier if `wave.x < surferX`
+- Force: `effectiveAmplitude * effectiveSpeed * behindPenalty`
+
+**State Transitions** (only when `state === STABLE_SURFING`)
+
+- `LOSING_BALANCE`: `waveForce >= waveForceLosingBalanceThreshold`
+- `WAVE_LAUNCH`: `waveForce >= waveForceLaunchThreshold` (and not losing balance)
+- `STABLE_SURFING`: Otherwise (no state change)
+
+**Config** (`surferPhysicsConfig.ts`)
+
+- `wavePeakDetectionThreshold`: Normalized distance for peak detection (default: 0.05)
+- `waveForceLosingBalanceThreshold`: Force threshold for losing balance (default: 0.15)
+- `waveForceLaunchThreshold`: Force threshold for launch (default: 0.05)
+- `waveFromBehindPenalty`: Multiplier for waves from behind (default: 1.5)
+
 ## Buoyancy Bobbing
 
 - Sine wave oscillation: `sin(time * frequency * 2π) * amplitude`
@@ -95,11 +125,30 @@ Simple arcade-style surfer physics using static positioning. Surfer follows wate
 - Must scale dynamic wave height by `windowHeight` to match shader's pixel output
 - Base wave amplitude already matches shader units
 
+## State Management
+
+**SurferArcadeState** (enum in `Surfer.ts`)
+
+- `STABLE_SURFING`: Normal surfing state, detects wave interactions
+- `WAVE_LAUNCH`: Wave launch triggered, ready for backflip mechanics
+- `LOSING_BALANCE`: Wave too powerful, surfer loses balance
+- `AIR_ROTATION`: In-air rotation state (future)
+- `LANDING`: Landing state (future)
+- `RECOVERY`: Recovery state (future)
+
+**SurferStateData**
+
+- `state`: Current `SurferArcadeState`
+- `timeInStateMs`: Time spent in current state
+- `launchPower`: Wave force that triggered launch (for `WAVE_LAUNCH` state)
+- Other fields for future rotation/landing mechanics
+
 ## Key Files
 
-- `surferWorklets.ts`: Core wave calculation and positioning logic
+- `surferWorklets.ts`: Core wave calculation, positioning, and interaction logic
 - `SurferPhysicsSystem.ts`: System that calls worklets each frame
-- `surferPhysicsConfig.ts`: Config for Matter.js body + buoyancy params
+- `surferPhysicsConfig.ts`: Config for Matter.js body + buoyancy + wave interaction params
+- `Surfer.ts`: Surfer component and state enum definitions
 - `SeaLayer.ts`: Component data structure with waves array
 - `waveShader.ts`: Shader reference for wave calculation matching
 
@@ -109,3 +158,6 @@ Simple arcade-style surfer physics using static positioning. Surfer follows wate
 - Wave must use actual `wave.x` position, not centered version
 - Dynamic wave amplitude scaling is critical - missing `windowHeight` multiplier causes tiny/no effect
 - Spatial decay (`exp(-8 * distance)`) makes waves fade with distance from origin
+- Wave interaction only triggers when surfer is in `STABLE_SURFING` state
+- Wave force uses decayed amplitude/speed at surfer position, not original values
+- Far waves have less impact due to decay; close waves have more impact

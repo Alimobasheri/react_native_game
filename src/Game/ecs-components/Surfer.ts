@@ -1,11 +1,13 @@
 export const SurferComponentName = 'Surfer';
 
-export type SurferArcadeState =
-  | 'STABLE_SURFING'
-  | 'WAVE_LAUNCH'
-  | 'AIR_ROTATION'
-  | 'LANDING'
-  | 'RECOVERY';
+export enum SurferArcadeState {
+  STABLE_SURFING = 'STABLE_SURFING',
+  WAVE_LAUNCH = 'WAVE_LAUNCH',
+  AIR_ROTATION = 'AIR_ROTATION',
+  LANDING = 'LANDING',
+  RECOVERY = 'RECOVERY',
+  LOSING_BALANCE = 'LOSING_BALANCE',
+}
 
 export type SurferStateData = {
   state: SurferArcadeState;
