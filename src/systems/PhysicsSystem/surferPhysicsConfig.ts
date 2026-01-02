@@ -26,6 +26,22 @@ export interface SurferPhysicsConfig {
   waveOriginProximityMultiplier: number;
   /** Penalty multiplier for waves coming from behind surfer (wave.x < surferX) */
   waveFromBehindPenalty: number;
+  /** Base friction when falling (LOSING_BALANCE state) */
+  fallingFrictionBase: number;
+  /** Friction increase per pixel depth underwater */
+  fallingFrictionMultiplier: number;
+  /** Depth below water surface to trigger game over (pixels) */
+  sinkDepthThreshold: number;
+  /** Multiplier for launch power to velocity (WAVE_LAUNCH state) */
+  launchVelocityMultiplier: number;
+  /** Height above water to start rotation (pixels) */
+  launchHeightThreshold: number;
+  /** Radians per second for backflip rotation (AIR_ROTATION state) */
+  rotationSpeed: number;
+  /** Pixels per second descent speed (LANDING state) */
+  landingSpeed: number;
+  /** Distance from water surface to consider landed (pixels) */
+  landingThreshold: number;
 }
 
 /**
@@ -43,6 +59,14 @@ export const DEFAULT_SURFER_PHYSICS_CONFIG: SurferPhysicsConfig = {
   waveForceLaunchThreshold: 0.05, // Lower threshold for wave launch
   waveOriginProximityMultiplier: 50, // Multiplier for close waves
   waveFromBehindPenalty: 1.5, // 50% increase in force for waves from behind
+  fallingFrictionBase: 0.1, // Base friction when falling
+  fallingFrictionMultiplier: 0.01, // Friction increase per pixel depth
+  sinkDepthThreshold: 100, // Depth below water surface to trigger game over (pixels)
+  launchVelocityMultiplier: 50, // Multiplier for launch power to velocity
+  launchHeightThreshold: 10, // Height above water to start rotation (pixels)
+  rotationSpeed: 8 * Math.PI, // Radians per second for backflip (~0.25s for 360°)
+  landingSpeed: 200, // Pixels per second descent speed
+  landingThreshold: 5, // Distance from water surface to consider landed (pixels)
 };
 
 /**

@@ -201,6 +201,7 @@ export const detectWavePeakInteraction = (
 
 /**
  * Simple arcade-style physics: static positioning over water with slight buoyancy oscillation
+ * Handles multiple states: STABLE_SURFING, LOSING_BALANCE, WAVE_LAUNCH, AIR_ROTATION, LANDING
  */
 export const applyPlatformerSurferPhysics = (
   matterBody: any,
@@ -213,26 +214,210 @@ export const applyPlatformerSurferPhysics = (
     force: { x: number; y: number }
   ) => void,
   setBodyPosition: (position: { x: number; y: number }) => void,
+  setBodyProperty: (property: string, value: any) => void,
   surferStateData?: any,
-  setSurferStateData?: (data: any) => void
+  setSurferStateData?: (data: any) => void,
+  eventQueue?: any
 ): void => {
   'worklet';
 
   const surferHeight = matterBody.bounds.max.y - matterBody.bounds.min.y;
+  const physicsConfig = getSurferPhysicsConfig();
 
-  // Get water surface height at surfer's x position (primary movement)
+  // Get water surface height at surfer's x position
   const waterSurfaceY = getWaterSurfaceHeightAtPoint(seaLayer, initialX);
 
-  // Track time for buoyancy oscillation using state data or position-based phase
-  let buoyancyTime = 0;
+  // Update time in state
   if (surferStateData && setSurferStateData) {
-    // Use state data to track accumulated time
+    surferStateData.timeInStateMs += deltaTime;
     if (!surferStateData.buoyancyTime) {
       surferStateData.buoyancyTime = 0;
     }
     surferStateData.buoyancyTime += deltaTime / 1000; // Convert to seconds
+  }
+
+  const currentState =
+    surferStateData?.state || SurferArcadeState.STABLE_SURFING;
+
+  // Handle state-specific physics
+  if (currentState === SurferArcadeState.LOSING_BALANCE) {
+    // LOSING_BALANCE: Let gravity pull surfer down, apply depth-based friction
+    const currentY = matterBody.position.y;
+    const surferCenterY = currentY + surferHeight / 2;
+    const depth = surferCenterY - waterSurfaceY; // Positive = underwater
+
+    // Lock X position by correcting drift (but don't interfere with Y/gravity)
+    // Only correct X if it has drifted significantly
+    if (Math.abs(matterBody.position.x - initialX) > 1) {
+      // Use applyForce to push X back to initialX without affecting Y
+      const xDiff = initialX - matterBody.position.x;
+      const correctionForce = xDiff * 0.1; // Gentle correction
+      applyForce(
+        { x: matterBody.position.x, y: matterBody.position.y },
+        { x: correctionForce, y: 0 }
+      );
+    }
+
+    // Lock X velocity to prevent horizontal drift
+    if (matterBody.velocity) {
+      matterBody.velocity.x = 0;
+    }
+    setBodyProperty('velocity', { x: 0, y: matterBody.velocity?.y || 0 });
+
+    // Apply increasing friction based on depth
+    if (depth > 0) {
+      const friction =
+        physicsConfig.fallingFrictionBase +
+        depth * physicsConfig.fallingFrictionMultiplier;
+      const frictionValue = Math.min(friction, 0.99); // Cap friction
+      setBodyProperty('frictionAir', frictionValue);
+    }
+
+    // Check if surfer has sunk below threshold
+    if (depth >= physicsConfig.sinkDepthThreshold) {
+      // Dispatch game over event (only once)
+      if (
+        eventQueue &&
+        eventQueue.addEvent &&
+        (!surferStateData || !surferStateData.gameOverDispatched)
+      ) {
+        eventQueue.addEvent({ type: 'gameOver' });
+        if (surferStateData && setSurferStateData) {
+          surferStateData.gameOverDispatched = true;
+          setSurferStateData(surferStateData);
+        }
+      }
+    }
+    return;
+  }
+
+  if (currentState === SurferArcadeState.WAVE_LAUNCH) {
+    // WAVE_LAUNCH: Boost velocity upward, transition to AIR_ROTATION when above water
+    const currentY = matterBody.position.y;
+    const surferCenterY = currentY + surferHeight / 2;
+    const heightAboveWater = waterSurfaceY - surferCenterY; // Positive = above water
+
+    // Lock X position by correcting drift (but don't interfere with Y/gravity)
+    if (Math.abs(matterBody.position.x - initialX) > 1) {
+      const xDiff = initialX - matterBody.position.x;
+      const correctionForce = xDiff * 0.1; // Gentle correction
+      applyForce(
+        { x: matterBody.position.x, y: matterBody.position.y },
+        { x: correctionForce, y: 0 }
+      );
+    }
+
+    // Apply launch velocity boost (only once, at start)
+    if (surferStateData && surferStateData.timeInStateMs < deltaTime * 2) {
+      const launchVelocity =
+        surferStateData.launchPower * physicsConfig.launchVelocityMultiplier;
+      if (matterBody.velocity) {
+        matterBody.velocity.y = -launchVelocity; // Negative Y = upward
+      }
+      setBodyProperty('velocity', { x: 0, y: -launchVelocity });
+    } else {
+      // Lock X velocity to prevent horizontal drift
+      if (matterBody.velocity) {
+        matterBody.velocity.x = 0;
+        setBodyProperty('velocity', { x: 0, y: matterBody.velocity.y });
+      }
+    }
+
+    // Transition to AIR_ROTATION when surfer is above water threshold
+    // This happens when leaving the water surface after being launched
+    if (heightAboveWater >= physicsConfig.launchHeightThreshold) {
+      // Transition to AIR_ROTATION
+      if (surferStateData && setSurferStateData) {
+        surferStateData.state = SurferArcadeState.AIR_ROTATION;
+        surferStateData.timeInStateMs = 0;
+        surferStateData.currentRotationRad = 0;
+        setSurferStateData(surferStateData);
+      }
+    }
+    return;
+  }
+
+  if (currentState === SurferArcadeState.AIR_ROTATION) {
+    // AIR_ROTATION: Rotate surfer 360°, then transition to LANDING
+    // Lock X position by correcting drift (but don't interfere with Y/gravity)
+    if (Math.abs(matterBody.position.x - initialX) > 1) {
+      const xDiff = initialX - matterBody.position.x;
+      const correctionForce = xDiff * 0.1; // Gentle correction
+      applyForce(
+        { x: matterBody.position.x, y: matterBody.position.y },
+        { x: correctionForce, y: 0 }
+      );
+    }
+
+    // Lock X velocity to prevent horizontal drift
+    if (matterBody.velocity) {
+      matterBody.velocity.x = 0;
+      setBodyProperty('velocity', { x: 0, y: matterBody.velocity.y });
+    }
+
+    if (surferStateData && setSurferStateData) {
+      const deltaTimeSeconds = deltaTime / 1000;
+      surferStateData.currentRotationRad +=
+        physicsConfig.rotationSpeed * deltaTimeSeconds;
+
+      // Check if rotation is complete (360° = 2π)
+      if (surferStateData.currentRotationRad >= 2 * Math.PI) {
+        surferStateData.state = SurferArcadeState.LANDING;
+        surferStateData.timeInStateMs = 0;
+        surferStateData.rotationsCompleted = 1;
+        surferStateData.currentRotationRad = 0; // Reset for landing
+        setSurferStateData(surferStateData);
+        // Set angle to 0 for landing
+        setBodyProperty('angle', 0);
+      } else {
+        // Apply rotation
+        setBodyProperty('angle', surferStateData.currentRotationRad);
+        setSurferStateData(surferStateData);
+      }
+    }
+    return;
+  }
+
+  if (currentState === SurferArcadeState.LANDING) {
+    // LANDING: Gradually lower surfer to water surface, then transition to STABLE_SURFING
+    const currentY = matterBody.position.y;
+    const surferCenterY = currentY + surferHeight / 2;
+    const targetCenterY = waterSurfaceY;
+    const distanceToSurface = surferCenterY - targetCenterY;
+
+    // Keep surfer straight
+    setBodyProperty('angle', 0);
+
+    // Check if we've reached the water surface
+    if (distanceToSurface <= physicsConfig.landingThreshold) {
+      // Transition to STABLE_SURFING
+      if (surferStateData && setSurferStateData) {
+        surferStateData.state = SurferArcadeState.STABLE_SURFING;
+        surferStateData.timeInStateMs = 0;
+        surferStateData.launchPower = 0;
+        surferStateData.rotationsCompleted = 0;
+        setSurferStateData(surferStateData);
+      }
+      // Position at water surface
+      const targetY = waterSurfaceY - surferHeight / 2;
+      setBodyPosition({ x: initialX, y: targetY });
+      return;
+    }
+
+    // Gradually lower surfer
+    const deltaTimeSeconds = deltaTime / 1000;
+    const descentDistance = physicsConfig.landingSpeed * deltaTimeSeconds;
+    const newCenterY = Math.max(surferCenterY - descentDistance, targetCenterY);
+    const newY = newCenterY - surferHeight / 2;
+    setBodyPosition({ x: initialX, y: newY });
+    return;
+  }
+
+  // STABLE_SURFING: Normal platformer physics with buoyancy
+  // Track time for buoyancy oscillation
+  let buoyancyTime = 0;
+  if (surferStateData && setSurferStateData) {
     buoyancyTime = surferStateData.buoyancyTime;
-    setSurferStateData(surferStateData);
   } else {
     // Fallback: use water surface Y as phase input for consistent oscillation
     buoyancyTime = waterSurfaceY * 0.01;
@@ -240,7 +425,6 @@ export const applyPlatformerSurferPhysics = (
 
   // Simple sine wave oscillation for buoyancy effect (not real force, just visual)
   // Gentle bobbing up and down on the water surface
-  const physicsConfig = getSurferPhysicsConfig();
   const buoyancyAmplitude = physicsConfig.buoyancyAmplitude;
   const buoyancyFrequency = physicsConfig.buoyancyFrequency;
   const buoyancyOffset =
@@ -248,12 +432,7 @@ export const applyPlatformerSurferPhysics = (
     buoyancyAmplitude;
 
   // Check wave interaction only when surfer is in STABLE_SURFING state
-  if (
-    surferStateData &&
-    setSurferStateData &&
-    surferStateData.state === SurferArcadeState.STABLE_SURFING &&
-    seaLayer.waves.length > 1
-  ) {
+  if (surferStateData && setSurferStateData && seaLayer.waves.length > 1) {
     // Use wave[1] as the dynamic touch wave
     const dynamicWave = seaLayer.waves[1];
     if (dynamicWave && dynamicWave.isFlowing) {
@@ -290,23 +469,37 @@ export const applyPlatformerSurferPhysics = (
 
 /**
  * Set velocity to zero to prevent gravity from pulling surfer down
+ * Only applies friction in STABLE_SURFING and LANDING states
  */
 export const applySurferFriction = (
   matterBody: any,
   seaLayer: SeaLayerComponentData,
-  setBodyProperty: (property: string, value: any) => void
+  setBodyProperty: (property: string, value: any) => void,
+  surferStateData?: any
 ): void => {
   'worklet';
-  // Set velocity to zero every frame to override gravity
-  // This works with static positioning to keep surfer in place
-  if (matterBody.velocity) {
-    matterBody.velocity.x = 0;
-    matterBody.velocity.y = 0;
+
+  const currentState =
+    surferStateData?.state || SurferArcadeState.STABLE_SURFING;
+
+  // Only apply friction in STABLE_SURFING and LANDING states
+  // In LOSING_BALANCE, WAVE_LAUNCH, and AIR_ROTATION, allow natural physics
+  if (
+    currentState === SurferArcadeState.STABLE_SURFING ||
+    currentState === SurferArcadeState.LANDING
+  ) {
+    // Set velocity to zero every frame to override gravity
+    // This works with static positioning to keep surfer in place
+    if (matterBody.velocity) {
+      matterBody.velocity.x = 0;
+      matterBody.velocity.y = 0;
+    }
+    if (matterBody.angularVelocity !== undefined) {
+      matterBody.angularVelocity = 0;
+    }
+    // Also use setBodyProperty as backup
+    setBodyProperty('velocity', { x: 0, y: 0 });
+    setBodyProperty('angularVelocity', 0);
   }
-  if (matterBody.angularVelocity !== undefined) {
-    matterBody.angularVelocity = 0;
-  }
-  // Also use setBodyProperty as backup
-  setBodyProperty('velocity', { x: 0, y: 0 });
-  setBodyProperty('angularVelocity', 0);
+  // In other states, don't apply friction - let physics work naturally
 };

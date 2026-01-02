@@ -32,7 +32,7 @@ import {
  */
 export const SurferPhysicsSystem: System = {
   requiredComponents: [SurferComponentName, MatterBodyComponentName],
-  process: ({ entities, components, deltaTime, ecs }) => {
+  process: ({ entities, components, deltaTime, ecs, eventQueue }) => {
     'worklet';
 
     // Get all sea layer entities to find the main/centered layer
@@ -176,8 +176,15 @@ export const SurferPhysicsSystem: System = {
             global.MatterReanimated.Body.setPosition(matterBody, position);
           }
         },
+        (property: string, value: any) => {
+          // Update Matter.js body properties
+          if (typeof global.MatterReanimated !== 'undefined') {
+            global.MatterReanimated.Body.set(matterBody, property, value);
+          }
+        },
         surferStateData,
-        setSurferStateData
+        setSurferStateData,
+        eventQueue
       );
 
       // Update position component to reflect Matter.js body position
@@ -199,7 +206,8 @@ export const SurferPhysicsSystem: System = {
           if (typeof global.MatterReanimated !== 'undefined') {
             global.MatterReanimated.Body.set(matterBody, property, value);
           }
-        }
+        },
+        surferStateData
       );
     });
   },
