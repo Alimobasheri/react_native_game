@@ -55,8 +55,8 @@ export const DEFAULT_SURFER_PHYSICS_CONFIG: SurferPhysicsConfig = {
   buoyancyAmplitude: 2, // Small amplitude (2-3 pixels) for gentle bobbing
   buoyancyFrequency: 1.5, // cycles per second
   wavePeakDetectionThreshold: 0.05, // Normalized distance threshold (5% of screen width)
-  waveForceLosingBalanceThreshold: 0.15, // High threshold for losing balance
-  waveForceLaunchThreshold: 0.05, // Lower threshold for wave launch
+  waveForceLosingBalanceThreshold: 0.9, // High threshold for losing balance
+  waveForceLaunchThreshold: 0.3, // Lower threshold for wave launch
   waveOriginProximityMultiplier: 50, // Multiplier for close waves
   waveFromBehindPenalty: 1.5, // 50% increase in force for waves from behind
   fallingFrictionBase: 0.1, // Base friction when falling

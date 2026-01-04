@@ -161,21 +161,6 @@ export const detectWavePeakInteraction = (
     };
   }
 
-  // Calculate wave force factors
-  // Distance from origin in pixels (how far the wave has traveled)
-  const distanceFromOrigin = Math.abs(wave.x - surferX);
-
-  // Calculate decay factor based on distance traveled (matches shader decay)
-  // The decay is spatial - waves decay as they travel from origin
-  const normalizedDistanceTraveled = distanceFromOrigin / seaLayer.windowWidth;
-  const decayFactor = Math.exp(-8.0 * normalizedDistanceTraveled);
-
-  // Effective amplitude at surfer's position (decayed)
-  const effectiveAmplitude = wave.amplitude * decayFactor;
-
-  // Effective speed at surfer's position (using original speed for now)
-  const effectiveSpeed = wave.speed;
-
   // Check if wave is coming from behind surfer
   const isFromBehind = wave.x < surferX;
   const behindPenalty = isFromBehind
@@ -183,7 +168,7 @@ export const detectWavePeakInteraction = (
     : 1.0;
 
   // Calculate wave force: effective amplitude * effective speed * behind penalty
-  const waveForce = effectiveAmplitude * effectiveSpeed * behindPenalty;
+  const waveForce = wave.amplitude * wave.speed * behindPenalty;
 
   // Determine state based on thresholds
   const shouldLoseBalance =
