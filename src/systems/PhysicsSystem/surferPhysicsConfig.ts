@@ -62,7 +62,7 @@ export const DEFAULT_SURFER_PHYSICS_CONFIG: SurferPhysicsConfig = {
   fallingFrictionBase: 0.1, // Base friction when falling
   fallingFrictionMultiplier: 0.01, // Friction increase per pixel depth
   sinkDepthThreshold: 100, // Depth below water surface to trigger game over (pixels)
-  launchVelocityMultiplier: 50, // Multiplier for launch power to velocity
+  launchVelocityMultiplier: 5, // Multiplier for launch power to velocity
   launchHeightThreshold: 10, // Height above water to start rotation (pixels)
   rotationSpeed: 8 * Math.PI, // Radians per second for backflip (~0.25s for 360°)
   landingSpeed: 200, // Pixels per second descent speed

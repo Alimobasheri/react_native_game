@@ -343,10 +343,10 @@ export const applyPlatformerSurferPhysics = (
     if (surferStateData && setSurferStateData) {
       const deltaTimeSeconds = deltaTime / 1000;
       surferStateData.currentRotationRad +=
-        physicsConfig.rotationSpeed * deltaTimeSeconds;
+        -Math.sign(surferStateData.waveForce || 1) * physicsConfig.rotationSpeed * deltaTimeSeconds;
 
       // Check if rotation is complete (360° = 2π)
-      if (surferStateData.currentRotationRad >= 2 * Math.PI) {
+      if (Math.abs(surferStateData.currentRotationRad) >= 2 * Math.PI) {
         surferStateData.state = SurferArcadeState.LANDING;
         surferStateData.timeInStateMs = 0;
         surferStateData.rotationsCompleted = 1;
