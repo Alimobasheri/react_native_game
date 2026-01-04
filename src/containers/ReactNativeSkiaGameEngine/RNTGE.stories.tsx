@@ -4,7 +4,7 @@ import { Scene } from './components-rntge/Scene/Scene';
 import { Preload } from './components-rntge/Scene/Preload';
 import { Content } from './components-rntge/Scene/Content';
 import { Asset } from './components-rntge/Scene/Asset';
-import { Dimensions, View, TouchableOpacity, Text } from 'react-native';
+import { View, useWindowDimensions } from 'react-native';
 import React from 'react';
 import { MemoizedContainer } from './components/MemoizedContainer';
 import { ShipView } from '@/components/ShipView/ShipView-rntge';
@@ -128,15 +128,14 @@ const meta = {
 export default meta;
 
 type Story = StoryObj<typeof meta>;
-
-const { width: windowWidth, height: windowHeight } = Dimensions.get('window');
-
+;
 export const Basic: Story = {
   args: {
     componentNames: ['star', SeaLayerComponentName, SurferComponentName],
   },
   render: (args: any) => {
     const [isRelaxed, setIsRelaxed] = React.useState(false);
+    const {width:windowWidth, height: windowHeight } = useWindowDimensions()
 
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>

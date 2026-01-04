@@ -14,9 +14,8 @@ import {
   WaveSource,
   createWave,
 } from '@/Game/ecs-components/SeaLayer';
-import { Dimensions } from 'react-native';
+import { useWindowDimensions } from 'react-native';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const normalize = (
   value: number,
@@ -88,6 +87,8 @@ let prevVelocityY = 0;
 let lastUpdateTime = 0;
 
 export const Swipe: FC<{}> = () => {
+const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+
   const components = [
     createRenderComponent({
       shape: {
