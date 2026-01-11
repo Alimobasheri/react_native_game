@@ -1,5 +1,6 @@
 import { System } from '../../../services-ecs/system';
 import {
+  SceneRegisterRequest,
   SceneRegisterRequestType,
   SceneRegisteredResponseType,
 } from '../../../components-rntge/Scene/events';
@@ -15,19 +16,14 @@ export const registerSceneSystem: System = {
       .filter((e) => e.type === SceneRegisterRequestType);
 
     for (let i = 0; i < events.length; i++) {
-      const payload = events[i].payload as {
-        sceneKey: string;
-        parentSceneKey?: string;
-        zIndex?: number;
-        subscriptionId: string;
-      };
+      const payload = events[i].payload as SceneRegisterRequest['payload'];
 
       const entity = ecs.value.createEntity();
       const data: SceneComponentData = {
         sceneKey: payload.sceneKey,
         parentSceneKey: payload.parentSceneKey,
-        isActive: true,
-        isPaused: false,
+        isActive: payload.isActive,
+        isPaused: payload.isActive,
         isPreloading: false,
         zIndex: payload.zIndex ?? 0,
       };

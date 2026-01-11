@@ -82,6 +82,8 @@ export const Scene: FC<SceneProps> = ({
         parentSceneKey: parentName,
         zIndex,
         subscriptionId: sceneSubscriptionId,
+        isActive: isActive === false ? false : true,
+        isPaused,
       },
     };
     eventQueue.addEventJS(req);

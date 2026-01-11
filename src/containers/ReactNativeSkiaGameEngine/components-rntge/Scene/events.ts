@@ -12,9 +12,11 @@ export type SceneRegisterRequest = {
   type: typeof SceneRegisterRequestType;
   payload: {
     sceneKey: string;
+    subscriptionId: string;
+    isActive: boolean;
+    isPaused: boolean;
     parentSceneKey?: string;
     zIndex?: number;
-    subscriptionId: string;
   };
 };
 

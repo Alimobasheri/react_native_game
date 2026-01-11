@@ -43,6 +43,7 @@ import {
 } from './internal/components/touch';
 import { FC } from 'react';
 import { Swipe } from '@/components/Swipe/index-rntge';
+import { GameOverScene } from '../Scenes/GameOverScene/index-rntge';
 
 // Test components for different gesture types
 const TapTestComponent: FC<{ x: number; y: number }> = ({ x, y }) => {
@@ -128,14 +129,13 @@ const meta = {
 export default meta;
 
 type Story = StoryObj<typeof meta>;
-;
 export const Basic: Story = {
   args: {
     componentNames: ['star', SeaLayerComponentName, SurferComponentName],
   },
   render: (args: any) => {
     const [isRelaxed, setIsRelaxed] = React.useState(false);
-    const {width:windowWidth, height: windowHeight } = useWindowDimensions()
+    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -233,6 +233,7 @@ export const Basic: Story = {
                 <SwipeToPlay />
               </Content>
             </Scene>
+            <GameOverScene />
           </ReactNativeTurboGameEngine>
         </View>
       </View>

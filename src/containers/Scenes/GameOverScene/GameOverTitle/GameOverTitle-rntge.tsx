@@ -1,6 +1,6 @@
 import {
-  useAddEntity,
   useCanvasDimensions,
+  useAddEntity,
 } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs';
 import {
   createRenderComponent,
@@ -10,21 +10,25 @@ import { createTextComponent } from '@/containers/ReactNativeSkiaGameEngine/inte
 import { Skia, TextAlign } from '@shopify/react-native-skia';
 import { FC, useMemo } from 'react';
 
-export const SwipeToPlay: FC<{}> = () => {
+export const GameOverTitle: FC<{}> = () => {
   const dimensions = useCanvasDimensions();
+
   const components = useMemo(() => {
     return [
       createTextComponent({
-        text: 'Swipe to Play',
+        text: 'Game Over',
         fontAssetId: 'Montserrat',
-        fontSize: 24,
+        fontSize: 66,
         color: Skia.Color('white'),
         align: TextAlign.Center,
-        maxWidth: 200,
+        maxWidth: 400,
       }),
       createRenderComponent({
-        shape: { type: ShapeTypes.Rectangle, width: 200, height: 100 },
-        position: { x: dimensions.width / 2 - 100, y: dimensions.height - 50 },
+        shape: { type: ShapeTypes.Rectangle, width: 400, height: 100 },
+        position: {
+          x: dimensions.width / 2 - 200,
+          y: dimensions.height / 2 - 50,
+        },
         visible: true,
       }),
     ];
