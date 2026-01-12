@@ -35,7 +35,8 @@ export type PreloadProps = PropsWithChildren<{
 export const Preload: FC<PreloadProps> = ({ children, onProgress }) => {
   const sceneContext = useSceneContextUnsafe();
   if (!sceneContext) throw new Error('Preload must be used within a Scene');
-  const { sceneKey, sceneSubscriptionId, notifyPreloadMounted } = sceneContext;
+  const { sceneKey, sceneSubscriptionId, isActive, notifyPreloadMounted } =
+    sceneContext;
   const eventQueue = React.useContext(EventQueueContext);
   if (!eventQueue)
     throw new Error('Preload must be used within EventQueueProvider');
@@ -109,8 +110,8 @@ export const Preload: FC<PreloadProps> = ({ children, onProgress }) => {
   }, []);
 
   useEffect(() => {
-    loadAssetsAndSendToUI();
-  }, [sceneKey, preloadSubscriptionId]);
+    if (isActive) loadAssetsAndSendToUI();
+  }, [sceneKey, isActive, preloadSubscriptionId]);
 
   const value = useMemo(
     () => ({

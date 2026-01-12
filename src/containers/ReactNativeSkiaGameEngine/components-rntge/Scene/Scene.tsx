@@ -32,7 +32,7 @@ export const Scene: FC<SceneProps> = ({
   name,
   parentName,
   zIndex = 0,
-  isActive = true,
+  isActive: isActiveProp = true,
   isPaused = false,
   children,
 }) => {
@@ -48,6 +48,7 @@ export const Scene: FC<SceneProps> = ({
   const sceneKey = sceneKeyRef.current;
 
   const sceneSubscriptionId = useSubscriptionId();
+  const [isActive, setIsActive] = useState<boolean>(isActiveProp);
   const [hasPreload, setHasPreload] = useState(false);
   const contentGateRef = useRef<((v: boolean) => void) | null>(null);
   const [contentShouldRender, setContentShouldRender] = useState(false);
@@ -97,10 +98,15 @@ export const Scene: FC<SceneProps> = ({
     eventQueue.addEventJS(req);
   }, [sceneKey, isActive, isPaused]);
 
+  useEffect(() => {
+    if (isActive !== isActiveProp) setIsActive(isActiveProp);
+  }, [isActiveProp]);
+
   const contextValue = useMemo(
     () => ({
       sceneKey,
       sceneSubscriptionId,
+      isActive,
       parentSceneKey: parentName,
       notifyContentMounted: (cb: (v: boolean) => void) => {
         contentGateRef.current = cb;
