@@ -8,7 +8,7 @@ import { SceneComponentName, SceneComponentData } from '../../components/scene';
 export const sceneStateSystem: System = {
   requiredComponents: [],
   requiredEvents: [SceneSetActiveRequestType, SceneSetPreloadStateRequestType],
-  process: ({ eventQueue, ecs }) => {
+  process: ({ eventQueue, ecs, components }) => {
     'worklet';
     const events = eventQueue.readEvents();
 
@@ -20,14 +20,16 @@ export const sceneStateSystem: System = {
           isActive: boolean;
           isPaused?: boolean;
         };
-        const entities = ecs.value.getAllEntities();
-        for (let j = 0; j < entities.length; j++) {
+        const sceneEntities = ecs.value.getEntitiesWithComponents([
+          SceneComponentName,
+        ]);
+        for (let j = 0; j < sceneEntities.length; j++) {
           const comp = ecs.value.components.value[SceneComponentName]?.get(
-            entities[j]
+            sceneEntities[j]
           ) as SceneComponentData | undefined;
           if (comp && comp.sceneKey === payload.sceneKey) {
             ecs.value.updateComponent<SceneComponentData>(
-              entities[j],
+              sceneEntities[j],
               SceneComponentName,
               (sc) => {
                 sc.isActive = payload.isActive;

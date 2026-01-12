@@ -6,6 +6,8 @@ import {
 } from '../../events/physics';
 import { System } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/system';
 import { MatterBodyComponentName } from '../../components/matterBody';
+import { Entity } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/entity';
+import { SceneComponentName, SceneComponentData } from '../../components/scene';
 
 function createMatterBodyFromPayload(
   args: AddMatterBodyBatchRequest['payload']['batch'][0]['args']
@@ -52,9 +54,21 @@ export const requestAddMatterBodyBatch: System = {
       .readEvents()
       .filter((e) => e.type === AddMatterBodyBatchRequestType);
 
+    const sceneEntities: Record<string, Entity> = ecs.value
+      .getEntitiesWithComponents([SceneComponentName])
+      .reduce((byKey, entity) => {
+        const entityData = ecs.value.components.value[SceneComponentName].get(
+          entity
+        ) as SceneComponentData;
+        return {
+          ...byKey,
+          [entityData.sceneKey]: entity,
+        };
+      }, {});
+
     for (const event of events) {
       const payload: AddMatterBodyBatchRequest['payload'] = event.payload;
-      const createdBodies = [];
+      const createdBodies: Matter.Body[] = [];
       const bodyIds: number[] = [];
 
       for (const item of payload.batch) {
@@ -74,6 +88,16 @@ export const requestAddMatterBodyBatch: System = {
           createdBodies
         );
       }
+
+      ecs.value.updateComponent<SceneComponentData>(
+        sceneEntities[payload.sceneKey],
+        SceneComponentName,
+        (component) => {
+          component.objects.matterBodies.push(
+            ...createdBodies.map((cb) => cb.id)
+          );
+        }
+      );
 
       const responseEvent: AddMatterBodyBatchResponse = {
         type: AddMatterBodyBatchResponseType,

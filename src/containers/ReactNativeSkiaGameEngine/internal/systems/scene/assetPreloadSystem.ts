@@ -10,11 +10,33 @@ import {
   createTypefacesOnUI,
   LoadedFontSources,
 } from '@/containers/ReactNativeSkiaGameEngine/loaders-ecs';
+import { SceneComponentData, SceneComponentName } from '../../components/scene';
+import { Entity } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/entity';
+import { SharedValue } from 'react-native-reanimated';
+import { ECS } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/ecs';
+
+type sceneObjectAsset = keyof SceneComponentData['objects']['assets'];
+
+const pushSceneObjectsAsset = (
+  ecs: SharedValue<ECS>,
+  sceneEntity: Entity,
+  name: string,
+  type: sceneObjectAsset
+) => {
+  'worklet';
+  ecs.value.updateComponent<SceneComponentData>(
+    sceneEntity,
+    SceneComponentName,
+    (component) => {
+      component.objects.assets[type].push(name);
+    }
+  );
+};
 
 export const assetPreloadSystem: System = {
   requiredComponents: [],
   requiredEvents: [AssetPreloadRequestType],
-  process: async ({ eventQueue }) => {
+  process: async ({ eventQueue, ecs }) => {
     'worklet';
     const events = eventQueue
       .readEvents()
@@ -28,16 +50,36 @@ export const assetPreloadSystem: System = {
 
       const fontsToLoad: LoadedFontSources[] = [];
 
+      const sceneEntities = ecs.value.getEntitiesWithComponents([
+        SceneComponentName,
+      ]);
+
+      const sceneEntity = sceneEntities.find(
+        (entity) =>
+          (
+            ecs.value.components.value[SceneComponentName].get(entity) as
+              | SceneComponentData
+              | undefined
+          )?.sceneKey === payload.sceneKey
+      );
+
+      if (sceneEntity === undefined)
+        throw new Error(
+          `[RNTGE][assetPreloadSystem] Could not find Scene Entity for Scene Key: ${payload.sceneKey}`
+        );
+
       for (let j = 0; j < payload.items.length; j++) {
         const item = payload.items[j];
         switch (item.type) {
           case 'image':
             const images = global._RNTGE_.imageCache;
             images[item.name] = item.data;
+            pushSceneObjectsAsset(ecs, sceneEntity, item.name, 'images');
             break;
           case 'shader':
             const shaders = global._RNTGE_.shaderCache;
             shaders[item.name] = item.data;
+            pushSceneObjectsAsset(ecs, sceneEntity, item.name, 'shaders');
             break;
           case 'font':
             const fonts = global._RNTGE_.fontCache;
@@ -46,15 +88,20 @@ export const assetPreloadSystem: System = {
               item.data.family,
               item.data.base64
             );
-            if (typeface) fonts[item.name] = typeface;
+            if (typeface) {
+              fonts[item.name] = typeface;
+              pushSceneObjectsAsset(ecs, sceneEntity, item.name, 'fonts');
+            }
             break;
           case 'atlas':
             const atlases = global._RNTGE_.atlasCache;
             atlases[item.name] = item.data;
+            pushSceneObjectsAsset(ecs, sceneEntity, item.name, 'atlases');
             break;
           case 'animation':
             const clips = global._RNTGE_.clipAnimationCache;
             clips[item.name] = item.data;
+            pushSceneObjectsAsset(ecs, sceneEntity, item.name, 'clips');
         }
         loaded++;
       }

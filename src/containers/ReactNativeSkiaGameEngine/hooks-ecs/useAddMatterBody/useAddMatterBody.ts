@@ -12,6 +12,7 @@ import {
   CreateEntityResponse,
 } from '../../internal/events/entity';
 import { ExternalEvent } from '../useEventQueue/useEventQueue';
+import { useSceneContextUnsafe } from '../../components-rntge/Scene/hooks';
 
 export type UseAddMatterBodyArgs = {
   args: CreateMatterBodyArgs;
@@ -24,6 +25,10 @@ export const useAddMatterBody = ({ args, entityId }: UseAddMatterBodyArgs) => {
   if (!eventQueueContext) {
     throw new Error('useAddEntity must be used within an EventQueueProvider');
   }
+
+  const sceneContext = useSceneContextUnsafe();
+  if (!sceneContext) throw new Error('Preload must be used within a Scene');
+  const { sceneKey } = sceneContext;
 
   const [bodyId, setBodyId] = useState<number | null>(null);
 
@@ -48,6 +53,7 @@ export const useAddMatterBody = ({ args, entityId }: UseAddMatterBodyArgs) => {
         payload: {
           args: args,
           entityId,
+          sceneKey,
           responseSubId: subscriptionId,
         },
       };

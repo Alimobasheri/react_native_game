@@ -26,7 +26,6 @@ import {
   LoadedClipAnimation,
   LoadedAtlas,
 } from '../../loaders-ecs';
-import { runOnUI } from 'react-native-reanimated';
 import { loadFontAssets } from '../../loaders-ecs/fonts';
 
 export type PreloadProps = PropsWithChildren<{

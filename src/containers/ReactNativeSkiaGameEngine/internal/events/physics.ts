@@ -10,6 +10,7 @@ export type AddMatterBodyRequest = {
   payload: {
     args: CreateMatterBodyArgs;
     entityId: number;
+    sceneKey: string;
     responseSubId: string;
   };
 };
@@ -29,6 +30,7 @@ export type AddMatterBodyBatchRequest = {
   type: typeof AddMatterBodyBatchRequestType;
   payload: {
     batch: BatchMatterBodyArgs[];
+    sceneKey: string;
     responseSubId: string;
   };
 };

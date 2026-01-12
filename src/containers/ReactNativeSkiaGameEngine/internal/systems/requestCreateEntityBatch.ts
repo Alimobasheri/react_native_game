@@ -1,4 +1,6 @@
+import { Entity } from '../../services-ecs/entity';
 import { System } from '../../services-ecs/system';
+import { SceneComponentName, SceneComponentData } from '../components/scene';
 import {
   CreateEntityBatchRequest,
   createEntityBatchRequestType,
@@ -15,6 +17,17 @@ export const requestCreateEntityBatch: System = {
       .readEvents()
       .filter((e) => e.type === createEntityBatchRequestType);
 
+    const sceneEntities: Record<string, Entity> = ecs.value
+      .getEntitiesWithComponents([SceneComponentName])
+      .reduce((byKey, entity) => {
+        const entityData = ecs.value.components.value[SceneComponentName].get(
+          entity
+        ) as SceneComponentData;
+        return {
+          ...byKey,
+          [entityData.sceneKey]: entity,
+        };
+      }, {});
     for (let i = 0; i < events.length; i++) {
       let batchEntityId: number[] = [];
       const payload: CreateEntityBatchRequest['payload'] = events[i].payload;
@@ -25,6 +38,13 @@ export const requestCreateEntityBatch: System = {
         }
         batchEntityId.push(entity);
       }
+      ecs.value.updateComponent<SceneComponentData>(
+        sceneEntities[payload.sceneKey],
+        SceneComponentName,
+        (component) => {
+          component.objects.entities.push(...batchEntityId);
+        }
+      );
       const responseEvent: CreateEntityBatchResponse = {
         type: createEntityBatchResponseType,
         payload: { batchEntityId },

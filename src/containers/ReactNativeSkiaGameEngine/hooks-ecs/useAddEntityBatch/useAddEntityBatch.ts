@@ -8,6 +8,7 @@ import {
   createEntityBatchResponseType,
 } from '../../internal/events/entity';
 import { ExternalEvent } from '../useEventQueue/useEventQueue';
+import { useSceneContextUnsafe } from '../../components-rntge/Scene/hooks';
 
 export type UseAddEntityBatchArgs = {
   batch: Component<any>[][];
@@ -15,6 +16,10 @@ export type UseAddEntityBatchArgs = {
 
 export const useAddEntityBatch = ({ batch }: UseAddEntityBatchArgs) => {
   const eventQueueContext = useContext(EventQueueContext);
+
+  const sceneContext = useSceneContextUnsafe();
+  if (!sceneContext) throw new Error('Preload must be used within a Scene');
+  const { sceneKey } = sceneContext;
 
   const [entityId, setEntityId] = useState<number[] | null>(null);
 
@@ -42,6 +47,7 @@ export const useAddEntityBatch = ({ batch }: UseAddEntityBatchArgs) => {
         payload: {
           batch,
           responseSubId: subscriptionId,
+          sceneKey,
         },
       };
       eventQueueContext.addEventJS(event);

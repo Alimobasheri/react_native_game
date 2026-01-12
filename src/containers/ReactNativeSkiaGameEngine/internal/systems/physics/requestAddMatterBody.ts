@@ -10,6 +10,8 @@ import {
   SystemContext,
 } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/system';
 import { MatterBodyComponentName } from '../../components/matterBody';
+import { Entity } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/entity';
+import { SceneComponentName, SceneComponentData } from '../../components/scene';
 
 function createMatterBodyFromPayload(payload: AddMatterBodyRequest['payload']) {
   'worklet';
@@ -98,6 +100,17 @@ export const requestAddMatterBody: System = {
     const events = eventQueue
       .readEvents()
       .filter((e) => e.type === AddMatterBodyRequestType);
+    const sceneEntities: Record<string, Entity> = ecs.value
+      .getEntitiesWithComponents([SceneComponentName])
+      .reduce((byKey, entity) => {
+        const entityData = ecs.value.components.value[SceneComponentName].get(
+          entity
+        ) as SceneComponentData;
+        return {
+          ...byKey,
+          [entityData.sceneKey]: entity,
+        };
+      }, {});
     for (let i = 0; i < events.length; i++) {
       const payload: AddMatterBodyRequest['payload'] = events[i].payload;
 
@@ -112,6 +125,13 @@ export const requestAddMatterBody: System = {
         name: MatterBodyComponentName,
         data: body,
       });
+      ecs.value.updateComponent<SceneComponentData>(
+        sceneEntities[payload.sceneKey],
+        SceneComponentName,
+        (component) => {
+          component.objects.matterBodies.push(body.id);
+        }
+      );
       const responseEvent: AddMatterBodyResponse = {
         type: AddMatterBodyResponseType,
         payload: { success: true, bodyId: body.id },

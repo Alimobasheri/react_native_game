@@ -26,6 +26,18 @@ export const registerSceneSystem: System = {
         isPaused: payload.isActive,
         isPreloading: false,
         zIndex: payload.zIndex ?? 0,
+        objects: {
+          assets: {
+            images: [],
+            shaders: [],
+            fonts: [],
+            atlases: [],
+            clips: [],
+          },
+          entities: [],
+          matterBodies: [],
+          systems: [],
+        },
       };
       ecs.value.addComponent(entity, { name: SceneComponentName, data });
 

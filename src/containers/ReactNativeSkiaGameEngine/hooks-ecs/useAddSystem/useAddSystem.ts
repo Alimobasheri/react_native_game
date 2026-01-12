@@ -9,6 +9,7 @@ import {
   AddSystemResponse,
   AddSystemResponseType,
 } from '../../internal/events/system';
+import { useSceneContextUnsafe } from '../../components-rntge/Scene/hooks';
 
 export type UseAddSystemArgs = {
   system: System;
@@ -22,6 +23,10 @@ export const useAddSystem = ({ system }: UseAddSystemArgs) => {
   if (!eventQueueContext) {
     throw new Error('useAddSystem must be used within an EventQueueProvider');
   }
+
+  const sceneContext = useSceneContextUnsafe();
+  if (!sceneContext) throw new Error('Preload must be used within a Scene');
+  const { sceneKey } = sceneContext;
 
   const onResponse = useCallback((event: ExternalEvent) => {
     if (event.type === AddSystemResponseType) {
@@ -40,6 +45,7 @@ export const useAddSystem = ({ system }: UseAddSystemArgs) => {
         type: AddSystemRequestType,
         payload: {
           system,
+          sceneKey,
           responseSubId: subscriptionId,
         },
       };

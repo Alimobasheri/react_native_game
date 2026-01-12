@@ -11,6 +11,7 @@ import {
 } from '../../internal/events/physics';
 import { EventQueueContext } from '../../contexts-rntge/EventQueueContext/EventQueueContext';
 import { ExternalEvent } from '../useEventQueue/useEventQueue';
+import { useSceneContextUnsafe } from '../../components-rntge/Scene/hooks';
 
 export type UseAddMatterBodyBatchArgs = {
   batch: BatchMatterBodyArgs[];
@@ -24,6 +25,10 @@ export const useAddMatterBodyBatch = ({ batch }: UseAddMatterBodyBatchArgs) => {
       'useAddMatterBodyBatch must be used within an EventQueueProvider'
     );
   }
+
+  const sceneContext = useSceneContextUnsafe();
+  if (!sceneContext) throw new Error('Preload must be used within a Scene');
+  const { sceneKey } = sceneContext;
 
   const [bodyIds, setBodyIds] = useState<number[] | null>(null);
 
@@ -50,6 +55,7 @@ export const useAddMatterBodyBatch = ({ batch }: UseAddMatterBodyBatchArgs) => {
         type: AddMatterBodyBatchRequestType,
         payload: {
           batch,
+          sceneKey,
           responseSubId: subscriptionId,
         },
       };

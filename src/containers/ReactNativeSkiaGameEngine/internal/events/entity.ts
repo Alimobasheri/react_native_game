@@ -5,6 +5,7 @@ export type CreateEntityRequest = {
   type: typeof CreateEntityRequestType;
   payload: {
     components: Component<any>[];
+    sceneKey: string;
     responseSubId: string;
   };
 };
@@ -23,6 +24,7 @@ export type CreateEntityBatchRequest = {
   type: typeof createEntityBatchRequestType;
   payload: {
     batch: CreateEntityRequest['payload']['components'][];
+    sceneKey: string;
     responseSubId: string;
   };
 };

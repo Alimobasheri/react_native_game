@@ -5,6 +5,7 @@ export type AddSystemRequest = {
   type: typeof AddSystemRequestType;
   payload: {
     system: System;
+    sceneKey: string;
     responseSubId: string;
   };
 };
