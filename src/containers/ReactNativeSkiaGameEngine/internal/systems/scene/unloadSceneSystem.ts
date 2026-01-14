@@ -1,12 +1,13 @@
 import {
   UnLoadSceneRequest,
   UnLoadSceneRequestType,
+  UnLoadSceneResponseType,
 } from '@/containers/ReactNativeSkiaGameEngine/components-rntge/Scene/events';
 import { Entity } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/entity';
 import { System } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/system';
 import { SceneComponentName, SceneComponentData } from '../../components/scene';
 
-export const UnLoadSceneSystem: System = {
+export const unLoadSceneSystem: System = {
   requiredEvents: [UnLoadSceneRequestType],
   process: ({ eventQueue, ecs }) => {
     'worklet';
@@ -98,6 +99,16 @@ export const UnLoadSceneSystem: System = {
           };
         }
       );
+
+      if (sceneData.subscriptionId) {
+        eventQueue.addAwaitingExternalEvent({
+          type: UnLoadSceneResponseType,
+          payload: {
+            unloaded: true,
+          },
+          subscriptionId: sceneData.subscriptionId,
+        });
+      }
     }
   },
 };

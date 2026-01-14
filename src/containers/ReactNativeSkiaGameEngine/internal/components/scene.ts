@@ -15,10 +15,11 @@ export type SceneObjectsMap = {
 
 export type SceneComponentData = {
   sceneKey: string;
-  parentSceneKey?: string;
   isActive: boolean;
   isPaused: boolean;
   isPreloading: boolean;
   zIndex: number;
   objects: SceneObjectsMap;
+  subscriptionId?: string;
+  parentSceneKey?: string;
 };

@@ -5,6 +5,7 @@ import {
   Scene,
 } from '@/containers/ReactNativeSkiaGameEngine';
 import { GameOverTitle } from './GameOverTitle/GameOverTitle-rntge';
+import { RestartGameButton } from './RestartGameButton/RestartGameButton-rntge';
 
 export const GameOverScene = () => {
   return (
@@ -19,6 +20,7 @@ export const GameOverScene = () => {
       </Preload>
       <Content>
         <GameOverTitle />
+        <RestartGameButton />
       </Content>
     </Scene>
   );

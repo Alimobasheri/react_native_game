@@ -27,7 +27,7 @@ export const useECS = ({ eventQueue }: UseECSArgs): UseECSReturnValue => {
   const nextEntityId = useSharedValue(0);
   const signatures = useSharedValue({});
   const components = useSharedValue({});
-  const systems = useSharedValue<System[]>([]);
+  const systems = useSharedValue<(System | undefined)[]>([]);
 
   const jsSystems = useRef<System[]>([]);
 

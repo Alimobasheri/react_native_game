@@ -31,7 +31,7 @@ export type ECSArgs = {
   nextEntityId: SharedValue<number>;
   signatures: SharedValue<Record<Entity, number>>;
   components: SharedValue<Record<string, ComponentStore<any>>>;
-  systems: SharedValue<System[]>;
+  systems: SharedValue<(System | undefined)[]>;
   eventQueue: EventQueueContextType;
   jsSystems: MutableRefObject<System[]>;
 };

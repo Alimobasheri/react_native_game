@@ -53,13 +53,14 @@ const runJSSystem = (processFn: () => void) => {
 };
 
 export const createSystemManager = (
-  systems: SharedValue<System[]>,
+  systems: SharedValue<(System | undefined)[]>,
   jsSystems: MutableRefObject<System[]>
 ) => {
   'worklet';
 
-  const systemIdMap: Record<number, number> = {}; // Maps systemId to index
+  const systemIdMap: Record<number, number | undefined> = {}; // Maps systemId to index
   let nextSystemId = 0;
+  let reuseIndexes: number[] = [];
 
   const registerSystem = (system: System): number => {
     'worklet';
@@ -75,7 +76,11 @@ export const createSystemManager = (
 
   const removeSystem = (systemId: number): void => {
     'worklet';
-    delete systems.value[systemId];
+    const index = systemIdMap[systemId];
+    if (!index) return;
+    systems.value[index] = undefined;
+    systemIdMap[systemId] = undefined;
+    reuseIndexes.push(index);
   };
 
   const runSystems = ({ ecs, eventQueue, deltaTime }: RunSystemsArgs) => {
@@ -84,6 +89,7 @@ export const createSystemManager = (
 
     for (let i = 0; i < systems.value.length; i++) {
       const system = systems.value[i];
+      if (!system) return;
 
       const hasRequiredEvents = system.requiredEvents
         ? system.requiredEvents.some((event: string) =>

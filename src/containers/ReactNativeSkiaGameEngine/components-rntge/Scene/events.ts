@@ -86,9 +86,23 @@ export type LoadSceneRequest = {
   subscriptionId?: string;
 };
 
+export const LoadSceneResponseType = 'rntge/scene/load/response' as const;
+export type LoadSceneResponse = {
+  type: typeof LoadSceneResponseType;
+  payload: { loaded: boolean; error?: string };
+  subscriptionId: string;
+};
+
 export const UnLoadSceneRequestType = 'rntge/scene/unload' as const;
 export type UnLoadSceneRequest = {
   type: typeof UnLoadSceneRequestType;
   payload: { sceneKey: string };
   subscriptionId?: string;
+};
+
+export const UnLoadSceneResponseType = 'rntge/scene/unload/response' as const;
+export type UnLoadSceneResponse = {
+  type: typeof UnLoadSceneResponseType;
+  payload: { unloaded: boolean; error?: string };
+  subscriptionId: string;
 };

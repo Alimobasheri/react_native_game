@@ -49,6 +49,8 @@ import { touchSystem } from './internal/systems/touchSystem';
 import { TouchOverlay } from './components-rntge/Input/TouchOverlay';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
+import { loadSceneSystem } from './internal/systems/scene/loadSceneSystem';
+import { unLoadSceneSystem } from './internal/systems/scene/unloadSceneSystem';
 
 export interface ReactNativeTurboGameEngineProps {
   componentNames: string[];
@@ -109,6 +111,8 @@ export const ReactNativeTurboGameEngine: FC<
     ECS.value.registerSystem(updateMatterWorld);
     ECS.value.registerSystem(registerSceneSystem);
     ECS.value.registerSystem(sceneStateSystem);
+    ECS.value.registerSystem(loadSceneSystem);
+    ECS.value.registerSystem(unLoadSceneSystem);
     ECS.value.registerSystem(assetPreloadSystem);
     ECS.value.registerSystem(touchSystem);
     ECS.value.registerSystem(renderSystem(picture, dimensions, pictureCache));
@@ -184,7 +188,7 @@ export const ReactNativeTurboGameEngine: FC<
         <EventQueueProvider eventQueue={eventQueue}>
           {shouldRender && (
             <>
-              <Scene name="Root">{children}</Scene>
+              <Scene name='Root'>{children}</Scene>
               <RenderEntities picture={picture as SharedValue<SkPicture>} />
             </>
           )}

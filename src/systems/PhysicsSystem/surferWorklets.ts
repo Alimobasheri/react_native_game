@@ -4,6 +4,10 @@ import {
 } from '@/Game/ecs-components/SeaLayer';
 import { SurferArcadeState } from '@/Game/ecs-components/Surfer';
 import { getSurferPhysicsConfig } from './surferPhysicsConfig';
+import {
+  LoadSceneRequestType,
+  UnLoadSceneRequestType,
+} from '@/containers/ReactNativeSkiaGameEngine/components-rntge/Scene/events';
 
 /**
  * Calculate the water surface height at a specific x position for a sea layer
@@ -266,7 +270,18 @@ export const applyPlatformerSurferPhysics = (
         eventQueue.addEvent &&
         (!surferStateData || !surferStateData.gameOverDispatched)
       ) {
-        eventQueue.addEvent({ type: 'gameOver' });
+        eventQueue.addEvent({
+          type: LoadSceneRequestType,
+          payload: {
+            sceneKey: 'gameOver',
+          },
+        });
+        eventQueue.addEvent({
+          type: UnLoadSceneRequestType,
+          payload: {
+            sceneKey: 'Root',
+          },
+        });
         if (surferStateData && setSurferStateData) {
           surferStateData.gameOverDispatched = true;
           setSurferStateData(surferStateData);
@@ -343,7 +358,9 @@ export const applyPlatformerSurferPhysics = (
     if (surferStateData && setSurferStateData) {
       const deltaTimeSeconds = deltaTime / 1000;
       surferStateData.currentRotationRad +=
-        -Math.sign(surferStateData.waveForce || 1) * physicsConfig.rotationSpeed * deltaTimeSeconds;
+        -Math.sign(surferStateData.waveForce || 1) *
+        physicsConfig.rotationSpeed *
+        deltaTimeSeconds;
 
       // Check if rotation is complete (360° = 2π)
       if (Math.abs(surferStateData.currentRotationRad) >= 2 * Math.PI) {

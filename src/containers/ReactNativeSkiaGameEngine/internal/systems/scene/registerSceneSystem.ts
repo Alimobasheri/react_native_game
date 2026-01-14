@@ -26,6 +26,7 @@ export const registerSceneSystem: System = {
         isPaused: payload.isActive,
         isPreloading: false,
         zIndex: payload.zIndex ?? 0,
+        subscriptionId: payload.subscriptionId,
         objects: {
           assets: {
             images: [],

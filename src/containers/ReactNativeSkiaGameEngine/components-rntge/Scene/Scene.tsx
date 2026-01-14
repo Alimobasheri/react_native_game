@@ -9,6 +9,7 @@ import React, {
 import { SceneContext } from './context';
 import {
   AssetPreloadDoneType,
+  LoadSceneResponseType,
   SceneRegisterRequest,
   SceneRegisterRequestType,
   SceneRegisteredResponseType,
@@ -16,6 +17,7 @@ import {
   SceneSetActiveRequestType,
   SceneSetPreloadStateRequest,
   SceneSetPreloadStateRequestType,
+  UnLoadSceneResponseType,
 } from './events';
 import { useSubscriptionId, useEventBridge } from './hooks';
 import { EventQueueContext } from '../../contexts-rntge/EventQueueContext/EventQueueContext';
@@ -54,24 +56,38 @@ export const Scene: FC<SceneProps> = ({
   const [contentShouldRender, setContentShouldRender] = useState(false);
 
   useEventBridge(sceneSubscriptionId, (event) => {
-    if (event.type === SceneRegisteredResponseType) {
-      if (!hasPreload) {
+    switch (event.type) {
+      case SceneRegisteredResponseType:
+        return;
+
+      case AssetPreloadDoneType:
+        contentGateRef.current?.(true);
+        setContentShouldRender(true);
         const unlock: SceneSetPreloadStateRequest = {
           type: SceneSetPreloadStateRequestType,
           payload: { sceneKey, isPreloading: false },
         };
         eventQueue.addEventJS(unlock);
-        contentGateRef.current?.(true);
-        setContentShouldRender(true);
-      }
-    } else if (event.type === AssetPreloadDoneType) {
-      contentGateRef.current?.(true);
-      setContentShouldRender(true);
-      const unlock: SceneSetPreloadStateRequest = {
-        type: SceneSetPreloadStateRequestType,
-        payload: { sceneKey, isPreloading: false },
-      };
-      eventQueue.addEventJS(unlock);
+        return;
+
+      case LoadSceneResponseType:
+        setIsActive(true);
+        if (!hasPreload) {
+          const unlock: SceneSetPreloadStateRequest = {
+            type: SceneSetPreloadStateRequestType,
+            payload: { sceneKey, isPreloading: false },
+          };
+          eventQueue.addEventJS(unlock);
+          contentGateRef.current?.(true);
+          setContentShouldRender(true);
+        }
+        return;
+
+      case UnLoadSceneResponseType:
+        setIsActive(false);
+        contentGateRef.current?.(false);
+        setContentShouldRender(false);
+        return;
     }
   });
 
@@ -121,7 +137,7 @@ export const Scene: FC<SceneProps> = ({
       },
       waitForPreload: () => {},
     }),
-    [sceneKey, sceneSubscriptionId, parentName]
+    [sceneKey, isActive, sceneSubscriptionId, parentName]
   );
 
   return (
