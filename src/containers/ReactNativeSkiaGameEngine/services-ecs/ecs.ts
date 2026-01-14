@@ -21,6 +21,7 @@ export type ECS = {
   componentExists: (componentName: string) => boolean;
   getEntitiesWithComponents: (requiredComponentNames: string[]) => Entity[];
   registerSystem: (system: System) => number;
+  removeSystem: (systemId: number) => void;
   runSystems: (args: RunSystemsArgs) => void;
   removeEntity: (entity: Entity) => void;
   getAllEntities: () => Entity[];
@@ -144,6 +145,7 @@ export const createECS = ({
     componentExists,
     getEntitiesWithComponents,
     registerSystem: systemManager.registerSystem,
+    removeSystem: systemManager.removeSystem,
     runSystems: systemManager.runSystems,
     removeEntity,
     getAllEntities,

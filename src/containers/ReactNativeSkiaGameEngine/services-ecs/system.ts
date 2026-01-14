@@ -73,6 +73,11 @@ export const createSystemManager = (
     return systemId;
   };
 
+  const removeSystem = (systemId: number): void => {
+    'worklet';
+    delete systems.value[systemId];
+  };
+
   const runSystems = ({ ecs, eventQueue, deltaTime }: RunSystemsArgs) => {
     'worklet';
     const events = eventQueue.readEvents();
@@ -105,6 +110,7 @@ export const createSystemManager = (
   return {
     systemIdMap,
     registerSystem,
+    removeSystem,
     runSystems,
   };
 };
