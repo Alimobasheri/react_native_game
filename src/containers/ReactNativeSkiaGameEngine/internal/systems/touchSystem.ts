@@ -171,6 +171,8 @@ export const touchSystem: System = {
           continue;
       }
 
+      if (gestureEntities.length < 1) return;
+
       const pointerId = ev.pointerId ?? 0;
       const evtType = ev.eventType;
 
