@@ -279,7 +279,7 @@ export const applyPlatformerSurferPhysics = (
         eventQueue.addEvent({
           type: UnLoadSceneRequestType,
           payload: {
-            sceneKey: 'Root',
+            sceneKey: 'game',
           },
         });
         if (surferStateData && setSurferStateData) {

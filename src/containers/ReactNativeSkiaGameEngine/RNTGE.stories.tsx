@@ -141,99 +141,99 @@ export const Basic: Story = {
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <View style={{ flex: 1, width: '100%', height: '100%' }}>
           <ReactNativeTurboGameEngine {...args}>
-            <Scene name="Root">
-              <Preload>
-                <Asset
-                  id="Montserrat"
-                  type="font"
-                  family="Montserrat"
-                  resource={require('../../../assets/fonts/Montserrat-SemiBold.ttf')}
-                />
-                <Asset type="image" name="ship" uriOrBase64={ship} />
-                <Asset type="image" name="star" uriOrBase64={star} />
-                <Asset type="image" name="surfer" uriOrBase64={surfer} />
-                <Asset type="shader" name="sea" source={sourceCode} />
-                <Asset
-                  type="animation"
-                  name="surferAnimations"
-                  clip={{
-                    clips: {
-                      surfing: {
-                        name: 'surfing',
-                        frames: [
-                          { sprite: 'surfer_frame_0', duration: 150 },
-                          { sprite: 'surfer_frame_1', duration: 150 },
-                          { sprite: 'surfer_frame_2', duration: 150 },
-                          { sprite: 'surfer_frame_3', duration: 150 },
-                          { sprite: 'surfer_frame_4', duration: 150 },
-                          { sprite: 'surfer_frame_5', duration: 150 },
-                          { sprite: 'surfer_frame_6', duration: 150 },
-                          { sprite: 'surfer_frame_7', duration: 150 },
-                          { sprite: 'surfer_frame_8', duration: 150 },
-                        ],
-                        loop: true,
-                      },
-                      relaxed: {
-                        name: 'relaxed',
-                        frameOffset: 9,
-                        frames: [
-                          { sprite: 'surfer_frame_9', duration: 200 },
-                          { sprite: 'surfer_frame_10', duration: 200 },
-                          { sprite: 'surfer_frame_11', duration: 200 },
-                          { sprite: 'surfer_frame_12', duration: 200 },
-                          { sprite: 'surfer_frame_13', duration: 200 },
-                          { sprite: 'surfer_frame_14', duration: 200 },
-                          { sprite: 'surfer_frame_15', duration: 200 },
-                        ],
-                        loop: true,
-                      },
-                    },
-                    stateMachine: {
-                      initialState: 'surfing',
-                      parameters: { relaxed: false },
-                      transitions: [
-                        {
-                          from: 'surfing',
-                          to: 'relaxed',
-                          condition: {
-                            param: 'relaxed',
-                            value: true,
-                            op: TransitionOp.EQUAL,
-                          },
+            <Preload>
+              <Asset
+                id="Montserrat"
+                type="font"
+                family="Montserrat"
+                resource={require('../../../assets/fonts/Montserrat-SemiBold.ttf')}
+              />
+            </Preload>
+            <Content>
+              <SkyBackground />
+              <Scene name="game">
+                <Preload>
+                  <Asset type="image" name="ship" uriOrBase64={ship} />
+                  <Asset type="image" name="star" uriOrBase64={star} />
+                  <Asset type="image" name="surfer" uriOrBase64={surfer} />
+                  <Asset type="shader" name="sea" source={sourceCode} />
+                  <Asset
+                    type="animation"
+                    name="surferAnimations"
+                    clip={{
+                      clips: {
+                        surfing: {
+                          name: 'surfing',
+                          frames: [
+                            { sprite: 'surfer_frame_0', duration: 150 },
+                            { sprite: 'surfer_frame_1', duration: 150 },
+                            { sprite: 'surfer_frame_2', duration: 150 },
+                            { sprite: 'surfer_frame_3', duration: 150 },
+                            { sprite: 'surfer_frame_4', duration: 150 },
+                            { sprite: 'surfer_frame_5', duration: 150 },
+                            { sprite: 'surfer_frame_6', duration: 150 },
+                            { sprite: 'surfer_frame_7', duration: 150 },
+                            { sprite: 'surfer_frame_8', duration: 150 },
+                          ],
+                          loop: true,
                         },
-                        {
-                          from: 'relaxed',
-                          to: 'surfing',
-                          condition: {
-                            param: 'relaxed',
-                            value: false,
-                            op: TransitionOp.EQUAL,
-                          },
+                        relaxed: {
+                          name: 'relaxed',
+                          frameOffset: 9,
+                          frames: [
+                            { sprite: 'surfer_frame_9', duration: 200 },
+                            { sprite: 'surfer_frame_10', duration: 200 },
+                            { sprite: 'surfer_frame_11', duration: 200 },
+                            { sprite: 'surfer_frame_12', duration: 200 },
+                            { sprite: 'surfer_frame_13', duration: 200 },
+                            { sprite: 'surfer_frame_14', duration: 200 },
+                            { sprite: 'surfer_frame_15', duration: 200 },
+                          ],
+                          loop: true,
                         },
-                      ],
-                    },
-                  }}
-                />
-              </Preload>
-              <Content>
-                <SkyBackground />
-                <StarsView />
-                <SeaGroup>
-                  <SurferView
-                    x={windowWidth / 9}
-                    y={windowHeight * 0.7}
-                    relaxed={isRelaxed}
+                      },
+                      stateMachine: {
+                        initialState: 'surfing',
+                        parameters: { relaxed: false },
+                        transitions: [
+                          {
+                            from: 'surfing',
+                            to: 'relaxed',
+                            condition: {
+                              param: 'relaxed',
+                              value: true,
+                              op: TransitionOp.EQUAL,
+                            },
+                          },
+                          {
+                            from: 'relaxed',
+                            to: 'surfing',
+                            condition: {
+                              param: 'relaxed',
+                              value: false,
+                              op: TransitionOp.EQUAL,
+                            },
+                          },
+                        ],
+                      },
+                    }}
                   />
-                  <Swipe />
-                </SeaGroup>
-                {/* Test components for different gesture types */}
-                {/* <TapTestComponent x={50} y={50} /> */}
-                {/* <PanTestComponent x={50} y={50} /> */}
-                {/* <LongPressTestComponent x={350} y={50} /> */}
-                <SwipeToPlay />
-              </Content>
-            </Scene>
-            <GameOverScene />
+                </Preload>
+                <Content>
+                  <StarsView />
+                  <SeaGroup>
+                    <SurferView
+                      x={windowWidth / 9}
+                      y={windowHeight * 0.7}
+                      relaxed={isRelaxed}
+                    />
+                    <Swipe />
+                  </SeaGroup>
+                  <SwipeToPlay />
+                </Content>
+              </Scene>
+              <GameOverScene />
+            </Content>
           </ReactNativeTurboGameEngine>
         </View>
       </View>

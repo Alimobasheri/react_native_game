@@ -10,14 +10,6 @@ import { RestartGameButton } from './RestartGameButton/RestartGameButton-rntge';
 export const GameOverScene = () => {
   return (
     <Scene name="gameOver" isActive={false}>
-      <Preload>
-        <Asset
-          id="Montserrat"
-          type="font"
-          family="Montserrat"
-          resource={require('../../../../assets/fonts/Montserrat-SemiBold.ttf')}
-        />
-      </Preload>
       <Content>
         <GameOverTitle />
         <RestartGameButton />
