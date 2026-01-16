@@ -5,6 +5,7 @@ import type {
   GestureTouchEvent,
 } from 'react-native-gesture-handler';
 import { ShapeTypes } from './render';
+import { SystemProcessArgs } from '../../services-ecs/system';
 
 // Re-export ShapeTypes for convenience
 export { ShapeTypes };
@@ -27,29 +28,36 @@ export enum TouchEventTypes {
   LongPress = 'LongPress',
 }
 
-export type GestureUnionPayload =
-  | {
-      kind: GestureKinds.Pan;
-      data: PanGestureHandlerEventPayload | GestureTouchEvent;
-    }
-  | {
-      kind: GestureKinds.Tap;
-      data: TapGestureHandlerEventPayload | GestureTouchEvent;
-    }
-  | {
-      kind: GestureKinds.LongPress;
-      data: LongPressGestureHandlerEventPayload | GestureTouchEvent;
-    }
-  | {
-      kind: GestureKinds.Generic;
-      data: Record<string, unknown>;
-    };
+export type PanGesturePayload = {
+  kind: GestureKinds.Pan;
+  data: PanGestureHandlerEventPayload;
+};
 
-export type TouchInputEventPayload = {
+export type TapGesturePayload = {
+  kind: GestureKinds.Tap;
+  data: TapGestureHandlerEventPayload;
+};
+
+export type LongPressGesturePayload = {
+  kind: GestureKinds.LongPress;
+  data: LongPressGestureHandlerEventPayload;
+};
+
+export type GenericGesturePayload = {
+  kind: GestureKinds.Generic;
+  data: Record<string, unknown>;
+};
+export type GestureUnionPayload =
+  | PanGesturePayload
+  | TapGesturePayload
+  | LongPressGesturePayload
+  | GenericGesturePayload;
+
+export type TouchInputEventPayload<T = GestureUnionPayload> = {
   pointerId?: number;
   eventType: TouchEventTypes;
   timestamp: number;
-  gesture: GestureUnionPayload;
+  gesture: T;
   meta?: Record<string, any>;
 };
 
@@ -61,7 +69,7 @@ export type TouchInputEvent = {
 // Touch Component Definitions
 export const TouchComponentName = 'touch';
 
-export type TouchGestureCallback<T = GestureUnionPayload> = (data: {
+export type TouchGestureCallbackData<T = GestureUnionPayload> = {
   entityId: number;
   pointerId: number;
   x: number;
@@ -70,7 +78,12 @@ export type TouchGestureCallback<T = GestureUnionPayload> = (data: {
   timestamp: number;
   raw?: any;
   gesture: T;
-}) => void;
+  systemArgs: SystemProcessArgs;
+};
+
+export type TouchGestureCallback<T = GestureUnionPayload> = (
+  data: TouchGestureCallbackData<T>
+) => void;
 
 export interface TouchComponentData {
   priority?: number;

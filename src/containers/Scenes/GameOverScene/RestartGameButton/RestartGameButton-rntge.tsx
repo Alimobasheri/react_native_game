@@ -36,15 +36,16 @@ export const RestartGameButton: FC<{}> = () => {
           width: 200,
           height: 100,
         },
-        onTap: () => {
+        onTap: ({ systemArgs }) => {
           'worklet';
-          eventQueue.addEvent({
-            type: LoadSceneRequestType,
-            payload: { sceneKey: 'Root' },
-          });
+          const { eventQueue } = systemArgs;
           eventQueue.addEvent({
             type: UnLoadSceneRequestType,
             payload: { sceneKey: 'gameOver' },
+          });
+          eventQueue.addEvent({
+            type: LoadSceneRequestType,
+            payload: { sceneKey: 'game' },
           });
         },
       }),

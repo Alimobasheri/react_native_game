@@ -16,6 +16,11 @@ import {
   PanComponentData,
   LongPressComponentName,
   LongPressComponentData,
+  TouchInputEventPayload,
+  TouchGestureCallbackData,
+  TapGesturePayload,
+  LongPressGesturePayload,
+  PanGesturePayload,
 } from '../components/touch';
 
 export const TouchInputEventType = 'rntge/touch/input' as const;
@@ -89,8 +94,10 @@ function getShapeForGestureEntity(
 export const touchSystem: System = {
   requiredComponents: [RenderComponentName],
   requiredEvents: [TouchInputEventType],
-  process: ({ entities, components, eventQueue, ecs }) => {
+  process: (systemArgs) => {
     'worklet';
+
+    const { entities, components, eventQueue, ecs } = systemArgs;
 
     const events = eventQueue
       .readEvents()
@@ -113,7 +120,7 @@ export const touchSystem: System = {
     const state = global._RNTGE_.TouchState;
 
     for (let evIndex = 0; evIndex < events.length; evIndex++) {
-      const ev = events[evIndex].payload;
+      const ev = events[evIndex].payload as TouchInputEventPayload;
 
       // Extract position data based on gesture kind
       let px = 0;
@@ -139,12 +146,14 @@ export const touchSystem: System = {
 
       const gestureKind = ev.gesture.kind;
       let componentName: string;
+      let tapComponents;
       let gestureEntities: number[];
       let gestureState: any;
 
       switch (gestureKind) {
         case GestureKinds.Pan:
           componentName = PanComponentName;
+
           gestureEntities = ecs.value.getEntitiesWithComponents([
             RenderComponentName,
             PanComponentName,
@@ -188,7 +197,7 @@ export const touchSystem: System = {
           if (!renderData || renderData.visible === false) continue;
 
           let pos = renderData.position ?? { x: 0, y: 0 };
-          const gestureComp = components[componentName]?.get(ent) as any;
+          const gestureComp = components[componentName]?.get(ent);
           const shape = getShapeForGestureEntity(renderData, gestureComp);
 
           let collided = false;
@@ -262,26 +271,33 @@ export const touchSystem: System = {
       }
 
       if (hitEntity !== null) {
-        const gestureComp = components[componentName]?.get(hitEntity) as any;
-        const payload = {
+        let payload = {
           entityId: hitEntity,
           pointerId,
           x: px,
           y: py,
           timestamp: ev.timestamp,
           raw: ev.meta,
-          gesture: ev.gesture,
+          type: gestureState,
+          systemArgs,
         };
 
         if (gestureKind === GestureKinds.Pan) {
+          const gestureComp: PanComponentData =
+            components[componentName]?.get(hitEntity);
+
           if (evtType === TouchEventTypes.Start) {
             gestureState.activePointers.set(pointerId, {
               entityId: hitEntity,
               captured: !!gestureComp?.capture,
             });
             if (gestureComp?.onPanStart) {
+              let panPayload: TouchGestureCallbackData<PanGesturePayload> = {
+                ...payload,
+                gesture: ev.gesture,
+              };
               try {
-                (gestureComp.onPanStart as any)(payload);
+                gestureComp.onPanStart(panPayload);
               } catch (err) {
                 eventQueue.addAwaitingExternalEvent({
                   type: 'rntge/touch/callback',
@@ -298,7 +314,11 @@ export const touchSystem: System = {
             const active = gestureState.activePointers.get(pointerId);
             if (active?.entityId === hitEntity && gestureComp?.onPanUpdate) {
               try {
-                (gestureComp.onPanUpdate as any)(payload);
+                let panPayload: TouchGestureCallbackData<PanGesturePayload> = {
+                  ...payload,
+                  gesture: ev.gesture,
+                };
+                gestureComp.onPanUpdate(panPayload);
               } catch (err) {
                 eventQueue.addAwaitingExternalEvent({
                   type: 'rntge/touch/callback',
@@ -318,7 +338,11 @@ export const touchSystem: System = {
             const active = gestureState.activePointers.get(pointerId);
             if (active?.entityId === hitEntity && gestureComp?.onPanEnd) {
               try {
-                (gestureComp.onPanEnd as any)(payload);
+                let panPayload: TouchGestureCallbackData<PanGesturePayload> = {
+                  ...payload,
+                  gesture: ev.gesture,
+                };
+                gestureComp.onPanEnd(panPayload);
               } catch (err) {
                 eventQueue.addAwaitingExternalEvent({
                   type: 'rntge/touch/callback',
@@ -335,39 +359,56 @@ export const touchSystem: System = {
           }
         } else if (
           gestureKind === GestureKinds.Tap &&
-          evtType === TouchEventTypes.Tap &&
-          gestureComp?.onTap
+          evtType === TouchEventTypes.Tap
         ) {
-          try {
-            (gestureComp.onTap as any)(payload);
-          } catch (err) {
-            eventQueue.addAwaitingExternalEvent({
-              type: 'rntge/touch/callback',
-              payload: {
-                entityId: hitEntity,
-                name: 'onTap',
-                data: payload,
-              },
-              subscriptionId: '',
-            });
+          const gestureComp = components[TapComponentName].get(
+            hitEntity
+          ) as TapComponentData;
+          if (gestureComp?.onTap) {
+            try {
+              let tapPayload: TouchGestureCallbackData<TapGesturePayload> = {
+                ...payload,
+                gesture: ev.gesture,
+              };
+              gestureComp.onTap(tapPayload);
+            } catch (err) {
+              eventQueue.addAwaitingExternalEvent({
+                type: 'rntge/touch/callback',
+                payload: {
+                  entityId: hitEntity,
+                  name: 'onTap',
+                  data: payload,
+                },
+                subscriptionId: '',
+              });
+            }
           }
         } else if (
           gestureKind === GestureKinds.LongPress &&
-          evtType === TouchEventTypes.LongPress &&
-          gestureComp?.onLongPress
+          evtType === TouchEventTypes.LongPress
         ) {
-          try {
-            (gestureComp.onLongPress as any)(payload);
-          } catch (err) {
-            eventQueue.addAwaitingExternalEvent({
-              type: 'rntge/touch/callback',
-              payload: {
-                entityId: hitEntity,
-                name: 'onLongPress',
-                data: payload,
-              },
-              subscriptionId: '',
-            });
+          const gestureComp = components[LongPressComponentName].get(
+            hitEntity
+          ) as LongPressComponentData;
+          if (gestureComp?.onLongPress) {
+            try {
+              let longPressPayload: TouchGestureCallbackData<LongPressGesturePayload> =
+                {
+                  ...payload,
+                  gesture: ev.gesture,
+                };
+              gestureComp.onLongPress(longPressPayload);
+            } catch (err) {
+              eventQueue.addAwaitingExternalEvent({
+                type: 'rntge/touch/callback',
+                payload: {
+                  entityId: hitEntity,
+                  name: 'onLongPress',
+                  data: payload,
+                },
+                subscriptionId: '',
+              });
+            }
           }
         }
       }
