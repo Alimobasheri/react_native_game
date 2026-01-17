@@ -27,10 +27,11 @@ export interface RunSystemsArgs {
 }
 
 export type System = {
+  process: (args: SystemProcessArgs) => void;
   context?: SystemContext;
+  name?: string;
   requiredComponents?: string[];
   requiredEvents?: string[];
-  process: (args: SystemProcessArgs) => void;
 };
 
 export const runJSSystemJS = (
@@ -86,10 +87,10 @@ export const createSystemManager = (
   const runSystems = ({ ecs, eventQueue, deltaTime }: RunSystemsArgs) => {
     'worklet';
     const events = eventQueue.readEvents();
-
     for (let i = 0; i < systems.value.length; i++) {
       const system = systems.value[i];
-      if (!system) return;
+      if (system?.name === 'SeaLayerShaderSystem') console.log('===========');
+      if (!system) continue;
 
       const hasRequiredEvents = system.requiredEvents
         ? system.requiredEvents.some((event: string) =>
