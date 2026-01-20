@@ -16,6 +16,7 @@ import { Entity } from '../../services-ecs/entity';
 import { SpriteComponentName } from '../components/sprite';
 import { TextComponentData, TextComponentName } from '../components/text';
 import { renderTextForEntity } from '../utils/textRenderer';
+import { SceneComponentData, SceneComponentName } from '../components/scene';
 
 const createPathFromShape = (
   renderData: RenderComponentData
@@ -235,7 +236,7 @@ export const renderSystem = (
 ): System => {
   'worklet';
   return {
-    requiredComponents: [RenderComponentName],
+    requiredComponents: [],
     process: ({ entities, components, eventQueue, deltaTime, ecs }) => {
       'worklet';
 
@@ -251,91 +252,128 @@ export const renderSystem = (
       );
       const canvas = recorder.beginRecording(bounds);
 
-      for (let i = 0; i < entities.length; i++) {
-        const entity = entities[i];
-        const renderData: RenderComponentData =
-          components[RenderComponentName].get(entity);
+      const sceneStore = components[SceneComponentName];
+      const renderStore = components[RenderComponentName];
+      if (!sceneStore || !renderStore) {
+        const newPicture = recorder.finishRecordingAsPicture();
+        picture.value = newPicture;
+        return;
+      }
 
-        if (!renderData || renderData.visible === false) continue;
+      const sceneEntities = ecs.value.getEntitiesWithComponents([
+        SceneComponentName,
+      ]);
 
-        // 1. Universal Transformation Logic
-        const body: IBodyDefinition | undefined =
-          components[MatterBodyComponentName]?.get(entity);
-        const position = body?.position ||
-          renderData.position || { x: 0, y: 0 };
-        const angle = body?.angle || 0;
+      // Gather active scenes and order them by zIndex (then by id for stability).
+      const activeScenes: { sceneEntity: Entity; data: SceneComponentData }[] =
+        [];
+      for (let i = 0; i < sceneEntities.length; i++) {
+        const sceneEntity = sceneEntities[i];
+        const sceneData = sceneStore.get(sceneEntity) as
+          | SceneComponentData
+          | undefined;
+        if (!sceneData) continue;
+        if (sceneData.isActive === false) continue;
+        if (sceneData.isPaused === true) continue;
+        activeScenes.push({ sceneEntity, data: sceneData });
+      }
 
-        const matrix = Skia.Matrix();
-        matrix.translate(position.x, position.y);
-        if (angle !== 0) {
-          matrix.rotate(angle);
-        }
+      activeScenes.sort((a, b) => {
+        if (a.data.zIndex !== b.data.zIndex)
+          return a.data.zIndex - b.data.zIndex;
+        return a.sceneEntity - b.sceneEntity;
+      });
 
-        canvas.save();
-        canvas.concat(matrix);
+      for (let s = 0; s < activeScenes.length; s++) {
+        const sceneData = activeScenes[s].data;
+        const sceneEntityIds = sceneData.objects.entities;
 
-        // 2. Conditional Rendering Logic
-        if (renderData.shader) {
-          const shaderPaint = Skia.Paint();
-          shaderPaint.setAntiAlias(true);
-          const effect = shaderEffects[renderData.shader.key];
-          if (effect) {
-            let path = pictureCache.value[entity] as SkPath;
-            if (!path || renderData.isDirty) {
-              path = createPathFromShape(renderData) as SkPath;
-              pictureCache.value[entity] = path;
-            }
-            if (path) {
-              const uniformValues: number[] = [];
-              const uniformSources = Object.values(renderData.shader.uniforms);
+        for (let i = 0; i < sceneEntityIds.length; i++) {
+          const entity = sceneEntityIds[i];
+          const renderData: RenderComponentData = renderStore.get(entity);
 
-              for (const source of uniformSources) {
-                const value = source;
-                if (typeof value === 'number') {
-                  uniformValues.push(value > 1 ? value * 1.0 : value);
-                } else {
-                  uniformValues.push(...value);
-                }
+          if (!renderData || renderData.visible === false) continue;
+
+          // 1. Universal Transformation Logic
+          const body: IBodyDefinition | undefined =
+            components[MatterBodyComponentName]?.get(entity);
+          const position = body?.position ||
+            renderData.position || { x: 0, y: 0 };
+          const angle = body?.angle || 0;
+
+          const matrix = Skia.Matrix();
+          matrix.translate(position.x, position.y);
+          if (angle !== 0) {
+            matrix.rotate(angle);
+          }
+
+          canvas.save();
+          canvas.concat(matrix);
+
+          // 2. Conditional Rendering Logic
+          if (renderData.shader) {
+            const shaderPaint = Skia.Paint();
+            shaderPaint.setAntiAlias(true);
+            const effect = shaderEffects[renderData.shader.key];
+            if (effect) {
+              let path = pictureCache.value[entity] as SkPath;
+              if (!path || renderData.isDirty) {
+                path = createPathFromShape(renderData) as SkPath;
+                pictureCache.value[entity] = path;
               }
-              const shader: SkShader = effect.makeShader(uniformValues);
-              shaderPaint.setStyle(PaintStyle.Fill);
-              shaderPaint.setBlendMode(
-                renderData.blendMode || BlendMode.SrcOver
+              if (path) {
+                const uniformValues: number[] = [];
+                const uniformSources = Object.values(
+                  renderData.shader.uniforms
+                );
+
+                for (const source of uniformSources) {
+                  const value = source;
+                  if (typeof value === 'number') {
+                    uniformValues.push(value > 1 ? value * 1.0 : value);
+                  } else {
+                    uniformValues.push(...value);
+                  }
+                }
+                const shader: SkShader = effect.makeShader(uniformValues);
+                shaderPaint.setStyle(PaintStyle.Fill);
+                shaderPaint.setBlendMode(
+                  renderData.blendMode || BlendMode.SrcOver
+                );
+                shaderPaint.setShader(shader);
+                shaderPaint.setAntiAlias(true);
+                canvas.drawPath(path, shaderPaint);
+                shaderPaint.dispose();
+              }
+            }
+          } else {
+            let entityPicture = pictureCache.value[entity] as SkPicture;
+
+            const spriteComponent =
+              components[SpriteComponentName]?.get(entity);
+            const hasSpriteAnimation =
+              spriteComponent?.currentFrame !== undefined || renderData.sprite;
+
+            if (renderData.isDirty || !entityPicture || hasSpriteAnimation) {
+              const newEntityPicture = createAndCacheEntityPicture(
+                components,
+                entity
               );
-              shaderPaint.setShader(shader);
-              shaderPaint.setAntiAlias(true);
-              canvas.drawPath(path, shaderPaint);
-              shaderPaint.dispose();
+              if (newEntityPicture) {
+                pictureCache.value[entity] = newEntityPicture;
+                entityPicture = newEntityPicture;
+              }
             }
-          }
-        } else {
-          let entityPicture = pictureCache.value[entity] as SkPicture;
 
-          const spriteComponent = components[SpriteComponentName]?.get(entity);
-          const hasSpriteAnimation =
-            spriteComponent?.currentFrame !== undefined || renderData.sprite;
-
-          if (renderData.isDirty || !entityPicture || hasSpriteAnimation) {
-            const newEntityPicture = createAndCacheEntityPicture(
-              components,
-              entity
-            );
-            if (newEntityPicture) {
-              pictureCache.value[entity] = newEntityPicture;
-              entityPicture = newEntityPicture;
+            if (entityPicture) {
+              canvas.drawPicture(entityPicture);
             }
           }
 
-          if (entityPicture) {
-            canvas.drawPicture(entityPicture);
-          }
+          // 3. Universal Cleanup Logic
+          canvas.restore();
+          renderData.isDirty = false;
         }
-
-        // 3. Universal Cleanup Logic
-        canvas.restore();
-        renderData.isDirty = false;
-
-        // --- END OF REFACTORED CODE ---
       }
 
       const newPicture = recorder.finishRecordingAsPicture();
