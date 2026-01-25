@@ -42,12 +42,14 @@ export const requestCreateEntity: System = {
           component.objects.entities.push(entity);
         }
       );
-      const responseEvent: CreateEntityResponse = {
-        type: CreateEntityResponseType,
-        payload: { entityId: entity },
-        subscriptionId: payload.responseSubId,
-      };
-      eventQueue.addAwaitingExternalEvent(responseEvent);
+      if (payload.responseSubId) {
+        const responseEvent: CreateEntityResponse = {
+          type: CreateEntityResponseType,
+          payload: { entityId: entity },
+          subscriptionId: payload.responseSubId,
+        };
+        eventQueue.addAwaitingExternalEvent(responseEvent);
+      }
     }
   },
 };

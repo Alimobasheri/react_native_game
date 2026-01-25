@@ -34,6 +34,7 @@ export type ECSArgs = {
   systems: SharedValue<(System | undefined)[]>;
   eventQueue: EventQueueContextType;
   jsSystems: MutableRefObject<System[]>;
+  dimensions: SharedValue<{ width: number; height: number }>;
 };
 
 export const createECS = ({
@@ -43,6 +44,7 @@ export const createECS = ({
   systems,
   eventQueue,
   jsSystems,
+  dimensions,
 }: ECSArgs): ECS => {
   'worklet';
   const recycledEntities: Entity[] = [];

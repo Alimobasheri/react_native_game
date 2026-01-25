@@ -18,12 +18,14 @@ export type SystemProcessArgs = {
   eventQueue: EventQueueContextType;
   deltaTime: number;
   ecs: SharedValue<ECS>;
+  dimensions: SharedValue<{ width: number; height: number }>;
 };
 
 export interface RunSystemsArgs {
   ecs: SharedValue<ECS>;
   eventQueue: EventQueueContextType;
   deltaTime: number;
+  dimensions: SharedValue<{ width: number; height: number }>;
 }
 
 export type System = {
@@ -84,7 +86,12 @@ export const createSystemManager = (
     reuseIndexes.push(index);
   };
 
-  const runSystems = ({ ecs, eventQueue, deltaTime }: RunSystemsArgs) => {
+  const runSystems = ({
+    ecs,
+    eventQueue,
+    deltaTime,
+    dimensions,
+  }: RunSystemsArgs) => {
     'worklet';
     const events = eventQueue.readEvents();
     for (let i = 0; i < systems.value.length; i++) {
@@ -109,6 +116,7 @@ export const createSystemManager = (
         eventQueue,
         deltaTime,
         ecs,
+        dimensions,
       });
     }
   };

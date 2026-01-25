@@ -44,6 +44,8 @@ import {
 import { FC } from 'react';
 import { Swipe } from '@/components/Swipe/index-rntge';
 import { GameOverScene } from '../Scenes/GameOverScene/index-rntge';
+import { ObstacleComponentName } from '@/Game/ecs-components/ObstacleComponent';
+import { Obstacles } from '@/components/Obstacles/Obstacles-rntge';
 
 // Test components for different gesture types
 const TapTestComponent: FC<{ x: number; y: number }> = ({ x, y }) => {
@@ -131,7 +133,12 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 export const Basic: Story = {
   args: {
-    componentNames: ['star', SeaLayerComponentName, SurferComponentName],
+    componentNames: [
+      'star',
+      SeaLayerComponentName,
+      SurferComponentName,
+      ObstacleComponentName,
+    ],
   },
   render: (args: any) => {
     const [isRelaxed, setIsRelaxed] = React.useState(false);
@@ -227,6 +234,7 @@ export const Basic: Story = {
                       y={windowHeight * 0.7}
                       relaxed={isRelaxed}
                     />
+                    <Obstacles />
                     <Swipe />
                   </SeaGroup>
                   <SwipeToPlay />

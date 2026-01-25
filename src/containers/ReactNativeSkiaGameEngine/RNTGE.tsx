@@ -51,6 +51,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
 import { loadSceneSystem } from './internal/systems/scene/loadSceneSystem';
 import { unLoadSceneSystem } from './internal/systems/scene/unloadSceneSystem';
+import { requestRemoveEntity } from './internal/systems/requestRemoveEntity';
+import { requestRemoveEntityBatch } from './internal/systems/requestRemoveEntityBatch';
 
 export interface ReactNativeTurboGameEngineProps {
   componentNames: string[];
@@ -62,7 +64,7 @@ export const ReactNativeTurboGameEngine: FC<
   const setDimensions = useRNTGEStore((state) => state.setDimensions);
   const dimensions = useSharedValue({ width: 0, height: 0 });
   const eventQueue = useEventQueue();
-  const { ECS, state, initECS } = useECS({ eventQueue });
+  const { ECS, state, initECS } = useECS({ eventQueue, dimensions });
   const picture = useSharedValue<SkPicture | null>(null);
   const pictureCache = useSharedValue<Record<number, SkPicture | SkPath>>({});
 
@@ -103,6 +105,8 @@ export const ReactNativeTurboGameEngine: FC<
     ECS.value.registerSystem(requestAddSystem);
     ECS.value.registerSystem(requestCreateEntity);
     ECS.value.registerSystem(requestCreateEntityBatch);
+    ECS.value.registerSystem(requestRemoveEntity);
+    ECS.value.registerSystem(requestRemoveEntityBatch);
     ECS.value.registerSystem(requestAddMatterBody);
     ECS.value.registerSystem(requestAddMatterBodyBatch);
     ECS.value.registerSystem(animationClipSystem);
@@ -156,6 +160,7 @@ export const ReactNativeTurboGameEngine: FC<
             ecs: ECS as SharedValue<ECS>,
             eventQueue,
             deltaTime: frameInfo.timeSincePreviousFrame ?? 0,
+            dimensions,
           });
         }
       }
@@ -165,6 +170,7 @@ export const ReactNativeTurboGameEngine: FC<
       ECS,
       state,
       eventQueue,
+      dimensions,
       initECS,
       initPhysics,
       defineComponents,
@@ -188,7 +194,7 @@ export const ReactNativeTurboGameEngine: FC<
         <EventQueueProvider eventQueue={eventQueue}>
           {shouldRender && (
             <>
-              <Scene name='Root'>{children}</Scene>
+              <Scene name="Root">{children}</Scene>
               <RenderEntities picture={picture as SharedValue<SkPicture>} />
             </>
           )}

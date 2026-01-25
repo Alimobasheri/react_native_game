@@ -9,8 +9,14 @@ export enum ECSState {
   NOT_INITIALIZED = 'NOT_INITIALIZED',
 }
 
+export type Dimensions = {
+  width: number;
+  height: number;
+};
+
 export type UseECSArgs = {
   eventQueue: EventQueueContextType;
+  dimensions: SharedValue<Dimensions>;
 };
 
 export type UseECSReturnValue = {
@@ -19,7 +25,10 @@ export type UseECSReturnValue = {
   initECS: () => void;
 };
 
-export const useECS = ({ eventQueue }: UseECSArgs): UseECSReturnValue => {
+export const useECS = ({
+  eventQueue,
+  dimensions,
+}: UseECSArgs): UseECSReturnValue => {
   const ECS = useSharedValue<ECS | null>(null);
 
   const state = useSharedValue(ECSState.NOT_INITIALIZED);
@@ -40,6 +49,7 @@ export const useECS = ({ eventQueue }: UseECSArgs): UseECSReturnValue => {
       systems,
       eventQueue,
       jsSystems,
+      dimensions,
     });
     state.value = ECSState.INITIALIZED;
   }, [

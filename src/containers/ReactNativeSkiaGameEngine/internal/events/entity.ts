@@ -6,7 +6,7 @@ export type CreateEntityRequest = {
   payload: {
     components: Component<any>[];
     sceneKey: string;
-    responseSubId: string;
+    responseSubId?: string;
   };
 };
 
