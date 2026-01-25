@@ -92,8 +92,8 @@ export const Swipe: FC<{}> = () => {
     createRenderComponent({
       shape: {
         type: ShapeTypes.Rectangle,
-        width: 0,
-        height: 0,
+        width: screenWidth,
+        height: screenHeight,
       },
       position: { x: 0, y: 0 },
       visible: true,

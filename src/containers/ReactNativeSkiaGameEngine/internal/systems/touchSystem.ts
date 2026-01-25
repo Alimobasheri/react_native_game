@@ -242,7 +242,6 @@ export const touchSystem: System = {
       };
 
       let hitEntity: number | null = null;
-      const active = gestureState.activePointers.get(pointerId);
 
       if (gestureKind === GestureKinds.Pan) {
         if (evtType === TouchEventTypes.Start) {
@@ -252,6 +251,7 @@ export const touchSystem: System = {
           evtType === TouchEventTypes.End ||
           evtType === TouchEventTypes.Cancel
         ) {
+          const active = gestureState.activePointers.get(pointerId);
           if (![null, undefined].includes(active?.entityId) && componentName) {
             const gestureComp = components[componentName]?.get(
               active.entityId
