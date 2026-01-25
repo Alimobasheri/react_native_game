@@ -34,8 +34,8 @@ const pointInRect = (
   height: number
 ) => {
   'worklet';
-  const left = centerX - width / 2;
-  const top = centerY - height / 2;
+  const left = centerX;
+  const top = centerY;
   const result =
     px >= left && px <= left + width && py >= top && py <= top + height;
   return result;
@@ -145,7 +145,7 @@ export const touchSystem: System = {
       }
 
       const gestureKind = ev.gesture.kind;
-      let componentName: string;
+      let componentName: string | null = null;
       let tapComponents;
       let gestureEntities: number[];
       let gestureState: any;
@@ -242,6 +242,7 @@ export const touchSystem: System = {
       };
 
       let hitEntity: number | null = null;
+      const active = gestureState.activePointers.get(pointerId);
 
       if (gestureKind === GestureKinds.Pan) {
         if (evtType === TouchEventTypes.Start) {
@@ -251,8 +252,7 @@ export const touchSystem: System = {
           evtType === TouchEventTypes.End ||
           evtType === TouchEventTypes.Cancel
         ) {
-          const active = gestureState.activePointers.get(pointerId);
-          if (active?.entityId !== null) {
+          if (![null, undefined].includes(active?.entityId) && componentName) {
             const gestureComp = components[componentName]?.get(
               active.entityId
             ) as any;
@@ -260,6 +260,9 @@ export const touchSystem: System = {
               hitEntity = findHitEntity();
               if (hitEntity !== active.entityId) {
                 hitEntity = null;
+                (gestureState.activePointers as Map<number, any>).delete(
+                  pointerId
+                );
               }
             } else {
               hitEntity = active.entityId;
@@ -269,7 +272,7 @@ export const touchSystem: System = {
       } else {
         hitEntity = findHitEntity();
       }
-
+      if (hitEntity === null) return;
       if (hitEntity !== null) {
         let payload = {
           entityId: hitEntity,

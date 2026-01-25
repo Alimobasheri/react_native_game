@@ -6,7 +6,6 @@ import {
   useCanvasDimensions,
   useAddEntity,
 } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs';
-import { useEventQueue } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useEventQueue/useEventQueue';
 import {
   createRenderComponent,
   ShapeTypes,
@@ -18,7 +17,6 @@ import { FC, useMemo } from 'react';
 
 export const RestartGameButton: FC<{}> = () => {
   const dimensions = useCanvasDimensions();
-  const eventQueue = useEventQueue();
 
   const components = useMemo(() => {
     return [
@@ -27,8 +25,8 @@ export const RestartGameButton: FC<{}> = () => {
         fontAssetId: 'Montserrat',
         fontSize: 24,
         color: Skia.Color('white'),
-        align: TextAlign.Center,
-        maxWidth: 400,
+        align: TextAlign.Left,
+        maxWidth: 200,
       }),
       createTapComponent({
         shape: {

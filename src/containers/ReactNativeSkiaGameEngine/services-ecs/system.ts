@@ -89,7 +89,6 @@ export const createSystemManager = (
     const events = eventQueue.readEvents();
     for (let i = 0; i < systems.value.length; i++) {
       const system = systems.value[i];
-      if (system?.name === 'SeaLayerShaderSystem') console.log('===========');
       if (!system) continue;
 
       const hasRequiredEvents = system.requiredEvents

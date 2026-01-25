@@ -16,7 +16,6 @@ import {
 } from '@/Game/ecs-components/SeaLayer';
 import { useWindowDimensions } from 'react-native';
 
-
 const normalize = (
   value: number,
   minInput: number,
@@ -87,16 +86,16 @@ let prevVelocityY = 0;
 let lastUpdateTime = 0;
 
 export const Swipe: FC<{}> = () => {
-const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
   const components = [
     createRenderComponent({
       shape: {
         type: ShapeTypes.Rectangle,
-        width: screenWidth,
-        height: screenHeight,
+        width: 0,
+        height: 0,
       },
-      position: { x: screenWidth / 2, y: screenHeight / 2 },
+      position: { x: 0, y: 0 },
       visible: true,
       fillColor: 'transparent',
       zIndex: 1, // Low z-index so it doesn't interfere with rendering
@@ -106,27 +105,22 @@ const { width: screenWidth, height: screenHeight } = useWindowDimensions();
         'worklet';
         // Find SeaLayer entities
         if (!global._RNTGE_.ecs?.value) return;
-
         const seaLayerEntities =
           global._RNTGE_.ecs.value.getEntitiesWithComponents([
             SeaLayerComponentName,
           ]);
-
         if (seaLayerEntities.length === 0) return;
-
         // Use the first SeaLayer entity (assuming there's one main sea)
         const seaEntities = seaLayerEntities.map((entity) =>
           global._RNTGE_.ecs?.value?.components.value[
             SeaLayerComponentName
           ]?.get(entity)
         ) as SeaLayerComponentData[];
-
         const seaEntityIndex = seaEntities.findIndex(
           (layer, index) => layer.isMainLayer
         );
         const seaEntity = seaEntities[seaEntityIndex];
         if (!seaEntity) return;
-
         // Calculate acceleration (change in velocity over time)
         const currentTime = Date.now();
         const deltaTime = currentTime - lastUpdateTime;
@@ -134,10 +128,8 @@ const { width: screenWidth, height: screenHeight } = useWindowDimensions();
           deltaTime > 0
             ? (data.gesture.data.velocityY - prevVelocityY) / deltaTime
             : 0;
-
         prevVelocityY = data.gesture.data.velocityY;
         lastUpdateTime = currentTime;
-
         const { waveVelocity, waveFrequency, waveAcceleration, waveAmplitude } =
           normalizeSwipeData(
             -1 * data.gesture.data.velocityX,
@@ -146,7 +138,6 @@ const { width: screenWidth, height: screenHeight } = useWindowDimensions();
             screenHeight,
             screenWidth
           );
-
         // Update the touch wave (index 1) in the SeaLayer component
         global._RNTGE_.ecs.value.updateComponent(
           seaLayerEntities[seaEntityIndex],
@@ -186,7 +177,6 @@ const { width: screenWidth, height: screenHeight } = useWindowDimensions();
               source: WaveSource.TOUCH,
               dimensions: { width: screenWidth, height: screenHeight },
             };
-
             seaLayerComponent.waves[1] = createWave(touchWaveConfig);
           }
         );
