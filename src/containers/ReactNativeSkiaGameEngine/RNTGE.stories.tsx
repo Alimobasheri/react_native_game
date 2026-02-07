@@ -22,6 +22,7 @@ import {
   waveShaderWaveMaskFunc,
   waveShaderYPosition,
 } from '@/Shaders/WaveShader/waveShader';
+import { sourceCode as waterShaderSourceCode } from '@/Shaders/WaterShader/waterShader';
 import { shaderNoiseFuncWithRandom } from '@/Shaders/common/noise';
 import { ShaderStar } from '@/components/StarsView/StarsView-rntge/ShaderStar';
 import { SeaGroup } from '@/components/SeaGroupRenderer/SeaGroup-rntge';
@@ -46,6 +47,13 @@ import { Swipe } from '@/components/Swipe/index-rntge';
 import { GameOverScene } from '../Scenes/GameOverScene/index-rntge';
 import { ObstacleComponentName } from '@/Game/ecs-components/ObstacleComponent';
 import { Obstacles } from '@/components/Obstacles/Obstacles-rntge';
+import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
+import { ContainerComponentName } from '@/Game/ecs-components/Container';
+import { WaterComponentName } from '@/Game/ecs-components/Water';
+import { SwimmerView } from '@/components/SwimmerView/SwimmerView-rntge';
+import { ContainerView } from '@/components/ContainerView/ContainerView-rntge';
+import { ObstacleView } from '@/components/ObstacleView/ObstacleView-rntge';
+import { WaterView } from '@/components/WaterView/WaterView-rntge';
 
 // Test components for different gesture types
 const TapTestComponent: FC<{ x: number; y: number }> = ({ x, y }) => {
@@ -241,6 +249,103 @@ export const Basic: Story = {
                 </Content>
               </Scene>
               <GameOverScene />
+            </Content>
+          </ReactNativeTurboGameEngine>
+        </View>
+      </View>
+    );
+  },
+};
+
+export const SwimmerGame: Story = {
+  args: {
+    componentNames: [
+      SwimmerComponentName,
+      ContainerComponentName,
+      WaterComponentName,
+      ObstacleComponentName,
+    ],
+  },
+  render: (args: any) => {
+    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+    const [containerEntityId, setContainerEntityId] = React.useState<
+      number | null
+    >(null);
+
+    // Container setup - rectangular container extending full screen height for endless look
+    const containerWidth = windowWidth * 0.8; // Use most of screen width
+    const containerHeight = windowHeight; // Full screen height for endless appearance
+    const containerCenterX = windowWidth / 2;
+    const containerCenterY = windowHeight / 2; // Center of screen
+    const containerBottom = containerCenterY + containerHeight / 2;
+
+    // Swimmer starts at center bottom, at water surface
+    const initialWaterSurfaceY = containerBottom; // Start with water at bottom
+    const swimmerStartX = containerCenterX;
+    const swimmerStartY = initialWaterSurfaceY - 30; // Half body in water
+
+    // Obstacles will be generated dynamically by the ObstacleSystem
+
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <View style={{ flex: 1, width: '100%', height: '100%' }}>
+          <ReactNativeTurboGameEngine {...args}>
+            <Preload>
+              <Asset
+                id="Montserrat"
+                type="font"
+                family="Montserrat"
+                resource={require('../../../assets/fonts/Montserrat-SemiBold.ttf')}
+              />
+            </Preload>
+            <Content>
+              <SkyBackground />
+              <Scene name="swimmerGame">
+                <Preload>
+                  <Asset
+                    type="shader"
+                    name="water"
+                    source={waterShaderSourceCode}
+                  />
+                </Preload>
+                <Content>
+                  {/* Container - rectangular with boundaries */}
+                  <ContainerView
+                    x={containerCenterX}
+                    y={containerCenterY}
+                    width={containerWidth}
+                    height={containerHeight}
+                    initialWaterSurfaceY={initialWaterSurfaceY}
+                    waterRiseSpeed={20}
+                    onEntityCreated={setContainerEntityId}
+                  />
+
+                  {/* Water - rendered separately, will be updated by system */}
+                  {containerEntityId !== null && (
+                    <WaterView
+                      containerEntityId={containerEntityId}
+                      centerX={containerCenterX}
+                      centerY={containerCenterY}
+                      width={containerWidth}
+                      height={containerHeight}
+                      raisingSpeed={100}
+                    />
+                  )}
+
+                  {/* Swimmer */}
+                  <SwimmerView
+                    x={swimmerStartX}
+                    y={swimmerStartY}
+                    containerWidth={containerWidth}
+                    containerHeight={containerHeight}
+                    containerCenterX={containerCenterX}
+                    containerCenterY={containerCenterY}
+                  />
+
+                  {/* Dynamic Obstacles */}
+                  <ObstacleView />
+                </Content>
+              </Scene>
             </Content>
           </ReactNativeTurboGameEngine>
         </View>

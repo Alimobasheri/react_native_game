@@ -4,7 +4,7 @@ export default ({ config }) => {
       name: 'reactNativeGame',
       slug: 'reactNativeGame',
       version: '1.0.0',
-      orientation: 'landscape',
+      orientation: 'portrait',
       icon: './assets/icon.png',
       userInterfaceStyle: 'light',
       jsEngine: 'hermes',
