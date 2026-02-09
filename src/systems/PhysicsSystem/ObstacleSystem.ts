@@ -25,13 +25,21 @@ import { createRenderComponent } from '@/containers/ReactNativeSkiaGameEngine/in
 import { createPositionComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/position';
 import { getGridPosition, getObstacleWidth, getRows, LAYOUT_CONSTANTS } from '@/Layout';
 
+const OBSTACLE_BLOCK_IMAGES = ['block', 'block2', 'block3'] as const;
+
+function getRandomBlockImage(): string {
+  'worklet';
+  return OBSTACLE_BLOCK_IMAGES[Math.floor(Math.random() * OBSTACLE_BLOCK_IMAGES.length)];
+}
+
 /**
  * ObstacleSystem - Manages obstacle spawning, movement, and removal for the swimmer game
  *
  * This system:
- * - During initial phase: Locks obstacle positions while water rises, positions obstacles between -5% to 30% of container height
- * - After initial phase: Moves obstacles downward using water raising speed, spawns new obstacles based on time intervals
- * - Removes obstacles that pass 100% screen height
+ * - Seeds 5-7 initial obstacles when none exist (above container top to ~30% from top)
+ * - Moves obstacles downward at water speed (raisingSpeed) every frame
+ * - Spawns new obstacles over time based on row intervals when not seeding
+ * - Removes obstacles that pass below the container bottom
  * - Uses row-based positioning with random row selection and spacing for gameplay balance
  */
 export const ObstacleSystem: System = {
@@ -148,11 +156,12 @@ export const ObstacleSystem: System = {
       }
     });
 
-    // Handle obstacle spawning based on game phase
-    if (isInInitialPhase) {
-      // Initial phase: Generate 5-7 initial obstacles spanning -150% to 30% of container height for wide vertical spread
-      if (obstacleEntities.length === 0) {
-        const obstacleWidth = getObstacleWidth(containerData.width);
+    // Seed initial obstacles when none exist (either during initial phase or when starting with water at center)
+    const shouldSeedInitialObstacles = obstacleEntities.length === 0;
+
+    if (shouldSeedInitialObstacles) {
+      // Generate 5-7 initial obstacles spanning above container top to ~30% from top (above water at center)
+      const obstacleWidth = getObstacleWidth(containerData.width);
 
         // Position initial obstacles spanning from -150% to 30% of container height
         const minY = containerTop - containerData.height * 1.50; // -150% (well above container top)
@@ -212,9 +221,10 @@ export const ObstacleSystem: System = {
               height: obstacleWidth,
             },
             position: obstaclePosition,
-            fillColor: '#d32f2f',
+            image: getRandomBlockImage(),
             visible: true,
-            zIndex: 2,
+            // Render obstacles behind water and swimmer but above background/container interior
+            zIndex: 1,
           });
 
           // Create the entity
@@ -227,8 +237,6 @@ export const ObstacleSystem: System = {
           };
           eventQueue.addEvent(createRequest);
         }
-      }
-      // During initial phase, obstacles stay locked - no additional spawning
     } else {
       // Post-initial phase: Time-based spawning based on obstacle movement distance
       // Use a static reference to track spawning timing (this will persist across frames)
@@ -320,9 +328,10 @@ export const ObstacleSystem: System = {
               height: obstacleWidth,
             },
             position: obstaclePosition,
-            fillColor: '#d32f2f',
+            image: getRandomBlockImage(),
             visible: true,
-            zIndex: 2,
+            // Render obstacles behind water and swimmer but above background/container interior
+            zIndex: 1,
           });
 
           // Create the entity

@@ -288,11 +288,34 @@ export const renderSystem = (
         const sceneData = activeScenes[s].data;
         const sceneEntityIds = sceneData.objects.entities;
 
+        // Build a per-scene render queue ordered by zIndex (then entity id for stability)
+        const renderQueue: {
+          entity: Entity;
+          zIndex: number;
+          renderData: RenderComponentData;
+        }[] = [];
+
         for (let i = 0; i < sceneEntityIds.length; i++) {
           const entity = sceneEntityIds[i];
-          const renderData: RenderComponentData = renderStore.get(entity);
+          const renderData = renderStore.get(entity) as
+            | RenderComponentData
+            | undefined;
 
           if (!renderData || renderData.visible === false) continue;
+
+          const zIndex = renderData.zIndex ?? 0;
+          renderQueue.push({ entity, zIndex, renderData });
+        }
+
+        renderQueue.sort((a, b) => {
+          if (a.zIndex !== b.zIndex) {
+            return a.zIndex - b.zIndex;
+          }
+          return a.entity - b.entity;
+        });
+
+        for (let i = 0; i < renderQueue.length; i++) {
+          const { entity, renderData } = renderQueue[i];
 
           // 1. Universal Transformation Logic
           const body: IBodyDefinition | undefined =

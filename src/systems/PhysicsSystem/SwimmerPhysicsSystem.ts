@@ -25,6 +25,8 @@ import {
 import {
   ObstacleComponentName,
 } from '@/Game/ecs-components/ObstacleComponent';
+import { LAYOUT_CONSTANTS } from '@/Layout';
+import { getColumnCenterX } from '@/Layout';
 
 const SWIMMER_SIZE = 40;
 const SWIMMER_HEIGHT = 60;
@@ -218,13 +220,23 @@ export const SwimmerPhysicsSystem: System = {
         swimmerY = containerData.waterSurfaceY - SWIMMER_HEIGHT / 2;
       }
 
-      // Apply horizontal movement based on velocity
-      const newX = positionComponent.x + swimmerVelocityX * deltaSeconds;
-
-      // Constrain swimmer within container bounds (rectangular)
-      const minX = swimmerComponent.containerCenterX - swimmerComponent.containerWidth / 2 + SWIMMER_SIZE / 2;
-      const maxX = swimmerComponent.containerCenterX + swimmerComponent.containerWidth / 2 - SWIMMER_SIZE / 2;
-      const constrainedX = Math.max(minX, Math.min(maxX, newX));
+      // Apply horizontal movement: column-based (tap) or velocity-based (pan)
+      let constrainedX: number;
+      if (swimmerComponent.useColumnControl && typeof swimmerComponent.column === 'number') {
+        const column = Math.max(0, Math.min(LAYOUT_CONSTANTS.COLUMNS - 1, swimmerComponent.column));
+        constrainedX = getColumnCenterX(
+          column,
+          swimmerComponent.containerCenterX,
+          swimmerComponent.containerWidth
+        );
+        // Keep column in sync (clamped)
+        swimmerComponent.column = column;
+      } else {
+        const newX = positionComponent.x + swimmerVelocityX * deltaSeconds;
+        const minX = swimmerComponent.containerCenterX - swimmerComponent.containerWidth / 2 + SWIMMER_SIZE / 2;
+        const maxX = swimmerComponent.containerCenterX + swimmerComponent.containerWidth / 2 - SWIMMER_SIZE / 2;
+        constrainedX = Math.max(minX, Math.min(maxX, newX));
+      }
 
       // Update both position component and render component position
       ecs.value.updateComponent<PositionComponentData>(
@@ -250,18 +262,22 @@ export const SwimmerPhysicsSystem: System = {
         }
       );
 
-      // Apply friction to horizontal velocity (gradually slow down)
+      // Apply friction to horizontal velocity (only when not using column control)
       const friction = 0.9;
       ecs.value.updateComponent<SwimmerComponentData>(
         swimmerEntity,
         SwimmerComponentName,
         (swimmer) => {
           'worklet';
-          swimmer.velocityX *= friction;
+          if (!swimmer.useColumnControl) {
+            swimmer.velocityX *= friction;
+          }
           swimmer.waterSurfaceY = containerData.waterSurfaceY;
           swimmer.fallingVelocityY = swimmerComponent.fallingVelocityY;
           swimmer.isCollidingWithObstacle = swimmerComponent.isCollidingWithObstacle;
           swimmer.isInInitialPhase = swimmerComponent.isInInitialPhase;
+          swimmer.column = swimmerComponent.column;
+          swimmer.useColumnControl = swimmerComponent.useColumnControl;
         }
       );
     });

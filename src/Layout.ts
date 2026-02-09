@@ -4,7 +4,7 @@
 
 export const LAYOUT_CONSTANTS = {
   // Grid layout constants
-  COLUMNS: 4,
+  COLUMNS: 8,
 
   // Get obstacle width based on container width
 
@@ -18,7 +18,6 @@ export const LAYOUT_CONSTANTS = {
 
 export const getObstacleWidth = (containerWidth: number): number => {
   'worklet';
-  console.log("🚀 ~ containerWidth:", LAYOUT_CONSTANTS.COLUMNS)
   return containerWidth / LAYOUT_CONSTANTS.COLUMNS;
 }
 
@@ -27,6 +26,17 @@ export const getRows = (containerHeight: number, obstacleWidth: number): number 
   'worklet';
   return Math.floor(containerHeight / obstacleWidth);
 }
+
+// Get center X of a column (for swimmer or any grid-aligned entity)
+export const getColumnCenterX = (
+  column: number,
+  containerCenterX: number,
+  containerWidth: number
+): number => {
+  'worklet';
+  const columnWidth = containerWidth / LAYOUT_CONSTANTS.COLUMNS;
+  return containerCenterX - containerWidth / 2 + columnWidth * column + columnWidth / 2;
+};
 
 // Get grid positions for obstacles
 export const getGridPosition = (

@@ -54,6 +54,14 @@ export interface RenderComponentData {
   opacity?: number;
   image?: string;
   sprite?: SpriteInfo; // Sprite animation data
+  /**
+   * Per-entity rendering order within a scene.
+   * - Lower values are rendered first (further back).
+   * - Higher values are rendered later (in front).
+   * - If omitted, zIndex defaults to 0.
+   *
+   * Scenes themselves are still ordered by SceneComponentData.zIndex.
+   */
   zIndex?: number;
   isDirty?: boolean;
   shader?: ShaderInfo;

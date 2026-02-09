@@ -11,7 +11,15 @@ import { ShipView } from '@/components/ShipView/ShipView-rntge';
 import { SurferView } from '@/components/SurferView/SurferView-rntge';
 import { SkyBackground } from '@/components/SkyBackground/SkyBackground-rntge';
 import { StarsView } from '@/components/StarsView/StarsView-rntge/StarsView-rntge';
-import { ship, star, surfer } from '../../assets/images';
+import {
+  block,
+  block2,
+  block3,
+  caveBg,
+  ship,
+  star,
+  surfer,
+} from '../../assets/images';
 import {
   sourceCode,
   waveShaderFoamIntensityFunc,
@@ -51,9 +59,11 @@ import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
 import { ContainerComponentName } from '@/Game/ecs-components/Container';
 import { WaterComponentName } from '@/Game/ecs-components/Water';
 import { SwimmerView } from '@/components/SwimmerView/SwimmerView-rntge';
+import { TapSwimmer } from '@/components/TapSwimmer/TapSwimmer-rntge';
 import { ContainerView } from '@/components/ContainerView/ContainerView-rntge';
 import { ObstacleView } from '@/components/ObstacleView/ObstacleView-rntge';
 import { WaterView } from '@/components/WaterView/WaterView-rntge';
+import { CaveBackground } from '@/components/CaveBackground/CaveBackground-rntge';
 
 // Test components for different gesture types
 const TapTestComponent: FC<{ x: number; y: number }> = ({ x, y }) => {
@@ -279,9 +289,8 @@ export const SwimmerGame: Story = {
     const containerCenterY = windowHeight / 2; // Center of screen
     const containerBottom = containerCenterY + containerHeight / 2;
 
-    // Swimmer starts at center bottom, at water surface
-    const initialWaterSurfaceY = containerBottom; // Start with water at bottom
-    const swimmerStartX = containerCenterX;
+    // Water starts at container center (no initial rising phase); swimmer at water surface
+    const initialWaterSurfaceY = containerCenterY; // Water at center from the start
     const swimmerStartY = initialWaterSurfaceY - 30; // Half body in water
 
     // Obstacles will be generated dynamically by the ObstacleSystem
@@ -302,6 +311,10 @@ export const SwimmerGame: Story = {
               <SkyBackground />
               <Scene name="swimmerGame">
                 <Preload>
+                  <Asset type="image" name="block" uriOrBase64={block} />
+                  <Asset type="image" name="block2" uriOrBase64={block2} />
+                  <Asset type="image" name="block3" uriOrBase64={block3} />
+                  <Asset type="image" name="cave_bg" uriOrBase64={caveBg} />
                   <Asset
                     type="shader"
                     name="water"
@@ -309,6 +322,8 @@ export const SwimmerGame: Story = {
                   />
                 </Preload>
                 <Content>
+                  {/* Cave background - full screen image */}
+                  <CaveBackground />
                   {/* Container - rectangular with boundaries */}
                   <ContainerView
                     x={containerCenterX}
@@ -332,14 +347,19 @@ export const SwimmerGame: Story = {
                     />
                   )}
 
-                  {/* Swimmer */}
+                  {/* Swimmer - centered in a column; TapSwimmer handles tap-to-move */}
                   <SwimmerView
-                    x={swimmerStartX}
                     y={swimmerStartY}
                     containerWidth={containerWidth}
                     containerHeight={containerHeight}
                     containerCenterX={containerCenterX}
                     containerCenterY={containerCenterY}
+                    useColumnControl={true}
+                  />
+
+                  <TapSwimmer
+                    screenWidth={windowWidth}
+                    screenHeight={windowHeight}
                   />
 
                   {/* Dynamic Obstacles */}

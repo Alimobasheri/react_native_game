@@ -24,18 +24,9 @@ export const WaterView: FC<{
   const components = useMemo(() => {
     if (containerEntityId === null) return [];
 
-    // Calculate initial water level as fraction of container height (0-1)
-    // Container goes from centerY - height/2 to centerY + height/2
-    // Water starts 50 pixels from container bottom
-    const containerBottom = centerY + height / 2;
-    const initialWaterSurfaceY = containerBottom - 50;
-
-    // Calculate water level in container UV space (0 = container bottom, 1 = container top)
-    // In screen space: containerBottom = centerY + height/2, containerTop = centerY - height/2
-    // Water surface Y position relative to container
-    const waterLevelFromBottom =
-      (initialWaterSurfaceY - (centerY - height / 2)) / height;
-    const initialWaterLevel = Math.max(0, Math.min(1, waterLevelFromBottom));
+    // Initial water at container center (no rising phase): half container filled
+    // Container UV: 0 = container bottom, 1 = container top; center = 0.5
+    const initialWaterLevel = 0.5;
 
     return [
       createWaterComponent({
