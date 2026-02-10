@@ -7,15 +7,16 @@ export const useMatterPhysics = () => {
     if (typeof global.MatterReanimated === 'undefined') {
       initMatter();
     }
+    const engine = global.MatterReanimated.Engine.create();
+    // Arcade physics: disable gravity globally.
+    engine.gravity.x = 0;
+    engine.gravity.y = 0;
+    engine.gravity.scale = 0;
     if (typeof global._RNTGE_ === 'undefined') {
-      global._RNTGE_ = {
-        physics: { engine: global.MatterReanimated.Engine.create() },
-      };
-    } else if (typeof global._RNTGE_ !== 'undefined') {
-      global._RNTGE_.physics = {
-        engine: global.MatterReanimated.Engine.create(),
-      };
+      // RNTGE.tsx will initialize the rest of the global caches; we only ensure physics exists.
+      (global as any)._RNTGE_ = {} as any;
     }
+    (global as any)._RNTGE_.physics = { engine };
   }, []);
 
   return { initPhysics };

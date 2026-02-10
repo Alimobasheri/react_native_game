@@ -4,6 +4,7 @@ import {
   RenderComponentData,
   ShapeTypes,
 } from '../components/render';
+import { MatterBodyComponentName } from '../components/matterBody';
 import {
   TouchComponentName,
   TouchComponentData,
@@ -34,8 +35,9 @@ const pointInRect = (
   height: number
 ) => {
   'worklet';
-  const left = centerX;
-  const top = centerY;
+  // Render positions (and Matter body positions) are center-based in this engine.
+  const left = centerX - width / 2;
+  const top = centerY - height / 2;
   const result =
     px >= left && px <= left + width && py >= top && py <= top + height;
   return result;
@@ -196,7 +198,8 @@ export const touchSystem: System = {
             components[RenderComponentName].get(ent);
           if (!renderData || renderData.visible === false) continue;
 
-          let pos = renderData.position ?? { x: 0, y: 0 };
+          const body = components[MatterBodyComponentName]?.get(ent);
+          const pos = body?.position || renderData.position || { x: 0, y: 0 };
           const gestureComp = components[componentName]?.get(ent);
           const shape = getShapeForGestureEntity(renderData, gestureComp);
 

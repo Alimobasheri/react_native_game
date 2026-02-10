@@ -62,7 +62,7 @@ export const ContainerView: FC<{
           height: height,
         },
         position: { x: x - width / 2 - 5, y: y },
-        fillColor: 'rgba(135, 206, 235, 0.7)', // Light blue color
+        fillColor: 'transparent', // Light blue color
         visible: true,
         zIndex: 1,
       }),
@@ -95,7 +95,7 @@ export const ContainerView: FC<{
     [x, y, width, height]
   );
 
-  const { bodyId: leftBodyId } = useAddMatterBody({
+  useAddMatterBody({
     args: leftBoundaryArgs,
     entityId: leftBoundaryEntityId,
   });
@@ -110,7 +110,7 @@ export const ContainerView: FC<{
           height: height,
         },
         position: { x: x + width / 2 + 5, y: y },
-        fillColor: 'rgba(135, 206, 235, 0.7)', // Light blue color
+        fillColor: 'transparent', // Light blue color
         visible: true,
         zIndex: 1,
       }),
@@ -143,58 +143,12 @@ export const ContainerView: FC<{
     [x, y, width, height]
   );
 
-  const { bodyId: rightBodyId } = useAddMatterBody({
+  useAddMatterBody({
     args: rightBoundaryArgs,
     entityId: rightBoundaryEntityId,
   });
 
-  // Bottom boundary - separate entity with render and physics
-  const bottomBoundaryComponents = useMemo(
-    () => [
-      createRenderComponent({
-        shape: {
-          type: ShapeTypes.Rectangle,
-          width: width,
-          height: 10, // Small height for boundary
-        },
-        position: { x: x, y: y + height / 2 + 5 },
-        fillColor: 'rgba(135, 206, 235, 0.7)', // Light blue color
-        visible: true,
-        zIndex: 1,
-      }),
-    ],
-    [x, y, width, height]
-  );
-
-  const { entityId: bottomBoundaryEntityId } = useAddEntity({
-    components: bottomBoundaryComponents,
-  });
-
-  const bottomBoundaryArgs: CreateMatterBodyArgs = useMemo(
-    () => ({
-      type: 'rectangle',
-      options: {
-        x: x,
-        y: y + height / 2 + 5, // Position below center rectangle with small offset
-        width: width,
-        height: 10, // Small height for boundary
-        options: {
-          isStatic: true, // Static boundary
-          collisionFilter: {
-            group: 0x0001, // Container boundary group
-            category: 0x0002,
-            mask: 0x0004 | 0x0008, // Collide with swimmer and obstacles
-          },
-        },
-      },
-    }),
-    [x, y, width, height]
-  );
-
-  const { bodyId: bottomBodyId } = useAddMatterBody({
-    args: bottomBoundaryArgs,
-    entityId: bottomBoundaryEntityId,
-  });
+  // Note: Bottom boundary intentionally omitted so entities can exit the screen.
 
   useEffect(() => {
     if (onEntityCreated && entityId !== null && entityId !== undefined) {

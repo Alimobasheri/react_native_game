@@ -103,15 +103,85 @@ export const waveShaderMainFunc = `
 
     // Check if pixel is below water level (solid water body)
     if (containerUV.y < (bottomY + waterLevel)) {
-      // Solid water body - semi-transparent water color
-      return vec4(waterColor, 0.8 * rectangleMask);
+      // Solid water body with upward-flowing interior texture
+      float surfaceY = bottomY + waterLevel;
+      // Normalize depth within filled region (0 = bottom, 1 = water surface)
+      float depth = clamp(containerUV.y / max(surfaceY, 0.0001), 0.0, 1.0);
+
+      // Upward flow: offset sampling UV over time so the pattern appears to rise
+      vec2 flowUV = uv;
+      flowUV.y -= iTime * speed * 0.6;
+
+      // Anisotropic scaling to create soft vertical streaks
+      vec2 streakUV = vec2(flowUV.x * 1.5, flowUV.y * 4.0);
+      float flowNoise = noise(streakUV);
+
+      // Base vertical gradient: darker at bottom, lighter near surface
+      vec3 deepColor = waterColor * 0.7;
+      vec3 shallowColor = waterColor * 1.1;
+      vec3 gradColor = mix(deepColor, shallowColor, depth);
+
+      // Modulate brightness with noise to get subtle moving bands
+      float bandIntensity = smoothstep(0.3, 0.9, flowNoise);
+      vec3 flowColor = gradColor + bandIntensity * 0.12;
+
+      // --- Minimal hyper-casual bubbles (true circles in screen space) -----
+      // Water-space Y (0 = bottom of water, 1 = surface)
+      float waterHeight = max(waterLevel, 0.0001);
+      float localY = clamp((containerUV.y - bottomY) / waterHeight, 0.0, 1.0);
+
+      // Container-local pixel coordinates (0..containerWidth / 0..containerHeight)
+      float containerLeft = containerCenter.x - containerWidth * 0.5;
+      float containerTop = containerCenter.y - containerHeight * 0.5;
+      vec2 containerLocalPx = vec2(
+        fragCoord.x - containerLeft,
+        fragCoord.y - containerTop
+      );
+
+      // Square cells in pixel space so circles stay circular
+      float cols = 6.0;
+      float rows = 14.0;
+      vec2 cellSize = vec2(containerWidth / cols, containerHeight / rows);
+
+      // Scroll pattern upward over time
+      vec2 bubblePosPx = vec2(
+        containerLocalPx.x,
+        containerLocalPx.y + iTime * speed * 0.3 * containerHeight
+      );
+
+      vec2 cellIndex = floor(bubblePosPx / cellSize);
+      vec2 cellUV = fract(bubblePosPx / cellSize);
+
+      // Random center and radius per cell (noise-based random)
+      float rSeed = random(cellIndex * 3.17);
+      float hasBubble = step(0.6, rSeed);
+      float r1 = random(cellIndex * 7.31 + 1.23);
+      float r2 = random(cellIndex * 11.71 + 4.56);
+      vec2 bubbleCenter = vec2(0.25 + 0.5 * r1, 0.2 + 0.6 * r2);
+      float rRadius = random(cellIndex * 13.97 + 8.42);
+      // Smaller, tighter circles so they don't get clipped at cell edges
+      float bubbleRadius = 0.12 + 0.08 * rRadius;
+
+      vec2 diff = cellUV - bubbleCenter;
+      float distToCenter = length(diff); // true circle in pixel-mapped cell
+      float bubbleMask = hasBubble * (1.0 - smoothstep(bubbleRadius, bubbleRadius + 0.04, distToCenter));
+
+      // Fade bubbles out near the surface and bottom
+      float verticalFade = smoothstep(0.08, 0.25, localY) * (1.0 - smoothstep(0.7, 0.98, localY));
+      bubbleMask *= verticalFade;
+
+      // Lighten color inside bubbles slightly
+      vec3 bubbleColor = vec3(1.0);
+      flowColor = mix(flowColor, bubbleColor, bubbleMask * 0.18);
+
+      return vec4(flowColor, 0.8 * rectangleMask);
     }
 
     // Above water level - render wavy surface
     // Position waves at the water level
     float surfaceH = bottomY + waterLevel;
 
-    float w = WaterMask(uv, surfaceH, iTime * speed, amplitude, frequency);
+    float w = WaterMask(uv, surfaceH, iTime * speed * 8.0, amplitude, frequency);
 
     vec2 wavePosition = YPosition(uv, surfaceH, iTime * speed * 0.2, amplitude * 0.05, frequency);
 

@@ -1,6 +1,5 @@
 import {
   System,
-  SystemContext,
 } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/system';
 import {
   SwimmerComponentName,
@@ -15,23 +14,14 @@ import {
   WaterComponentData,
 } from '@/Game/ecs-components/Water';
 import {
-  PositionComponentName,
-  PositionComponentData,
-} from '@/containers/ReactNativeSkiaGameEngine/internal/components/position';
-import {
-  RenderComponentName,
-  RenderComponentData,
-} from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
-import {
   ObstacleComponentName,
 } from '@/Game/ecs-components/ObstacleComponent';
 import { LAYOUT_CONSTANTS } from '@/Layout';
 import { getColumnCenterX } from '@/Layout';
+import { MatterBodyComponentName } from '@/containers/ReactNativeSkiaGameEngine/internal/components/matterBody';
 
 const SWIMMER_SIZE = 40;
 const SWIMMER_HEIGHT = 60;
-const SWIMMER_SPEED = 200; // pixels per second for left/right movement
-const FALLING_SPEED = 100; // pixels per second when falling after collision
 
 /**
  * SwimmerPhysicsSystem - Handles swimmer movement and game mechanics
@@ -50,7 +40,7 @@ const FALLING_SPEED = 100; // pixels per second when falling after collision
  * - Manages horizontal swimmer movement
  */
 export const SwimmerPhysicsSystem: System = {
-  requiredComponents: [], // Process all entities, we'll query for specific components
+  requiredComponents: [SwimmerComponentName, MatterBodyComponentName],
   process: ({ entities, components, deltaTime, ecs }) => {
     'worklet';
 
@@ -91,16 +81,10 @@ export const SwimmerPhysicsSystem: System = {
     const containerBottom = containerData.centerY + containerData.height / 2;
     const halfContainerHeight = containerData.centerY; // Half way up from bottom
 
-    // Get all swimmer entities
-    const swimmerEntities = ecs.value.getEntitiesWithComponents([
-      SwimmerComponentName,
-      PositionComponentName,
-    ]);
-
     // Determine game phase based on first swimmer (they should all be in sync)
     let isInInitialPhase = true;
-    if (swimmerEntities.length > 0) {
-      const firstSwimmer = components[SwimmerComponentName].get(swimmerEntities[0]);
+    if (entities.length > 0) {
+      const firstSwimmer = components[SwimmerComponentName].get(entities[0]);
       if (firstSwimmer) {
         isInInitialPhase = firstSwimmer.isInInitialPhase;
       }
@@ -126,7 +110,7 @@ export const SwimmerPhysicsSystem: System = {
 
       // If we've reached half height, transition to platformer phase
       if (hasReachedHalfHeight) {
-        swimmerEntities.forEach((swimmerEntity) => {
+        entities.forEach((swimmerEntity: number) => {
           ecs.value.updateComponent<SwimmerComponentData>(
             swimmerEntity,
             SwimmerComponentName,
@@ -144,81 +128,50 @@ export const SwimmerPhysicsSystem: System = {
     }
 
     // Update all swimmers
-    swimmerEntities.forEach((swimmerEntity) => {
-      const swimmerComponent = components[SwimmerComponentName].get(swimmerEntity);
-      const positionComponent = components[PositionComponentName].get(swimmerEntity);
+    // Pre-compute obstacle body ids for collision checks (resolved by Matter)
+    const obstacleEntities = ecs.value.getEntitiesWithComponents([
+      ObstacleComponentName,
+      MatterBodyComponentName,
+    ]);
+    const obstacleBodyIds: Record<number, true> = {};
+    for (let i = 0; i < obstacleEntities.length; i++) {
+      const b = components[MatterBodyComponentName].get(obstacleEntities[i]);
+      if (b?.id) obstacleBodyIds[b.id] = true;
+    }
 
-      if (!swimmerComponent || !positionComponent) {
+    const engine = global._RNTGE_?.physics?.engine;
+    const pairs = engine?.pairs?.list ?? [];
+
+    entities.forEach((swimmerEntity) => {
+      const swimmerComponent = components[SwimmerComponentName].get(swimmerEntity) as
+        | SwimmerComponentData
+        | undefined;
+      const matterBody = components[MatterBodyComponentName].get(swimmerEntity);
+
+      if (!swimmerComponent || !matterBody) {
         return;
       }
 
       // Update swimmer's water surface reference
-      swimmerComponent.waterSurfaceY = containerData.waterSurfaceY;
+      const desiredY = containerData.waterSurfaceY - SWIMMER_HEIGHT / 2;
 
-      // Check for collisions with obstacles (only during platformer phase)
-      let hasCollision = false;
-      if (!swimmerComponent.isInInitialPhase && !swimmerComponent.isCollidingWithObstacle) {
-        const obstacleEntities = ecs.value.getEntitiesWithComponents([
-          ObstacleComponentName,
-          PositionComponentName,
-        ]);
-
-        // Swimmer bounding box
-        const swimmerLeft = positionComponent.x - SWIMMER_SIZE / 2;
-        const swimmerRight = positionComponent.x + SWIMMER_SIZE / 2;
-        const swimmerTop = positionComponent.y - SWIMMER_HEIGHT / 2;
-        const swimmerBottom = positionComponent.y + SWIMMER_HEIGHT / 2;
-
-        obstacleEntities.forEach((obstacleEntity) => {
-          const obstacleComponent = components[ObstacleComponentName].get(obstacleEntity);
-          const obstaclePosition = components[PositionComponentName].get(obstacleEntity);
-
-          if (!obstacleComponent || !obstaclePosition) return;
-
-          // Obstacle bounding box (assuming triangular shape, use full rectangle for simplicity)
-          const obstacleLeft = obstaclePosition.x - obstacleComponent.width / 2;
-          const obstacleRight = obstaclePosition.x + obstacleComponent.width / 2;
-          const obstacleTop = obstaclePosition.y - obstacleComponent.height / 2;
-          const obstacleBottom = obstaclePosition.y + obstacleComponent.height / 2;
-
-          // Check for bounding box collision
-          if (swimmerRight > obstacleLeft &&
-            swimmerLeft < obstacleRight &&
-            swimmerBottom > obstacleTop &&
-            swimmerTop < obstacleBottom) {
-            hasCollision = true;
-          }
-        });
-      }
-
-      let swimmerY: number;
-      let swimmerVelocityX = swimmerComponent.velocityX;
-
-      // Handle collision state changes
-      if (hasCollision && !swimmerComponent.isCollidingWithObstacle) {
-        // Just collided - start falling
-        swimmerComponent.isCollidingWithObstacle = true;
-        swimmerComponent.fallingVelocityY = waterData.raisingSpeed;
-      }
-
-      // Determine swimmer Y position based on state
-      if (swimmerComponent.isCollidingWithObstacle) {
-        // PHASE 3: Falling after collision - move down at obstacle speed
-        swimmerY = positionComponent.y + waterData.raisingSpeed * deltaSeconds;
-        swimmerComponent.fallingVelocityY = waterData.raisingSpeed;
-
-        // Check if swimmer has fallen below container (game over condition)
-        if (swimmerY > containerBottom) {
-          // For now, just keep them at bottom
-          swimmerY = containerBottom - SWIMMER_HEIGHT / 2;
+      // Check collisions from Matter engine pairs (no custom overlap resolution)
+      let isCollidingWithObstacle = false;
+      for (let i = 0; i < pairs.length; i++) {
+        const pair = pairs[i];
+        const a = pair.bodyA;
+        const b = pair.bodyB;
+        if (a === matterBody && obstacleBodyIds[b.id]) {
+          isCollidingWithObstacle = true;
+          break;
         }
-      } else if (!swimmerComponent.isInInitialPhase) {
-        // PHASE 2: Platformer phase - lock Y to water surface
-        swimmerY = containerData.waterSurfaceY - SWIMMER_HEIGHT / 2;
-      } else {
-        // PHASE 1: Initial phase - follow rising water surface
-        swimmerY = containerData.waterSurfaceY - SWIMMER_HEIGHT / 2;
+        if (b === matterBody && obstacleBodyIds[a.id]) {
+          isCollidingWithObstacle = true;
+          break;
+        }
       }
+
+      let swimmerVelocityX = swimmerComponent.velocityX;
 
       // Apply horizontal movement: column-based (tap) or velocity-based (pan)
       let constrainedX: number;
@@ -232,35 +185,29 @@ export const SwimmerPhysicsSystem: System = {
         // Keep column in sync (clamped)
         swimmerComponent.column = column;
       } else {
-        const newX = positionComponent.x + swimmerVelocityX * deltaSeconds;
+        const newX = matterBody.position.x + swimmerVelocityX * deltaSeconds;
         const minX = swimmerComponent.containerCenterX - swimmerComponent.containerWidth / 2 + SWIMMER_SIZE / 2;
         const maxX = swimmerComponent.containerCenterX + swimmerComponent.containerWidth / 2 - SWIMMER_SIZE / 2;
         constrainedX = Math.max(minX, Math.min(maxX, newX));
       }
 
-      // Update both position component and render component position
-      ecs.value.updateComponent<PositionComponentData>(
-        swimmerEntity,
-        PositionComponentName,
-        (pos) => {
-          'worklet';
-          pos.x = constrainedX;
-          pos.y = swimmerY;
+      // Only force swimmer back to water surface when NOT colliding.
+      // When colliding, let Matter resolve overlap and allow obstacles to push the swimmer down.
+      const targetY = isCollidingWithObstacle ? matterBody.position.y : desiredY;
+
+      if (typeof global.MatterReanimated !== 'undefined') {
+        global.MatterReanimated.Body.setPosition(matterBody, {
+          x: constrainedX,
+          y: targetY,
+        });
+        // Keep velocities from accumulating (arcade feel, no gravity)
+        if (global.MatterReanimated.Body.setVelocity) {
+          global.MatterReanimated.Body.setVelocity(matterBody, { x: 0, y: 0 });
         }
-      );
-      ecs.value.updateComponent<RenderComponentData>(
-        swimmerEntity,
-        RenderComponentName,
-        (render) => {
-          'worklet';
-          if (!render.position) {
-            render.position = { x: constrainedX, y: swimmerY };
-          } else {
-            render.position.x = constrainedX;
-            render.position.y = swimmerY;
-          }
+        if (global.MatterReanimated.Body.setAngularVelocity) {
+          global.MatterReanimated.Body.setAngularVelocity(matterBody, 0);
         }
-      );
+      }
 
       // Apply friction to horizontal velocity (only when not using column control)
       const friction = 0.9;
@@ -273,8 +220,7 @@ export const SwimmerPhysicsSystem: System = {
             swimmer.velocityX *= friction;
           }
           swimmer.waterSurfaceY = containerData.waterSurfaceY;
-          swimmer.fallingVelocityY = swimmerComponent.fallingVelocityY;
-          swimmer.isCollidingWithObstacle = swimmerComponent.isCollidingWithObstacle;
+          swimmer.isCollidingWithObstacle = isCollidingWithObstacle;
           swimmer.isInInitialPhase = swimmerComponent.isInInitialPhase;
           swimmer.column = swimmerComponent.column;
           swimmer.useColumnControl = swimmerComponent.useColumnControl;

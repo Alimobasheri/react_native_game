@@ -58,6 +58,7 @@ import { Obstacles } from '@/components/Obstacles/Obstacles-rntge';
 import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
 import { ContainerComponentName } from '@/Game/ecs-components/Container';
 import { WaterComponentName } from '@/Game/ecs-components/Water';
+import { ObstaclesManagerComponentName } from '@/Game/ecs-components/ObstaclesManager';
 import { SwimmerView } from '@/components/SwimmerView/SwimmerView-rntge';
 import { TapSwimmer } from '@/components/TapSwimmer/TapSwimmer-rntge';
 import { ContainerView } from '@/components/ContainerView/ContainerView-rntge';
@@ -274,6 +275,7 @@ export const SwimmerGame: Story = {
       ContainerComponentName,
       WaterComponentName,
       ObstacleComponentName,
+      ObstaclesManagerComponentName,
     ],
   },
   render: (args: any) => {

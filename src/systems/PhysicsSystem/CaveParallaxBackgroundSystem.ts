@@ -30,7 +30,7 @@ import {
  * - Tiles seamlessly by attaching new segments to the top as older ones move off-screen
  * - Removes background segments that move well below the screen
  */
-const PARALLAX_SPEED_FACTOR = 0.35; // Background moves at 35% of water speed
+const PARALLAX_SPEED_FACTOR = 1; // Background moves at 35% of water speed
 const REMOVAL_BUFFER = 100; // Extra pixels below screen before removing a segment
 
 export const CaveParallaxBackgroundSystem: System = {

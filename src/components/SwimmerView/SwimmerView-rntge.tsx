@@ -1,14 +1,16 @@
 import { useAddEntity } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useAddEntity/useAddEntity';
+import { useAddMatterBody } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useAddMatterBody/useAddMatterBody';
 import {
   createRenderComponent,
   ShapeTypes,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
-import { createPositionComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/position';
 import { createPanComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/touch';
 import { createSwimmerComponent } from '@/Game/ecs-components/Swimmer';
 import { useAddSystem } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useAddSystem/useAddSystem';
 import { SwimmerPhysicsSystem } from '@/systems/PhysicsSystem/SwimmerPhysicsSystem';
 import { LAYOUT_CONSTANTS } from '@/Layout';
+import { CreateMatterBodyArgs } from '@/containers/ReactNativeSkiaGameEngine/internal/systems/physics/bodiesTypes';
+import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
 import { FC, useMemo } from 'react';
 
 const swimmerSize = 40;
@@ -22,7 +24,12 @@ function getColumnCenterXJS(
   containerWidth: number
 ): number {
   const columnWidth = containerWidth / LAYOUT_CONSTANTS.COLUMNS;
-  return containerCenterX - containerWidth / 2 + columnWidth * column + columnWidth / 2;
+  return (
+    containerCenterX -
+    containerWidth / 2 +
+    columnWidth * column +
+    columnWidth / 2
+  );
 }
 
 export const SwimmerView: FC<{
@@ -48,10 +55,20 @@ export const SwimmerView: FC<{
 }) => {
   const x = useMemo(() => {
     if (useColumnControl || initialColumn !== undefined) {
-      return getColumnCenterXJS(initialColumn, containerCenterX, containerWidth);
+      return getColumnCenterXJS(
+        initialColumn,
+        containerCenterX,
+        containerWidth
+      );
     }
     return xProp ?? containerCenterX;
-  }, [useColumnControl, initialColumn, containerCenterX, containerWidth, xProp]);
+  }, [
+    useColumnControl,
+    initialColumn,
+    containerCenterX,
+    containerWidth,
+    xProp,
+  ]);
 
   const components = useMemo(() => {
     const base = [
@@ -67,40 +84,40 @@ export const SwimmerView: FC<{
         useColumnControl,
         column: initialColumn,
       }),
-      createPositionComponent({ x, y }),
       createRenderComponent({
         shape: {
           type: ShapeTypes.Rectangle,
           width: swimmerSize,
           height: swimmerHeight,
         },
-        position: { x, y },
         fillColor: '#4a90e2',
         visible: true,
-        zIndex: 3,
+        zIndex: 1,
       }),
     ];
     const panComponent = createPanComponent({
       onPanUpdate: (data) => {
         'worklet';
-        const ecs = global._RNTGE_.ecs?.value;
-        if (!ecs) return;
-        const swimmerEntities = ecs.getEntitiesWithComponents(['Swimmer']);
+        const ecs = data.systemArgs.ecs.value;
+        const swimmerEntities = ecs.getEntitiesWithComponents([
+          SwimmerComponentName,
+        ]);
         if (swimmerEntities.length === 0) return;
         const velocityX = data.gesture.data.velocityX * 0.5;
         swimmerEntities.forEach((entityId) => {
-          ecs.updateComponent(entityId, 'Swimmer', (swimmer: any) => {
+          ecs.updateComponent(entityId, SwimmerComponentName, (swimmer: any) => {
             swimmer.velocityX = velocityX;
           });
         });
       },
-      onPanEnd: () => {
+      onPanEnd: (data) => {
         'worklet';
-        const ecs = global._RNTGE_.ecs?.value;
-        if (!ecs) return;
-        const swimmerEntities = ecs.getEntitiesWithComponents(['Swimmer']);
+        const ecs = data.systemArgs.ecs.value;
+        const swimmerEntities = ecs.getEntitiesWithComponents([
+          SwimmerComponentName,
+        ]);
         swimmerEntities.forEach((entityId) => {
-          ecs.updateComponent(entityId, 'Swimmer', (swimmer: any) => {
+          ecs.updateComponent(entityId, SwimmerComponentName, (swimmer: any) => {
             swimmer.velocityX = 0;
           });
         });
@@ -118,6 +135,34 @@ export const SwimmerView: FC<{
   ]);
 
   const { entityId } = useAddEntity({ components });
+
+  const matterBodyArgs: CreateMatterBodyArgs = useMemo(
+    () => ({
+      type: 'rectangle',
+      options: {
+        x,
+        y,
+        width: swimmerSize,
+        height: swimmerHeight,
+        options: {
+          isStatic: false,
+          inertia: Infinity, // prevent rotation for arcade feel
+          restitution: 0,
+          friction: 0,
+          frictionStatic: 0,
+          frictionAir: 0.4,
+          collisionFilter: {
+            group: 0x0000,
+            category: 0x0004, // swimmer
+            mask: 0x0002 | 0x0008, // container boundaries + obstacles
+          },
+        },
+      },
+    }),
+    [x, y]
+  );
+
+  useAddMatterBody({ args: matterBodyArgs, entityId });
 
   // Register the swimmer physics system
   useAddSystem({ system: SwimmerPhysicsSystem });

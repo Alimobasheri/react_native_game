@@ -137,7 +137,6 @@ export const ReactNativeTurboGameEngine: FC<
           clipAnimationCache: {},
           fontCache: {},
           textCache: {},
-          obstacleSpawnTimer: 0,
           TouchState: {
             pan: {
               activePointers: new Map<

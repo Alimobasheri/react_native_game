@@ -26,7 +26,8 @@ export const TapSwimmer: FC<{
           width: screenWidth,
           height: screenHeight,
         },
-        position: { x: 0, y: 0 },
+        // Touch hit-testing is center-based (same as render transforms).
+        position: { x: screenWidth / 2, y: screenHeight / 2 },
         visible: true,
         fillColor: 'transparent',
         zIndex: 100,
@@ -34,18 +35,17 @@ export const TapSwimmer: FC<{
       createTapComponent({
         onTap: (data) => {
           'worklet';
-          if (!global._RNTGE_.ecs?.value) return;
-
           const tapX = data.gesture?.data?.x ?? data.x ?? 0;
           const isLeftHalf = tapX < screenWidth / 2;
           const delta = isLeftHalf ? -1 : 1;
 
-          const swimmerEntities = global._RNTGE_.ecs.value.getEntitiesWithComponents([
+          const ecs = data.systemArgs.ecs.value;
+          const swimmerEntities = ecs.getEntitiesWithComponents([
             SwimmerComponentName,
           ]);
 
           swimmerEntities.forEach((entityId) => {
-            global._RNTGE_.ecs.value.updateComponent(
+            ecs.updateComponent(
               entityId,
               SwimmerComponentName,
               (swimmer: { useColumnControl?: boolean; column?: number }) => {
