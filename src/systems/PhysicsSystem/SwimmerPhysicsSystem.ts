@@ -13,15 +13,11 @@ import {
 import {
   ObstacleComponentName,
 } from '@/Game/ecs-components/ObstacleComponent';
-import {
-  LAYOUT_CONSTANTS,
-  getColumnCenterX,
-  getObstacleWidth,
-} from '@/Layout';
+import { LAYOUT_CONSTANTS, getColumnCenterX, getObstacleWidth, getRows } from '@/Layout';
 import { MatterBodyComponentName } from '@/containers/ReactNativeSkiaGameEngine/internal/components/matterBody';
 
-const SWIMMER_SIZE = 40;
-const SWIMMER_HEIGHT = 60;
+const SWIMMER_WIDTH_COLUMN_RATIO = 2 / 3;
+const SWIMMER_HEIGHT_TO_WIDTH_RATIO = 1.8;
 
 // Horizontal movement tuning for tap-based hyper-casual control.
 const MAX_HORIZONTAL_SPEED = 450; // pixels / second
@@ -158,10 +154,6 @@ export const SwimmerPhysicsSystem: System = {
         return;
       }
 
-      // Update swimmer's water surface reference.
-      // Center the body so roughly 1/3 of it is below the water surface in the main pose.
-      const baseSurfaceY = containerData.waterSurfaceY - SWIMMER_HEIGHT / 6;
-
       // Check collisions from Matter engine pairs (no custom overlap resolution)
       let isCollidingWithObstacle = false;
       for (let i = 0; i < pairs.length; i++) {
@@ -217,9 +209,26 @@ export const SwimmerPhysicsSystem: System = {
       const depth = swimmerCenterY - containerData.waterSurfaceY; // > 0 => underwater
       let buoyancySpeed = 0; // magnitude in px/s (sign encoded separately)
 
+      const obstacleWidthForBuoyancy = getObstacleWidth(containerData.width);
+      const rawRowsForBuoyancy = getRows(
+        containerData.height,
+        obstacleWidthForBuoyancy
+      );
+      const rowsForBuoyancy = rawRowsForBuoyancy > 0 ? rawRowsForBuoyancy : 1;
+      const rowHeightForBuoyancy = containerData.height / rowsForBuoyancy;
+      const swimmerWidthForBuoyancy =
+        obstacleWidthForBuoyancy * SWIMMER_WIDTH_COLUMN_RATIO;
+      const swimmerHeightForBuoyancy = Math.min(
+        swimmerWidthForBuoyancy * SWIMMER_HEIGHT_TO_WIDTH_RATIO,
+        rowHeightForBuoyancy * 0.9
+      );
+
       if (depth > 0) {
         // Normalize depth relative to swimmer size, clamp to avoid extremes.
-        const depthFactor = Math.min(depth / (SWIMMER_HEIGHT * 1.5), 2); // 0..2
+        const depthFactor = Math.min(
+          depth / (swimmerHeightForBuoyancy * 1.5),
+          2
+        ); // 0..2
 
         // Water speed amplifies buoyancy: faster rising water = stronger upward push.
         const waterFactor = 0.6 + waterSpeed / 80; // ~0.6..~2.0 for typical speeds
@@ -232,7 +241,7 @@ export const SwimmerPhysicsSystem: System = {
         const heightAbove = -depth; // > 0 => above surface
         if (heightAbove > 0) {
           const settleFactor = Math.min(
-            heightAbove / (SWIMMER_HEIGHT * 1.5),
+            heightAbove / (swimmerHeightForBuoyancy * 1.5),
             1.5
           );
           const settleStrength = 80 * (0.3 + normalizedSpeed) * settleFactor;
@@ -244,9 +253,18 @@ export const SwimmerPhysicsSystem: System = {
       // the swimmer in its current column. This prevents buoyancy from pushing
       // the swimmer upward through blocks even if collision pairs momentarily
       // report no active contact (e.g. due to tunneling or jitter).
-      const swimmerHalfHeight = SWIMMER_HEIGHT / 2;
-      const swimmerHalfWidth = SWIMMER_SIZE / 2;
       const obstacleWidth = getObstacleWidth(containerData.width);
+      const rawRowsForBlockCheck = getRows(containerData.height, obstacleWidth);
+      const rowsForBlockCheck = rawRowsForBlockCheck > 0 ? rawRowsForBlockCheck : 1;
+      const rowHeightForBlockCheck = containerData.height / rowsForBlockCheck;
+      const swimmerWidthForBlockCheck =
+        obstacleWidth * SWIMMER_WIDTH_COLUMN_RATIO;
+      const swimmerHeightForBlockCheck = Math.min(
+        swimmerWidthForBlockCheck * SWIMMER_HEIGHT_TO_WIDTH_RATIO,
+        rowHeightForBlockCheck * 0.9
+      );
+      const swimmerHalfHeight = swimmerHeightForBlockCheck / 2;
+      const swimmerHalfWidth = swimmerWidthForBlockCheck / 2;
       const obstacleHalfSize = obstacleWidth / 2;
       let isBlockedFromAbove = false;
 
@@ -346,11 +364,11 @@ export const SwimmerPhysicsSystem: System = {
       const minX =
         swimmerComponent.containerCenterX -
         swimmerComponent.containerWidth / 2 +
-        SWIMMER_SIZE / 2;
+        swimmerWidthForBlockCheck / 2;
       const maxX =
         swimmerComponent.containerCenterX +
         swimmerComponent.containerWidth / 2 -
-        SWIMMER_SIZE / 2;
+        swimmerWidthForBlockCheck / 2;
       const constrainedX = Math.max(minX, Math.min(maxX, newX));
 
       // --- Integrate vertical position manually (arcade-style) ---
@@ -378,10 +396,15 @@ export const SwimmerPhysicsSystem: System = {
           x: constrainedX,
           y: targetY,
         });
-        // Small visual tilt based on horizontal velocity (10-20 degrees range).
-        const maxTiltRadians = (20 * Math.PI) / 180;
-        const tilt =
-          (swimmerVelocityX / MAX_HORIZONTAL_SPEED) * maxTiltRadians;
+        // Visual tilt based on horizontal velocity (up to 45 degrees),
+        // reaching max tilt already at 50% of MAX_HORIZONTAL_SPEED.
+        const maxTiltRadians = (45 * Math.PI) / 180;
+        const fullTiltSpeed = MAX_HORIZONTAL_SPEED * 0.5;
+        const tiltNormalized = Math.max(
+          -1,
+          Math.min(1, swimmerVelocityX / fullTiltSpeed)
+        );
+        const tilt = tiltNormalized * maxTiltRadians;
         if (global.MatterReanimated.Body.setAngle) {
           global.MatterReanimated.Body.setAngle(matterBody, tilt);
         }
@@ -410,9 +433,13 @@ export const SwimmerPhysicsSystem: System = {
           swimmer.useColumnControl = swimmerComponent.useColumnControl;
           swimmer.bobbingPhase = bobbingPhase;
           swimmer.inputX = nextInputX;
+          const fullTiltSpeedForComponent = MAX_HORIZONTAL_SPEED * 0.5;
+          const tiltNormalizedForComponent = Math.max(
+            -1,
+            Math.min(1, swimmerVelocityX / fullTiltSpeedForComponent)
+          );
           swimmer.angle =
-            (swimmerVelocityX / MAX_HORIZONTAL_SPEED) *
-            ((20 * Math.PI) / 180);
+            tiltNormalizedForComponent * ((45 * Math.PI) / 180);
         }
       );
     });

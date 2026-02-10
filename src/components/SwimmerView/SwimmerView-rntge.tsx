@@ -8,13 +8,10 @@ import { createPanComponent } from '@/containers/ReactNativeSkiaGameEngine/inter
 import { createSwimmerComponent } from '@/Game/ecs-components/Swimmer';
 import { useAddSystem } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useAddSystem/useAddSystem';
 import { SwimmerPhysicsSystem } from '@/systems/PhysicsSystem/SwimmerPhysicsSystem';
-import { LAYOUT_CONSTANTS } from '@/Layout';
+import { LAYOUT_CONSTANTS, getObstacleWidth, getRows } from '@/Layout';
 import { CreateMatterBodyArgs } from '@/containers/ReactNativeSkiaGameEngine/internal/systems/physics/bodiesTypes';
 import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
 import { FC, useMemo } from 'react';
-
-const swimmerSize = 40;
-const swimmerHeight = 60;
 
 const centerColumn = Math.floor(LAYOUT_CONSTANTS.COLUMNS / 2);
 
@@ -70,6 +67,20 @@ export const SwimmerView: FC<{
     xProp,
   ]);
 
+  const { swimmerWidth, swimmerHeight } = useMemo(() => {
+    const columnWidth = containerWidth / LAYOUT_CONSTANTS.COLUMNS;
+    const width = (2 / 3) * columnWidth;
+
+    const obstacleWidth = getObstacleWidth(containerWidth);
+    const rawRows = getRows(containerHeight, obstacleWidth);
+    const rows = rawRows > 0 ? rawRows : 1;
+    const rowHeight = containerHeight / rows;
+
+    const height = Math.min(1.8 * width, rowHeight * 0.9);
+
+    return { swimmerWidth: width, swimmerHeight: height };
+  }, [containerWidth, containerHeight]);
+
   const components = useMemo(() => {
     const base = [
       createSwimmerComponent({
@@ -89,7 +100,7 @@ export const SwimmerView: FC<{
       createRenderComponent({
         shape: {
           type: ShapeTypes.Rectangle,
-          width: swimmerSize,
+          width: swimmerWidth,
           height: swimmerHeight,
         },
         fillColor: '#4a90e2',
@@ -130,10 +141,13 @@ export const SwimmerView: FC<{
     x,
     y,
     containerWidth,
+    containerHeight,
     containerCenterX,
     containerCenterY,
     useColumnControl,
     initialColumn,
+    swimmerWidth,
+    swimmerHeight,
   ]);
 
   const { entityId } = useAddEntity({ components });
@@ -144,7 +158,7 @@ export const SwimmerView: FC<{
       options: {
         x,
         y,
-        width: swimmerSize,
+        width: swimmerWidth,
         height: swimmerHeight,
         options: {
           isStatic: false,
@@ -161,7 +175,7 @@ export const SwimmerView: FC<{
         },
       },
     }),
-    [x, y]
+    [x, y, swimmerWidth, swimmerHeight]
   );
 
   useAddMatterBody({ args: matterBodyArgs, entityId });
