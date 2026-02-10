@@ -1,6 +1,4 @@
-import {
-  System,
-} from '@/containers/ReactNativeSkiaGameEngine/services-ecs/system';
+import { System } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/system';
 import {
   SwimmerComponentName,
   SwimmerComponentData,
@@ -16,12 +14,21 @@ import {
 import {
   ObstacleComponentName,
 } from '@/Game/ecs-components/ObstacleComponent';
-import { LAYOUT_CONSTANTS } from '@/Layout';
-import { getColumnCenterX } from '@/Layout';
+import {
+  LAYOUT_CONSTANTS,
+  getColumnCenterX,
+  getObstacleWidth,
+} from '@/Layout';
 import { MatterBodyComponentName } from '@/containers/ReactNativeSkiaGameEngine/internal/components/matterBody';
 
 const SWIMMER_SIZE = 40;
 const SWIMMER_HEIGHT = 60;
+
+// Horizontal movement tuning for tap-based hyper-casual control.
+const MAX_HORIZONTAL_SPEED = 450; // pixels / second
+const BASE_HORIZONTAL_ACCEL = 900; // target speed for inputX = 1 before drag
+const BASE_RESPONSIVENESS = 0.15; // how quickly velocity approaches target
+const PINNED_VELOCITY_DAMPING = 0.7; // vx multiplier when pinned under obstacle
 
 /**
  * SwimmerPhysicsSystem - Handles swimmer movement and game mechanics
@@ -152,8 +159,9 @@ export const SwimmerPhysicsSystem: System = {
         return;
       }
 
-      // Update swimmer's water surface reference
-      const desiredY = containerData.waterSurfaceY - SWIMMER_HEIGHT / 2;
+      // Update swimmer's water surface reference.
+      // Center the body so roughly 1/3 of it is below the water surface in the main pose.
+      const baseSurfaceY = containerData.waterSurfaceY - SWIMMER_HEIGHT / 6;
 
       // Check collisions from Matter engine pairs (no custom overlap resolution)
       let isCollidingWithObstacle = false;
@@ -171,59 +179,241 @@ export const SwimmerPhysicsSystem: System = {
         }
       }
 
-      let swimmerVelocityX = swimmerComponent.velocityX;
+      // Gentle, slow bobbing values are still tracked for potential visual use,
+      // but we no longer directly force Y toward the water surface. Vertical
+      // motion is now handled via a buoyancy-style velocity below.
+      const waterSpeed = waterData.raisingSpeed ?? 0;
+      const normalizedSpeed = Math.max(0, Math.min(waterSpeed / 120, 1)); // 0..1
 
-      // Apply horizontal movement: column-based (tap) or velocity-based (pan)
-      let constrainedX: number;
-      if (swimmerComponent.useColumnControl && typeof swimmerComponent.column === 'number') {
-        const column = Math.max(0, Math.min(LAYOUT_CONSTANTS.COLUMNS - 1, swimmerComponent.column));
-        constrainedX = getColumnCenterX(
-          column,
-          swimmerComponent.containerCenterX,
-          swimmerComponent.containerWidth
-        );
-        // Keep column in sync (clamped)
-        swimmerComponent.column = column;
-      } else {
-        const newX = matterBody.position.x + swimmerVelocityX * deltaSeconds;
-        const minX = swimmerComponent.containerCenterX - swimmerComponent.containerWidth / 2 + SWIMMER_SIZE / 2;
-        const maxX = swimmerComponent.containerCenterX + swimmerComponent.containerWidth / 2 - SWIMMER_SIZE / 2;
-        constrainedX = Math.max(minX, Math.min(maxX, newX));
+      const baseAmplitude = 3; // pixels
+      const extraAmplitude = 3; // at max speed
+      const amplitude = baseAmplitude + extraAmplitude * normalizedSpeed;
+
+      const baseFrequency = 0.25; // Hz (one full cycle in ~4s)
+      const extraFrequency = 0.35; // a bit faster at max speed
+      const frequency = baseFrequency + extraFrequency * normalizedSpeed;
+
+      let bobbingPhase = swimmerComponent.bobbingPhase ?? 0;
+      bobbingPhase += 2 * Math.PI * frequency * deltaSeconds;
+
+      if (bobbingPhase > Math.PI * 2) {
+        bobbingPhase -= Math.PI * 2;
       }
 
-      // Only force swimmer back to water surface when NOT colliding.
-      // When colliding, let Matter resolve overlap and allow obstacles to push the swimmer down.
-      const targetY = isCollidingWithObstacle ? matterBody.position.y : desiredY;
+      const raw = Math.sin(bobbingPhase);
+      const downwardMultiplier = 1.3;
+      const upwardMultiplier = 0.5;
+      const scaled =
+        raw < 0 ? raw * downwardMultiplier : raw * upwardMultiplier;
+
+      const bias = amplitude * 0.3;
+      const bobbingOffsetY = scaled * amplitude - bias;
+
+      // --- Vertical buoyancy: strong upward force when underwater ---
+      // Treat container.waterSurfaceY as the surface. The deeper the center is
+      // below this, and the faster the water rises, the stronger the upward
+      // velocity. Obstacles remain static colliders; they block motion, but as
+      // soon as the swimmer is free it rapidly rises toward the surface.
+      const swimmerCenterY = matterBody.position.y;
+      const depth = swimmerCenterY - containerData.waterSurfaceY; // > 0 => underwater
+      let buoyancySpeed = 0; // magnitude in px/s (sign encoded separately)
+
+      if (depth > 0) {
+        // Normalize depth relative to swimmer size, clamp to avoid extremes.
+        const depthFactor = Math.min(depth / (SWIMMER_HEIGHT * 1.5), 2); // 0..2
+
+        // Water speed amplifies buoyancy: faster rising water = stronger upward push.
+        const waterFactor = 0.6 + waterSpeed / 80; // ~0.6..~2.0 for typical speeds
+
+        // Final upward velocity magnitude (negative Y = up).
+        const buoyancyStrength = 220 * waterFactor * depthFactor;
+        buoyancySpeed = buoyancyStrength; // we apply sign when integrating Y
+      } else {
+        // Slight downward settling if a bit above the surface, so it doesn't drift away.
+        const heightAbove = -depth; // > 0 => above surface
+        if (heightAbove > 0) {
+          const settleFactor = Math.min(
+            heightAbove / (SWIMMER_HEIGHT * 1.5),
+            1.5
+          );
+          const settleStrength = 80 * (0.3 + normalizedSpeed) * settleFactor;
+          buoyancySpeed = settleStrength;
+        }
+      }
+
+      // Detect whether there is an obstacle acting as a "ceiling" directly above
+      // the swimmer in its current column. This prevents buoyancy from pushing
+      // the swimmer upward through blocks even if collision pairs momentarily
+      // report no active contact (e.g. due to tunneling or jitter).
+      const swimmerHalfHeight = SWIMMER_HEIGHT / 2;
+      const swimmerHalfWidth = SWIMMER_SIZE / 2;
+      const obstacleWidth = getObstacleWidth(containerData.width);
+      const obstacleHalfSize = obstacleWidth / 2;
+      let isBlockedFromAbove = false;
+
+      for (let i = 0; i < obstacleEntities.length; i++) {
+        const obBody = components[MatterBodyComponentName].get(
+          obstacleEntities[i]
+        );
+        if (!obBody?.position) continue;
+
+        const dx = Math.abs(obBody.position.x - matterBody.position.x);
+        if (dx > obstacleHalfSize + swimmerHalfWidth) {
+          // Not overlapping horizontally; this obstacle is in another "column"
+          continue;
+        }
+
+        const obstacleCenterY = obBody.position.y;
+        const obstacleBottomY = obstacleCenterY + obstacleHalfSize;
+        const swimmerTopY = swimmerCenterY - swimmerHalfHeight;
+
+        // Swimmer center is below obstacle center and its top is at or touching
+        // the obstacle bottom -> effectively pinned under this obstacle.
+        if (swimmerCenterY > obstacleCenterY && swimmerTopY <= obstacleBottomY) {
+          isBlockedFromAbove = true;
+          break;
+        }
+      }
+
+      let swimmerVelocityX = swimmerComponent.velocityX ?? 0;
+      const currentInputX = swimmerComponent.inputX ?? 0;
+      let nextInputX = currentInputX;
+
+      // Horizontal control: tap-based hyper-casual (useColumnControl) or pan-based.
+      if (swimmerComponent.useColumnControl) {
+        // --- TAP-BASED IMPULSE + EXPONENTIAL DRAG ---
+        // We treat inputX as a one-shot tap impulse that should move the swimmer
+        // about one column width (or less at high water speeds), then decay to zero.
+
+        if (currentInputX !== 0) {
+          const columnWidth =
+            swimmerComponent.containerWidth / LAYOUT_CONSTANTS.COLUMNS;
+
+          // Stronger drag (less retention) as water gets faster.
+          const minRetainPerSecond = 0.05; // 5% speed left after 1s at max water speed
+          const maxRetainPerSecond = 0.25; // 25% speed left after 1s at low water speed
+          const retainPerSecond =
+            maxRetainPerSecond -
+            (maxRetainPerSecond - minRetainPerSecond) * normalizedSpeed;
+
+          // Continuous-time decay v(t) = v0 * e^(-k t), with k = -ln(retainPerSecond).
+          const k = -Math.log(Math.max(0.0001, retainPerSecond));
+
+          // Base distance we want to travel per tap: about one column at low water,
+          // and less at higher water speeds (harder to move left/right).
+          const distanceScale = 1 - 0.4 * normalizedSpeed; // 1.0 .. 0.6
+          const desiredDistance = columnWidth * distanceScale;
+
+          const tapImpulse = currentInputX * desiredDistance * k; // pixels/second
+          swimmerVelocityX += tapImpulse;
+
+          // Consume the tap so it does not continuously accelerate.
+          nextInputX = 0;
+        }
+
+        // Apply exponential drag over time. More water speed -> more drag.
+        const minRetainPerSecond = 0.05;
+        const maxRetainPerSecond = 0.25;
+        const retainPerSecond =
+          maxRetainPerSecond -
+          (maxRetainPerSecond - minRetainPerSecond) * normalizedSpeed;
+        const dragFactor = Math.pow(
+          Math.max(0.0001, retainPerSecond),
+          deltaSeconds
+        );
+        swimmerVelocityX *= dragFactor;
+      } else {
+        // --- PAN-BASED CONTROL ---
+        // Apply simple drag that grows with water speed (more water speed -> more drag).
+        const baseDrag = 0.9;
+        const extraDrag = 0.15 * normalizedSpeed; // up to +0.15 extra drag at max speed
+        const drag = Math.max(0, Math.min(1, baseDrag - extraDrag));
+        swimmerVelocityX *= drag;
+      }
+
+      // Clamp horizontal speed.
+      if (swimmerVelocityX > MAX_HORIZONTAL_SPEED) {
+        swimmerVelocityX = MAX_HORIZONTAL_SPEED;
+      } else if (swimmerVelocityX < -MAX_HORIZONTAL_SPEED) {
+        swimmerVelocityX = -MAX_HORIZONTAL_SPEED;
+      }
+
+      // When pinned against/under an obstacle, horizontal movement is heavily damped.
+      if (isCollidingWithObstacle) {
+        swimmerVelocityX *= PINNED_VELOCITY_DAMPING;
+      }
+
+      const newX = matterBody.position.x + swimmerVelocityX * deltaSeconds;
+      const minX =
+        swimmerComponent.containerCenterX -
+        swimmerComponent.containerWidth / 2 +
+        SWIMMER_SIZE / 2;
+      const maxX =
+        swimmerComponent.containerCenterX +
+        swimmerComponent.containerWidth / 2 -
+        SWIMMER_SIZE / 2;
+      const constrainedX = Math.max(minX, Math.min(maxX, newX));
+
+      // --- Integrate vertical position manually (arcade-style) ---
+      // We no longer rely on Matter's vertical velocity for buoyancy, to avoid
+      // one-frame surges that can tunnel through obstacles. Instead, we move Y
+      // explicitly by at most buoyancySpeed * dt, and freeze Y when blocked.
+      let targetY = matterBody.position.y;
+      const dtSeconds = deltaSeconds;
+
+      if (depth > 0) {
+        // Underwater: try to move up toward the surface, unless blocked from above.
+        if (!isBlockedFromAbove && !isCollidingWithObstacle) {
+          const maxRise = buoyancySpeed * dtSeconds;
+          targetY -= maxRise; // negative direction = up
+        }
+        // If blockedFromAbove or colliding, we keep Y as-is and let collisions resolve.
+      } else if (depth < 0 && buoyancySpeed > 0) {
+        // Above surface: gently settle back down toward water.
+        const maxFall = buoyancySpeed * dtSeconds;
+        targetY += maxFall; // positive direction = down
+      }
 
       if (typeof global.MatterReanimated !== 'undefined') {
         global.MatterReanimated.Body.setPosition(matterBody, {
           x: constrainedX,
           y: targetY,
         });
-        // Keep velocities from accumulating (arcade feel, no gravity)
+        // Small visual tilt based on horizontal velocity (10-20 degrees range).
+        const maxTiltRadians = (20 * Math.PI) / 180;
+        const tilt =
+          (swimmerVelocityX / MAX_HORIZONTAL_SPEED) * maxTiltRadians;
+        if (global.MatterReanimated.Body.setAngle) {
+          global.MatterReanimated.Body.setAngle(matterBody, tilt);
+        }
+        // Keep Matter's own velocities neutral so all motion is driven by this system.
         if (global.MatterReanimated.Body.setVelocity) {
-          global.MatterReanimated.Body.setVelocity(matterBody, { x: 0, y: 0 });
+          global.MatterReanimated.Body.setVelocity(matterBody, {
+            x: 0,
+            y: 0,
+          });
         }
         if (global.MatterReanimated.Body.setAngularVelocity) {
           global.MatterReanimated.Body.setAngularVelocity(matterBody, 0);
         }
       }
 
-      // Apply friction to horizontal velocity (only when not using column control)
-      const friction = 0.9;
       ecs.value.updateComponent<SwimmerComponentData>(
         swimmerEntity,
         SwimmerComponentName,
         (swimmer) => {
           'worklet';
-          if (!swimmer.useColumnControl) {
-            swimmer.velocityX *= friction;
-          }
+          swimmer.velocityX = swimmerVelocityX;
           swimmer.waterSurfaceY = containerData.waterSurfaceY;
           swimmer.isCollidingWithObstacle = isCollidingWithObstacle;
           swimmer.isInInitialPhase = swimmerComponent.isInInitialPhase;
           swimmer.column = swimmerComponent.column;
           swimmer.useColumnControl = swimmerComponent.useColumnControl;
+          swimmer.bobbingPhase = bobbingPhase;
+          swimmer.inputX = nextInputX;
+          swimmer.angle =
+            (swimmerVelocityX / MAX_HORIZONTAL_SPEED) *
+            ((20 * Math.PI) / 180);
         }
       );
     });

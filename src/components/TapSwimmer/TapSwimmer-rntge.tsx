@@ -9,10 +9,11 @@ import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
 import { LAYOUT_CONSTANTS } from '@/Layout';
 
 /**
- * TapSwimmer - Full-screen tap overlay that moves column-controlled swimmers.
- * When the player taps the left half of the screen, the swimmer moves one column left.
- * When the player taps the right half, the swimmer moves one column right.
- * Use together with SwimmerView with useColumnControl={true} and initialColumn set.
+ * TapSwimmer - Full-screen tap overlay that controls swimmer direction for tap-based movement.
+ * When the player taps the left half of the screen, the swimmer steers left.
+ * When the player taps the right half, the swimmer steers right.
+ * Use together with SwimmerView with useColumnControl={true}; the physics system
+ * turns these taps into smooth, velocity-based movement instead of instant column jumps.
  */
 export const TapSwimmer: FC<{
   screenWidth: number;
@@ -37,7 +38,7 @@ export const TapSwimmer: FC<{
           'worklet';
           const tapX = data.gesture?.data?.x ?? data.x ?? 0;
           const isLeftHalf = tapX < screenWidth / 2;
-          const delta = isLeftHalf ? -1 : 1;
+          const inputX = isLeftHalf ? -1 : 1;
 
           const ecs = data.systemArgs.ecs.value;
           const swimmerEntities = ecs.getEntitiesWithComponents([
@@ -48,14 +49,14 @@ export const TapSwimmer: FC<{
             ecs.updateComponent(
               entityId,
               SwimmerComponentName,
-              (swimmer: { useColumnControl?: boolean; column?: number }) => {
+              (swimmer: {
+                useColumnControl?: boolean;
+                inputX?: number;
+              }) => {
                 if (!swimmer.useColumnControl) return;
-                const current = swimmer.column ?? Math.floor(LAYOUT_CONSTANTS.COLUMNS / 2);
-                const next = current + delta;
-                swimmer.column = Math.max(
-                  0,
-                  Math.min(LAYOUT_CONSTANTS.COLUMNS - 1, next)
-                );
+                // Store tap direction as normalized input (-1 left, 1 right).
+                // The SwimmerPhysicsSystem converts this into smooth velocity.
+                swimmer.inputX = inputX;
               }
             );
           });

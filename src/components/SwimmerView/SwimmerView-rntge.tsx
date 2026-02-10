@@ -74,6 +74,7 @@ export const SwimmerView: FC<{
     const base = [
       createSwimmerComponent({
         velocityX: 0,
+        inputX: 0,
         waterSurfaceY: y,
         containerWidth,
         containerCenterX,
@@ -83,6 +84,7 @@ export const SwimmerView: FC<{
         fallingVelocityY: 0,
         useColumnControl,
         column: initialColumn,
+        angle: 0,
       }),
       createRenderComponent({
         shape: {

@@ -291,9 +291,10 @@ export const SwimmerGame: Story = {
     const containerCenterY = windowHeight / 2; // Center of screen
     const containerBottom = containerCenterY + containerHeight / 2;
 
-    // Water starts at container center (no initial rising phase); swimmer at water surface
+    // Water starts at container center (no initial rising phase)
     const initialWaterSurfaceY = containerCenterY; // Water at center from the start
-    const swimmerStartY = initialWaterSurfaceY - 30; // Half body in water
+    // Swimmer starts with roughly 1/3 of its body below the water surface
+    const swimmerStartY = initialWaterSurfaceY - 10;
 
     // Obstacles will be generated dynamically by the ObstacleSystem
 

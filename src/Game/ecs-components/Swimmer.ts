@@ -4,6 +4,8 @@ export const SwimmerComponentName = 'Swimmer';
 
 export type SwimmerComponentData = {
   velocityX: number; // Horizontal velocity for left/right movement
+  /** Normalized horizontal input from controls (-1..1). Used for tap-based hyper-casual movement. */
+  inputX?: number;
   waterSurfaceY: number; // Current water surface Y position
   containerWidth: number; // Width of the container
   containerCenterX: number; // Center X of container
@@ -15,6 +17,10 @@ export type SwimmerComponentData = {
   useColumnControl?: boolean;
   /** Current grid column index (0..COLUMNS-1); used when useColumnControl is true */
   column?: number;
+  /** Internal phase accumulator for gentle bobbing on the water surface */
+  bobbingPhase?: number;
+  /** Visual tilt angle in radians, derived from horizontal velocity. */
+  angle?: number;
 };
 
 export const createSwimmerComponent = (
