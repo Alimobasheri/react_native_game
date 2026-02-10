@@ -7,6 +7,7 @@ import { createPositionComponent } from '@/containers/ReactNativeSkiaGameEngine/
 import { createWaterComponent } from '@/Game/ecs-components/Water';
 import { useAddSystem } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useAddSystem/useAddSystem';
 import { WaterShaderSystem } from '@/systems/PhysicsSystem/WaterShaderSystem';
+import { WaterPhysicsSystem } from '@/systems/PhysicsSystem/WaterPhysicsSystem';
 import { FC, useMemo } from 'react';
 import { useWindowDimensions } from 'react-native';
 import { sourceCode as waterShaderSourceCode } from '@/Shaders/WaterShader/waterShader';
@@ -82,8 +83,9 @@ export const WaterView: FC<{
 
   const { entityId } = useAddEntity({ components });
 
-  // Register the water shader system
+  // Register water-related systems
   useAddSystem({ system: WaterShaderSystem });
+  useAddSystem({ system: WaterPhysicsSystem });
 
   return null;
 };

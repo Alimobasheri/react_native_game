@@ -9,7 +9,6 @@ import {
 } from '@/Game/ecs-components/Container';
 import {
   WaterComponentName,
-  WaterComponentData,
 } from '@/Game/ecs-components/Water';
 import {
   ObstacleComponentName,
