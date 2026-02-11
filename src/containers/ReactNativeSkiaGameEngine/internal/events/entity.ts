@@ -43,6 +43,7 @@ export type RemoveEntityRequest = {
   type: typeof RemoveEntityRequestType;
   payload: {
     entityId: number;
+    sceneKey?: string;
   };
 };
 
@@ -51,5 +52,6 @@ export type RemoveEntityBatchRequest = {
   type: typeof RemoveEntityBatchRequestType;
   payload: {
     entityIds: number[];
+    sceneKey?: string;
   };
 };

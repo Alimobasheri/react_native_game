@@ -1,6 +1,8 @@
 import { System } from '../../services-ecs/system';
 import { RemoveEntityRequest, RemoveEntityRequestType } from '../events/entity';
 import { MatterBodyComponentName } from '../components/matterBody';
+import { SceneComponentData, SceneComponentName } from '../components/scene';
+import { Entity } from '../../services-ecs/entity';
 
 export const requestRemoveEntity: System = {
   requiredComponents: [],
@@ -10,6 +12,18 @@ export const requestRemoveEntity: System = {
     const events = eventQueue
       .readEvents()
       .filter((e) => e.type === RemoveEntityRequestType);
+
+    const sceneEntities: Record<string, Entity> = ecs.value
+      .getEntitiesWithComponents([SceneComponentName])
+      .reduce((byKey, entity) => {
+        const entityData = ecs.value.components.value[SceneComponentName].get(
+          entity
+        ) as SceneComponentData;
+        return {
+          ...byKey,
+          [entityData.sceneKey]: entity,
+        };
+      }, {});
     for (let i = 0; i < events.length; i++) {
       const payload: RemoveEntityRequest['payload'] = events[i].payload;
 
@@ -29,6 +43,22 @@ export const requestRemoveEntity: System = {
         }
       }
       ecs.value.removeEntity(payload.entityId);
+      if (payload.sceneKey) {
+        ecs.value.updateComponent<SceneComponentData>(
+          sceneEntities[payload.sceneKey],
+          SceneComponentName,
+          (component) => {
+            component.objects.entities = component.objects.entities.filter(
+              (entity) => entity !== payload.entityId
+            );
+            if (matterBody) {
+              component.objects.matterBodies = component.objects.matterBodies.filter(
+                (body) => body !== matterBody
+              );
+            }
+          }
+        );
+      }
     }
   },
 };

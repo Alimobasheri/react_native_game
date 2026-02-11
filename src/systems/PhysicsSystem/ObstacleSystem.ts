@@ -199,7 +199,7 @@ export const ObstacleSystem: System = {
       if (newY > containerBottom + LAYOUT_CONSTANTS.REMOVAL_THRESHOLD_OFFSET) {
         const removeRequest: RemoveEntityRequest = {
           type: RemoveEntityRequestType,
-          payload: { entityId: obstacleEntity },
+          payload: { entityId: obstacleEntity, sceneKey: managerData.sceneKey },
         };
         eventQueue.addEvent(removeRequest);
         return;
