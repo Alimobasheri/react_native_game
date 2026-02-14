@@ -1,5 +1,14 @@
 import { create } from 'zustand';
 
+export type RNTGEStore = {
+  dimensions: {
+    width: number;
+    height: number;
+  };
+  setDimensions: (width: number, height: number) => void;
+  resetDimensions: () => void;
+};
+
 const useRNTGEStore = create<RNTGEStore>((set) => ({
   dimensions: {
     width: -1,

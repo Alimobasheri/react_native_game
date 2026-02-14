@@ -21,7 +21,6 @@ export const createComponentStore = <T>(): ComponentStore<T> => {
   const getOffset = (entity: Entity) => entity % MAX_PAGE_SIZE;
 
   const add = (entity: Entity, component: T) => {
-    'worklet';
     const pageIndex = getPage(entity);
     const offset = getOffset(entity);
 
@@ -38,7 +37,6 @@ export const createComponentStore = <T>(): ComponentStore<T> => {
   };
 
   const remove = (entity: Entity) => {
-    'worklet';
     const pageIndex = getPage(entity);
     const offset = getOffset(entity);
 
@@ -46,7 +44,6 @@ export const createComponentStore = <T>(): ComponentStore<T> => {
 
     const index = pages[pageIndex][offset] - 1;
     const lastEntity = entities[size - 1];
-
     entities[index] = lastEntity;
     dense[index] = dense[size - 1];
 
@@ -59,7 +56,6 @@ export const createComponentStore = <T>(): ComponentStore<T> => {
   };
 
   const getIndex = (entity: Entity): number | undefined => {
-    'worklet';
     const pageIndex = getPage(entity);
     const offset = getOffset(entity);
 
@@ -69,13 +65,11 @@ export const createComponentStore = <T>(): ComponentStore<T> => {
   };
 
   const get = (entity: Entity) => {
-    'worklet';
     const index = getIndex(entity);
     return index !== undefined ? dense[index] : undefined;
   };
 
   const update = (entity: Entity, data: T) => {
-    'worklet';
     const index = getIndex(entity);
     if (index !== undefined) {
       dense[index] = data;

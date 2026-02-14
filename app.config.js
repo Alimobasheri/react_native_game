@@ -41,6 +41,9 @@ export default ({ config }) => {
         },
         storybookEnabled: process.env.STORYBOOK_ENABLED,
       },
+      plugins: [
+        "@react-native-community/datetimepicker"
+      ],
     },
   };
 };

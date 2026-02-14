@@ -100,8 +100,8 @@ export const createSystemManager = (
 
       const hasRequiredEvents = system.requiredEvents
         ? system.requiredEvents.some((event: string) =>
-            events.some((e) => e.type === event)
-          )
+          events.some((e) => e.type === event)
+        )
         : true;
 
       if (!hasRequiredEvents) continue;

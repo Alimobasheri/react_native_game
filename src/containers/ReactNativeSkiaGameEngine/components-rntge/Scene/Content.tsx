@@ -1,5 +1,6 @@
 import React, { FC, PropsWithChildren, useEffect, useState } from 'react';
 import { useSceneContextUnsafe } from './hooks';
+import { MemoizedContainer } from '../../components/MemoizedContainer';
 
 export type ContentProps = PropsWithChildren<{}>;
 
@@ -13,5 +14,5 @@ export const Content: FC<ContentProps> = ({ children }) => {
   }, [sceneContext]);
 
   if (!shouldRender) return null;
-  return <>{children}</>;
+  return <MemoizedContainer>{children}</MemoizedContainer>;
 };

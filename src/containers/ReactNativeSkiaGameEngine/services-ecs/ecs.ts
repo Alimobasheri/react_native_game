@@ -1,4 +1,4 @@
-import { makeMutable, SharedValue } from 'react-native-reanimated';
+import { SharedValue } from 'react-native-reanimated';
 import { Component, ComponentStore, createComponentStore } from './component';
 import { createEntityManager, Entity } from './entity';
 import { createComponentBitManager } from './componentBitManager';
@@ -56,6 +56,14 @@ export const createECS = ({
   const bitManager = createComponentBitManager();
   const systemManager = createSystemManager(systems, jsSystems);
 
+  const removeComponent = <T>(entity: Entity, componentName: string) => {
+    'worklet';
+    const componentBit = bitManager.getComponentBit(componentName);
+    signatures.value[entity] &= ~componentBit;
+
+    components.value[componentName].remove(entity);
+  };
+
   const removeEntity = (entity: Entity) => {
     'worklet';
     for (const componentName in components.value) {
@@ -102,13 +110,7 @@ export const createECS = ({
     }
   };
 
-  const removeComponent = <T>(entity: Entity, componentName: string) => {
-    'worklet';
-    const componentBit = bitManager.getComponentBit(componentName);
-    signatures.value[entity] &= ~componentBit;
 
-    components.value[componentName].remove(entity);
-  };
 
   const hasComponents = (entity: Entity, requiredBits: number): boolean => {
     'worklet';

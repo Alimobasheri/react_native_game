@@ -3,12 +3,13 @@ import { FC, PropsWithChildren, useCallback, useState } from 'react';
 import { ECSState, useECS } from './hooks-ecs/useECS/useECS';
 import {
   FrameInfo,
-  runOnJS,
   SharedValue,
+  useDerivedValue,
   useAnimatedReaction,
   useFrameCallback,
   useSharedValue,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { ECS } from './services-ecs/ecs';
 import { useEventQueue } from './hooks-ecs/useEventQueue/useEventQueue';
 import { EventQueueProvider } from './contexts-rntge/EventQueueContext/EventQueueProvider';
@@ -53,6 +54,7 @@ import { loadSceneSystem } from './internal/systems/scene/loadSceneSystem';
 import { unLoadSceneSystem } from './internal/systems/scene/unloadSceneSystem';
 import { requestRemoveEntity } from './internal/systems/requestRemoveEntity';
 import { requestRemoveEntityBatch } from './internal/systems/requestRemoveEntityBatch';
+import { MemoizedContainer } from './components/MemoizedContainer';
 
 export interface ReactNativeTurboGameEngineProps {
   componentNames: string[];
@@ -62,7 +64,12 @@ export const ReactNativeTurboGameEngine: FC<
   PropsWithChildren<ReactNativeTurboGameEngineProps>
 > = ({ componentNames, children }) => {
   const setDimensions = useRNTGEStore((state) => state.setDimensions);
+  const storeDimensions = useRNTGEStore((state) => state.dimensions);
   const dimensions = useSharedValue({ width: 0, height: 0 });
+  useDerivedValue(() => {
+    'worklet';
+    if (dimensions.value.width !== storeDimensions.width && dimensions.value.height !== storeDimensions.height) scheduleOnRN(setDimensions, dimensions.value.width, dimensions.value.height);
+  });
   const eventQueue = useEventQueue();
   const { ECS, state, initECS } = useECS({ eventQueue, dimensions });
   const picture = useSharedValue<SkPicture | null>(null);
@@ -74,7 +81,7 @@ export const ReactNativeTurboGameEngine: FC<
     () => state.value,
     (state) => {
       if (shouldRender !== (state === ECSState.INITIALIZED)) {
-        runOnJS(setShouldRender)(true);
+        scheduleOnRN(setShouldRender, true);
       }
     }
   );
@@ -182,22 +189,17 @@ export const ReactNativeTurboGameEngine: FC<
     <>
       <Canvas
         style={{ flex: 1 }}
-        onLayout={({
-          nativeEvent: {
-            layout: { width, height },
-          },
-        }) => {
-          setDimensions(width, height);
-          dimensions.value = { width, height };
-        }}
+        onSize={dimensions}
       >
         <EventQueueProvider eventQueue={eventQueue}>
-          {shouldRender && (
-            <>
-              <Scene name="Root">{children}</Scene>
-              <RenderEntities picture={picture as SharedValue<SkPicture>} />
-            </>
-          )}
+          <MemoizedContainer>
+            {shouldRender && (
+              <>
+                <Scene name="Root">{children}</Scene>
+                <RenderEntities picture={picture as SharedValue<SkPicture>} />
+              </>
+            )}
+          </MemoizedContainer>
         </EventQueueProvider>
       </Canvas>
       <GestureHandlerRootView style={StyleSheet.absoluteFill}>
