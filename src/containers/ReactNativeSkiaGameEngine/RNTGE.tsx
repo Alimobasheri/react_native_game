@@ -68,7 +68,15 @@ export const ReactNativeTurboGameEngine: FC<
   const dimensions = useSharedValue({ width: 0, height: 0 });
   useDerivedValue(() => {
     'worklet';
-    if (dimensions.value.width !== storeDimensions.width && dimensions.value.height !== storeDimensions.height) scheduleOnRN(setDimensions, dimensions.value.width, dimensions.value.height);
+    if (
+      dimensions.value.width !== storeDimensions.width &&
+      dimensions.value.height !== storeDimensions.height
+    )
+      scheduleOnRN(
+        setDimensions,
+        dimensions.value.width,
+        dimensions.value.height
+      );
   });
   const eventQueue = useEventQueue();
   const { ECS, state, initECS } = useECS({ eventQueue, dimensions });
@@ -187,21 +195,18 @@ export const ReactNativeTurboGameEngine: FC<
   useFrameCallback(onFrame);
   return (
     <>
-      <Canvas
-        style={{ flex: 1 }}
-        onSize={dimensions}
-      >
-        <EventQueueProvider eventQueue={eventQueue}>
-          <MemoizedContainer>
-            {shouldRender && (
-              <>
-                <Scene name="Root">{children}</Scene>
-                <RenderEntities picture={picture as SharedValue<SkPicture>} />
-              </>
-            )}
-          </MemoizedContainer>
-        </EventQueueProvider>
+      <Canvas style={{ flex: 1 }} onSize={dimensions}>
+        {shouldRender && (
+          <>
+            <RenderEntities picture={picture as SharedValue<SkPicture>} />
+          </>
+        )}
       </Canvas>
+      <EventQueueProvider eventQueue={eventQueue}>
+        <MemoizedContainer>
+          {shouldRender && <Scene name="Root">{children}</Scene>}
+        </MemoizedContainer>
+      </EventQueueProvider>
       <GestureHandlerRootView style={StyleSheet.absoluteFill}>
         <TouchOverlay eventQueue={eventQueue} />
       </GestureHandlerRootView>

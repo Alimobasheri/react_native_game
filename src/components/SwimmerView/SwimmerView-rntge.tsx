@@ -118,9 +118,13 @@ export const SwimmerView: FC<{
         if (swimmerEntities.length === 0) return;
         const velocityX = data.gesture.data.velocityX * 0.5;
         swimmerEntities.forEach((entityId) => {
-          ecs.updateComponent(entityId, SwimmerComponentName, (swimmer: any) => {
-            swimmer.velocityX = velocityX;
-          });
+          ecs.updateComponent(
+            entityId,
+            SwimmerComponentName,
+            (swimmer: any) => {
+              swimmer.velocityX = velocityX;
+            }
+          );
         });
       },
       onPanEnd: (data) => {
@@ -130,9 +134,13 @@ export const SwimmerView: FC<{
           SwimmerComponentName,
         ]);
         swimmerEntities.forEach((entityId) => {
-          ecs.updateComponent(entityId, SwimmerComponentName, (swimmer: any) => {
-            swimmer.velocityX = 0;
-          });
+          ecs.updateComponent(
+            entityId,
+            SwimmerComponentName,
+            (swimmer: any) => {
+              swimmer.velocityX = 0;
+            }
+          );
         });
       },
     });

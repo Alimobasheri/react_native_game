@@ -1,11 +1,8 @@
 import { MutableRefObject, useCallback, useRef } from 'react';
-import {
-  runOnJS,
-  runOnUI,
-  SharedValue,
-  useSharedValue,
-} from 'react-native-reanimated';
+import { SharedValue, useSharedValue } from 'react-native-reanimated';
 import { uid } from '../../services';
+import { scheduleOnRN, scheduleOnUI } from 'react-native-worklets';
+import { AddSystemRequestType } from '../../internal/events/system';
 
 export type Event<T = any> = { type: string; payload?: T };
 export type ExternalEvent<T = any> = Event<T> & { subscriptionId: string };
@@ -40,7 +37,7 @@ export const useEventQueue = (): EventQueueContextType => {
   }, []);
 
   const addEventJS = useCallback((event: Event) => {
-    runOnUI(addEvent)(event);
+    scheduleOnUI(addEvent, event);
   }, []);
 
   const callSubscriptionJS = useCallback(
@@ -55,7 +52,7 @@ export const useEventQueue = (): EventQueueContextType => {
 
   const addExternalEvent = (event: ExternalEvent) => {
     'worklet';
-    runOnJS(callSubscriptionJS)(event);
+    scheduleOnRN(callSubscriptionJS, event);
   };
 
   const addAwaitingExternalEvent = useCallback((event: ExternalEvent) => {
@@ -72,7 +69,7 @@ export const useEventQueue = (): EventQueueContextType => {
 
   const callAllAwaitingExternalEvents = useCallback(() => {
     'worklet';
-    runOnJS(callAllAwaitingExternalEventsJS)();
+    scheduleOnRN(callAllAwaitingExternalEventsJS);
   }, [callAllAwaitingExternalEventsJS]);
 
   const readEvents = useCallback(() => {

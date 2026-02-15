@@ -142,13 +142,14 @@ const createAndCacheEntityPicture = (
   const canvas = recorder.beginRecording();
 
   if (textComponent) {
-    const text = renderTextForEntity(
-      canvas,
-      entityId,
-      renderData,
-      textComponent
-    );
-    if (!text) return null;
+    return null;
+    // const text = renderTextForEntity(
+    //   canvas,
+    //   entityId,
+    //   renderData,
+    //   textComponent
+    // );
+    // if (!text) return null;
   } else if (renderData.image) {
     let image = imageCache[renderData.image];
     if (image) {
@@ -236,6 +237,7 @@ export const renderSystem = (
 ): System => {
   'worklet';
   return {
+    name: 'renderSystem',
     requiredComponents: [],
     process: ({ entities, components, eventQueue, deltaTime, ecs }) => {
       'worklet';
@@ -244,6 +246,7 @@ export const renderSystem = (
       const shaderEffects = global._RNTGE_.shaderCache;
 
       const recorder = Skia.PictureRecorder();
+
       const bounds = Skia.XYWHRect(
         0,
         0,

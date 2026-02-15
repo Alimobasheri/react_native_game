@@ -57,7 +57,6 @@ export const createECS = ({
   const systemManager = createSystemManager(systems, jsSystems);
 
   const removeComponent = <T>(entity: Entity, componentName: string) => {
-    'worklet';
     const componentBit = bitManager.getComponentBit(componentName);
     signatures.value[entity] &= ~componentBit;
 
@@ -65,7 +64,6 @@ export const createECS = ({
   };
 
   const removeEntity = (entity: Entity) => {
-    'worklet';
     for (const componentName in components.value) {
       if (components.value[componentName].get(entity) !== undefined) {
         removeComponent(entity, componentName);
@@ -77,13 +75,11 @@ export const createECS = ({
   };
 
   const createComponent = (componentName: string) => {
-    'worklet';
     components.value[componentName] = createComponentStore();
     bitManager.getComponentBit(componentName);
   };
 
   const addComponent = <T>(entity: Entity, component: Component<T>) => {
-    'worklet';
     const componentBit = bitManager.getComponentBit(component.name);
     signatures.value[entity] |= componentBit;
 
@@ -95,7 +91,6 @@ export const createECS = ({
     componentName: string,
     recipe: (component: T) => void
   ) => {
-    'worklet';
     const componentStore = components.value[componentName];
     if (!componentStore) {
       // In a production engine, you might want to log this error.
@@ -110,20 +105,15 @@ export const createECS = ({
     }
   };
 
-
-
   const hasComponents = (entity: Entity, requiredBits: number): boolean => {
-    'worklet';
     return (signatures.value[entity] & requiredBits) === requiredBits;
   };
 
   const componentExists = (componentName: string) => {
-    'worklet';
     return components.value[componentName] != undefined;
   };
 
   const getEntitiesWithComponents = (requiredComponentNames: string[]) => {
-    'worklet';
     const requiredBits = requiredComponentNames.reduce(
       (acc, name) => acc | bitManager.getComponentBit(name),
       0
@@ -135,7 +125,6 @@ export const createECS = ({
   };
 
   const getAllEntities = () => {
-    'worklet';
     return Object.keys(signatures.value).map(Number);
   };
 

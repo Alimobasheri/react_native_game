@@ -66,7 +66,6 @@ export const createSystemManager = (
   let reuseIndexes: number[] = [];
 
   const registerSystem = (system: System): number => {
-    'worklet';
     const systemId = nextSystemId++;
     if (system.context === SystemContext.JS) {
       jsSystems.current.push(system);
@@ -78,7 +77,6 @@ export const createSystemManager = (
   };
 
   const removeSystem = (systemId: number): void => {
-    'worklet';
     const index = systemIdMap[systemId];
     if (!index) return;
     systems.value[index] = undefined;
@@ -92,16 +90,16 @@ export const createSystemManager = (
     deltaTime,
     dimensions,
   }: RunSystemsArgs) => {
-    'worklet';
     const events = eventQueue.readEvents();
+    // console.log(systems.value.map((sys) => sys?.name));
     for (let i = 0; i < systems.value.length; i++) {
       const system = systems.value[i];
       if (!system) continue;
 
       const hasRequiredEvents = system.requiredEvents
         ? system.requiredEvents.some((event: string) =>
-          events.some((e) => e.type === event)
-        )
+            events.some((e) => e.type === event)
+          )
         : true;
 
       if (!hasRequiredEvents) continue;

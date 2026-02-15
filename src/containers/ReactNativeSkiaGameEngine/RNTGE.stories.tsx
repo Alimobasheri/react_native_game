@@ -5,7 +5,7 @@ import { Preload } from './components-rntge/Scene/Preload';
 import { Content } from './components-rntge/Scene/Content';
 import { Asset } from './components-rntge/Scene/Asset';
 import { View, useWindowDimensions } from 'react-native';
-import React from 'react';
+import React, { memo } from 'react';
 import { MemoizedContainer } from './components/MemoizedContainer';
 import { ShipView } from '@/components/ShipView/ShipView-rntge';
 import { SurferView } from '@/components/SurferView/SurferView-rntge';
@@ -268,17 +268,8 @@ export const Basic: Story = {
   },
 };
 
-export const SwimmerGame: Story = {
-  args: {
-    componentNames: [
-      SwimmerComponentName,
-      ContainerComponentName,
-      WaterComponentName,
-      ObstacleComponentName,
-      ObstaclesManagerComponentName,
-    ],
-  },
-  render: (args: any) => {
+const SwimmerGameComp: FC<{}> = memo(
+  (args: any) => {
     const { width: windowWidth, height: windowHeight } = useWindowDimensions();
     const [containerEntityId, setContainerEntityId] = React.useState<
       number | null
@@ -375,4 +366,20 @@ export const SwimmerGame: Story = {
       </View>
     );
   },
+  (prevProps, nextProps) => {
+    return JSON.stringify(prevProps) === JSON.stringify(nextProps);
+  }
+);
+
+export const SwimmerGame: Story = {
+  args: {
+    componentNames: [
+      SwimmerComponentName,
+      ContainerComponentName,
+      WaterComponentName,
+      ObstacleComponentName,
+      ObstaclesManagerComponentName,
+    ],
+  },
+  render: (args: any) => <SwimmerGameComp {...args} />,
 };

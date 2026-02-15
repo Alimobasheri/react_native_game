@@ -25,12 +25,15 @@ export const SharpObstacle: FC<{ x: number; y: number }> = ({ x, y }) => {
       createPositionComponent({ x, y }),
       createRenderComponent({
         shape: {
-          type: ShapeTypes.Rectangle, // Square obstacle instead of triangle
-          width: obstacleWidth,
-          height: obstacleHeight,
+          type: ShapeTypes.Polygon,
+          vertices: [
+            { x: 0, y: obstacleHeight }, // Bottom left
+            { x: obstacleWidth / 2, y: 0 }, // Top point (downward pointing)
+            { x: obstacleWidth, y: obstacleHeight }, // Bottom right
+          ],
         },
         position: { x, y }, // Set position in render component
-        fillColor: '#d32f2f', // Red color for obstacle
+        fillColor: '#d32f2f', // Red color for sharp obstacle
         visible: true,
         zIndex: 2,
       }),

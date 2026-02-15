@@ -28,7 +28,7 @@ export const ObstacleView: FC<{}> = () => {
   });
 
   // Register the obstacle system
-  useAddSystem({ system: ObstacleSystem });
+  const { systemId: id } = useAddSystem({ system: ObstacleSystem });
 
   return null;
 };

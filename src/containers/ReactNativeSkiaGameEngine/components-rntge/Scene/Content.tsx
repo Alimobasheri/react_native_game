@@ -1,4 +1,10 @@
-import React, { FC, PropsWithChildren, useEffect, useState } from 'react';
+import React, {
+  FC,
+  PropsWithChildren,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useSceneContextUnsafe } from './hooks';
 import { MemoizedContainer } from '../../components/MemoizedContainer';
 
@@ -10,7 +16,9 @@ export const Content: FC<ContentProps> = ({ children }) => {
   const [shouldRender, setShouldRender] = useState(false);
 
   useEffect(() => {
-    sceneContext.notifyContentMounted((v) => setShouldRender(v));
+    sceneContext.notifyContentMounted((v) => {
+      setShouldRender(v);
+    });
   }, [sceneContext]);
 
   if (!shouldRender) return null;

@@ -1,6 +1,4 @@
-import {
-  System,
-} from '@/containers/ReactNativeSkiaGameEngine/services-ecs/system';
+import { System } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/system';
 import {
   RenderComponentData,
   RenderComponentName,
@@ -35,6 +33,7 @@ const REMOVAL_BUFFER = 100; // Extra pixels below screen before removing a segme
 
 export const CaveParallaxBackgroundSystem: System = {
   // We manually query for background entities by image name
+  name: 'caveBackground',
   requiredComponents: [],
   process: ({ components, deltaTime, ecs, eventQueue, dimensions }) => {
     'worklet';
@@ -54,9 +53,9 @@ export const CaveParallaxBackgroundSystem: System = {
     }
 
     const waterEntity = waterEntities[0];
-    const waterData = components[WaterComponentName]?.get(
-      waterEntity
-    ) as WaterComponentData | undefined;
+    const waterData = components[WaterComponentName]?.get(waterEntity) as
+      | WaterComponentData
+      | undefined;
 
     if (!waterData) {
       return;
@@ -69,9 +68,11 @@ export const CaveParallaxBackgroundSystem: System = {
 
     const isInInitialPhase =
       swimmerEntities.length > 0 &&
-      (components[SwimmerComponentName]?.get(
-        swimmerEntities[0]
-      ) as SwimmerComponentData | undefined)?.isInInitialPhase === true;
+      (
+        components[SwimmerComponentName]?.get(swimmerEntities[0]) as
+          | SwimmerComponentData
+          | undefined
+      )?.isInInitialPhase === true;
 
     const deltaSeconds = deltaTime / 1000;
 
@@ -81,9 +82,9 @@ export const CaveParallaxBackgroundSystem: System = {
     ]);
 
     const caveBackgroundEntities = renderEntities.filter((entityId) => {
-      const renderData = components[RenderComponentName]?.get(
-        entityId
-      ) as RenderComponentData | undefined;
+      const renderData = components[RenderComponentName]?.get(entityId) as
+        | RenderComponentData
+        | undefined;
       return renderData?.image === 'cave_bg';
     });
 
@@ -128,9 +129,9 @@ export const CaveParallaxBackgroundSystem: System = {
       const parallaxSpeed = waterData.raisingSpeed * PARALLAX_SPEED_FACTOR;
 
       caveBackgroundEntities.forEach((entityId) => {
-        const renderData = components[RenderComponentName]?.get(
-          entityId
-        ) as RenderComponentData | undefined;
+        const renderData = components[RenderComponentName]?.get(entityId) as
+          | RenderComponentData
+          | undefined;
 
         if (!renderData) {
           return;
@@ -155,14 +156,14 @@ export const CaveParallaxBackgroundSystem: System = {
     }
 
     // After movement, manage tiling (attach new segments on top) and removal
-    const updatedEntities = ecs.value.getEntitiesWithComponents([
-      RenderComponentName,
-    ]).filter((entityId) => {
-      const renderData = components[RenderComponentName]?.get(
-        entityId
-      ) as RenderComponentData | undefined;
-      return renderData?.image === 'cave_bg';
-    });
+    const updatedEntities = ecs.value
+      .getEntitiesWithComponents([RenderComponentName])
+      .filter((entityId) => {
+        const renderData = components[RenderComponentName]?.get(entityId) as
+          | RenderComponentData
+          | undefined;
+        return renderData?.image === 'cave_bg';
+      });
 
     if (updatedEntities.length === 0) {
       return;
@@ -171,9 +172,9 @@ export const CaveParallaxBackgroundSystem: System = {
     // Collect current segment centers
     const segments = updatedEntities
       .map((entityId) => {
-        const renderData = components[RenderComponentName]?.get(
-          entityId
-        ) as RenderComponentData | undefined;
+        const renderData = components[RenderComponentName]?.get(entityId) as
+          | RenderComponentData
+          | undefined;
         const y = renderData?.position?.y ?? screenHeight / 2;
         return { entityId, y };
       })
@@ -200,15 +201,15 @@ export const CaveParallaxBackgroundSystem: System = {
     const remainingSegments = ecs.value
       .getEntitiesWithComponents([RenderComponentName])
       .filter((entityId) => {
-        const renderData = components[RenderComponentName]?.get(
-          entityId
-        ) as RenderComponentData | undefined;
+        const renderData = components[RenderComponentName]?.get(entityId) as
+          | RenderComponentData
+          | undefined;
         return renderData?.image === 'cave_bg';
       })
       .map((entityId) => {
-        const renderData = components[RenderComponentName]?.get(
-          entityId
-        ) as RenderComponentData | undefined;
+        const renderData = components[RenderComponentName]?.get(entityId) as
+          | RenderComponentData
+          | undefined;
         const y = renderData?.position?.y ?? screenHeight / 2;
         return { entityId, y };
       })
@@ -250,4 +251,3 @@ export const CaveParallaxBackgroundSystem: System = {
     }
   },
 };
-

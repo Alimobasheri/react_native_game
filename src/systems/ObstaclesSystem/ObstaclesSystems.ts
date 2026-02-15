@@ -24,6 +24,7 @@ import {
 } from '@/Game/ecs-components/SeaLayer';
 
 export const obstaclesSystem: System = {
+  name: 'obstacleSystem',
   process: ({ ecs, components, eventQueue, dimensions }) => {
     'worklet';
 

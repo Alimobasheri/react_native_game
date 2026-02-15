@@ -1,19 +1,40 @@
-import {
-  System,
-} from '@/containers/ReactNativeSkiaGameEngine/services-ecs/system';
+import { System } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/system';
 import {
   ShapeTypes,
   createRenderComponent,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import { ObstacleComponentName } from '@/Game/ecs-components/ObstacleComponent';
-import { ContainerComponentName, ContainerComponentData } from '@/Game/ecs-components/Container';
-import { WaterComponentName, WaterComponentData } from '@/Game/ecs-components/Water';
-import { SwimmerComponentName, SwimmerComponentData } from '@/Game/ecs-components/Swimmer';
-import { createObstacleComponent, ObstacleTypes } from '@/Game/ecs-components/ObstacleComponent';
-import { getGridPosition, getObstacleWidth, getRows, LAYOUT_CONSTANTS } from '@/Layout';
+import {
+  ContainerComponentName,
+  ContainerComponentData,
+} from '@/Game/ecs-components/Container';
+import {
+  WaterComponentName,
+  WaterComponentData,
+} from '@/Game/ecs-components/Water';
+import {
+  SwimmerComponentName,
+  SwimmerComponentData,
+} from '@/Game/ecs-components/Swimmer';
+import {
+  createObstacleComponent,
+  ObstacleTypes,
+} from '@/Game/ecs-components/ObstacleComponent';
+import {
+  getGridPosition,
+  getObstacleWidth,
+  getRows,
+  LAYOUT_CONSTANTS,
+} from '@/Layout';
 import { MatterBodyComponentName } from '@/containers/ReactNativeSkiaGameEngine/internal/components/matterBody';
-import { SceneComponentData, SceneComponentName } from '@/containers/ReactNativeSkiaGameEngine/internal/components/scene';
-import { ObstaclesManagerComponentData, ObstaclesManagerComponentName } from '@/Game/ecs-components/ObstaclesManager';
+import {
+  SceneComponentData,
+  SceneComponentName,
+} from '@/containers/ReactNativeSkiaGameEngine/internal/components/scene';
+import {
+  ObstaclesManagerComponentData,
+  ObstaclesManagerComponentName,
+} from '@/Game/ecs-components/ObstaclesManager';
 import {
   RemoveEntityRequest,
   RemoveEntityRequestType,
@@ -23,7 +44,9 @@ const OBSTACLE_BLOCK_IMAGES = ['block2', 'block3'] as const;
 
 function getRandomBlockImage(): string {
   'worklet';
-  return OBSTACLE_BLOCK_IMAGES[Math.floor(Math.random() * OBSTACLE_BLOCK_IMAGES.length)];
+  return OBSTACLE_BLOCK_IMAGES[
+    Math.floor(Math.random() * OBSTACLE_BLOCK_IMAGES.length)
+  ];
 }
 
 const COLLISION = {
@@ -114,6 +137,7 @@ function spawnObstacleEntity(args: {
  * - Uses row-based positioning with random row selection and spacing for gameplay balance
  */
 export const ObstacleSystem: System = {
+  name: 'obstacleSystem',
   requiredComponents: [ObstaclesManagerComponentName],
   process: ({ entities, components, deltaTime, ecs, eventQueue }) => {
     'worklet';
@@ -135,7 +159,9 @@ export const ObstacleSystem: System = {
     }
 
     const containerEntity = containerEntities[0];
-    const containerData = components[ContainerComponentName]?.get(containerEntity) as ContainerComponentData | undefined;
+    const containerData = components[ContainerComponentName]?.get(
+      containerEntity
+    ) as ContainerComponentData | undefined;
 
     if (!containerData) {
       return;
@@ -151,7 +177,9 @@ export const ObstacleSystem: System = {
     }
 
     const waterEntity = waterEntities[0];
-    const waterData = components[WaterComponentName]?.get(waterEntity) as WaterComponentData | undefined;
+    const waterData = components[WaterComponentName]?.get(waterEntity) as
+      | WaterComponentData
+      | undefined;
 
     if (!waterData) {
       return;
@@ -165,8 +193,13 @@ export const ObstacleSystem: System = {
     const swimmerEntities = ecs.value.getEntitiesWithComponents([
       SwimmerComponentName,
     ]);
-    const isInInitialPhase = swimmerEntities.length > 0 &&
-      (components[SwimmerComponentName]?.get(swimmerEntities[0]) as SwimmerComponentData | undefined)?.isInInitialPhase === true;
+    const isInInitialPhase =
+      swimmerEntities.length > 0 &&
+      (
+        components[SwimmerComponentName]?.get(swimmerEntities[0]) as
+          | SwimmerComponentData
+          | undefined
+      )?.isInInitialPhase === true;
 
     // Get all existing obstacles
     const obstacleEntities = ecs.value.getEntitiesWithComponents([
@@ -234,8 +267,8 @@ export const ObstacleSystem: System = {
       const obstacleWidth = getObstacleWidth(containerData.width);
 
       // Position initial obstacles spanning from -150% to 30% of container height
-      const minY = containerTop - containerData.height * 1.50; // -150% (well above container top)
-      const maxY = containerTop + containerData.height * 0.30; // 30% from top
+      const minY = containerTop - containerData.height * 1.5; // -150% (well above container top)
+      const maxY = containerTop + containerData.height * 0.3; // 30% from top
       const yRange = maxY - minY;
 
       // Generate 5-7 initial obstacles spread across the wide vertical range
@@ -243,28 +276,37 @@ export const ObstacleSystem: System = {
 
       for (let i = 0; i < numInitialObstacles; i++) {
         // Distribute across columns, avoiding clustering
-        const columnSpacing = Math.floor(LAYOUT_CONSTANTS.COLUMNS / Math.max(numInitialObstacles, 1));
-        const column = (i * columnSpacing + Math.floor(Math.random() * 2)) % LAYOUT_CONSTANTS.COLUMNS; // Add small random offset
+        const columnSpacing = Math.floor(
+          LAYOUT_CONSTANTS.COLUMNS / Math.max(numInitialObstacles, 1)
+        );
+        const column =
+          (i * columnSpacing + Math.floor(Math.random() * 2)) %
+          LAYOUT_CONSTANTS.COLUMNS; // Add small random offset
 
         // Get grid x position
         const columnWidth = containerData.width / LAYOUT_CONSTANTS.COLUMNS;
-        const x = containerData.centerX - containerData.width / 2 + columnWidth * column + columnWidth / 2;
+        const x =
+          containerData.centerX -
+          containerData.width / 2 +
+          columnWidth * column +
+          columnWidth / 2;
 
         // Distribute y positions with some randomness but ensuring good vertical spread
         // Use a biased distribution that puts more obstacles in playable areas
         let y;
         if (i < numInitialObstacles * 0.6) {
           // First 60%: spread in upper area (-150% to -30%)
-          const upperRange = containerTop + containerData.height * 0.30 - minY;
+          const upperRange = containerTop + containerData.height * 0.3 - minY;
           const upperStep = upperRange / (numInitialObstacles * 0.6 + 1);
           y = minY + (i + 1) * upperStep;
         } else {
           // Remaining 40%: spread in lower area (-30% to 30%)
-          const lowerMin = containerTop - containerData.height * 0.30;
+          const lowerMin = containerTop - containerData.height * 0.3;
           const lowerMax = maxY;
           const lowerRange = lowerMax - lowerMin;
           const lowerIndex = i - Math.floor(numInitialObstacles * 0.6);
-          const remainingCount = numInitialObstacles - Math.floor(numInitialObstacles * 0.6);
+          const remainingCount =
+            numInitialObstacles - Math.floor(numInitialObstacles * 0.6);
           const lowerStep = lowerRange / (remainingCount + 1);
           y = lowerMin + (lowerIndex + 1) * lowerStep;
         }
@@ -328,7 +370,10 @@ export const ObstacleSystem: System = {
         const totalRows = getRows(containerData.height, obstacleWidth);
 
         // Determine target row for new obstacles (above current obstacles)
-        const targetRow = Math.max(0, Math.floor((lowestObstacleY - containerTop) / obstacleWidth) - 1);
+        const targetRow = Math.max(
+          0,
+          Math.floor((lowestObstacleY - containerTop) / obstacleWidth) - 1
+        );
 
         for (let i = 0; i < numNewObstacles; i++) {
           // Random row selection with spacing (leave gaps between rows)
@@ -338,7 +383,10 @@ export const ObstacleSystem: System = {
           if (rowSpacingChance < 0.5) {
             // 50% chance: place in target row or adjacent (can create vertical stacks)
             const rowOffset = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
-            selectedRow = Math.max(0, Math.min(totalRows - 1, targetRow + rowOffset));
+            selectedRow = Math.max(
+              0,
+              Math.min(totalRows - 1, targetRow + rowOffset)
+            );
           } else {
             // 50% chance: skip rows to create vertical gaps
             const rowSkip = Math.floor(Math.random() * 3) + 1; // Skip 1-3 rows

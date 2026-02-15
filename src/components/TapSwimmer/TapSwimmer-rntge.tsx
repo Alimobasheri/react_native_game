@@ -49,10 +49,7 @@ export const TapSwimmer: FC<{
             ecs.updateComponent(
               entityId,
               SwimmerComponentName,
-              (swimmer: {
-                useColumnControl?: boolean;
-                inputX?: number;
-              }) => {
+              (swimmer: { useColumnControl?: boolean; inputX?: number }) => {
                 if (!swimmer.useColumnControl) return;
                 // Store tap direction as normalized input (-1 left, 1 right).
                 // The SwimmerPhysicsSystem converts this into smooth velocity.
