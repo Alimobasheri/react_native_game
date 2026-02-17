@@ -39,7 +39,7 @@ export const WaterPhysicsSystem: System = {
 
     // Determine game phase based on first swimmer (they should all be in sync).
     // We only start ramping difficulty after the initial water rising phase.
-    const swimmerEntities = ecs.value.getEntitiesWithComponents([
+    const swimmerEntities = ecs.getEntitiesWithComponents([
       SwimmerComponentName,
     ]);
 
@@ -75,7 +75,7 @@ export const WaterPhysicsSystem: System = {
         return;
       }
 
-      ecs.value.updateComponent<WaterComponentData>(
+      ecs.updateComponent<WaterComponentData>(
         waterEntity,
         WaterComponentName,
         (water) => {

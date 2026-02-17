@@ -45,7 +45,7 @@ export const requestRemoveMatterBodyBatch: System = {
       // Remove components from entities
       for (let j = 0; j < payload.entityIds.length; j++) {
         const entityId = payload.entityIds[j];
-        ecs.value.removeComponent(entityId, MatterBodyComponentName);
+        ecs.removeComponent(entityId, MatterBodyComponentName);
       }
     }
   },

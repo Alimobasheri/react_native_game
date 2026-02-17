@@ -6,9 +6,12 @@ import {
   SkImage,
   SkRuntimeEffect,
   SkParagraph,
+  SkPicture,
+  SkPath,
 } from '@shopify/react-native-skia';
-import { ECS } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/ecs';
+import { ECS, ECSState } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/ecs';
 import { SharedValue } from 'react-native-reanimated';
+import { EventQueue, ExternalEvent } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useEventQueue/useEventQueue';
 
 export = _RNTGE_;
 export as namespace _RNTGE_;
@@ -16,8 +19,8 @@ export as namespace _RNTGE_;
 declare namespace _RNTGE_ {
   var physics:
     | {
-        engine: Matter.Engine;
-      }
+      engine: Matter.Engine;
+    }
     | undefined;
   var imageCache: Record<string, SkImage | null>;
   var shaderCache: Record<string, SkRuntimeEffect>;
@@ -35,15 +38,23 @@ declare namespace _RNTGE_ {
   >;
   var TouchState:
     | {
-        pan: {
-          activePointers: Map<
-            number,
-            { entityId: number | null; captured: boolean }
-          >;
-        };
-        tap: {};
-        longPress: {};
-      }
+      pan: {
+        activePointers: Map<
+          number,
+          { entityId: number | null; captured: boolean }
+        >;
+      };
+      tap: {};
+      longPress: {};
+    }
     | undefined;
-  var ecs: SharedValue<ECS | null> | undefined;
+  var ecs: ECS | null;
+  var state: ECSState | undefined;
+  var picture: SkPicture | null;
+  var pictureCache: Record<number, SkPicture | SkPath> | undefined;
+  var eventQueue: {
+    eventStore: EventQueue;
+    nextEvents: EventQueue;
+    nextExternalEvents: ExternalEvent[];
+  };
 }

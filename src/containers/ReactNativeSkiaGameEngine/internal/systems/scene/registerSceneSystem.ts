@@ -18,7 +18,7 @@ export const registerSceneSystem: System = {
     for (let i = 0; i < events.length; i++) {
       const payload = events[i].payload as SceneRegisterRequest['payload'];
 
-      const entity = ecs.value.createEntity();
+      const entity = ecs.createEntity();
       const data: SceneComponentData = {
         sceneKey: payload.sceneKey,
         parentSceneKey: payload.parentSceneKey,
@@ -40,7 +40,7 @@ export const registerSceneSystem: System = {
           systems: [],
         },
       };
-      ecs.value.addComponent(entity, { name: SceneComponentName, data });
+      ecs.addComponent(entity, { name: SceneComponentName, data });
 
       eventQueue.addAwaitingExternalEvent({
         type: SceneRegisteredResponseType,

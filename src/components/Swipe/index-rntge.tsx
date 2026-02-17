@@ -104,17 +104,14 @@ export const Swipe: FC<{}> = () => {
       onPanUpdate: (data) => {
         'worklet';
         // Find SeaLayer entities
-        if (!global._RNTGE_.ecs?.value) return;
-        const seaLayerEntities =
-          global._RNTGE_.ecs.value.getEntitiesWithComponents([
-            SeaLayerComponentName,
-          ]);
+        if (!global._RNTGE_.ecs) return;
+        const seaLayerEntities = global._RNTGE_.ecs.getEntitiesWithComponents([
+          SeaLayerComponentName,
+        ]);
         if (seaLayerEntities.length === 0) return;
         // Use the first SeaLayer entity (assuming there's one main sea)
         const seaEntities = seaLayerEntities.map((entity) =>
-          global._RNTGE_.ecs?.value?.components.value[
-            SeaLayerComponentName
-          ]?.get(entity)
+          global._RNTGE_.ecs?.components[SeaLayerComponentName]?.get(entity)
         ) as SeaLayerComponentData[];
         const seaEntityIndex = seaEntities.findIndex(
           (layer, index) => layer.isMainLayer
@@ -139,7 +136,7 @@ export const Swipe: FC<{}> = () => {
             screenWidth
           );
         // Update the touch wave (index 1) in the SeaLayer component
-        global._RNTGE_.ecs.value.updateComponent(
+        global._RNTGE_.ecs.updateComponent(
           seaLayerEntities[seaEntityIndex],
           SeaLayerComponentName,
           (seaLayerComponent: any) => {

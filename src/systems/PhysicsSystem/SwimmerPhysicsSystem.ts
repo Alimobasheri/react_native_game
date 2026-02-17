@@ -47,7 +47,7 @@ export const SwimmerPhysicsSystem: System = {
     'worklet';
 
     // Get container entity
-    const containerEntities = ecs.value.getEntitiesWithComponents([
+    const containerEntities = ecs.getEntitiesWithComponents([
       ContainerComponentName,
     ]);
 
@@ -63,7 +63,7 @@ export const SwimmerPhysicsSystem: System = {
     }
 
     // Get water entity and data
-    const waterEntities = ecs.value.getEntitiesWithComponents([
+    const waterEntities = ecs.getEntitiesWithComponents([
       WaterComponentName,
     ]);
 
@@ -102,7 +102,7 @@ export const SwimmerPhysicsSystem: System = {
       // Check if we've reached the target height
       const hasReachedHalfHeight = constrainedWaterY <= targetHeight;
 
-      ecs.value.updateComponent<ContainerComponentData>(
+      ecs.updateComponent<ContainerComponentData>(
         containerEntity,
         ContainerComponentName,
         (container: ContainerComponentData) => {
@@ -113,7 +113,7 @@ export const SwimmerPhysicsSystem: System = {
       // If we've reached half height, transition to platformer phase
       if (hasReachedHalfHeight) {
         entities.forEach((swimmerEntity: number) => {
-          ecs.value.updateComponent<SwimmerComponentData>(
+          ecs.updateComponent<SwimmerComponentData>(
             swimmerEntity,
             SwimmerComponentName,
             (swimmer) => {
@@ -131,7 +131,7 @@ export const SwimmerPhysicsSystem: System = {
 
     // Update all swimmers
     // Pre-compute obstacle body ids for collision checks (resolved by Matter)
-    const obstacleEntities = ecs.value.getEntitiesWithComponents([
+    const obstacleEntities = ecs.getEntitiesWithComponents([
       ObstacleComponentName,
       MatterBodyComponentName,
     ]);
@@ -420,7 +420,7 @@ export const SwimmerPhysicsSystem: System = {
         }
       }
 
-      ecs.value.updateComponent<SwimmerComponentData>(
+      ecs.updateComponent<SwimmerComponentData>(
         swimmerEntity,
         SwimmerComponentName,
         (swimmer) => {

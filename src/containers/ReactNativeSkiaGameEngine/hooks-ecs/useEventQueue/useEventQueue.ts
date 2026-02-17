@@ -1,8 +1,6 @@
 import { MutableRefObject, useCallback, useRef } from 'react';
-import { SharedValue, useSharedValue } from 'react-native-reanimated';
 import { uid } from '../../services';
 import { scheduleOnRN, scheduleOnUI } from 'react-native-worklets';
-import { AddSystemRequestType } from '../../internal/events/system';
 
 export type Event<T = any> = { type: string; payload?: T };
 export type ExternalEvent<T = any> = Event<T> & { subscriptionId: string };
@@ -12,7 +10,6 @@ export type SubscriptionCallback = (event: ExternalEvent) => void;
 
 export type EventQueueContextType = {
   subscriptions: MutableRefObject<Map<string, (payload: any) => void>>;
-  nextExternalEvents: SharedValue<ExternalEvent[]>;
   addEvent: (event: Event) => void;
   addEventJS: (event: Event) => void;
   addExternalEvent: (event: ExternalEvent) => void;
@@ -21,19 +18,18 @@ export type EventQueueContextType = {
   subscribeJS: (callback: SubscriptionCallback) => string;
   addAwaitingExternalEvent: (event: ExternalEvent) => void;
   callAllAwaitingExternalEvents: () => void;
-  callAllAwaitingExternalEventsJS: () => void;
+  callAllAwaitingExternalEventsJS: (events: ExternalEvent[]) => void;
 };
 
 export const useEventQueue = (): EventQueueContextType => {
-  const eventStore = useSharedValue<EventQueue>([]);
-  const nextEvents = useSharedValue<EventQueue>([]);
-  const nextExternalEvents = useSharedValue<ExternalEvent[]>([]);
 
   const subscriptions = useRef<Map<string, (payload: any) => void>>(new Map());
 
   const addEvent = useCallback((event: Event) => {
     'worklet';
-    nextEvents.value = [...nextEvents.value, event];
+    if (global?._RNTGE_?.eventQueue) {
+      global._RNTGE_.eventQueue.nextEvents = [...global._RNTGE_.eventQueue.nextEvents, event];
+    }
   }, []);
 
   const addEventJS = useCallback((event: Event) => {
@@ -57,30 +53,40 @@ export const useEventQueue = (): EventQueueContextType => {
 
   const addAwaitingExternalEvent = useCallback((event: ExternalEvent) => {
     'worklet';
-    nextExternalEvents.value = [...nextExternalEvents.value, event];
+    if (global?._RNTGE_?.eventQueue) {
+      global._RNTGE_.eventQueue.nextExternalEvents = [...global._RNTGE_.eventQueue.nextExternalEvents, event];
+    }
   }, []);
 
-  const callAllAwaitingExternalEventsJS = useCallback(() => {
-    nextExternalEvents.value.forEach((event) => {
+  const callAllAwaitingExternalEventsJS = useCallback((events: ExternalEvent[]) => {
+    events.forEach((event) => {
       callSubscriptionJS(event);
     });
-    nextExternalEvents.value = [];
   }, [callSubscriptionJS]);
 
   const callAllAwaitingExternalEvents = useCallback(() => {
     'worklet';
-    scheduleOnRN(callAllAwaitingExternalEventsJS);
+    if (global?._RNTGE_?.eventQueue && global._RNTGE_.eventQueue.nextExternalEvents.length > 0) {
+      const events = global._RNTGE_.eventQueue.nextExternalEvents;
+      scheduleOnRN(callAllAwaitingExternalEventsJS, events);
+      global._RNTGE_.eventQueue.nextExternalEvents = [];
+    }
   }, [callAllAwaitingExternalEventsJS]);
 
   const readEvents = useCallback(() => {
     'worklet';
-    return eventStore.value;
+    if (global?._RNTGE_?.eventQueue) {
+      return global._RNTGE_.eventQueue.eventStore;
+    }
+    return [];
   }, []);
 
   const clearEvents = useCallback(() => {
     'worklet';
-    eventStore.value = nextEvents.value;
-    nextEvents.value = [];
+    if (global?._RNTGE_?.eventQueue) {
+      global._RNTGE_.eventQueue.eventStore = global._RNTGE_.eventQueue.nextEvents;
+      global._RNTGE_.eventQueue.nextEvents = [];
+    }
   }, []);
 
   const subscribeJS = (callback: SubscriptionCallback): string => {
@@ -91,7 +97,6 @@ export const useEventQueue = (): EventQueueContextType => {
 
   return {
     subscriptions,
-    nextExternalEvents,
     addEvent,
     addEventJS,
     addExternalEvent,

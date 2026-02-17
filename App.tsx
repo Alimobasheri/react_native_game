@@ -29,9 +29,9 @@ const styles = StyleSheet.create({
 let AppEntryPoint = App;
 
 // // Render Storybook if storybookEnabled is true
-// if (Constants?.expoConfig?.extra?.storybookEnabled === 'true') {
-//   LogBox.ignoreAllLogs(true);
-//   AppEntryPoint = require('./.storybook').default;
-// }
+if (Constants?.expoConfig?.extra?.storybookEnabled === 'true') {
+  LogBox.ignoreAllLogs(true);
+  AppEntryPoint = require('./.storybook').default;
+}
 
 export default AppEntryPoint;

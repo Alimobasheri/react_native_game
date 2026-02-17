@@ -111,7 +111,7 @@ export const SwimmerView: FC<{
     const panComponent = createPanComponent({
       onPanUpdate: (data) => {
         'worklet';
-        const ecs = data.systemArgs.ecs.value;
+        const ecs = data.systemArgs.ecs;
         const swimmerEntities = ecs.getEntitiesWithComponents([
           SwimmerComponentName,
         ]);
@@ -129,7 +129,7 @@ export const SwimmerView: FC<{
       },
       onPanEnd: (data) => {
         'worklet';
-        const ecs = data.systemArgs.ecs.value;
+        const ecs = data.systemArgs.ecs;
         const swimmerEntities = ecs.getEntitiesWithComponents([
           SwimmerComponentName,
         ]);

@@ -17,10 +17,10 @@ export const requestCreateEntity: System = {
       .readEvents()
       .filter((e) => e.type === CreateEntityRequestType);
 
-    const sceneEntities: Record<string, Entity> = ecs.value
+    const sceneEntities: Record<string, Entity> = ecs
       .getEntitiesWithComponents([SceneComponentName])
       .reduce((byKey, entity) => {
-        const entityData = ecs.value.components.value[SceneComponentName].get(
+        const entityData = ecs.components[SceneComponentName].get(
           entity
         ) as SceneComponentData;
         return {
@@ -31,11 +31,11 @@ export const requestCreateEntity: System = {
 
     for (let i = 0; i < events.length; i++) {
       const payload: CreateEntityRequest['payload'] = events[i].payload;
-      const entity = ecs.value.createEntity();
+      const entity = ecs.createEntity();
       for (let j = 0; j < payload.components.length; j++) {
-        ecs.value.addComponent(entity, payload.components[j]);
+        ecs.addComponent(entity, payload.components[j]);
       }
-      ecs.value.updateComponent<SceneComponentData>(
+      ecs.updateComponent<SceneComponentData>(
         sceneEntities[payload.sceneKey],
         SceneComponentName,
         (component) => {

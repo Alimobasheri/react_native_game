@@ -33,7 +33,7 @@ export const requestRemoveMatterBody: System = {
         );
 
         // Remove the component from the entity
-        ecs.value.removeComponent(payload.entityId, MatterBodyComponentName);
+        ecs.removeComponent(payload.entityId, MatterBodyComponentName);
       }
     }
   },

@@ -54,10 +54,10 @@ export const requestAddMatterBodyBatch: System = {
       .readEvents()
       .filter((e) => e.type === AddMatterBodyBatchRequestType);
 
-    const sceneEntities: Record<string, Entity> = ecs.value
+    const sceneEntities: Record<string, Entity> = ecs
       .getEntitiesWithComponents([SceneComponentName])
       .reduce((byKey, entity) => {
-        const entityData = ecs.value.components.value[SceneComponentName].get(
+        const entityData = ecs.components[SceneComponentName].get(
           entity
         ) as SceneComponentData;
         return {
@@ -76,7 +76,7 @@ export const requestAddMatterBodyBatch: System = {
         body.id = item.entityId; // Crucially align body ID with entity ID
         createdBodies.push(body);
         bodyIds.push(body.id);
-        ecs.value.addComponent(item.entityId, {
+        ecs.addComponent(item.entityId, {
           name: MatterBodyComponentName,
           data: body,
         });
@@ -89,7 +89,7 @@ export const requestAddMatterBodyBatch: System = {
         );
       }
 
-      ecs.value.updateComponent<SceneComponentData>(
+      ecs.updateComponent<SceneComponentData>(
         sceneEntities[payload.sceneKey],
         SceneComponentName,
         (component) => {

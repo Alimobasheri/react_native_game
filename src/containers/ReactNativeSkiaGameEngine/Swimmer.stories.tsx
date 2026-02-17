@@ -131,12 +131,6 @@ export const SwimmerGameComp: FC<{}> = memo(
     );
   },
   (prevProps, nextProps) => {
-    console.log('🚀 ~ nextProps:', nextProps);
-    console.log('🚀 ~ prevProps:', prevProps);
-    console.log(
-      '🚀 ~ JSON.stringify(prevProps) === JSON.stringify(nextProps):',
-      JSON.stringify(prevProps) === JSON.stringify(nextProps)
-    );
     return JSON.stringify(prevProps) === JSON.stringify(nextProps);
   }
 );

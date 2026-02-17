@@ -15,17 +15,17 @@ export const unLoadSceneSystem: System = {
       .readEvents()
       .filter((e) => e.type === UnLoadSceneRequestType);
 
-    const sceneEntities: Record<string, Entity> = ecs.value
-      .getEntitiesWithComponents([SceneComponentName])
-      .reduce((byKey, entity) => {
-        const entityData = ecs.value.components.value[SceneComponentName].get(
-          entity
-        ) as SceneComponentData;
-        return {
-          ...byKey,
-          [entityData.sceneKey]: entity,
-        };
-      }, {});
+    const sceneEntities: Record<string, Entity> = ecs.getEntitiesWithComponents([
+      SceneComponentName,
+    ]).reduce((byKey, entity) => {
+      const entityData = ecs.components[SceneComponentName].get(
+        entity
+      ) as SceneComponentData;
+      return {
+        ...byKey,
+        [entityData.sceneKey]: entity,
+      };
+    }, {});
 
     for (let i = 0; i < events.length; i++) {
       let payload = events[i].payload as UnLoadSceneRequest['payload'];
@@ -34,14 +34,14 @@ export const unLoadSceneSystem: System = {
 
       const sceneEntity = sceneEntities[sceneKey];
 
-      const sceneData = ecs.value.components.value[SceneComponentName].get(
+      const sceneData = ecs.components[SceneComponentName].get(
         sceneEntity
       ) as SceneComponentData;
 
       const { entities, assets, matterBodies, systems } = sceneData.objects;
 
       for (let i = 0; i < entities.length; i++) {
-        ecs.value.removeEntity(entities[i]);
+        ecs.removeEntity(entities[i]);
       }
 
       if (!!global._RNTGE_.physics?.engine.world) {
@@ -59,7 +59,7 @@ export const unLoadSceneSystem: System = {
       }
 
       for (let k = 0; k < systems.length; k++) {
-        ecs.value.removeSystem(systems[k]);
+        ecs.removeSystem(systems[k]);
       }
 
       const { images, shaders, fonts, atlases, clips } = assets;
@@ -80,7 +80,7 @@ export const unLoadSceneSystem: System = {
         delete global._RNTGE_.clipAnimationCache[clips[q]];
       }
 
-      ecs.value.updateComponent<SceneComponentData>(
+      ecs.updateComponent<SceneComponentData>(
         sceneEntity,
         SceneComponentName,
         (sc) => {

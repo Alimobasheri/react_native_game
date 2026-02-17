@@ -156,7 +156,7 @@ export const touchSystem: System = {
         case GestureKinds.Pan:
           componentName = PanComponentName;
 
-          gestureEntities = ecs.value.getEntitiesWithComponents([
+          gestureEntities = ecs.getEntitiesWithComponents([
             RenderComponentName,
             PanComponentName,
           ]);
@@ -164,7 +164,7 @@ export const touchSystem: System = {
           break;
         case GestureKinds.Tap:
           componentName = TapComponentName;
-          gestureEntities = ecs.value.getEntitiesWithComponents([
+          gestureEntities = ecs.getEntitiesWithComponents([
             RenderComponentName,
             TapComponentName,
           ]);
@@ -172,7 +172,7 @@ export const touchSystem: System = {
           break;
         case GestureKinds.LongPress:
           componentName = LongPressComponentName;
-          gestureEntities = ecs.value.getEntitiesWithComponents([
+          gestureEntities = ecs.getEntitiesWithComponents([
             RenderComponentName,
             LongPressComponentName,
           ]);
@@ -399,10 +399,10 @@ export const touchSystem: System = {
           if (gestureComp?.onLongPress) {
             try {
               let longPressPayload: TouchGestureCallbackData<LongPressGesturePayload> =
-                {
-                  ...payload,
-                  gesture: ev.gesture,
-                };
+              {
+                ...payload,
+                gesture: ev.gesture,
+              };
               gestureComp.onLongPress(longPressPayload);
             } catch (err) {
               eventQueue.addAwaitingExternalEvent({

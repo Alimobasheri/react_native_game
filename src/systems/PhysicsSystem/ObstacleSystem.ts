@@ -69,7 +69,7 @@ function spawnObstacleEntity(args: {
 
   const { ecs, sceneEntity, x, y, width, height } = args;
 
-  const entity = ecs.value.createEntity();
+  const entity = ecs.createEntity();
 
   const obstacleComponent = createObstacleComponent({
     type: ObstacleTypes.Stone,
@@ -90,8 +90,8 @@ function spawnObstacleEntity(args: {
     zIndex: 1,
   });
 
-  ecs.value.addComponent(entity, obstacleComponent);
-  ecs.value.addComponent(entity, renderComponent);
+  ecs.addComponent(entity, obstacleComponent);
+  ecs.addComponent(entity, renderComponent);
 
   const body = global.MatterReanimated.Bodies.rectangle(x, y, width, height, {
     isStatic: true,
@@ -111,12 +111,12 @@ function spawnObstacleEntity(args: {
     body,
   ]);
 
-  ecs.value.addComponent(entity, {
+  ecs.addComponent(entity, {
     name: MatterBodyComponentName,
     data: body,
   });
 
-  ecs.value.updateComponent(
+  ecs.updateComponent(
     sceneEntity,
     SceneComponentName,
     (scene: SceneComponentData) => {
@@ -150,7 +150,7 @@ export const ObstacleSystem: System = {
     if (!managerData) return;
 
     // Get container entity
-    const containerEntities = ecs.value.getEntitiesWithComponents([
+    const containerEntities = ecs.getEntitiesWithComponents([
       ContainerComponentName,
     ]);
 
@@ -168,7 +168,7 @@ export const ObstacleSystem: System = {
     }
 
     // Get water entity and data (for movement speed)
-    const waterEntities = ecs.value.getEntitiesWithComponents([
+    const waterEntities = ecs.getEntitiesWithComponents([
       WaterComponentName,
     ]);
 
@@ -190,19 +190,19 @@ export const ObstacleSystem: System = {
     const containerBottom = containerData.centerY + containerData.height / 2;
 
     // Determine if we're in initial phase (water rising)
-    const swimmerEntities = ecs.value.getEntitiesWithComponents([
+    const swimmerEntities = ecs.getEntitiesWithComponents([
       SwimmerComponentName,
     ]);
     const isInInitialPhase =
       swimmerEntities.length > 0 &&
       (
         components[SwimmerComponentName]?.get(swimmerEntities[0]) as
-          | SwimmerComponentData
-          | undefined
+        | SwimmerComponentData
+        | undefined
       )?.isInInitialPhase === true;
 
     // Get all existing obstacles
-    const obstacleEntities = ecs.value.getEntitiesWithComponents([
+    const obstacleEntities = ecs.getEntitiesWithComponents([
       ObstacleComponentName,
       MatterBodyComponentName,
     ]);
@@ -250,7 +250,7 @@ export const ObstacleSystem: System = {
     const shouldSeedInitialObstacles = obstacleEntities.length === 0;
 
     // Locate the scene entity for this manager
-    const sceneEntities = ecs.value.getEntitiesWithComponents([
+    const sceneEntities = ecs.getEntitiesWithComponents([
       SceneComponentName,
     ]);
     const sceneEntity = sceneEntities.find((e: number) => {
@@ -324,7 +324,7 @@ export const ObstacleSystem: System = {
         });
       }
       // Reset timer after re-seeding
-      ecs.value.updateComponent<ObstaclesManagerComponentData>(
+      ecs.updateComponent<ObstaclesManagerComponentData>(
         managerEntity,
         ObstaclesManagerComponentName,
         (m) => {
@@ -341,7 +341,7 @@ export const ObstacleSystem: System = {
       const timePerRow = distancePerRow / waterData.raisingSpeed; // Time to move one row at current speed
 
       // Advance timer in ECS (no global storage)
-      ecs.value.updateComponent<ObstaclesManagerComponentData>(
+      ecs.updateComponent<ObstaclesManagerComponentData>(
         managerEntity,
         ObstaclesManagerComponentName,
         (m) => {
@@ -354,7 +354,7 @@ export const ObstacleSystem: System = {
         managerEntity
       ) as ObstaclesManagerComponentData | undefined;
       if ((updatedManager?.spawnTimerSeconds ?? 0) >= timePerRow) {
-        ecs.value.updateComponent<ObstaclesManagerComponentData>(
+        ecs.updateComponent<ObstaclesManagerComponentData>(
           managerEntity,
           ObstaclesManagerComponentName,
           (m) => {

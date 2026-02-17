@@ -20,15 +20,15 @@ export const sceneStateSystem: System = {
           isActive: boolean;
           isPaused?: boolean;
         };
-        const sceneEntities = ecs.value.getEntitiesWithComponents([
+        const sceneEntities = ecs.getEntitiesWithComponents([
           SceneComponentName,
         ]);
         for (let j = 0; j < sceneEntities.length; j++) {
-          const comp = ecs.value.components.value[SceneComponentName]?.get(
+          const comp = ecs.components[SceneComponentName]?.get(
             sceneEntities[j]
           ) as SceneComponentData | undefined;
           if (comp && comp.sceneKey === payload.sceneKey) {
-            ecs.value.updateComponent<SceneComponentData>(
+            ecs.updateComponent<SceneComponentData>(
               sceneEntities[j],
               SceneComponentName,
               (sc) => {
@@ -43,13 +43,13 @@ export const sceneStateSystem: System = {
           sceneKey: string;
           isPreloading: boolean;
         };
-        const entities = ecs.value.getAllEntities();
+        const entities = ecs.getAllEntities();
         for (let j = 0; j < entities.length; j++) {
-          const comp = ecs.value.components.value[SceneComponentName]?.get(
+          const comp = ecs.components[SceneComponentName]?.get(
             entities[j]
           ) as SceneComponentData | undefined;
           if (comp && comp.sceneKey === payload.sceneKey) {
-            ecs.value.updateComponent<SceneComponentData>(
+            ecs.updateComponent<SceneComponentData>(
               entities[j],
               SceneComponentName,
               (sc) => {

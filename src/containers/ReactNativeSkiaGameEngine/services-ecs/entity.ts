@@ -3,8 +3,8 @@ import { SharedValue } from 'react-native-reanimated';
 export type Entity = number;
 
 export const createEntityManager = (
-  nextEntityId: SharedValue<number>,
-  signatures: SharedValue<Record<Entity, number>>,
+  nextEntityId: number,
+  signatures: Record<Entity, number>,
   recycledEntities: Entity[]
 ) => {
   'worklet';
@@ -15,10 +15,10 @@ export const createEntityManager = (
     if (recycledEntities.length > 0) {
       entity = recycledEntities.pop() as Entity;
     } else {
-      entity = nextEntityId.value++;
+      entity = nextEntityId++;
     }
 
-    signatures.value[entity] = 0;
+    signatures[entity] = 0;
     return entity;
   };
 };

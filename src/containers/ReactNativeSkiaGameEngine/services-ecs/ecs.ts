@@ -1,14 +1,14 @@
-import { SharedValue } from 'react-native-reanimated';
 import { Component, ComponentStore, createComponentStore } from './component';
 import { createEntityManager, Entity } from './entity';
 import { createComponentBitManager } from './componentBitManager';
 import { createSystemManager, RunSystemsArgs, System } from './system';
-import { EventQueueContextType } from '../hooks-ecs/useEventQueue/useEventQueue';
-import { MutableRefObject } from 'react';
-import { AtlasData, ClipAnimationData } from '../types-ecs/render';
 
+export enum ECSState {
+  INITIALIZED = 'INITIALIZED',
+  NOT_INITIALIZED = 'NOT_INITIALIZED',
+}
 export type ECS = {
-  components: SharedValue<Record<string, ComponentStore<any>>>;
+  components: Record<string, ComponentStore<any>>;
   createEntity: () => number;
   createComponent: (componentName: string) => void;
   addComponent: <T>(entity: number, component: Component<T>) => void;
@@ -27,63 +27,49 @@ export type ECS = {
   getAllEntities: () => Entity[];
 };
 
-export type ECSArgs = {
-  nextEntityId: SharedValue<number>;
-  signatures: SharedValue<Record<Entity, number>>;
-  components: SharedValue<Record<string, ComponentStore<any>>>;
-  systems: SharedValue<(System | undefined)[]>;
-  eventQueue: EventQueueContextType;
-  jsSystems: MutableRefObject<System[]>;
-  dimensions: SharedValue<{ width: number; height: number }>;
-};
-
-export const createECS = ({
-  nextEntityId,
-  components,
-  signatures,
-  systems,
-  eventQueue,
-  jsSystems,
-  dimensions,
-}: ECSArgs): ECS => {
+export const createECS = (): ECS => {
   'worklet';
+  let nextEntityId = 0;
+  const signatures: Record<Entity, number> = {};
+  const components: Record<string, ComponentStore<any>> = {};
   const recycledEntities: Entity[] = [];
+  let systems: (System | undefined)[] = [];
   const createEntity = createEntityManager(
     nextEntityId,
     signatures,
     recycledEntities
   );
   const bitManager = createComponentBitManager();
-  const systemManager = createSystemManager(systems, jsSystems);
+  const systemManager = createSystemManager(systems);
 
   const removeComponent = <T>(entity: Entity, componentName: string) => {
     const componentBit = bitManager.getComponentBit(componentName);
-    signatures.value[entity] &= ~componentBit;
+    signatures[entity] &= ~componentBit;
 
-    components.value[componentName].remove(entity);
+    components[componentName].remove(entity);
   };
 
   const removeEntity = (entity: Entity) => {
-    for (const componentName in components.value) {
-      if (components.value[componentName].get(entity) !== undefined) {
+    for (const componentName in components) {
+      if (components[componentName].get(entity) !== undefined) {
         removeComponent(entity, componentName);
       }
     }
 
-    signatures.value[entity] = 0;
+    signatures[entity] = 0;
     recycledEntities.push(entity); // Store entity ID for reuse
   };
 
   const createComponent = (componentName: string) => {
-    components.value[componentName] = createComponentStore();
+    components[componentName] = createComponentStore();
     bitManager.getComponentBit(componentName);
   };
 
   const addComponent = <T>(entity: Entity, component: Component<T>) => {
     const componentBit = bitManager.getComponentBit(component.name);
-    signatures.value[entity] |= componentBit;
+    signatures[entity] |= componentBit;
 
-    components.value[component.name].add(entity, component.data);
+    components[component.name].add(entity, component.data);
   };
 
   const updateComponent = <T>(
@@ -91,7 +77,7 @@ export const createECS = ({
     componentName: string,
     recipe: (component: T) => void
   ) => {
-    const componentStore = components.value[componentName];
+    const componentStore = components[componentName];
     if (!componentStore) {
       // In a production engine, you might want to log this error.
       // For now, we fail silently.
@@ -106,11 +92,11 @@ export const createECS = ({
   };
 
   const hasComponents = (entity: Entity, requiredBits: number): boolean => {
-    return (signatures.value[entity] & requiredBits) === requiredBits;
+    return (signatures[entity] & requiredBits) === requiredBits;
   };
 
   const componentExists = (componentName: string) => {
-    return components.value[componentName] != undefined;
+    return components[componentName] != undefined;
   };
 
   const getEntitiesWithComponents = (requiredComponentNames: string[]) => {
@@ -119,13 +105,13 @@ export const createECS = ({
       0
     );
 
-    return Object.keys(signatures.value)
+    return Object.keys(signatures)
       .filter((id) => hasComponents(Number(id), requiredBits))
       .map(Number);
   };
 
   const getAllEntities = () => {
-    return Object.keys(signatures.value).map(Number);
+    return Object.keys(signatures).map(Number);
   };
 
   return {

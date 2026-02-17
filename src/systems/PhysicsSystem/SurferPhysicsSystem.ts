@@ -36,7 +36,7 @@ export const SurferPhysicsSystem: System = {
     'worklet';
 
     // Get all sea layer entities to find the main/centered layer
-    const seaLayerEntities = ecs.value.getEntitiesWithComponents([
+    const seaLayerEntities = ecs.getEntitiesWithComponents([
       SeaLayerComponentName,
     ]);
 
@@ -90,7 +90,7 @@ export const SurferPhysicsSystem: System = {
         // Initialize the initialX position from the current position
         const currentX = matterBody.position.x;
 
-        ecs.value.updateComponent<SurferComponentData>(
+        ecs.updateComponent<SurferComponentData>(
           surferEntity,
           SurferComponentName,
           (surfer) => {
@@ -130,7 +130,7 @@ export const SurferPhysicsSystem: System = {
           scorePending: 0,
         };
         // Save it to the component
-        ecs.value.updateComponent<SurferComponentData>(
+        ecs.updateComponent<SurferComponentData>(
           surferEntity,
           SurferComponentName,
           (surfer) => {
@@ -141,7 +141,7 @@ export const SurferPhysicsSystem: System = {
 
       // Create setter function for stateData
       const setSurferStateData = (data: SurferStateData) => {
-        ecs.value.updateComponent<SurferComponentData>(
+        ecs.updateComponent<SurferComponentData>(
           surferEntity,
           SurferComponentName,
           (surfer) => {
@@ -188,7 +188,7 @@ export const SurferPhysicsSystem: System = {
       );
 
       // Update position component to reflect Matter.js body position
-      ecs.value.updateComponent<PositionComponentData>(
+      ecs.updateComponent<PositionComponentData>(
         surferEntity,
         PositionComponentName,
         (pos) => {

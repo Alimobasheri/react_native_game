@@ -18,10 +18,10 @@ export const requestRemoveEntityBatch: System = {
       .readEvents()
       .filter((e) => e.type === RemoveEntityBatchRequestType);
 
-    const sceneEntities: Record<string, Entity> = ecs.value
+    const sceneEntities: Record<string, Entity> = ecs
       .getEntitiesWithComponents([SceneComponentName])
       .reduce((byKey, entity) => {
-        const entityData = ecs.value.components.value[SceneComponentName].get(
+        const entityData = ecs.components[SceneComponentName].get(
           entity
         ) as SceneComponentData;
         return {
@@ -33,8 +33,8 @@ export const requestRemoveEntityBatch: System = {
     for (let i = 0; i < events.length; i++) {
       const payload: RemoveEntityBatchRequest['payload'] = events[i].payload;
       for (let j = 0; j < payload.entityIds.length; j++) {
-        ecs.value.removeEntity(payload.entityIds[j]);
-        const matterBody = ecs.value.components.value[MatterBodyComponentName]?.get(
+        ecs.removeEntity(payload.entityIds[j]);
+        const matterBody = ecs.components[MatterBodyComponentName]?.get(
           payload.entityIds[j]
         );
         if (matterBody && global._RNTGE_?.physics && global.MatterReanimated) {
@@ -48,7 +48,7 @@ export const requestRemoveEntityBatch: System = {
           }
         }
         if (payload.sceneKey) {
-          ecs.value.updateComponent<SceneComponentData>(
+          ecs.updateComponent<SceneComponentData>(
             sceneEntities[payload.sceneKey],
             SceneComponentName,
             (component) => {

@@ -18,13 +18,13 @@ import { ECS } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/ecs';
 type sceneObjectAsset = keyof SceneComponentData['objects']['assets'];
 
 const pushSceneObjectsAsset = (
-  ecs: SharedValue<ECS>,
+  ecs: ECS,
   sceneEntity: Entity,
   name: string,
   type: sceneObjectAsset
 ) => {
   'worklet';
-  ecs.value.updateComponent<SceneComponentData>(
+  ecs.updateComponent<SceneComponentData>(
     sceneEntity,
     SceneComponentName,
     (component) => {
@@ -50,16 +50,16 @@ export const assetPreloadSystem: System = {
 
       const fontsToLoad: LoadedFontSources[] = [];
 
-      const sceneEntities = ecs.value.getEntitiesWithComponents([
+      const sceneEntities = ecs.getEntitiesWithComponents([
         SceneComponentName,
       ]);
 
       const sceneEntity = sceneEntities.find(
         (entity) =>
           (
-            ecs.value.components.value[SceneComponentName].get(entity) as
-              | SceneComponentData
-              | undefined
+            ecs.components[SceneComponentName].get(entity) as
+            | SceneComponentData
+            | undefined
           )?.sceneKey === payload.sceneKey
       );
 

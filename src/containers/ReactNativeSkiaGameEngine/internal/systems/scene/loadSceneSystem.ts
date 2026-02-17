@@ -15,10 +15,10 @@ export const loadSceneSystem: System = {
       .readEvents()
       .filter((e) => e.type === LoadSceneRequestType);
 
-    const sceneEntities: Record<string, Entity> = ecs.value
+    const sceneEntities: Record<string, Entity> = ecs
       .getEntitiesWithComponents([SceneComponentName])
       .reduce((byKey, entity) => {
-        const entityData = ecs.value.components.value[SceneComponentName].get(
+        const entityData = ecs.components[SceneComponentName].get(
           entity
         ) as SceneComponentData;
         return {
@@ -37,7 +37,7 @@ export const loadSceneSystem: System = {
       const sceneData: SceneComponentData =
         components[SceneComponentName].get(sceneEntity);
 
-      ecs.value.updateComponent<SceneComponentData>(
+      ecs.updateComponent<SceneComponentData>(
         sceneEntity,
         SceneComponentName,
         (sc) => {

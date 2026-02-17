@@ -1,6 +1,6 @@
 import { Canvas, SkPath, SkPicture } from '@shopify/react-native-skia';
 import { FC, PropsWithChildren, useCallback, useState } from 'react';
-import { ECSState, useECS } from './hooks-ecs/useECS/useECS';
+import { useECS } from './hooks-ecs/useECS/useECS';
 import {
   FrameInfo,
   SharedValue,
@@ -10,7 +10,7 @@ import {
   useSharedValue,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
-import { ECS } from './services-ecs/ecs';
+import { ECSState } from './services-ecs/ecs';
 import { useEventQueue } from './hooks-ecs/useEventQueue/useEventQueue';
 import { EventQueueProvider } from './contexts-rntge/EventQueueContext/EventQueueProvider';
 import { PositionComponentName } from './internal/components/position';
@@ -79,71 +79,70 @@ export const ReactNativeTurboGameEngine: FC<
       );
   });
   const eventQueue = useEventQueue();
-  const { ECS, state, initECS } = useECS({ eventQueue, dimensions });
-  const picture = useSharedValue<SkPicture | null>(null);
-  const pictureCache = useSharedValue<Record<number, SkPicture | SkPath>>({});
+  const { initECS } = useECS();
+  // const picture = useSharedValue<SkPicture | null>(null);
+  // const pictureCache = useSharedValue<Record<number, SkPicture | SkPath>>({});
 
   const [shouldRender, setShouldRender] = useState(false);
   const { initPhysics } = useMatterPhysics();
-  useAnimatedReaction(
-    () => state.value,
-    (state) => {
-      if (shouldRender !== (state === ECSState.INITIALIZED)) {
-        scheduleOnRN(setShouldRender, true);
-      }
-    }
-  );
 
   const defineComponents = useCallback(() => {
     'worklet';
-    if (!ECS.value) return;
-    ECS.value.createComponent(SceneComponentName);
-    ECS.value.createComponent(PositionComponentName);
-    ECS.value.createComponent(TouchComponentName);
-    ECS.value.createComponent(TapComponentName);
-    ECS.value.createComponent(PanComponentName);
-    ECS.value.createComponent(LongPressComponentName);
-    ECS.value.createComponent(MatterBodyComponentName);
-    ECS.value.createComponent(SpriteComponentName);
-    ECS.value.createComponent(AnimationClipComponentName);
-    ECS.value.createComponent(AnimatorStateComponentName);
-    ECS.value.createComponent(TextComponentName);
-    ECS.value.createComponent(RenderComponentName);
+    if (!global._RNTGE_.ecs) return;
+    global._RNTGE_.ecs.createComponent(SceneComponentName);
+    global._RNTGE_.ecs.createComponent(PositionComponentName);
+    global._RNTGE_.ecs.createComponent(TouchComponentName);
+    global._RNTGE_.ecs.createComponent(TapComponentName);
+    global._RNTGE_.ecs.createComponent(PanComponentName);
+    global._RNTGE_.ecs.createComponent(LongPressComponentName);
+    global._RNTGE_.ecs.createComponent(MatterBodyComponentName);
+    global._RNTGE_.ecs.createComponent(SpriteComponentName);
+    global._RNTGE_.ecs.createComponent(AnimationClipComponentName);
+    global._RNTGE_.ecs.createComponent(AnimatorStateComponentName);
+    global._RNTGE_.ecs.createComponent(TextComponentName);
+    global._RNTGE_.ecs.createComponent(RenderComponentName);
     componentNames.forEach(
-      (name) => ECS.value && ECS.value.createComponent(name)
+      (name) => global._RNTGE_.ecs && global._RNTGE_.ecs.createComponent(name)
     );
-  }, [ECS, componentNames]);
+  }, [componentNames]);
 
   const registerInternalSystems = useCallback(() => {
     'worklet';
-    if (!ECS.value) return;
-    ECS.value.registerSystem(requestAddSystem);
-    ECS.value.registerSystem(requestCreateEntity);
-    ECS.value.registerSystem(requestCreateEntityBatch);
-    ECS.value.registerSystem(requestRemoveEntity);
-    ECS.value.registerSystem(requestRemoveEntityBatch);
-    ECS.value.registerSystem(requestAddMatterBody);
-    ECS.value.registerSystem(requestAddMatterBodyBatch);
-    ECS.value.registerSystem(animationClipSystem);
-    ECS.value.registerSystem(spriteUpdateSystem);
-    ECS.value.registerSystem(animatorStateSystem);
-    ECS.value.registerSystem(updateMatterWorld);
-    ECS.value.registerSystem(registerSceneSystem);
-    ECS.value.registerSystem(sceneStateSystem);
-    ECS.value.registerSystem(loadSceneSystem);
-    ECS.value.registerSystem(unLoadSceneSystem);
-    ECS.value.registerSystem(assetPreloadSystem);
-    ECS.value.registerSystem(touchSystem);
-    ECS.value.registerSystem(renderSystem(picture, dimensions, pictureCache));
-  }, [ECS, picture, dimensions, pictureCache]);
+    if (!global._RNTGE_.ecs) return;
+    global._RNTGE_.ecs.registerSystem(requestAddSystem);
+    global._RNTGE_.ecs.registerSystem(requestCreateEntity);
+    global._RNTGE_.ecs.registerSystem(requestCreateEntityBatch);
+    global._RNTGE_.ecs.registerSystem(requestRemoveEntity);
+    global._RNTGE_.ecs.registerSystem(requestRemoveEntityBatch);
+    global._RNTGE_.ecs.registerSystem(requestAddMatterBody);
+    global._RNTGE_.ecs.registerSystem(requestAddMatterBodyBatch);
+    global._RNTGE_.ecs.registerSystem(animationClipSystem);
+    global._RNTGE_.ecs.registerSystem(spriteUpdateSystem);
+    global._RNTGE_.ecs.registerSystem(animatorStateSystem);
+    global._RNTGE_.ecs.registerSystem(updateMatterWorld);
+    global._RNTGE_.ecs.registerSystem(registerSceneSystem);
+    global._RNTGE_.ecs.registerSystem(sceneStateSystem);
+    global._RNTGE_.ecs.registerSystem(loadSceneSystem);
+    global._RNTGE_.ecs.registerSystem(unLoadSceneSystem);
+    global._RNTGE_.ecs.registerSystem(assetPreloadSystem);
+    global._RNTGE_.ecs.registerSystem(touchSystem);
+    global._RNTGE_.ecs.registerSystem(renderSystem);
+  }, []);
 
   const onFrame = useCallback(
     (frameInfo: FrameInfo) => {
       'worklet';
       if (global.gc) global.gc();
-      if (eventQueue.nextExternalEvents.value.length > 0) return;
+      if (
+        global._RNTGE_?.eventQueue &&
+        global._RNTGE_.eventQueue.nextExternalEvents.length > 0
+      )
+        return;
       eventQueue.clearEvents();
-      if (state.value !== ECSState.INITIALIZED) {
+      if (shouldRender !== (global?._RNTGE_?.state === ECSState.INITIALIZED)) {
+        scheduleOnRN(setShouldRender, true);
+      }
+      if (!global._RNTGE_) {
         global._RNTGE_ = {
           physics: undefined,
           imageCache: {},
@@ -162,7 +161,15 @@ export const ReactNativeTurboGameEngine: FC<
             tap: {},
             longPress: {},
           },
-          ecs: ECS,
+          ecs: null,
+          eventQueue: {
+            eventStore: [],
+            nextEvents: [],
+            nextExternalEvents: [],
+          },
+          state: ECSState.NOT_INITIALIZED,
+          picture: null,
+          pictureCache: {},
         };
         initECS();
         initPhysics();
@@ -170,9 +177,8 @@ export const ReactNativeTurboGameEngine: FC<
         registerInternalSystems();
         return;
       } else {
-        if (!!ECS && !!ECS.value) {
-          ECS.value.runSystems({
-            ecs: ECS as SharedValue<ECS>,
+        if (!!global._RNTGE_.ecs) {
+          global._RNTGE_.ecs.runSystems({
             eventQueue,
             deltaTime: frameInfo.timeSincePreviousFrame ?? 0,
             dimensions,
@@ -182,8 +188,6 @@ export const ReactNativeTurboGameEngine: FC<
       eventQueue.callAllAwaitingExternalEvents();
     },
     [
-      ECS,
-      state,
       eventQueue,
       dimensions,
       initECS,
@@ -198,7 +202,7 @@ export const ReactNativeTurboGameEngine: FC<
       <Canvas style={{ flex: 1 }} onSize={dimensions}>
         {shouldRender && (
           <>
-            <RenderEntities picture={picture as SharedValue<SkPicture>} />
+            <RenderEntities />
           </>
         )}
       </Canvas>

@@ -40,7 +40,7 @@ export const TapSwimmer: FC<{
           const isLeftHalf = tapX < screenWidth / 2;
           const inputX = isLeftHalf ? -1 : 1;
 
-          const ecs = data.systemArgs.ecs.value;
+          const ecs = data.systemArgs.ecs;
           const swimmerEntities = ecs.getEntitiesWithComponents([
             SwimmerComponentName,
           ]);

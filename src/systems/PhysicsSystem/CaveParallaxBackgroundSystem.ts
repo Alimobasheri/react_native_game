@@ -44,7 +44,7 @@ export const CaveParallaxBackgroundSystem: System = {
     }
 
     // Get water entity and data for speed reference
-    const waterEntities = ecs.value.getEntitiesWithComponents([
+    const waterEntities = ecs.getEntitiesWithComponents([
       WaterComponentName,
     ]);
 
@@ -62,7 +62,7 @@ export const CaveParallaxBackgroundSystem: System = {
     }
 
     // Determine if we're in the swimmer's initial phase so we stay in sync
-    const swimmerEntities = ecs.value.getEntitiesWithComponents([
+    const swimmerEntities = ecs.getEntitiesWithComponents([
       SwimmerComponentName,
     ]);
 
@@ -70,14 +70,14 @@ export const CaveParallaxBackgroundSystem: System = {
       swimmerEntities.length > 0 &&
       (
         components[SwimmerComponentName]?.get(swimmerEntities[0]) as
-          | SwimmerComponentData
-          | undefined
+        | SwimmerComponentData
+        | undefined
       )?.isInInitialPhase === true;
 
     const deltaSeconds = deltaTime / 1000;
 
     // Find all background render entities using the cave background image
-    const renderEntities = ecs.value.getEntitiesWithComponents([
+    const renderEntities = ecs.getEntitiesWithComponents([
       RenderComponentName,
     ]);
 
@@ -140,7 +140,7 @@ export const CaveParallaxBackgroundSystem: System = {
         const currentY = renderData.position?.y ?? screenHeight / 2;
         const newY = currentY + parallaxSpeed * deltaSeconds;
 
-        ecs.value.updateComponent<RenderComponentData>(
+        ecs.updateComponent<RenderComponentData>(
           entityId,
           RenderComponentName,
           (render) => {
@@ -156,7 +156,7 @@ export const CaveParallaxBackgroundSystem: System = {
     }
 
     // After movement, manage tiling (attach new segments on top) and removal
-    const updatedEntities = ecs.value
+    const updatedEntities = ecs
       .getEntitiesWithComponents([RenderComponentName])
       .filter((entityId) => {
         const renderData = components[RenderComponentName]?.get(entityId) as
@@ -198,7 +198,7 @@ export const CaveParallaxBackgroundSystem: System = {
 
     // Ensure we always have coverage from top of screen upwards by adding
     // new segments attached to the top-most segment when needed.
-    const remainingSegments = ecs.value
+    const remainingSegments = ecs
       .getEntitiesWithComponents([RenderComponentName])
       .filter((entityId) => {
         const renderData = components[RenderComponentName]?.get(entityId) as

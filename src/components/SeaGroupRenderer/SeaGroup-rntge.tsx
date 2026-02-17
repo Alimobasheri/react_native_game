@@ -41,7 +41,7 @@ export const seaLayerShaderSystem: System = {
 
       if (!seaLayerComponent || !renderData) return;
 
-      ecs.value.updateComponent<RenderComponentData>(
+      ecs.updateComponent<RenderComponentData>(
         entity,
         RenderComponentName,
         (renderComponent) => {
@@ -141,7 +141,7 @@ export const updateWaveSystem: System = {
               WAVE_DECAY_CONFIG.speedProximityThreshold;
 
           // Apply decay or remove wave through ECS update
-          ecs.value.updateComponent<SeaLayerComponentData>(
+          ecs.updateComponent<SeaLayerComponentData>(
             entity,
             SeaLayerComponentName,
             (component) => {

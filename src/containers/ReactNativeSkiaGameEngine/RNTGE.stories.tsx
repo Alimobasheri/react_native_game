@@ -101,8 +101,8 @@ const PanTestComponent: FC<{ x: number; y: number }> = ({ x, y }) => {
         'worklet';
 
         // Move the entity to follow the pointer
-        if (global._RNTGE_.ecs?.value) {
-          global._RNTGE_.ecs.value.updateComponent<RenderComponentData>(
+        if (global._RNTGE_.ecs) {
+          global._RNTGE_.ecs.updateComponent<RenderComponentData>(
             data.entityId,
             'render',
             (renderComponent) => {

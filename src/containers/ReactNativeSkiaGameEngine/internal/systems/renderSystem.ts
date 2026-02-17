@@ -8,7 +8,6 @@ import {
   BlendMode,
 } from '@shopify/react-native-skia';
 import { RenderComponentData, RenderComponentName } from '../components/render';
-import { SharedValue } from 'react-native-reanimated';
 import { ComponentStore } from '../../services-ecs';
 import { MatterBodyComponentName } from '../components/matterBody';
 import { IBodyDefinition } from 'matter-js';
@@ -142,14 +141,13 @@ const createAndCacheEntityPicture = (
   const canvas = recorder.beginRecording();
 
   if (textComponent) {
-    return null;
-    // const text = renderTextForEntity(
-    //   canvas,
-    //   entityId,
-    //   renderData,
-    //   textComponent
-    // );
-    // if (!text) return null;
+    const text = renderTextForEntity(
+      canvas,
+      entityId,
+      renderData,
+      textComponent
+    );
+    if (!text) return null;
   } else if (renderData.image) {
     let image = imageCache[renderData.image];
     if (image) {
@@ -230,180 +228,179 @@ const createAndCacheEntityPicture = (
   return recorder.finishRecordingAsPicture();
 };
 
-export const renderSystem = (
-  picture: SharedValue<SkPicture | null>,
-  dimensions: SharedValue<{ width: number; height: number }>,
-  pictureCache: SharedValue<Record<number, SkPicture | SkPath>>
-): System => {
-  'worklet';
-  return {
-    name: 'renderSystem',
-    requiredComponents: [],
-    process: ({ entities, components, eventQueue, deltaTime, ecs }) => {
-      'worklet';
+export const renderSystem: System = {
+  name: 'renderSystem',
+  requiredComponents: [],
+  process: ({ entities, components, eventQueue, deltaTime, ecs, dimensions }) => {
+    'worklet';
 
-      const imageCache = global._RNTGE_.imageCache;
-      const shaderEffects = global._RNTGE_.shaderCache;
+    if (!global._RNTGE_.picture || !global._RNTGE_.pictureCache) {
+      global._RNTGE_.picture = null;
+      global._RNTGE_.pictureCache = {};
+    }
+    const picture = global._RNTGE_.picture;
+    const pictureCache = global._RNTGE_.pictureCache;
+    const imageCache = global._RNTGE_.imageCache;
+    const shaderEffects = global._RNTGE_.shaderCache;
 
-      const recorder = Skia.PictureRecorder();
+    const recorder = Skia.PictureRecorder();
 
-      const bounds = Skia.XYWHRect(
-        0,
-        0,
-        dimensions.value.width,
-        dimensions.value.height
-      );
-      const canvas = recorder.beginRecording(bounds);
+    const bounds = Skia.XYWHRect(
+      0,
+      0,
+      dimensions.value.width,
+      dimensions.value.height
+    );
+    const canvas = recorder.beginRecording(bounds);
 
-      const sceneStore = components[SceneComponentName];
-      const renderStore = components[RenderComponentName];
-      if (!sceneStore || !renderStore) {
-        const newPicture = recorder.finishRecordingAsPicture();
-        picture.value = newPicture;
-        return;
-      }
+    const sceneStore = components[SceneComponentName];
+    const renderStore = components[RenderComponentName];
+    if (!sceneStore || !renderStore) {
+      const newPicture = recorder.finishRecordingAsPicture();
+      global._RNTGE_.picture = newPicture;
+      return;
+    }
 
-      const sceneEntities = ecs.value.getEntitiesWithComponents([
-        SceneComponentName,
-      ]);
+    const sceneEntities = ecs.getEntitiesWithComponents([
+      SceneComponentName,
+    ]);
 
-      // Gather active scenes and order them by zIndex (then by id for stability).
-      const activeScenes: { sceneEntity: Entity; data: SceneComponentData }[] =
-        [];
-      for (let i = 0; i < sceneEntities.length; i++) {
-        const sceneEntity = sceneEntities[i];
-        const sceneData = sceneStore.get(sceneEntity) as
-          | SceneComponentData
+    // Gather active scenes and order them by zIndex (then by id for stability).
+    const activeScenes: { sceneEntity: Entity; data: SceneComponentData }[] =
+      [];
+    for (let i = 0; i < sceneEntities.length; i++) {
+      const sceneEntity = sceneEntities[i];
+      const sceneData = sceneStore.get(sceneEntity) as
+        | SceneComponentData
+        | undefined;
+      if (!sceneData) continue;
+      if (sceneData.isActive === false) continue;
+      if (sceneData.isPaused === true) continue;
+      activeScenes.push({ sceneEntity, data: sceneData });
+    }
+
+    activeScenes.sort((a, b) => {
+      if (a.data.zIndex !== b.data.zIndex)
+        return a.data.zIndex - b.data.zIndex;
+      return a.sceneEntity - b.sceneEntity;
+    });
+
+    for (let s = 0; s < activeScenes.length; s++) {
+      const sceneData = activeScenes[s].data;
+      const sceneEntityIds = sceneData.objects.entities;
+
+      // Build a per-scene render queue ordered by zIndex (then entity id for stability)
+      const renderQueue: {
+        entity: Entity;
+        zIndex: number;
+        renderData: RenderComponentData;
+      }[] = [];
+
+      for (let i = 0; i < sceneEntityIds.length; i++) {
+        const entity = sceneEntityIds[i];
+        const renderData = renderStore.get(entity) as
+          | RenderComponentData
           | undefined;
-        if (!sceneData) continue;
-        if (sceneData.isActive === false) continue;
-        if (sceneData.isPaused === true) continue;
-        activeScenes.push({ sceneEntity, data: sceneData });
+
+        if (!renderData || renderData.visible === false) continue;
+
+        const zIndex = renderData.zIndex ?? 0;
+        renderQueue.push({ entity, zIndex, renderData });
       }
 
-      activeScenes.sort((a, b) => {
-        if (a.data.zIndex !== b.data.zIndex)
-          return a.data.zIndex - b.data.zIndex;
-        return a.sceneEntity - b.sceneEntity;
+      renderQueue.sort((a, b) => {
+        if (a.zIndex !== b.zIndex) {
+          return a.zIndex - b.zIndex;
+        }
+        return a.entity - b.entity;
       });
 
-      for (let s = 0; s < activeScenes.length; s++) {
-        const sceneData = activeScenes[s].data;
-        const sceneEntityIds = sceneData.objects.entities;
+      for (let i = 0; i < renderQueue.length; i++) {
+        const { entity, renderData } = renderQueue[i];
 
-        // Build a per-scene render queue ordered by zIndex (then entity id for stability)
-        const renderQueue: {
-          entity: Entity;
-          zIndex: number;
-          renderData: RenderComponentData;
-        }[] = [];
+        // 1. Universal Transformation Logic
+        const body: IBodyDefinition | undefined =
+          components[MatterBodyComponentName]?.get(entity);
+        const position = body?.position ||
+          renderData.position || { x: 0, y: 0 };
+        const angle = body?.angle || 0;
 
-        for (let i = 0; i < sceneEntityIds.length; i++) {
-          const entity = sceneEntityIds[i];
-          const renderData = renderStore.get(entity) as
-            | RenderComponentData
-            | undefined;
-
-          if (!renderData || renderData.visible === false) continue;
-
-          const zIndex = renderData.zIndex ?? 0;
-          renderQueue.push({ entity, zIndex, renderData });
+        const matrix = Skia.Matrix();
+        matrix.translate(position.x, position.y);
+        if (angle !== 0) {
+          matrix.rotate(angle);
         }
 
-        renderQueue.sort((a, b) => {
-          if (a.zIndex !== b.zIndex) {
-            return a.zIndex - b.zIndex;
-          }
-          return a.entity - b.entity;
-        });
+        canvas.save();
+        canvas.concat(matrix);
 
-        for (let i = 0; i < renderQueue.length; i++) {
-          const { entity, renderData } = renderQueue[i];
-
-          // 1. Universal Transformation Logic
-          const body: IBodyDefinition | undefined =
-            components[MatterBodyComponentName]?.get(entity);
-          const position = body?.position ||
-            renderData.position || { x: 0, y: 0 };
-          const angle = body?.angle || 0;
-
-          const matrix = Skia.Matrix();
-          matrix.translate(position.x, position.y);
-          if (angle !== 0) {
-            matrix.rotate(angle);
-          }
-
-          canvas.save();
-          canvas.concat(matrix);
-
-          // 2. Conditional Rendering Logic
-          if (renderData.shader) {
-            const shaderPaint = Skia.Paint();
-            shaderPaint.setAntiAlias(true);
-            const effect = shaderEffects[renderData.shader.key];
-            if (effect) {
-              let path = pictureCache.value[entity] as SkPath;
-              if (!path || renderData.isDirty) {
-                path = createPathFromShape(renderData) as SkPath;
-                pictureCache.value[entity] = path;
-              }
-              if (path) {
-                const uniformValues: number[] = [];
-                const uniformSources = Object.values(
-                  renderData.shader.uniforms
-                );
-
-                for (const source of uniformSources) {
-                  const value = source;
-                  if (typeof value === 'number') {
-                    uniformValues.push(value > 1 ? value * 1.0 : value);
-                  } else {
-                    uniformValues.push(...value);
-                  }
-                }
-                const shader: SkShader = effect.makeShader(uniformValues);
-                shaderPaint.setStyle(PaintStyle.Fill);
-                shaderPaint.setBlendMode(
-                  renderData.blendMode || BlendMode.SrcOver
-                );
-                shaderPaint.setShader(shader);
-                shaderPaint.setAntiAlias(true);
-                canvas.drawPath(path, shaderPaint);
-                shaderPaint.dispose();
-              }
+        // 2. Conditional Rendering Logic
+        if (renderData.shader) {
+          const shaderPaint = Skia.Paint();
+          shaderPaint.setAntiAlias(true);
+          const effect = shaderEffects[renderData.shader.key];
+          if (effect) {
+            let path = pictureCache[entity] as SkPath;
+            if (!path || renderData.isDirty) {
+              path = createPathFromShape(renderData) as SkPath;
+              pictureCache[entity] = path;
             }
-          } else {
-            let entityPicture = pictureCache.value[entity] as SkPicture;
-
-            const spriteComponent =
-              components[SpriteComponentName]?.get(entity);
-            const hasSpriteAnimation =
-              spriteComponent?.currentFrame !== undefined || renderData.sprite;
-
-            if (renderData.isDirty || !entityPicture || hasSpriteAnimation) {
-              const newEntityPicture = createAndCacheEntityPicture(
-                components,
-                entity
+            if (path) {
+              const uniformValues: number[] = [];
+              const uniformSources = Object.values(
+                renderData.shader.uniforms
               );
-              if (newEntityPicture) {
-                pictureCache.value[entity] = newEntityPicture;
-                entityPicture = newEntityPicture;
-              }
-            }
 
-            if (entityPicture) {
-              canvas.drawPicture(entityPicture);
+              for (const source of uniformSources) {
+                const value = source;
+                if (typeof value === 'number') {
+                  uniformValues.push(value > 1 ? value * 1.0 : value);
+                } else {
+                  uniformValues.push(...value);
+                }
+              }
+              const shader: SkShader = effect.makeShader(uniformValues);
+              shaderPaint.setStyle(PaintStyle.Fill);
+              shaderPaint.setBlendMode(
+                renderData.blendMode || BlendMode.SrcOver
+              );
+              shaderPaint.setShader(shader);
+              shaderPaint.setAntiAlias(true);
+              canvas.drawPath(path, shaderPaint);
+              shaderPaint.dispose();
+            }
+          }
+        } else {
+          let entityPicture = pictureCache[entity] as SkPicture;
+
+          const spriteComponent =
+            components[SpriteComponentName]?.get(entity);
+          const hasSpriteAnimation =
+            spriteComponent?.currentFrame !== undefined || renderData.sprite;
+
+          if (renderData.isDirty || !entityPicture || hasSpriteAnimation) {
+            const newEntityPicture = createAndCacheEntityPicture(
+              components,
+              entity
+            );
+            if (newEntityPicture) {
+              pictureCache[entity] = newEntityPicture;
+              entityPicture = newEntityPicture;
             }
           }
 
-          // 3. Universal Cleanup Logic
-          canvas.restore();
-          renderData.isDirty = false;
+          if (entityPicture) {
+            canvas.drawPicture(entityPicture);
+          }
         }
-      }
 
-      const newPicture = recorder.finishRecordingAsPicture();
-      picture.value = newPicture;
-    },
-  };
+        // 3. Universal Cleanup Logic
+        canvas.restore();
+        renderData.isDirty = false;
+      }
+    }
+
+    const newPicture = recorder.finishRecordingAsPicture();
+    global._RNTGE_.picture = newPicture;
+  }
 };

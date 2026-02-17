@@ -100,10 +100,10 @@ export const requestAddMatterBody: System = {
     const events = eventQueue
       .readEvents()
       .filter((e) => e.type === AddMatterBodyRequestType);
-    const sceneEntities: Record<string, Entity> = ecs.value
+    const sceneEntities: Record<string, Entity> = ecs
       .getEntitiesWithComponents([SceneComponentName])
       .reduce((byKey, entity) => {
-        const entityData = ecs.value.components.value[SceneComponentName].get(
+        const entityData = ecs.components[SceneComponentName].get(
           entity
         ) as SceneComponentData;
         return {
@@ -121,11 +121,11 @@ export const requestAddMatterBody: System = {
         [body]
       );
 
-      ecs.value.addComponent(payload.entityId, {
+      ecs.addComponent(payload.entityId, {
         name: MatterBodyComponentName,
         data: body,
       });
-      ecs.value.updateComponent<SceneComponentData>(
+      ecs.updateComponent<SceneComponentData>(
         sceneEntities[payload.sceneKey],
         SceneComponentName,
         (component) => {

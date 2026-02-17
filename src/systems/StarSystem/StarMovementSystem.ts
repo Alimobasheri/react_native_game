@@ -57,7 +57,7 @@ export const createStarMovementSystem = (dimensions: {
         const newSpeed = Math.random() * 0.001 + 0.003; // Random speed between 0.1-0.6 (very slow for distant stars)
 
         // Update star component with new properties
-        ecs.value.updateComponent<StarComponentData>(
+        ecs.updateComponent<StarComponentData>(
           starEntity,
           StarComponentName,
           (star) => {
@@ -69,7 +69,7 @@ export const createStarMovementSystem = (dimensions: {
         );
 
         // Update render component
-        ecs.value.updateComponent<RenderComponentData>(
+        ecs.updateComponent<RenderComponentData>(
           starEntity,
           RenderComponentName,
           (render) => {
@@ -84,7 +84,7 @@ export const createStarMovementSystem = (dimensions: {
         );
       } else {
         // Update render component position for normal movement
-        ecs.value.updateComponent<RenderComponentData>(
+        ecs.updateComponent<RenderComponentData>(
           starEntity,
           RenderComponentName,
           (render) => {
@@ -95,7 +95,7 @@ export const createStarMovementSystem = (dimensions: {
         );
 
         // Update star component cx to keep it in sync
-        ecs.value.updateComponent<StarComponentData>(
+        ecs.updateComponent<StarComponentData>(
           starEntity,
           StarComponentName,
           (star) => {

@@ -28,11 +28,11 @@ export const obstaclesSystem: System = {
   process: ({ ecs, components, eventQueue, dimensions }) => {
     'worklet';
 
-    const existingObstacles: Entity[] = ecs.value.getEntitiesWithComponents([
+    const existingObstacles: Entity[] = ecs.getEntitiesWithComponents([
       ObstacleComponentName,
     ]);
 
-    const seaLayerEntities = ecs.value.getEntitiesWithComponents([
+    const seaLayerEntities = ecs.getEntitiesWithComponents([
       SeaLayerComponentName,
     ]);
 
@@ -70,7 +70,7 @@ export const obstaclesSystem: System = {
           };
           eventQueue.addEvent(request);
         } else {
-          ecs.value.updateComponent<RenderComponentData>(
+          ecs.updateComponent<RenderComponentData>(
             obstacleEntity,
             RenderComponentName,
             (comp) => {

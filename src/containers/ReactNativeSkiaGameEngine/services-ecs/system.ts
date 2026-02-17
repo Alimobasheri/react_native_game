@@ -4,8 +4,6 @@ import { Entity } from './entity';
 import { ComponentStore } from './component';
 import { EventQueueContextType } from '../hooks-ecs/useEventQueue/useEventQueue';
 import { MutableRefObject } from 'react';
-import { Assets } from '../types-ecs/assets';
-import { SkImage, SkPath, SkPicture } from '@shopify/react-native-skia';
 
 export enum SystemContext {
   JS = 'JS',
@@ -17,12 +15,11 @@ export type SystemProcessArgs = {
   components: Record<string, ComponentStore<any>>;
   eventQueue: EventQueueContextType;
   deltaTime: number;
-  ecs: SharedValue<ECS>;
+  ecs: ECS;
   dimensions: SharedValue<{ width: number; height: number }>;
 };
 
 export interface RunSystemsArgs {
-  ecs: SharedValue<ECS>;
   eventQueue: EventQueueContextType;
   deltaTime: number;
   dimensions: SharedValue<{ width: number; height: number }>;
@@ -56,8 +53,7 @@ const runJSSystem = (processFn: () => void) => {
 };
 
 export const createSystemManager = (
-  systems: SharedValue<(System | undefined)[]>,
-  jsSystems: MutableRefObject<System[]>
+  systems: (System | undefined)[],
 ) => {
   'worklet';
 
@@ -67,50 +63,46 @@ export const createSystemManager = (
 
   const registerSystem = (system: System): number => {
     const systemId = nextSystemId++;
-    if (system.context === SystemContext.JS) {
-      jsSystems.current.push(system);
-    } else {
-      systems.value.push(system);
-    }
-    systemIdMap[systemId] = systems.value.length - 1;
+    systems.push(system);
+    systemIdMap[systemId] = systems.length - 1;
     return systemId;
   };
 
   const removeSystem = (systemId: number): void => {
     const index = systemIdMap[systemId];
     if (!index) return;
-    systems.value[index] = undefined;
+    systems[index] = undefined;
     systemIdMap[systemId] = undefined;
     reuseIndexes.push(index);
   };
 
   const runSystems = ({
-    ecs,
     eventQueue,
     deltaTime,
     dimensions,
   }: RunSystemsArgs) => {
+    const ecs = global._RNTGE_.ecs;
+    if (!ecs) return;
     const events = eventQueue.readEvents();
-    // console.log(systems.value.map((sys) => sys?.name));
-    for (let i = 0; i < systems.value.length; i++) {
-      const system = systems.value[i];
+    // console.log(systems.map((sys) => sys?.name));
+    for (let i = 0; i < systems.length; i++) {
+      const system = systems[i];
       if (!system) continue;
 
       const hasRequiredEvents = system.requiredEvents
         ? system.requiredEvents.some((event: string) =>
-            events.some((e) => e.type === event)
-          )
+          events.some((e) => e.type === event)
+        )
         : true;
 
       if (!hasRequiredEvents) continue;
 
       const entities = system.requiredComponents
-        ? ecs.value.getEntitiesWithComponents(system.requiredComponents)
+        ? ecs.getEntitiesWithComponents(system.requiredComponents)
         : [];
-      // console.log('=====', system.requiredComponents);
       system.process({
         entities,
-        components: ecs.value.components.value,
+        components: ecs.components,
         eventQueue,
         deltaTime,
         ecs,

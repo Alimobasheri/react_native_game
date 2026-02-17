@@ -16,10 +16,10 @@ export const requestAddSystem: System = {
     const events = eventQueue
       .readEvents()
       .filter((e) => e.type === AddSystemRequestType);
-    const sceneEntities: Record<string, Entity> = ecs.value
+    const sceneEntities: Record<string, Entity> = ecs
       .getEntitiesWithComponents([SceneComponentName])
       .reduce((byKey, entity) => {
-        const entityData = ecs.value.components.value[SceneComponentName].get(
+        const entityData = ecs.components[SceneComponentName].get(
           entity
         ) as SceneComponentData;
         return {
@@ -29,8 +29,8 @@ export const requestAddSystem: System = {
       }, {});
     for (let i = 0; i < events.length; i++) {
       const payload: AddSystemRequest['payload'] = events[i].payload;
-      const systemId = ecs.value.registerSystem(payload.system);
-      ecs.value.updateComponent<SceneComponentData>(
+      const systemId = ecs.registerSystem(payload.system);
+      ecs.updateComponent<SceneComponentData>(
         sceneEntities[payload.sceneKey],
         SceneComponentName,
         (component) => {

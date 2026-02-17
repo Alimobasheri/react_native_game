@@ -27,7 +27,7 @@ export const WaterShaderSystem: System = {
     'worklet';
 
     // Get container entities
-    const containerEntities = ecs.value.getEntitiesWithComponents([
+    const containerEntities = ecs.getEntitiesWithComponents([
       ContainerComponentName,
     ]);
 
@@ -64,7 +64,7 @@ export const WaterShaderSystem: System = {
       // Use container's waterSurfaceY to calculate water level
 
       // Update shader uniforms only - don't change entity position
-      ecs.value.updateComponent<RenderComponentData>(
+      ecs.updateComponent<RenderComponentData>(
         waterEntity,
         RenderComponentName,
         (renderComponent) => {

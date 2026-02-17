@@ -13,10 +13,10 @@ export const requestRemoveEntity: System = {
       .readEvents()
       .filter((e) => e.type === RemoveEntityRequestType);
 
-    const sceneEntities: Record<string, Entity> = ecs.value
+    const sceneEntities: Record<string, Entity> = ecs
       .getEntitiesWithComponents([SceneComponentName])
       .reduce((byKey, entity) => {
-        const entityData = ecs.value.components.value[SceneComponentName].get(
+        const entityData = ecs.components[SceneComponentName].get(
           entity
         ) as SceneComponentData;
         return {
@@ -42,9 +42,9 @@ export const requestRemoveEntity: System = {
           // Ignore removal errors (entity may already be gone)
         }
       }
-      ecs.value.removeEntity(payload.entityId);
+      ecs.removeEntity(payload.entityId);
       if (payload.sceneKey) {
-        ecs.value.updateComponent<SceneComponentData>(
+        ecs.updateComponent<SceneComponentData>(
           sceneEntities[payload.sceneKey],
           SceneComponentName,
           (component) => {

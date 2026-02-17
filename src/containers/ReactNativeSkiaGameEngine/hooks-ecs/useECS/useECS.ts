@@ -1,66 +1,19 @@
-import { useCallback, useRef } from 'react';
-import { createECS, ECS } from '../../services-ecs/ecs';
-import { runOnJS, SharedValue, useSharedValue } from 'react-native-reanimated';
-import { System } from '../../services-ecs/system';
-import { EventQueueContextType } from '../useEventQueue/useEventQueue';
+import { useCallback } from 'react';
+import { createECS, ECSState } from '../../services-ecs/ecs';
 
-export enum ECSState {
-  INITIALIZED = 'INITIALIZED',
-  NOT_INITIALIZED = 'NOT_INITIALIZED',
-}
 
-export type Dimensions = {
-  width: number;
-  height: number;
-};
-
-export type UseECSArgs = {
-  eventQueue: EventQueueContextType;
-  dimensions: SharedValue<Dimensions>;
-};
 
 export type UseECSReturnValue = {
-  ECS: SharedValue<ECS | null>;
-  state: SharedValue<ECSState>;
   initECS: () => void;
 };
 
-export const useECS = ({
-  eventQueue,
-  dimensions,
-}: UseECSArgs): UseECSReturnValue => {
-  const ECS = useSharedValue<ECS | null>(null);
-
-  const state = useSharedValue(ECSState.NOT_INITIALIZED);
-
-  const nextEntityId = useSharedValue(0);
-  const signatures = useSharedValue({});
-  const components = useSharedValue({});
-  const systems = useSharedValue<(System | undefined)[]>([]);
-
-  const jsSystems = useRef<System[]>([]);
+export const useECS = (): UseECSReturnValue => {
 
   const initECS = useCallback(() => {
     'worklet';
-    ECS.value = createECS({
-      nextEntityId,
-      components,
-      signatures,
-      systems,
-      eventQueue,
-      jsSystems,
-      dimensions,
-    });
-    state.value = ECSState.INITIALIZED;
-  }, [
-    ECS,
-    nextEntityId,
-    components,
-    signatures,
-    systems,
-    jsSystems,
-    eventQueue,
-  ]);
+    global._RNTGE_.ecs = createECS();
+    global._RNTGE_.state = ECSState.INITIALIZED;
+  }, []);
 
-  return { ECS, state, initECS };
+  return { initECS };
 };
