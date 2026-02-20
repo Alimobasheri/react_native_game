@@ -302,7 +302,6 @@ const SwimmerGameComp: FC<{}> = memo(
               />
             </Preload>
             <Content>
-              <SkyBackground />
               <Scene name="swimmerGame">
                 <Preload>
                   <Asset type="image" name="block" uriOrBase64={block} />
