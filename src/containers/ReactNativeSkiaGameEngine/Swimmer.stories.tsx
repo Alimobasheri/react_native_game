@@ -23,6 +23,8 @@ import { ContainerComponentName } from '@/Game/ecs-components/Container';
 import { WaterComponentName } from '@/Game/ecs-components/Water';
 import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
 import { ObstaclesManagerComponentName } from '@/Game/ecs-components/ObstaclesManager';
+import { ScoreComponentName } from '@/Game/ecs-components/Score';
+import { ScoreView } from '@/components/ScoreView/ScoreView-rntge';
 
 export const SwimmerGameComp: FC<{}> = memo(
   (args: any) => {
@@ -56,6 +58,7 @@ export const SwimmerGameComp: FC<{}> = memo(
               WaterComponentName,
               ObstacleComponentName,
               ObstaclesManagerComponentName,
+              ScoreComponentName,
             ]}
           >
             <Preload>
@@ -122,6 +125,9 @@ export const SwimmerGameComp: FC<{}> = memo(
 
                   {/* Dynamic Obstacles */}
                   <ObstacleView />
+
+                  {/* Score - top center, big and bold */}
+                  <ScoreView />
                 </Content>
               </Scene>
             </Content>
