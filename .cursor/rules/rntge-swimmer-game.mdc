@@ -1,0 +1,36 @@
+---
+alwaysApply: false
+---
+# RNTGE Game Engine & Swimmer Game
+
+We focus on the **Swimmer game** story (`src/containers/ReactNativeSkiaGameEngine/Swimmer.stories.tsx`) using the **RNTGE** game engine (`src/containers/ReactNativeSkiaGameEngine/RNTGE.tsx`).
+
+## Engine architecture
+
+- **RNTGE** is a 2D game engine with ECS support:
+  - ECS core: `src/containers/ReactNativeSkiaGameEngine/services-ecs/ecs.ts`, `system.ts`
+  - Systems and data live on the **global object of the UI thread** (`global._RNTGE_`).
+- Keep the engine as an **efficient, fully interconnected** 2D React Native game engine.
+
+## Task type: game vs engine
+
+- **Game tasks**: Use the current RNTGE structure correctly. Implement game features (entities, components, systems) following existing patterns.
+- **Engine tasks**: Add or fix engine features/bugs without breaking the above architecture. Prefer minimal, targeted changes.
+
+## Reference ECS flow (Swimmer)
+
+Canonical example of how entities, components, and systems plug into RNTGE:
+
+| Role | File |
+|------|------|
+| **View** (creates entity + components, registers system) | `src/components/SwimmerView/SwimmerView-rntge.tsx` |
+| **System** (game logic, `requiredComponents`, `process`) | `src/systems/PhysicsSystem/SwimmerPhysicsSystem.ts` |
+| **Component** (name, data type, factory) | `src/Game/ecs-components/Swimmer.ts` |
+
+Pattern: View uses `useAddEntity` with component array (game + render + optional touch), `useAddMatterBody` for physics, `useAddSystem` for game systems. Systems use `ecs.getEntitiesWithComponents`, `components[Name].get(entity)`, and `ecs.updateComponent`.
+
+## Mindset
+
+- Act as a **skilled indie game developer** with strong **front-end, TypeScript, and React Native** experience.
+- Apply **best practices** for game engines, developer experience, and player experience.
+- Treat tasks as **fully complex**: reason about interactions between UI thread, worklets, ECS, and physics.
