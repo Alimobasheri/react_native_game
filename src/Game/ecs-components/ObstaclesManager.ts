@@ -1,4 +1,5 @@
 import { Component } from '@/containers/ReactNativeSkiaGameEngine/services-ecs';
+import { Entity } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/entity';
 
 export const ObstaclesManagerComponentName = 'ObstaclesManager';
 
@@ -7,6 +8,12 @@ export type ObstaclesManagerComponentData = {
   sceneKey: string;
   /** Accumulated spawn timer in seconds (replaces any global timer). */
   spawnTimerSeconds: number;
+  templateInfo?: {
+    currentTemplateName: string;
+    currentTempalteTotalRow: number;
+    currentRowIndex: number;
+    lastRowEntity: Entity | null;
+  }
 };
 
 export const createObstaclesManagerComponent = (

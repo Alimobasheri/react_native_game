@@ -9,6 +9,8 @@ import {
   SwimmerComponentName,
   SwimmerComponentData,
 } from '@/Game/ecs-components/Swimmer';
+import { ObstacleRowComponentName, ObstacleRowComponentData } from '@/Game/ecs-components/ObstacleRowComponent';
+import { RenderComponentData, RenderComponentName } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 
 // Water difficulty progression - slowly increase water/obstacle speed over time
 // to create a gentle but noticeable rise in challenge, like a hyper-casual game.
@@ -66,7 +68,7 @@ export const WaterPhysicsSystem: System = {
         return;
       }
 
-      const currentSpeed = waterData.raisingSpeed ?? 0;
+      const currentSpeed = waterData.baseSpeed ?? 0;
       const acceleratedSpeed =
         currentSpeed + WATER_SPEED_ACCELERATION_PER_SECOND * deltaSeconds;
       const clampedSpeed = Math.min(WATER_SPEED_MAX, acceleratedSpeed);
@@ -75,13 +77,57 @@ export const WaterPhysicsSystem: System = {
         return;
       }
 
-      ecs.updateComponent<WaterComponentData>(
-        waterEntity,
-        WaterComponentName,
-        (water) => {
-          water.raisingSpeed = clampedSpeed;
+      // ecs.updateComponent<WaterComponentData>(
+      //   waterEntity,
+      //   WaterComponentName,
+      //   (water) => {
+      //   }
+      // );
+
+      if (waterData.centerRowEntity) {
+        const rowData = components[ObstacleRowComponentName].get(waterData.centerRowEntity) as ObstacleRowComponentData | undefined
+        if (rowData) {
+          const prevRow = rowData.prevRowEntity ? components[ObstacleRowComponentName].get(rowData.prevRowEntity) as ObstacleRowComponentData | undefined : null
+          const gaps = rowData.gaps
+          const rowlength = 6
+          let multiply = gaps.length / rowlength
+          multiply = (1 / (multiply || 1))
+
+          let forceDirection: WaterComponentData['forceDirection'] = 0
+
+          if (prevRow) {
+            const prevRowGaps = prevRow.gaps
+            const prevCenter = (Math.min(...prevRowGaps) + Math.max(...prevRowGaps)) / 2
+            const currentCenter = (Math.min(...gaps) + Math.max(...gaps)) / 2
+            let targetForceDirection = !gaps || gaps.length === 0 || currentCenter == prevCenter ? 0 : currentCenter < prevCenter ? -1 : 1
+            let currentForceDirection = waterData.forceDirection ?? 0
+            forceDirection = targetForceDirection == 0 ? targetForceDirection : targetForceDirection < 0 ? Math.max(targetForceDirection, currentForceDirection - 0.1) : Math.min(targetForceDirection, currentForceDirection + 0.1)
+          }
+          ecs.updateComponent<WaterComponentData>(
+            waterEntity,
+            WaterComponentName,
+            (water) => {
+              water.baseSpeed = clampedSpeed;
+              water.forceDirection = forceDirection
+              const targetSpeed = water.baseSpeed * (1 + multiply * 0.1);
+              const diff = targetSpeed - water.baseSpeed
+              if (diff > 0) {
+                water.raisingSpeed = Math.min(water.raisingSpeed + diff * 0.1, targetSpeed);
+              } else if (diff < 0) {
+                water.raisingSpeed = Math.max(water.raisingSpeed + diff * 0.1, targetSpeed)
+              }
+            }
+          );
+          ecs.updateComponent<RenderComponentData>(
+            waterEntity,
+            RenderComponentName,
+            (renderComponent) => {
+              'worklet';
+              if (!renderComponent.shader) return;
+            })
         }
-      );
+
+      }
     });
   },
 };

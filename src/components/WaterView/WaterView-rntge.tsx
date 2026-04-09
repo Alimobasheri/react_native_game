@@ -33,6 +33,7 @@ export const WaterView: FC<{
       createWaterComponent({
         containerEntityId: containerEntityId,
         raisingSpeed: raisingSpeed,
+        baseSpeed: raisingSpeed
       }),
       createPositionComponent({
         x: centerX,
@@ -46,7 +47,7 @@ export const WaterView: FC<{
         },
         position: { x: centerX, y: centerY }, // Same position as container
         visible: true,
-        zIndex: 2,
+        zIndex: 1,
         shader: {
           key: 'water', // Use the water-specific shader
           uniforms: {

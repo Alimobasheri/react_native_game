@@ -14,8 +14,8 @@ We focus on the **Swimmer game** story (`src/containers/ReactNativeSkiaGameEngin
 
 ## Task type: game vs engine
 
-- **Game tasks**: Use the current RNTGE structure correctly. Implement game features (entities, components, systems) following existing patterns.
-- **Engine tasks**: Add or fix engine features/bugs without breaking the above architecture. Prefer minimal, targeted changes.
+- **Game tasks**: Use the current RNTGE structure correctly. Implement game features (entities, components, systems) following existing patterns. You shouldn't touch `global._RNTGE_` or other global related to game engine, or use any global at all. You shouldn't touch `RNTGE.tsx` or any code it imports as tehy're the game engine core and unchan gable by a game dev.
+- **Engine tasks**: Add or fix engine features/bugs without breaking the above architecture. Prefer minimal, targeted changes. In this case you will cahnge `RNTGE.tsx` or any code it imports and works with internally.
 
 ## Reference ECS flow (Swimmer)
 
@@ -23,9 +23,9 @@ Canonical example of how entities, components, and systems plug into RNTGE:
 
 | Role | File |
 |------|------|
-| **View** (creates entity + components, registers system) | `src/components/SwimmerView/SwimmerView-rntge.tsx` |
-| **System** (game logic, `requiredComponents`, `process`) | `src/systems/PhysicsSystem/SwimmerPhysicsSystem.ts` |
-| **Component** (name, data type, factory) | `src/Game/ecs-components/Swimmer.ts` |
+| **View** (an opinionated type of React Component with null return, creates entity + components useAddEntity, registers system using useAddSystem) | `src/components/SwimmerView/SwimmerView-rntge.tsx` |
+| **System** (game logic, `requiredComponents`, `requiredEvents`, `process`, systems can be used to dispatch events or process events dispatched too) | `src/systems/PhysicsSystem/SwimmerPhysicsSystem.ts` |
+| **Component** (name, data type, values are always held here (no gloablThis), factory) | `src/Game/ecs-components/Swimmer.ts` |
 
 Pattern: View uses `useAddEntity` with component array (game + render + optional touch), `useAddMatterBody` for physics, `useAddSystem` for game systems. Systems use `ecs.getEntitiesWithComponents`, `components[Name].get(entity)`, and `ecs.updateComponent`.
 

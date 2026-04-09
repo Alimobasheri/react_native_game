@@ -25,6 +25,7 @@ import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
 import { ObstaclesManagerComponentName } from '@/Game/ecs-components/ObstaclesManager';
 import { ScoreComponentName } from '@/Game/ecs-components/Score';
 import { ScoreView } from '@/components/ScoreView/ScoreView-rntge';
+import { ObstacleRowComponentName } from '@/Game/ecs-components/ObstacleRowComponent';
 
 export const SwimmerGameComp: FC<{}> = memo(
   (args: any) => {
@@ -56,6 +57,7 @@ export const SwimmerGameComp: FC<{}> = memo(
               SwimmerComponentName,
               ContainerComponentName,
               WaterComponentName,
+              ObstacleRowComponentName,
               ObstacleComponentName,
               ObstaclesManagerComponentName,
               ScoreComponentName,

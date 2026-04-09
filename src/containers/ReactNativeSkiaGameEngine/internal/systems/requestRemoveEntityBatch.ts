@@ -1,5 +1,6 @@
 // a batch version of requestRemoveEntity System
 
+import _RNTGE_ from 'index';
 import { Entity } from '../../services-ecs/entity';
 import { System } from '../../services-ecs/system';
 import { MatterBodyComponentName } from '../components/matterBody';
@@ -33,7 +34,6 @@ export const requestRemoveEntityBatch: System = {
     for (let i = 0; i < events.length; i++) {
       const payload: RemoveEntityBatchRequest['payload'] = events[i].payload;
       for (let j = 0; j < payload.entityIds.length; j++) {
-        ecs.removeEntity(payload.entityIds[j]);
         const matterBody = ecs.components[MatterBodyComponentName]?.get(
           payload.entityIds[j]
         );
@@ -43,10 +43,12 @@ export const requestRemoveEntityBatch: System = {
               global._RNTGE_.physics.engine.world,
               matterBody
             );
-          } catch {
+          } catch (e) {
+            console.log(e)
             // Ignore removal errors (entity may already be gone)
           }
         }
+        ecs.removeEntity(payload.entityIds[j]);
         if (payload.sceneKey) {
           ecs.updateComponent<SceneComponentData>(
             sceneEntities[payload.sceneKey],

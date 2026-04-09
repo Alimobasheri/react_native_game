@@ -3,6 +3,7 @@ import { System } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/syst
 export const updateMatterWorld: System = {
   process: () => {
     'worklet';
+    const now = Date.now()
     if (
       typeof global.MatterReanimated === 'undefined' ||
       typeof global._RNTGE_ === 'undefined' ||

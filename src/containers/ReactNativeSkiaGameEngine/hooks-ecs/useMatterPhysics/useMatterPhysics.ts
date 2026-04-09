@@ -14,9 +14,9 @@ export const useMatterPhysics = () => {
     engine.gravity.scale = 0;
     if (typeof global._RNTGE_ === 'undefined') {
       // RNTGE.tsx will initialize the rest of the global caches; we only ensure physics exists.
-      (global as any)._RNTGE_ = {} as any;
+      global._RNTGE_ = {} as any;
     }
-    (global as any)._RNTGE_.physics = { engine };
+    global._RNTGE_.physics = { engine };
   }, []);
 
   return { initPhysics };

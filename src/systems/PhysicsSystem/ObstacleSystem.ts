@@ -3,7 +3,7 @@ import {
   ShapeTypes,
   createRenderComponent,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
-import { ObstacleComponentName } from '@/Game/ecs-components/ObstacleComponent';
+import { ObstacleComponentData, ObstacleComponentName } from '@/Game/ecs-components/ObstacleComponent';
 import {
   ContainerComponentName,
   ContainerComponentData,
@@ -26,7 +26,7 @@ import {
   getRows,
   LAYOUT_CONSTANTS,
 } from '@/Layout';
-import { MatterBodyComponentName } from '@/containers/ReactNativeSkiaGameEngine/internal/components/matterBody';
+import { MatterBodyComponentData, MatterBodyComponentName } from '@/containers/ReactNativeSkiaGameEngine/internal/components/matterBody';
 import {
   SceneComponentData,
   SceneComponentName,
@@ -36,9 +36,16 @@ import {
   ObstaclesManagerComponentName,
 } from '@/Game/ecs-components/ObstaclesManager';
 import {
+  RemoveEntityBatchRequest,
+  RemoveEntityBatchRequestType,
   RemoveEntityRequest,
   RemoveEntityRequestType,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/events/entity';
+import { createObstacleRowComponent, ObstacleRowComponentData, ObstacleRowComponentName } from '@/Game/ecs-components/ObstacleRowComponent';
+import { Entity } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/entity';
+import { ECS } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/ecs';
+import { TextHeightBehavior } from '@shopify/react-native-skia';
+import { RowPathTemplate } from '@/Game/ecs-systems/obstacleSystem';
 
 const OBSTACLE_BLOCK_IMAGES = ['block2', 'block3'] as const;
 
@@ -56,18 +63,21 @@ const COLLISION = {
 } as const;
 
 function spawnObstacleEntity(args: {
-  ecs: any;
+  ecs: ECS;
   sceneEntity: number;
   x: number;
   y: number;
   width: number;
   height: number;
-}) {
+}): Entity | null {
   'worklet';
-  if (!global._RNTGE_?.physics) return;
-  if (typeof global.MatterReanimated === 'undefined') return;
+  if (!global._RNTGE_?.physics) return null;
+  if (typeof global.MatterReanimated === 'undefined') return null;
 
-  const { ecs, sceneEntity, x, y, width, height } = args;
+  const { ecs, sceneEntity, x, y, width: argsWidth, height: argsHeight } = args;
+
+  let width = argsWidth * 1.05
+  let height = argsHeight * 1.05
 
   const entity = ecs.createEntity();
 
@@ -87,7 +97,7 @@ function spawnObstacleEntity(args: {
     image: getRandomBlockImage(),
     visible: true,
     // Render obstacles behind water and swimmer but above background/container interior
-    zIndex: 1,
+    zIndex: 2,
   });
 
   ecs.addComponent(entity, obstacleComponent);
@@ -124,6 +134,164 @@ function spawnObstacleEntity(args: {
       scene.objects.matterBodies.push(body.id);
     }
   );
+
+  return entity
+}
+
+const generateGaps = (prevGaps: number[], rowLength: number): number[] => {
+  'worklet'
+  if (prevGaps.length === 0) {
+    return [Math.floor(rowLength / 2)]
+  } else {
+    let nextGaps: number[] = []
+    const newDir = Math.random() > 0.5 ? 'left' : 'right'
+    if (newDir === 'left') {
+      let leftMostGap = Math.min(...prevGaps)
+      if (leftMostGap > 0) nextGaps.push(leftMostGap - 1)
+      nextGaps.push(leftMostGap)
+      if (leftMostGap < rowLength - 1) nextGaps.push(leftMostGap + 1)
+    } else {
+      let rightMostGap = Math.max(...prevGaps)
+      if (rightMostGap < rowLength - 1) nextGaps.push(rightMostGap + 1)
+      nextGaps.push(rightMostGap)
+      if (rightMostGap > 0) nextGaps.push(rightMostGap - 1)
+    }
+    return nextGaps
+  }
+}
+
+const generateObstacles = ({ gaps, rowLength, y, leftX, obstacleDimension }: {
+  rowIndex: number,
+  gaps: number[],
+  rowLength: number,
+  y: number,
+  leftX: number,
+  obstacleDimension: { width: number, height: number }
+}): ObstacleComponentData[] => {
+  'worklet'
+  let obstacles: ObstacleComponentData[] = []
+  for (let i = 0; i < rowLength; i++) {
+    if (!gaps.includes(i)) {
+      obstacles.push({
+        initialPosition: { y: y, x: leftX + (i + 1) * obstacleDimension.width - obstacleDimension.width / 2 },
+        type: ObstacleTypes.Stone,
+        width: obstacleDimension.width,
+        height: obstacleDimension.height
+      })
+    }
+  }
+  return obstacles
+}
+
+const createObstacleRow: RowPathTemplate['getRow'] = ({ rowIndex, ecs, sceneEntity, prevRow, prevRowEntity, initialY, rowLength, leftX, obstacleDimension }) => {
+  'worklet';
+  let gaps: number[] = []
+  gaps = generateGaps(!prevRow ? [] : prevRow.gaps, rowLength)
+  const obstacleDatas = generateObstacles({
+    rowIndex,
+    gaps,
+    y: !prevRow ? initialY : prevRow.y - obstacleDimension.height,
+    rowLength,
+    leftX,
+    obstacleDimension
+  })
+  let obstacleEntities: Entity[] = []
+  for (let i = 0; i < obstacleDatas.length; i++) {
+    const entity = spawnObstacleEntity({
+      ecs,
+      sceneEntity,
+      x: obstacleDatas[i].initialPosition.x,
+      y: obstacleDatas[i].initialPosition.y,
+      width: obstacleDatas[i].width,
+      height: obstacleDatas[i].height
+    })
+    if (entity !== null) obstacleEntities.push(entity)
+  }
+  const obstacleRowComp = createObstacleRowComponent({
+    y: !prevRow ? initialY : prevRow.y - obstacleDimension.height,
+    gaps,
+    obstacles: obstacleEntities,
+    prevRowEntity
+  })
+  const obstacleRowEntity = ecs.createEntity()
+  ecs.addComponent(obstacleRowEntity, obstacleRowComp)
+
+  return obstacleRowEntity
+}
+
+const getRowCount: RowPathTemplate['getRowCount'] = () => {
+  'worklet'
+  return 10 + Math.round(Math.random() * (10 - 1))
+}
+
+const BaseRowPathTemplate: RowPathTemplate = {
+  getRowCount,
+  getRow: createObstacleRow,
+}
+
+const restGetRowCount: RowPathTemplate['getRowCount'] = () => {
+  'worklet'
+  return 5 + Math.round(Math.random() * (5 - 1))
+}
+
+const restGenerateObstacles = ({ gaps, rowLength, y, leftX, obstacleDimension }: {
+  rowIndex: number,
+  gaps: number[],
+  rowLength: number,
+  y: number,
+  leftX: number,
+  obstacleDimension: { width: number, height: number }
+}): ObstacleComponentData[] => {
+  'worklet'
+  let obstacles: ObstacleComponentData[] = []
+  Array.from([0, rowLength - 1]).map(i => {
+    obstacles.push({
+      initialPosition: { y: y, x: leftX + (i + 1) * obstacleDimension.width - obstacleDimension.width / 2 },
+      type: ObstacleTypes.Stone,
+      width: obstacleDimension.width,
+      height: obstacleDimension.height
+    })
+  })
+  return obstacles
+}
+
+
+const restGetRow: RowPathTemplate['getRow'] = (params) => {
+  'worklet'
+  const { ecs, prevRow, initialY, obstacleDimension, prevRowEntity, rowLength, sceneEntity } = params
+  const obstaclesIndexes = restGenerateObstacles({ ...params, y: !prevRow ? initialY : prevRow.y - obstacleDimension.height, gaps: [] })
+  let obstacleEntities: Entity[] = []
+  for (let i = 0; i < obstaclesIndexes.length; i++) {
+    const entity = spawnObstacleEntity({
+      ecs,
+      sceneEntity,
+      x: obstaclesIndexes[i].initialPosition.x,
+      y: obstaclesIndexes[i].initialPosition.y,
+      width: obstaclesIndexes[i].width,
+      height: obstaclesIndexes[i].height
+    })
+    if (entity !== null) obstacleEntities.push(entity)
+  }
+  const obstacleRowComp = createObstacleRowComponent({
+    y: !prevRow ? initialY : prevRow.y - obstacleDimension.height,
+    gaps: [],
+    obstacles: obstacleEntities,
+    prevRowEntity
+  })
+  const obstacleRowEntity = ecs.createEntity()
+  ecs.addComponent(obstacleRowEntity, obstacleRowComp)
+
+  return obstacleRowEntity
+}
+
+const RestRowPathTemplate: RowPathTemplate = {
+  getRowCount: restGetRowCount,
+  getRow: restGetRow
+}
+
+const MappedTemplates: Record<string, RowPathTemplate> = {
+  'base': BaseRowPathTemplate,
+  'rest': RestRowPathTemplate
 }
 
 /**
@@ -139,7 +307,7 @@ function spawnObstacleEntity(args: {
 export const ObstacleSystem: System = {
   name: 'obstacleSystem',
   requiredComponents: [ObstaclesManagerComponentName],
-  process: ({ entities, components, deltaTime, ecs, eventQueue }) => {
+  process: ({ entities, components, deltaTime, ecs, eventQueue, dimensions }) => {
     'worklet';
 
     const managerEntity = entities[0];
@@ -201,54 +369,6 @@ export const ObstacleSystem: System = {
         | undefined
       )?.isInInitialPhase === true;
 
-    // Get all existing obstacles
-    const obstacleEntities = ecs.getEntitiesWithComponents([
-      ObstacleComponentName,
-      MatterBodyComponentName,
-    ]);
-
-    // Find the lowest obstacle (highest y value)
-    let lowestObstacleY = -Infinity;
-    obstacleEntities.forEach((obstacleEntity) => {
-      const body = components[MatterBodyComponentName]?.get(obstacleEntity);
-      const y = body?.position?.y;
-      if (typeof y === 'number' && y > lowestObstacleY) lowestObstacleY = y;
-    });
-
-    // Handle obstacle movement based on game phase
-    obstacleEntities.forEach((obstacleEntity) => {
-      const body = components[MatterBodyComponentName]?.get(obstacleEntity);
-      if (!body) return;
-
-      let newY = body.position.y;
-
-      if (!isInInitialPhase) {
-        // Post-initial phase: Move obstacles down at water raising speed
-        newY = body.position.y + waterData.raisingSpeed * deltaSeconds;
-      }
-      // During initial phase: obstacles stay locked in position
-
-      // Remove obstacles that have passed 100% screen height (fully out of view)
-      if (newY > containerBottom + LAYOUT_CONSTANTS.REMOVAL_THRESHOLD_OFFSET) {
-        const removeRequest: RemoveEntityRequest = {
-          type: RemoveEntityRequestType,
-          payload: { entityId: obstacleEntity, sceneKey: managerData.sceneKey },
-        };
-        eventQueue.addEvent(removeRequest);
-        return;
-      }
-
-      if (!isInInitialPhase && typeof global.MatterReanimated !== 'undefined') {
-        global.MatterReanimated.Body.setPosition(body, {
-          x: body.position.x,
-          y: newY,
-        });
-      }
-    });
-
-    // Seed initial obstacles when none exist (either during initial phase or when starting with water at center)
-    const shouldSeedInitialObstacles = obstacleEntities.length === 0;
-
     // Locate the scene entity for this manager
     const sceneEntities = ecs.getEntitiesWithComponents([
       SceneComponentName,
@@ -260,68 +380,83 @@ export const ObstacleSystem: System = {
       return data?.sceneKey === managerData.sceneKey;
     });
 
+    const deltaY = waterData.raisingSpeed * deltaSeconds;
+
     if (typeof sceneEntity !== 'number') return;
 
-    if (shouldSeedInitialObstacles) {
-      // Generate 5-7 initial obstacles spanning above container top to ~30% from top (above water at center)
-      const obstacleWidth = getObstacleWidth(containerData.width);
+    const minY = containerTop - containerData.height * 1.5; // -150% (well above container top)
+    const maxY = containerTop + containerData.height * 0.3; // 30% from top
+    const yRange = maxY - minY;
 
-      // Position initial obstacles spanning from -150% to 30% of container height
-      const minY = containerTop - containerData.height * 1.5; // -150% (well above container top)
-      const maxY = containerTop + containerData.height * 0.3; // 30% from top
-      const yRange = maxY - minY;
+    const leftX = containerData.centerX -
+      containerData.width / 2
+    const columnWidth = getObstacleWidth(containerData.width);
+    const obstacleRowEntities = ecs.getEntitiesWithComponents([ObstacleRowComponentName])
+    obstacleRowEntities.forEach((obstacleRowEntity) => {
+      const rowData = components[ObstacleRowComponentName].get(obstacleRowEntity) as ObstacleRowComponentData | undefined
+      if (!rowData) return
 
-      // Generate 5-7 initial obstacles spread across the wide vertical range
-      const numInitialObstacles = Math.floor(Math.random() * 3) + 5; // 5-7 obstacles
+      let newY = rowData.y + deltaY
 
-      for (let i = 0; i < numInitialObstacles; i++) {
-        // Distribute across columns, avoiding clustering
-        const columnSpacing = Math.floor(
-          LAYOUT_CONSTANTS.COLUMNS / Math.max(numInitialObstacles, 1)
-        );
-        const column =
-          (i * columnSpacing + Math.floor(Math.random() * 2)) %
-          LAYOUT_CONSTANTS.COLUMNS; // Add small random offset
-
-        // Get grid x position
-        const columnWidth = containerData.width / LAYOUT_CONSTANTS.COLUMNS;
-        const x =
-          containerData.centerX -
-          containerData.width / 2 +
-          columnWidth * column +
-          columnWidth / 2;
-
-        // Distribute y positions with some randomness but ensuring good vertical spread
-        // Use a biased distribution that puts more obstacles in playable areas
-        let y;
-        if (i < numInitialObstacles * 0.6) {
-          // First 60%: spread in upper area (-150% to -30%)
-          const upperRange = containerTop + containerData.height * 0.3 - minY;
-          const upperStep = upperRange / (numInitialObstacles * 0.6 + 1);
-          y = minY + (i + 1) * upperStep;
-        } else {
-          // Remaining 40%: spread in lower area (-30% to 30%)
-          const lowerMin = containerTop - containerData.height * 0.3;
-          const lowerMax = maxY;
-          const lowerRange = lowerMax - lowerMin;
-          const lowerIndex = i - Math.floor(numInitialObstacles * 0.6);
-          const remainingCount =
-            numInitialObstacles - Math.floor(numInitialObstacles * 0.6);
-          const lowerStep = lowerRange / (remainingCount + 1);
-          y = lowerMin + (lowerIndex + 1) * lowerStep;
+      if (newY > containerBottom + LAYOUT_CONSTANTS.REMOVAL_THRESHOLD_OFFSET) {
+        const removeRequest: RemoveEntityBatchRequest = {
+          type: RemoveEntityBatchRequestType,
+          payload: { entityIds: [obstacleRowEntity, ...rowData.obstacles], sceneKey: managerData.sceneKey },
+        };
+        eventQueue.addEvent(removeRequest);
+        return;
+      } else {
+        ecs.updateComponent<ObstacleRowComponentData>(obstacleRowEntity, ObstacleRowComponentName, (rowData) => {
+          rowData.y = newY
+        })
+        const yRange = [newY - columnWidth / 2, newY + columnWidth / 2]
+        const waterSurface = dimensions.value.height / 2
+        if (waterSurface > yRange[0] && waterSurface < yRange[1]) {
+          ecs.updateComponent<WaterComponentData>(waterEntity, WaterComponentName, (waterData) => {
+            waterData.centerRowEntity = obstacleRowEntity
+          })
         }
+        rowData.obstacles.forEach((oEnt) => {
+          const body = components[MatterBodyComponentName].get(oEnt) as MatterBodyComponentData | undefined
 
-        // Add small random offset to prevent perfect alignment
-        y += (Math.random() - 0.5) * obstacleWidth * 0.3;
+          if (body) {
+            global.MatterReanimated.Body.setPosition(body as Matter.Body, {
+              x: body.position?.x || 0,
+              y: newY,
+            });
+          }
+        })
+      }
+    })
 
-        spawnObstacleEntity({
+    // Seed initial obstacles when none exist (either during initial phase or when starting with water at center)
+    const shouldSeedInitialObstacles = obstacleRowEntities.length === 0;
+
+    if (shouldSeedInitialObstacles) {
+      let lastRowEntity: Entity | null = null
+
+      let template = BaseRowPathTemplate
+
+      const numInitialRows = BaseRowPathTemplate.getRowCount()
+
+      const rowsInDisplay = Math.ceil((maxY - columnWidth) / columnWidth) + 1
+
+      for (let i = 0; i < rowsInDisplay; i++) {
+        const prevRow = lastRowEntity ? ecs.components[ObstacleRowComponentName].get(lastRowEntity) as ObstacleRowComponentData : null
+        lastRowEntity = template.getRow({
+          rowIndex: i,
           ecs,
           sceneEntity,
-          x,
-          y,
-          width: obstacleWidth,
-          height: obstacleWidth,
-        });
+          prevRow,
+          prevRowEntity: lastRowEntity,
+          initialY: maxY,
+          rowLength: LAYOUT_CONSTANTS.COLUMNS,
+          leftX,
+          obstacleDimension: {
+            width: columnWidth,
+            height: columnWidth
+          }
+        })
       }
       // Reset timer after re-seeding
       ecs.updateComponent<ObstaclesManagerComponentData>(
@@ -329,6 +464,12 @@ export const ObstacleSystem: System = {
         ObstaclesManagerComponentName,
         (m) => {
           m.spawnTimerSeconds = 0;
+          m.templateInfo = {
+            currentTemplateName: 'base',
+            currentTempalteTotalRow: numInitialRows,
+            currentRowIndex: rowsInDisplay,
+            lastRowEntity: lastRowEntity
+          }
         }
       );
     } else if (!isInInitialPhase) {
@@ -340,7 +481,6 @@ export const ObstacleSystem: System = {
       const distancePerRow = rowHeight;
       const timePerRow = distancePerRow / waterData.raisingSpeed; // Time to move one row at current speed
 
-      // Advance timer in ECS (no global storage)
       ecs.updateComponent<ObstaclesManagerComponentData>(
         managerEntity,
         ObstaclesManagerComponentName,
@@ -353,7 +493,10 @@ export const ObstacleSystem: System = {
       const updatedManager = components[ObstaclesManagerComponentName]?.get(
         managerEntity
       ) as ObstaclesManagerComponentData | undefined;
-      if ((updatedManager?.spawnTimerSeconds ?? 0) >= timePerRow) {
+      let lastRowEnt = updatedManager?.templateInfo?.lastRowEntity
+      const lastRowData = lastRowEnt ? components[ObstacleRowComponentName].get(lastRowEnt) as ObstacleRowComponentData : null
+
+      if (lastRowData && lastRowData.y > (- columnWidth) && updatedManager?.templateInfo) {
         ecs.updateComponent<ObstaclesManagerComponentData>(
           managerEntity,
           ObstaclesManagerComponentName,
@@ -361,69 +504,148 @@ export const ObstacleSystem: System = {
             m.spawnTimerSeconds = 0;
           }
         );
+        const templateInfo = updatedManager.templateInfo
 
-        // Generate 1-2 new obstacles with row-based spacing for gameplay
-        const numNewObstacles = Math.floor(Math.random() * 2) + 1;
+        const template = MappedTemplates[templateInfo.currentTemplateName]
 
-        // Row-based obstacle placement for better gameplay spacing
-        const obstacleWidth = getObstacleWidth(containerData.width);
-        const totalRows = getRows(containerData.height, obstacleWidth);
+        const lastRowEntinty = templateInfo.lastRowEntity
 
-        // Determine target row for new obstacles (above current obstacles)
-        const targetRow = Math.max(
-          0,
-          Math.floor((lowestObstacleY - containerTop) / obstacleWidth) - 1
-        );
+        let lastRowIndex = templateInfo.currentRowIndex
+        let totalRow = templateInfo.currentTempalteTotalRow
 
-        for (let i = 0; i < numNewObstacles; i++) {
-          // Random row selection with spacing (leave gaps between rows)
-          let selectedRow;
-          const rowSpacingChance = Math.random();
+        if (lastRowIndex > totalRow - 1) {
+          const tempalteNames = Object.keys(MappedTemplates)
+          let newTemplateRandIndex = Math.round(Math.random() * (tempalteNames.length - 1))
 
-          if (rowSpacingChance < 0.5) {
-            // 50% chance: place in target row or adjacent (can create vertical stacks)
-            const rowOffset = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
-            selectedRow = Math.max(
-              0,
-              Math.min(totalRows - 1, targetRow + rowOffset)
-            );
-          } else {
-            // 50% chance: skip rows to create vertical gaps
-            const rowSkip = Math.floor(Math.random() * 3) + 1; // Skip 1-3 rows
-            selectedRow = Math.max(0, targetRow - rowSkip);
-          }
+          let newTemplateName = tempalteNames[newTemplateRandIndex]
+          let newTemplate = MappedTemplates[newTemplateName]
+          let newRowCount = newTemplate.getRowCount()
+          const prevRow = templateInfo.lastRowEntity ? ecs.components[ObstacleRowComponentName].get(templateInfo.lastRowEntity) as ObstacleRowComponentData : null
 
-          // Random column selection (independent of row logic)
-          const column = Math.floor(Math.random() * LAYOUT_CONSTANTS.COLUMNS);
-
-          // Use grid position based on selected row and column
-          const gridPos = getGridPosition(
-            column,
-            selectedRow,
-            containerData.centerX,
-            containerData.centerY,
-            containerData.width,
-            containerData.height
-          );
-
-          // Fine-tune y position to ensure it's above existing obstacles and preferably y < 0
-          let y = gridPos.y;
-          if (y > lowestObstacleY - obstacleWidth) {
-            // Adjust to be above lowest obstacle
-            y = lowestObstacleY - obstacleWidth * (1 + Math.random() * 0.5); // Random offset
-          }
-          // Ensure y < 0 for buffer
-          y = Math.min(y, -10);
-
-          spawnObstacleEntity({
+          let newRowEntity = newTemplate.getRow({
+            rowIndex: 0,
             ecs,
             sceneEntity,
-            x: gridPos.x,
-            y,
-            width: obstacleWidth,
-            height: obstacleWidth,
-          });
+            prevRow: prevRow,
+            prevRowEntity: templateInfo.lastRowEntity,
+            initialY: maxY,
+            rowLength: LAYOUT_CONSTANTS.COLUMNS,
+            leftX,
+            obstacleDimension: {
+              width: columnWidth,
+              height: columnWidth
+            }
+          })
+          // Reset timer after re-seeding
+          ecs.updateComponent<ObstaclesManagerComponentData>(
+            managerEntity,
+            ObstaclesManagerComponentName,
+            (m) => {
+              m.templateInfo = {
+                currentTemplateName: newTemplateName,
+                currentTempalteTotalRow: newRowCount,
+                currentRowIndex: 0,
+                lastRowEntity: newRowEntity
+              }
+            }
+          );
+        } else if (updatedManager.templateInfo) {
+          const prevRow = templateInfo.lastRowEntity ? ecs.components[ObstacleRowComponentName].get(templateInfo.lastRowEntity) as ObstacleRowComponentData : null
+
+          let newRowEntity = template.getRow({
+            rowIndex: 0,
+            ecs,
+            sceneEntity,
+            prevRow: prevRow,
+            prevRowEntity: templateInfo.lastRowEntity,
+            initialY: maxY,
+            rowLength: LAYOUT_CONSTANTS.COLUMNS,
+            leftX,
+            obstacleDimension: {
+              width: columnWidth,
+              height: columnWidth
+            }
+          })
+
+          ecs.updateComponent<ObstaclesManagerComponentData>(
+            managerEntity,
+            ObstaclesManagerComponentName,
+            (m) => {
+              if (updatedManager.templateInfo) {
+                m.templateInfo = {
+                  ...updatedManager.templateInfo,
+                  currentRowIndex: (updatedManager.templateInfo.currentRowIndex || 0) + 1,
+                  lastRowEntity: newRowEntity
+                }
+              }
+
+            })
+
         }
+
+        //     // Generate 1-2 new obstacles with row-based spacing for gameplay
+        //     const numNewObstacles = Math.floor(Math.random() * 2) + 1;
+
+        //     // Row-based obstacle placement for better gameplay spacing
+        //     const obstacleWidth = getObstacleWidth(containerData.width);
+        //     const totalRows = getRows(containerData.height, obstacleWidth);
+
+        //     // Determine target row for new obstacles (above current obstacles)
+        //     const targetRow = Math.max(
+        //       0,
+        //       Math.floor((lowestObstacleY - containerTop) / obstacleWidth) - 1
+        //     );
+
+        //     for (let i = 0; i < numNewObstacles; i++) {
+        //       // Random row selection with spacing (leave gaps between rows)
+        //       let selectedRow;
+        //       const rowSpacingChance = Math.random();
+
+        //       if (rowSpacingChance < 0.5) {
+        //         // 50% chance: place in target row or adjacent (can create vertical stacks)
+        //         const rowOffset = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
+        //         selectedRow = Math.max(
+        //           0,
+        //           Math.min(totalRows - 1, targetRow + rowOffset)
+        //         );
+        //       } else {
+        //         // 50% chance: skip rows to create vertical gaps
+        //         const rowSkip = Math.floor(Math.random() * 3) + 1; // Skip 1-3 rows
+        //         selectedRow = Math.max(0, targetRow - rowSkip);
+        //       }
+
+        //       // Random column selection (independent of row logic)
+        //       const column = Math.floor(Math.random() * LAYOUT_CONSTANTS.COLUMNS);
+
+        //       // Use grid position based on selected row and column
+        //       const gridPos = getGridPosition(
+        //         column,
+        //         selectedRow,
+        //         containerData.centerX,
+        //         containerData.centerY,
+        //         containerData.width,
+        //         containerData.height
+        //       );
+
+        //       // Fine-tune y position to ensure it's above existing obstacles and preferably y < 0
+        //       let y = gridPos.y;
+        //       if (y > lowestObstacleY - obstacleWidth) {
+        //         // Adjust to be above lowest obstacle
+        //         y = lowestObstacleY - obstacleWidth * (1 + Math.random() * 0.5); // Random offset
+        //       }
+        //       // Ensure y < 0 for buffer
+        //       y = Math.min(y, -10);
+
+        //       spawnObstacleEntity({
+        //         ecs,
+        //         sceneEntity,
+        //         x: gridPos.x,
+        //         y,
+        //         width: obstacleWidth,
+        //         height: obstacleWidth,
+        //       });
+        //     }
+        //   }
       }
     }
   },

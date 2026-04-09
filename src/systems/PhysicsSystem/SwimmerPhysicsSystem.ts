@@ -8,6 +8,7 @@ import {
   ContainerComponentData,
 } from '@/Game/ecs-components/Container';
 import {
+  WaterComponentData,
   WaterComponentName,
 } from '@/Game/ecs-components/Water';
 import {
@@ -20,7 +21,7 @@ const SWIMMER_WIDTH_COLUMN_RATIO = 2 / 3;
 const SWIMMER_HEIGHT_TO_WIDTH_RATIO = 1.8;
 
 // Horizontal movement tuning for tap-based hyper-casual control.
-const MAX_HORIZONTAL_SPEED = 450; // pixels / second
+const MAX_HORIZONTAL_SPEED = 150; // pixels / second
 const BASE_HORIZONTAL_ACCEL = 900; // target speed for inputX = 1 before drag
 const BASE_RESPONSIVENESS = 0.15; // how quickly velocity approaches target
 const PINNED_VELOCITY_DAMPING = 0.7; // vx multiplier when pinned under obstacle
@@ -72,7 +73,7 @@ export const SwimmerPhysicsSystem: System = {
     }
 
     const waterEntity = waterEntities[0];
-    const waterData = components[WaterComponentName].get(waterEntity);
+    const waterData = components[WaterComponentName].get(waterEntity) as WaterComponentData | undefined;
 
     if (!waterData) {
       return;
@@ -339,6 +340,10 @@ export const SwimmerPhysicsSystem: System = {
           deltaSeconds
         );
         swimmerVelocityX *= dragFactor;
+
+        const waterXVelocityBase = normalizedSpeed * 1.1
+        const forceDirection = waterData.forceDirection ?? 0
+        swimmerVelocityX += forceDirection * waterXVelocityBase
       } else {
         // --- PAN-BASED CONTROL ---
         // Apply simple drag that grows with water speed (more water speed -> more drag).
@@ -398,7 +403,7 @@ export const SwimmerPhysicsSystem: System = {
         });
         // Visual tilt based on horizontal velocity (up to 45 degrees),
         // reaching max tilt already at 50% of MAX_HORIZONTAL_SPEED.
-        const maxTiltRadians = (45 * Math.PI) / 180;
+        const maxTiltRadians = (60 * Math.PI) / 180;
         const fullTiltSpeed = MAX_HORIZONTAL_SPEED * 0.5;
         const tiltNormalized = Math.max(
           -1,

@@ -69,7 +69,7 @@ export const SwimmerView: FC<{
 
   const { swimmerWidth, swimmerHeight } = useMemo(() => {
     const columnWidth = containerWidth / LAYOUT_CONSTANTS.COLUMNS;
-    const width = (2 / 3) * columnWidth;
+    const width = (1 / 3) * columnWidth;
 
     const obstacleWidth = getObstacleWidth(containerWidth);
     const rawRows = getRows(containerHeight, obstacleWidth);
