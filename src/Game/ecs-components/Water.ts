@@ -20,6 +20,10 @@ export type WaterComponentData = {
   surfaceBandCenterY?: number; // 0..1 (bottom=0, top=1)
   surfaceBandHalfHeight?: number; // 0..1
   surgePhase?: number; // 0..1 short pulse triggered on row change
+  peakHeight?: number; // crest height boost in UV units
+  peakSharpness?: number; // crest concentration
+  troughDepth?: number; // side trough depth in UV units
+  flowWaveSpeedScale?: number; // horizontal wave advection scale
 };
 
 export const createWaterComponent = (

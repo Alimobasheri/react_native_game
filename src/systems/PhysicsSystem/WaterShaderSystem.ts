@@ -103,6 +103,10 @@ export const WaterShaderSystem: System = {
           uniforms.uSurfaceBandCenterY = waterComponent.surfaceBandCenterY ?? uniforms.waterLevel as number;
           uniforms.uSurfaceBandHalfHeight = waterComponent.surfaceBandHalfHeight ?? 0.08;
           uniforms.uSurge = waterComponent.surgePhase ?? 0;
+          uniforms.uPeakHeight = waterComponent.peakHeight ?? 0.008;
+          uniforms.uPeakSharpness = waterComponent.peakSharpness ?? 0.1;
+          uniforms.uTroughDepth = waterComponent.troughDepth ?? 0.006;
+          uniforms.uFlowWaveSpeedScale = waterComponent.flowWaveSpeedScale ?? 0.00005;
         }
       );
     });

@@ -20,9 +20,10 @@ const WATER_SPEED_ACCELERATION_PER_SECOND = 3; // px/s² - +90 px/s after ~30s
 const WATER_SPEED_MAX = 260; // clamp to avoid impossible speeds
 const FLOW_DIRECTION_SMOOTH_PER_SECOND = 6;
 const GAP_BLEND_SPEED_PER_SECOND = 3.6;
-const SURGE_DECAY_PER_SECOND = 2.7;
+const SURGE_DECAY_PER_SECOND = 6;
 const SURFACE_CENTER_SMOOTH_PER_SECOND = 10;
 const BAND_HEIGHT_SMOOTH_PER_SECOND = 8;
+const PEAK_SHAPE_SMOOTH_PER_SECOND = 1;
 const MIN_BAND_HALF_HEIGHT = 0.04;
 const MAX_BAND_HALF_HEIGHT = 0.11;
 
@@ -139,6 +140,9 @@ export const WaterPhysicsSystem: System = {
       const gapCenterDelta = Math.abs(gapCenterNorm - prevGapCenterNorm);
       const pressureFromWidth = 1 - Math.min(1, gapWidthNorm);
       const pressure = Math.max(0, Math.min(1, pressureFromWidth * 0.7 + gapCenterDelta * 1.5 * 0.3));
+      const widthDelta = (prevGapEndNorm - prevGapStartNorm) - gapWidthNorm;
+      const narrowing = Math.max(0, widthDelta);
+      const widening = Math.max(0, -widthDelta);
       const nextSurge = hasRowChanged
         ? 1
         : Math.max(0, (waterData.surgePhase ?? 0) - SURGE_DECAY_PER_SECOND * deltaSeconds);
@@ -167,6 +171,10 @@ export const WaterPhysicsSystem: System = {
           const oldGapEnd = water.currentGapEndNorm ?? prevGapEndNorm;
           const oldBandCenter = water.surfaceBandCenterY ?? surfaceBandCenterY;
           const oldBandHalfHeight = water.surfaceBandHalfHeight ?? dynamicBandHalfHeight;
+          const oldPeakHeight = water.peakHeight ?? 0.008;
+          const oldPeakSharpness = water.peakSharpness ?? 1.1;
+          const oldTroughDepth = water.troughDepth ?? 0.006;
+          const oldFlowWaveSpeedScale = water.flowWaveSpeedScale ?? 0.00025;
           water.baseSpeed = clampedSpeed;
           water.centerRowEntity = currentRowEntity;
           water.lastCenterRowEntity = currentRowEntity;
@@ -185,6 +193,19 @@ export const WaterPhysicsSystem: System = {
           const bandHeightStep = Math.min(1, BAND_HEIGHT_SMOOTH_PER_SECOND * deltaSeconds);
           water.surfaceBandHalfHeight =
             oldBandHalfHeight + (dynamicBandHalfHeight - oldBandHalfHeight) * bandHeightStep;
+
+          const peakBoost = pressure * 0.03 + narrowing * 0.08;
+          const widenFlatten = widening * 0.03;
+          const peakHeightTarget = Math.max(0.002, Math.min(0.06, 0.004 + peakBoost - widenFlatten));
+          const peakSharpnessTarget = Math.max(1.0, Math.min(2.2, 1.0 + pressure * 0.6 + narrowing * 2.5));
+          const troughDepthTarget = Math.max(0.001, Math.min(0.035, 0.002 + pressure * 0.016 + narrowing * 0.018));
+          const flowWaveSpeedScaleTarget = Math.max(0.00012, Math.min(0.0008, 0.00015 + Math.abs(flowDirection) * 0.00045 + nextSurge * 0.0002));
+          const peakStep = Math.min(1, PEAK_SHAPE_SMOOTH_PER_SECOND * deltaSeconds);
+          water.peakHeight = oldPeakHeight + (peakHeightTarget - oldPeakHeight) * peakStep;
+          water.peakSharpness = oldPeakSharpness + (peakSharpnessTarget - oldPeakSharpness) * peakStep;
+          water.troughDepth = oldTroughDepth + (troughDepthTarget - oldTroughDepth) * peakStep;
+          water.flowWaveSpeedScale =
+            oldFlowWaveSpeedScale + (flowWaveSpeedScaleTarget - oldFlowWaveSpeedScale) * peakStep;
 
           const targetSpeed = water.baseSpeed * (1 + multiply * 0.1);
           const diff = targetSpeed - water.baseSpeed;

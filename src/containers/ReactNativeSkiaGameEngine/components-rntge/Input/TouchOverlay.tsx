@@ -116,7 +116,7 @@ export const TouchOverlay: React.FC<{ eventQueue: EventQueueContextType }> = ({
   }, [eventQueue]);
 
   // Combine gestures
-  const gesture = Gesture.Race(pan, tap, press);
+  const gesture = tap;
 
   useEffect(() => {
     // on unmount: flush pointer cancel to system so it can clear state
