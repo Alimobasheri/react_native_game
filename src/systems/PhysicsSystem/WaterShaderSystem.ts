@@ -7,11 +7,6 @@ import {
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import { WaterComponentName } from '@/Game/ecs-components/Water';
 import { ContainerComponentName, ContainerComponentData } from '@/Game/ecs-components/Container';
-import {
-  PositionComponentName,
-  PositionComponentData,
-} from '@/containers/ReactNativeSkiaGameEngine/internal/components/position';
-import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
 
 /**
  * WaterShaderSystem - Updates water shader uniforms based on container water level
@@ -38,7 +33,6 @@ export const WaterShaderSystem: System = {
     entities.forEach((waterEntity) => {
       const waterComponent = components[WaterComponentName]?.get(waterEntity);
       const renderData = components[RenderComponentName]?.get(waterEntity);
-      const positionComponent = components[PositionComponentName]?.get(waterEntity);
 
       if (!waterComponent || !renderData || !renderData.shader) {
         return;
@@ -76,10 +70,8 @@ export const WaterShaderSystem: System = {
           // Update time for animation
           uniforms.iTime = (uniforms.iTime as number || 0) + deltaTime / 100;
 
-          // Calculate water level in container UV space (0 = container bottom, 1 = container top)
-          // Container bounds in screen coordinates
+          // Calculate water level in container UV space (0 = container bottom, 1 = container top).
           const containerTop = containerData.centerY - containerData.height / 2;
-          const containerBottom = containerData.centerY + containerData.height / 2;
           const containerHeight = containerData.height;
 
           // Water level as fraction of container height filled
@@ -96,6 +88,21 @@ export const WaterShaderSystem: System = {
           }
           uniforms.containerWidth = containerData.width;
           uniforms.containerHeight = containerData.height;
+          uniforms.uGapCurrent = [
+            waterComponent.currentGapStartNorm ?? 1 / 6,
+            waterComponent.currentGapEndNorm ?? 5 / 6,
+          ];
+          uniforms.uGapPrev = [
+            waterComponent.prevGapStartNorm ?? 1 / 6,
+            waterComponent.prevGapEndNorm ?? 5 / 6,
+          ];
+          uniforms.uGapBlend = waterComponent.gapBlend ?? 1;
+          uniforms.uFlowDir = waterComponent.flowDirection ?? 0;
+          uniforms.uGapCenter = waterComponent.gapCenterNorm ?? 0.5;
+          uniforms.uGapWidth = waterComponent.gapWidthNorm ?? 2 / 3;
+          uniforms.uSurfaceBandCenterY = waterComponent.surfaceBandCenterY ?? uniforms.waterLevel as number;
+          uniforms.uSurfaceBandHalfHeight = waterComponent.surfaceBandHalfHeight ?? 0.08;
+          uniforms.uSurge = waterComponent.surgePhase ?? 0;
         }
       );
     });

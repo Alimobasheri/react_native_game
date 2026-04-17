@@ -11,11 +11,20 @@ import {
 } from '@/Game/ecs-components/Swimmer';
 import { ObstacleRowComponentName, ObstacleRowComponentData } from '@/Game/ecs-components/ObstacleRowComponent';
 import { RenderComponentData, RenderComponentName } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
+import { ContainerComponentData, ContainerComponentName } from '@/Game/ecs-components/Container';
+import { LAYOUT_CONSTANTS } from '@/Layout';
 
 // Water difficulty progression - slowly increase water/obstacle speed over time
 // to create a gentle but noticeable rise in challenge, like a hyper-casual game.
 const WATER_SPEED_ACCELERATION_PER_SECOND = 3; // px/s² - +90 px/s after ~30s
 const WATER_SPEED_MAX = 260; // clamp to avoid impossible speeds
+const FLOW_DIRECTION_SMOOTH_PER_SECOND = 6;
+const GAP_BLEND_SPEED_PER_SECOND = 3.6;
+const SURGE_DECAY_PER_SECOND = 2.7;
+const SURFACE_CENTER_SMOOTH_PER_SECOND = 10;
+const BAND_HEIGHT_SMOOTH_PER_SECOND = 8;
+const MIN_BAND_HALF_HEIGHT = 0.04;
+const MAX_BAND_HALF_HEIGHT = 0.11;
 
 /**
  * WaterPhysicsSystem - Owns water gameplay properties (speed, difficulty ramp).
@@ -59,6 +68,37 @@ export const WaterPhysicsSystem: System = {
       return;
     }
 
+    const containerEntities = ecs.getEntitiesWithComponents([
+      ContainerComponentName,
+    ]);
+    if (containerEntities.length === 0) {
+      return;
+    }
+    const containerData = components[ContainerComponentName]?.get(
+      containerEntities[0]
+    ) as ContainerComponentData | undefined;
+    if (!containerData || containerData.height <= 0) {
+      return;
+    }
+    const containerTop = containerData.centerY - containerData.height / 2;
+    const rowHeightNorm = (containerData.width / LAYOUT_CONSTANTS.COLUMNS) / containerData.height;
+
+    const getGapRangeNorm = (row: ObstacleRowComponentData | null): [number, number] => {
+      'worklet';
+      if (!row) {
+        return [1 / LAYOUT_CONSTANTS.COLUMNS, (LAYOUT_CONSTANTS.COLUMNS - 1) / LAYOUT_CONSTANTS.COLUMNS];
+      }
+      const gaps = row.gaps;
+      if (!gaps || gaps.length === 0) {
+        return [1 / LAYOUT_CONSTANTS.COLUMNS, (LAYOUT_CONSTANTS.COLUMNS - 1) / LAYOUT_CONSTANTS.COLUMNS];
+      }
+      const startCol = Math.min(...gaps);
+      const endCol = Math.max(...gaps);
+      const start = Math.max(0, Math.min(1, startCol / LAYOUT_CONSTANTS.COLUMNS));
+      const end = Math.max(start + 0.01, Math.min(1, (endCol + 1) / LAYOUT_CONSTANTS.COLUMNS));
+      return [start, end];
+    };
+
     entities.forEach((waterEntity) => {
       const waterData = components[WaterComponentName]?.get(
         waterEntity
@@ -72,62 +112,97 @@ export const WaterPhysicsSystem: System = {
       const acceleratedSpeed =
         currentSpeed + WATER_SPEED_ACCELERATION_PER_SECOND * deltaSeconds;
       const clampedSpeed = Math.min(WATER_SPEED_MAX, acceleratedSpeed);
+      const activeRow = waterData.centerRowEntity
+        ? components[ObstacleRowComponentName].get(waterData.centerRowEntity) as ObstacleRowComponentData | undefined
+        : undefined;
+      const prevRow = activeRow?.prevRowEntity
+        ? components[ObstacleRowComponentName].get(activeRow.prevRowEntity) as ObstacleRowComponentData | undefined
+        : undefined;
+      const [gapStartNorm, gapEndNorm] = getGapRangeNorm(activeRow ?? null);
+      const [prevGapStartNorm, prevGapEndNorm] = getGapRangeNorm(prevRow ?? null);
+      const gapWidthNorm = Math.max(0.01, gapEndNorm - gapStartNorm);
+      const gapCenterNorm = (gapStartNorm + gapEndNorm) / 2;
 
-      if (clampedSpeed === currentSpeed) {
-        return;
-      }
+      const prevGapCenterNorm = (prevGapStartNorm + prevGapEndNorm) / 2;
+      const targetFlowDirection = gapCenterNorm === prevGapCenterNorm ? 0 : gapCenterNorm < prevGapCenterNorm ? -1 : 1;
+      const currentFlowDirection = waterData.flowDirection ?? 0;
+      const flowStep = FLOW_DIRECTION_SMOOTH_PER_SECOND * deltaSeconds;
+      const flowDirection =
+        targetFlowDirection < currentFlowDirection
+          ? Math.max(targetFlowDirection, currentFlowDirection - flowStep)
+          : Math.min(targetFlowDirection, currentFlowDirection + flowStep);
 
-      // ecs.updateComponent<WaterComponentData>(
-      //   waterEntity,
-      //   WaterComponentName,
-      //   (water) => {
-      //   }
-      // );
+      const currentRowEntity = activeRow ? waterData.centerRowEntity : undefined;
+      const hasRowChanged =
+        typeof currentRowEntity === 'number' &&
+        currentRowEntity !== waterData.lastCenterRowEntity;
+      const gapCenterDelta = Math.abs(gapCenterNorm - prevGapCenterNorm);
+      const pressureFromWidth = 1 - Math.min(1, gapWidthNorm);
+      const pressure = Math.max(0, Math.min(1, pressureFromWidth * 0.7 + gapCenterDelta * 1.5 * 0.3));
+      const nextSurge = hasRowChanged
+        ? 1
+        : Math.max(0, (waterData.surgePhase ?? 0) - SURGE_DECAY_PER_SECOND * deltaSeconds);
+      const nextGapBlend = hasRowChanged
+        ? 0
+        : Math.min(1, (waterData.gapBlend ?? 1) + GAP_BLEND_SPEED_PER_SECOND * deltaSeconds);
 
-      if (waterData.centerRowEntity) {
-        const rowData = components[ObstacleRowComponentName].get(waterData.centerRowEntity) as ObstacleRowComponentData | undefined
-        if (rowData) {
-          const prevRow = rowData.prevRowEntity ? components[ObstacleRowComponentName].get(rowData.prevRowEntity) as ObstacleRowComponentData | undefined : null
-          const gaps = rowData.gaps
-          const rowlength = 6
-          let multiply = gaps.length / rowlength
-          multiply = (1 / (multiply || 1))
+      const surfaceBandCenterYRaw = activeRow
+        ? 1 - (activeRow.y - containerTop) / containerData.height
+        : 1 - (containerData.waterSurfaceY - containerTop) / containerData.height;
+      const surfaceBandCenterY = Math.max(0, Math.min(1, surfaceBandCenterYRaw));
+      const dynamicBandHalfHeight = Math.max(
+        MIN_BAND_HALF_HEIGHT,
+        Math.min(MAX_BAND_HALF_HEIGHT, rowHeightNorm * (0.75 + pressure * 0.7))
+      );
 
-          let forceDirection: WaterComponentData['forceDirection'] = 0
+      const gapsLength = activeRow?.gaps?.length ?? 0;
+      let multiply = gapsLength / LAYOUT_CONSTANTS.COLUMNS;
+      multiply = 1 / (multiply || 1);
 
-          if (prevRow) {
-            const prevRowGaps = prevRow.gaps
-            const prevCenter = (Math.min(...prevRowGaps) + Math.max(...prevRowGaps)) / 2
-            const currentCenter = (Math.min(...gaps) + Math.max(...gaps)) / 2
-            let targetForceDirection = !gaps || gaps.length === 0 || currentCenter == prevCenter ? 0 : currentCenter < prevCenter ? -1 : 1
-            let currentForceDirection = waterData.forceDirection ?? 0
-            forceDirection = targetForceDirection == 0 ? targetForceDirection : targetForceDirection < 0 ? Math.max(targetForceDirection, currentForceDirection - 0.1) : Math.min(targetForceDirection, currentForceDirection + 0.1)
+      ecs.updateComponent<WaterComponentData>(
+        waterEntity,
+        WaterComponentName,
+        (water) => {
+          const oldGapStart = water.currentGapStartNorm ?? prevGapStartNorm;
+          const oldGapEnd = water.currentGapEndNorm ?? prevGapEndNorm;
+          const oldBandCenter = water.surfaceBandCenterY ?? surfaceBandCenterY;
+          const oldBandHalfHeight = water.surfaceBandHalfHeight ?? dynamicBandHalfHeight;
+          water.baseSpeed = clampedSpeed;
+          water.centerRowEntity = currentRowEntity;
+          water.lastCenterRowEntity = currentRowEntity;
+          water.forceDirection = flowDirection;
+          water.flowDirection = flowDirection;
+          water.currentGapStartNorm = gapStartNorm;
+          water.currentGapEndNorm = gapEndNorm;
+          water.prevGapStartNorm = hasRowChanged ? oldGapStart : (water.prevGapStartNorm ?? prevGapStartNorm);
+          water.prevGapEndNorm = hasRowChanged ? oldGapEnd : (water.prevGapEndNorm ?? prevGapEndNorm);
+          water.gapCenterNorm = gapCenterNorm;
+          water.gapWidthNorm = gapWidthNorm;
+          water.gapBlend = hasRowChanged ? 0 : nextGapBlend;
+          water.surgePhase = hasRowChanged ? 0.65 + pressure * 0.35 : nextSurge;
+          const centerStep = Math.min(1, SURFACE_CENTER_SMOOTH_PER_SECOND * deltaSeconds);
+          water.surfaceBandCenterY = oldBandCenter + (surfaceBandCenterY - oldBandCenter) * centerStep;
+          const bandHeightStep = Math.min(1, BAND_HEIGHT_SMOOTH_PER_SECOND * deltaSeconds);
+          water.surfaceBandHalfHeight =
+            oldBandHalfHeight + (dynamicBandHalfHeight - oldBandHalfHeight) * bandHeightStep;
+
+          const targetSpeed = water.baseSpeed * (1 + multiply * 0.1);
+          const diff = targetSpeed - water.baseSpeed;
+          if (diff > 0) {
+            water.raisingSpeed = Math.min(water.raisingSpeed + diff * 0.1, targetSpeed);
+          } else if (diff < 0) {
+            water.raisingSpeed = Math.max(water.raisingSpeed + diff * 0.1, targetSpeed);
           }
-          ecs.updateComponent<WaterComponentData>(
-            waterEntity,
-            WaterComponentName,
-            (water) => {
-              water.baseSpeed = clampedSpeed;
-              water.forceDirection = forceDirection
-              const targetSpeed = water.baseSpeed * (1 + multiply * 0.1);
-              const diff = targetSpeed - water.baseSpeed
-              if (diff > 0) {
-                water.raisingSpeed = Math.min(water.raisingSpeed + diff * 0.1, targetSpeed);
-              } else if (diff < 0) {
-                water.raisingSpeed = Math.max(water.raisingSpeed + diff * 0.1, targetSpeed)
-              }
-            }
-          );
-          ecs.updateComponent<RenderComponentData>(
-            waterEntity,
-            RenderComponentName,
-            (renderComponent) => {
-              'worklet';
-              if (!renderComponent.shader) return;
-            })
         }
-
-      }
+      );
+      ecs.updateComponent<RenderComponentData>(
+        waterEntity,
+        RenderComponentName,
+        (renderComponent) => {
+          'worklet';
+          if (!renderComponent.shader) return;
+        }
+      );
     });
   },
 };

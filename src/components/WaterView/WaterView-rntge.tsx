@@ -10,7 +10,6 @@ import { WaterShaderSystem } from '@/systems/PhysicsSystem/WaterShaderSystem';
 import { WaterPhysicsSystem } from '@/systems/PhysicsSystem/WaterPhysicsSystem';
 import { FC, useMemo } from 'react';
 import { useWindowDimensions } from 'react-native';
-import { sourceCode as waterShaderSourceCode } from '@/Shaders/WaterShader/waterShader';
 
 export const WaterView: FC<{
   containerEntityId: number | null;
@@ -67,6 +66,15 @@ export const WaterView: FC<{
             containerCenter: [centerX, centerY], // Container center for masking
             containerWidth: width, // Container width for masking
             containerHeight: height, // Container height for masking
+            uGapCurrent: [1 / 6, 5 / 6],
+            uGapPrev: [1 / 6, 5 / 6],
+            uGapBlend: 1,
+            uFlowDir: 0,
+            uGapCenter: 0.5,
+            uGapWidth: 2 / 3,
+            uSurfaceBandCenterY: initialWaterLevel,
+            uSurfaceBandHalfHeight: 0.08,
+            uSurge: 0,
           },
         },
       }),
