@@ -2,7 +2,6 @@ import { ICanvasDimensions } from '@/containers/ReactNativeSkiaGameEngine';
 import { Skia, Uniforms } from '@shopify/react-native-skia';
 import { SharedValue, useDerivedValue } from 'react-native-reanimated';
 import { shaderNoiseFuncWithRandom } from '../common';
-import { IWave } from '@/Game/Entities/Wave/types';
 
 export const waveShaderUniforms = `
   float M_PI = 3.1415926535897932384626433832795;
@@ -36,6 +35,13 @@ export const waveShaderUniforms = `
   uniform float uPeakSharpness;
   uniform float uTroughDepth;
   uniform float uFlowWaveSpeedScale;
+  uniform float uFlowVelocity;
+  uniform float uFlowOffset;
+  uniform float uSurgeEnergy;
+  uniform float uCalmness;
+  uniform float uCurveCenter;
+  uniform float uCurveAmp;
+  uniform float uCurveTilt;
 `;
 
 export const waveShaderFoamIntensityFunc = `
@@ -137,7 +143,6 @@ export const waveShaderMainFunc = `
     float bottomY = 0.0;
     float surfaceBase = clamp(waterLevel, 0.0, 1.0);
     float blendT = smoothstep(0.0, 1.0, clamp(uGapBlend, 0.0, 1.0));
-    float surgeT = smoothstep(0.0, 1.0, clamp(uSurge, 0.0, 1.0));
     float blendedGapStart = mix(uGapPrev.x, uGapCurrent.x, blendT);
     float blendedGapEnd = mix(uGapPrev.y, uGapCurrent.y, blendT);
     vec2 blendedGap = vec2(blendedGapStart, max(blendedGapStart + 0.01, blendedGapEnd));
@@ -150,62 +155,36 @@ export const waveShaderMainFunc = `
       clamp(uSurfaceBandCenterY, 0.0, 1.0),
       clamp(uSurfaceBandHalfHeight, 0.02, 0.2)
     );
+    float surgeEnergy = clamp(max(uSurge, uSurgeEnergy), 0.0, 1.0);
+    float calmness = clamp(uCalmness, 0.0, 1.0);
+    float flowVelocity = clamp(mix(uFlowDir, uFlowVelocity, 0.75), -1.0, 1.0);
+    float flowOffset = clamp(uFlowOffset, -1.0, 1.0);
+    float pressure = clamp((1.0 - blendedGapWidth) * 0.72 + abs(flowVelocity) * 0.28, 0.0, 1.0);
+    float directionalFlowBoost = abs(flowVelocity) * (0.1 + 0.3 * surgeEnergy) * activeGapMask * activeBandMask;
 
-    // Flip sign so visual slope points toward push direction.
-    float tilt = -uFlowDir * (0.02 + 0.018 * surgeT);
-    float widthSafe = max(uGapWidth, 0.06);
-    float flowMag = clamp(abs(uFlowDir), 0.0, 1.0);
-    float advectSpeed = speed * uFlowWaveSpeedScale * (1.4 + 1.2 * flowMag + 0.7 * surgeT);
-    // Continuous horizontal surface flow even before row change.
-    float flowTravel = uFlowDir * iTime * advectSpeed * 180.0;
-    float centeredX = (containerUV.x - uGapCenter - flowTravel) / widthSafe;
-    float tiltLocal = clamp(centeredX, -1.0, 1.0);
-    float tiltedSurface = clamp(surfaceBase + tilt * tiltLocal * softGap * activeBandMask, 0.0, 1.0);
-    float directionalFlowBoost = abs(uFlowDir) * (0.12 + 0.3 * surgeT) * activeGapMask * activeBandMask;
-    float pressure = clamp((1.0 - min(1.0, widthSafe)) * 0.7 + abs(uFlowDir) * 0.3, 0.0, 1.0);
-
-    // Wave energy: calm when gap is wide and there is little lateral push; stronger when squeezed or flowing.
-    float gapOpen = clamp(uGapWidth, 0.001, 1.0);
-    float wideCalm = smoothstep(0.18, 0.48, gapOpen);
-    float narrowStress = 1.0 - wideCalm;
-    float agitation = clamp(
-      narrowStress * 0.88 + flowMag * 0.52 + surgeT * 0.38,
+    // Canonical silhouette = center surge curve + directional tilt + optional calm ripples.
+    float curveMargin = max(0.01, min(0.08, blendedGapWidth * 0.2));
+    float inertiaTravel = max(0.035, blendedGapWidth * (0.16 + 0.2 * surgeEnergy));
+    float curveCenter = clamp(
+      uCurveCenter,
+      blendedGap.x + curveMargin - inertiaTravel,
+      blendedGap.y - curveMargin + inertiaTravel
+    );
+    float gapHalf = max(blendedGapWidth * 0.5, 0.02);
+    float centeredNorm = (containerUV.x - curveCenter) / gapHalf;
+    float centerCurve = exp(-centeredNorm * centeredNorm * 2.8) * max(0.0, uCurveAmp);
+    float directionalTilt = clamp(centeredNorm, -1.0, 1.0) * uCurveTilt;
+    float calmRippleAmp = (0.0005 + calmness * 0.0038) * (1.0 - surgeEnergy) * softGap * activeBandMask;
+    float calmRippleA = sin(containerUV.x * frequency * 4.5 + iTime * speed * (0.02 + 0.04 * abs(flowVelocity)));
+    float calmRippleB = sin(containerUV.x * frequency * 2.8 - iTime * speed * 0.015 + 1.2);
+    float calmRipples = (calmRippleA * 0.65 + calmRippleB * 0.35) * calmRippleAmp;
+    float curveInfluence = 0.18 + 0.82 * activeBandMask;
+    float edgeBend = (1.0 - softGap) * activeBandMask * (0.003 + 0.01 * (0.4 + pressure * 0.6));
+    float finalSurface = clamp(
+      surfaceBase + (centerCurve + directionalTilt) * curveInfluence + calmRipples - edgeBend,
       0.0,
       1.0
     );
-    float idleWide = wideCalm * (1.0 - smoothstep(0.0, 0.22, flowMag + surgeT * 0.6));
-    agitation *= 1.0 - idleWide * 0.92;
-
-    float waveAmp = mix(0.0005, 0.012, agitation);
-    float microPeakSharp = mix(1.0, 1.2, narrowStress * (0.5 + 0.5 * pressure));
-
-    // Horizontal advection: crests travel with push direction (UV space), speed scales with flow + surge.
-    float flowPhase = uFlowDir * iTime * advectSpeed;
-
-    float wave1 = sin((containerUV.x * frequency * 6.0) + flowPhase * 1.0 + iTime * speed * 0.03);
-    float wave2 = sin((containerUV.x * frequency * 10.0) + flowPhase * 1.2 - iTime * speed * 0.025 + 1.3);
-    float wave3 = sin((containerUV.x * frequency * 4.0) + flowPhase * 0.8 + iTime * speed * 0.018);
-    float blendedWave = wave1 * 0.55 + wave2 * 0.3 + wave3 * 0.15;
-    blendedWave = sign(blendedWave) * pow(max(abs(blendedWave), 0.0001), microPeakSharp);
-
-    float curveMask = mix(0.22, 1.0, softGap * activeBandMask * (0.35 + 0.65 * agitation));
-    float surfaceWaveOffset = blendedWave * waveAmp * curveMask;
-
-    // Macro crest shape: one central hump with side troughs.
-    float blendedGapCenter = (blendedGap.x + blendedGap.y) * 0.5;
-    float gapHalf = max(blendedGapWidth * 0.5, 0.04);
-    float crestShift = uFlowDir * (surgeT * gapHalf * 0.22 + flowTravel * 0.7);
-    float crestCenter = blendedGapCenter + crestShift;
-    float centeredNorm = (containerUV.x - crestCenter) / gapHalf;
-    float core = exp(-centeredNorm * centeredNorm * (2.2 + uPeakSharpness * 1.4));
-    float absNorm = abs(centeredNorm);
-    float side = exp(-(absNorm - 1.0) * (absNorm - 1.0) * 10.0);
-    float crestProfile = (core * uPeakHeight) - (side * uTroughDepth);
-    crestProfile *= activeBandMask * softGap;
-
-    // Outside the gap, smoothly bend surface downward (no hard step cliff at edges).
-    float edgeBend = (1.0 - softGap) * activeBandMask * (0.004 + 0.013 * (0.5 + pressure * 0.5));
-    float finalSurface = clamp(tiltedSurface + surfaceWaveOffset + crestProfile - edgeBend, 0.0, 1.0);
 
     // Check if pixel is below water level (solid water body)
     if (containerUV.y < (bottomY + finalSurface)) {
@@ -216,8 +195,8 @@ export const waveShaderMainFunc = `
 
       // Upward flow: offset sampling UV over time so the pattern appears to rise
       vec2 flowUV = uv;
-      flowUV.x += uFlowDir * depth * 0.07 * (0.5 + uSurge);
-      flowUV.y -= iTime * speed * 0.6;
+      flowUV.x += flowVelocity * depth * (0.05 + 0.06 * surgeEnergy);
+      flowUV.y -= iTime * speed * (0.45 + 0.35 * surgeEnergy);
 
       // Anisotropic scaling to create soft vertical streaks
       vec2 streakUV = vec2(flowUV.x * 1.5, flowUV.y * 4.0);
@@ -231,6 +210,14 @@ export const waveShaderMainFunc = `
       // Modulate brightness with noise to get subtle moving bands
       float bandIntensity = smoothstep(0.3, 0.9, flowNoise);
       vec3 flowColor = gradColor + bandIntensity * (0.10 + 0.08 * directionalFlowBoost);
+
+      // Echo the surface curve in a shallow band for a stronger pressure silhouette.
+      float depthBelowSurface = max(0.0, surfaceY - containerUV.y);
+      float subsurfaceBandHeight = 0.07;
+      float nearSurfaceMask = 1.0 - smoothstep(0.0, subsurfaceBandHeight, depthBelowSurface);
+      float centerBand = exp(-centeredNorm * centeredNorm * 3.8);
+      float subsurfaceCurveMask = nearSurfaceMask * centerBand * activeBandMask * softGap;
+      flowColor += subsurfaceCurveMask * (0.045 + 0.06 * surgeEnergy);
 
       // --- Minimal hyper-casual bubbles (true circles in screen space) -----
       // Water-space Y (0 = bottom of water, 1 = surface)
@@ -261,7 +248,7 @@ export const waveShaderMainFunc = `
 
       // Random center and radius per cell (noise-based random)
       float rSeed = random(cellIndex * 3.17);
-      float bubbleThreshold = 0.68 - pressure * 0.22;
+      float bubbleThreshold = 0.7 - pressure * 0.26 - surgeEnergy * 0.1;
       float hasBubble = step(bubbleThreshold, rSeed);
       float r1 = random(cellIndex * 7.31 + 1.23);
       float r2 = random(cellIndex * 11.71 + 4.56);
@@ -288,13 +275,23 @@ export const waveShaderMainFunc = `
       return vec4(flowColor, 0.8 * rectangleMask * bandGapVisibility);
     }
 
-    // Above water level - render wavy surface
-    // Position waves at the water level
+    // Above water level - render a thin readable surface layer.
     float surfaceH = bottomY + finalSurface;
-
-    float w = WaterMask(uv, surfaceH, iTime * speed * 8.0, amplitude, frequency);
-
-    vec2 wavePosition = YPosition(uv, surfaceH, iTime * speed * 0.2, amplitude * 0.05, frequency);
+    float calmSurfaceOffset = sin(containerUV.x * frequency * 2.5 + iTime * speed * 0.025) * calmness * 0.0015;
+    float w = WaterMask(
+      uv,
+      surfaceH + calmSurfaceOffset,
+      iTime * speed * (4.0 + 2.0 * abs(flowVelocity)),
+      amplitude * (0.35 + 0.65 * calmness),
+      frequency
+    );
+    vec2 wavePosition = YPosition(
+      uv,
+      surfaceH,
+      iTime * speed * 0.16,
+      amplitude * (0.025 + 0.035 * calmness),
+      frequency
+    );
 
     float foamNoise = noise(wavePosition * (2.0 + 1.0 * pressure) * frequency);
     float clampedW = clamp(1. - w, 0., 1.);
@@ -303,7 +300,7 @@ export const waveShaderMainFunc = `
 
     float whiteCap = 1. / exp(smoothstep(surfaceH, surfaceH + 0.01, wavePosition.y * 1.) * .5);
     vec3 waterMix = mix(vec3(1.) * clampedFoam, w * waterColor, 0.8);
-    float foamBoost = 1.0 + pressure * 0.35 * softGap * activeBandMask;
+    float foamBoost = 0.95 + pressure * 0.32 * softGap * activeBandMask + surgeEnergy * 0.25;
     // Surface crest also respects gap limits inside the active band.
     float surfaceVisibility = mix(1.0, softGap, activeBandMask);
     return vec4(waterMix, w * whiteCap * foamBoost * rectangleMask * surfaceVisibility);

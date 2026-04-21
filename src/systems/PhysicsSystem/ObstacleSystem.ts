@@ -384,14 +384,24 @@ export const ObstacleSystem: System = {
 
     if (typeof sceneEntity !== 'number') return;
 
-    const minY = containerTop - containerData.height * 1.5; // -150% (well above container top)
     const maxY = containerTop + containerData.height * 0.3; // 30% from top
-    const yRange = maxY - minY;
 
     const leftX = containerData.centerX -
       containerData.width / 2
     const columnWidth = getObstacleWidth(containerData.width);
     const obstacleRowEntities = ecs.getEntitiesWithComponents([ObstacleRowComponentName])
+    const waterSurfaceY = containerData.waterSurfaceY;
+    const currentCenterRowEntity = waterData.centerRowEntity;
+    // Lock slightly ahead of the visible surface so the water can start reacting
+    // as a row enters the flow band, not after it is already centered.
+    const lockAheadY = waterSurfaceY - columnWidth * 0.42;
+    // Transition target is even higher to begin cross-row shaping before center alignment.
+    const transitionTargetY = lockAheadY - columnWidth * 0.28;
+    let nearestRowEntity: number | undefined;
+    let nearestRowDistance = Number.POSITIVE_INFINITY;
+    let nearestOverlapRowEntity: number | undefined;
+    let nearestOverlapDistance = Number.POSITIVE_INFINITY;
+    let currentRowDistance = Number.POSITIVE_INFINITY;
     obstacleRowEntities.forEach((obstacleRowEntity) => {
       const rowData = components[ObstacleRowComponentName].get(obstacleRowEntity) as ObstacleRowComponentData | undefined
       if (!rowData) return
@@ -409,12 +419,21 @@ export const ObstacleSystem: System = {
         ecs.updateComponent<ObstacleRowComponentData>(obstacleRowEntity, ObstacleRowComponentName, (rowData) => {
           rowData.y = newY
         })
-        const yRange = [newY - columnWidth / 2, newY + columnWidth / 2]
-        const waterSurface = dimensions.value.height / 2
-        if (waterSurface > yRange[0] && waterSurface < yRange[1]) {
-          ecs.updateComponent<WaterComponentData>(waterEntity, WaterComponentName, (waterData) => {
-            waterData.centerRowEntity = obstacleRowEntity
-          })
+        const rowTop = newY - columnWidth / 2;
+        const rowBottom = newY + columnWidth / 2;
+        const rowCenterDistance = Math.abs(newY - transitionTargetY);
+        const overlapsTransitionBand =
+          transitionTargetY >= rowTop && transitionTargetY <= rowBottom;
+        if (overlapsTransitionBand && rowCenterDistance < nearestOverlapDistance) {
+          nearestOverlapDistance = rowCenterDistance;
+          nearestOverlapRowEntity = obstacleRowEntity;
+        }
+        if (rowCenterDistance < nearestRowDistance) {
+          nearestRowDistance = rowCenterDistance;
+          nearestRowEntity = obstacleRowEntity;
+        }
+        if (obstacleRowEntity === currentCenterRowEntity) {
+          currentRowDistance = rowCenterDistance;
         }
         rowData.obstacles.forEach((oEnt) => {
           const body = components[MatterBodyComponentName].get(oEnt) as MatterBodyComponentData | undefined
@@ -428,6 +447,32 @@ export const ObstacleSystem: System = {
         })
       }
     })
+    const candidateCenterRowEntity = nearestOverlapRowEntity ?? nearestRowEntity;
+    let centerRowEntity = candidateCenterRowEntity;
+    if (
+      typeof currentCenterRowEntity === 'number' &&
+      Number.isFinite(currentRowDistance)
+    ) {
+      const holdDistance = columnWidth * 0.62;
+      const switchAdvantage = columnWidth * 0.18;
+      const candidateDistance =
+        typeof candidateCenterRowEntity === 'number'
+          ? (candidateCenterRowEntity === nearestOverlapRowEntity
+            ? nearestOverlapDistance
+            : nearestRowDistance)
+          : Number.POSITIVE_INFINITY;
+      const shouldHoldCurrent =
+        currentRowDistance <= holdDistance &&
+        candidateDistance + switchAdvantage >= currentRowDistance;
+      if (shouldHoldCurrent) {
+        centerRowEntity = currentCenterRowEntity;
+      }
+    }
+    if (typeof centerRowEntity === 'number') {
+      ecs.updateComponent<WaterComponentData>(waterEntity, WaterComponentName, (waterData) => {
+        waterData.centerRowEntity = centerRowEntity;
+      });
+    }
 
     // Seed initial obstacles when none exist (either during initial phase or when starting with water at center)
     const shouldSeedInitialObstacles = obstacleRowEntities.length === 0;

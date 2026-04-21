@@ -102,11 +102,18 @@ export const WaterShaderSystem: System = {
           uniforms.uGapWidth = waterComponent.gapWidthNorm ?? 2 / 3;
           uniforms.uSurfaceBandCenterY = waterComponent.surfaceBandCenterY ?? uniforms.waterLevel as number;
           uniforms.uSurfaceBandHalfHeight = waterComponent.surfaceBandHalfHeight ?? 0.08;
-          uniforms.uSurge = waterComponent.surgePhase ?? 0;
+          uniforms.uSurge = waterComponent.surgeEnergy ?? waterComponent.surgePhase ?? 0;
           uniforms.uPeakHeight = waterComponent.peakHeight ?? 0.008;
           uniforms.uPeakSharpness = waterComponent.peakSharpness ?? 0.1;
           uniforms.uTroughDepth = waterComponent.troughDepth ?? 0.006;
           uniforms.uFlowWaveSpeedScale = waterComponent.flowWaveSpeedScale ?? 0.00005;
+          uniforms.uFlowVelocity = waterComponent.flowVelocity ?? waterComponent.flowDirection ?? 0;
+          uniforms.uFlowOffset = waterComponent.flowOffset ?? 0;
+          uniforms.uSurgeEnergy = waterComponent.surgeEnergy ?? waterComponent.surgePhase ?? 0;
+          uniforms.uCalmness = waterComponent.calmness ?? 0.5;
+          uniforms.uCurveCenter = waterComponent.surfaceCurveCenterNorm ?? waterComponent.gapCenterNorm ?? 0.5;
+          uniforms.uCurveAmp = waterComponent.surfaceCurveAmp ?? 0.008;
+          uniforms.uCurveTilt = waterComponent.surfaceCurveTilt ?? 0;
         }
       );
     });

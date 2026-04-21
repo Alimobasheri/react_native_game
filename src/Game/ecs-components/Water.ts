@@ -24,6 +24,13 @@ export type WaterComponentData = {
   peakSharpness?: number; // crest concentration
   troughDepth?: number; // side trough depth in UV units
   flowWaveSpeedScale?: number; // horizontal wave advection scale
+  flowVelocity?: number; // inertial lateral velocity in normalized range (-1..1)
+  flowOffset?: number; // integrated lateral displacement in normalized gap space
+  surgeEnergy?: number; // decaying push energy used by visuals (0..1)
+  calmness?: number; // calm-state factor (0..1)
+  surfaceCurveCenterNorm?: number; // smoothed center for surface profile (0..1)
+  surfaceCurveAmp?: number; // smoothed center-curve amplitude in UV units
+  surfaceCurveTilt?: number; // smoothed directional tilt in UV units
 };
 
 export const createWaterComponent = (

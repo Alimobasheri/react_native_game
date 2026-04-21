@@ -32,7 +32,7 @@ export const WaterView: FC<{
       createWaterComponent({
         containerEntityId: containerEntityId,
         raisingSpeed: raisingSpeed,
-        baseSpeed: raisingSpeed
+        baseSpeed: raisingSpeed,
       }),
       createPositionComponent({
         x: centerX,
@@ -54,8 +54,8 @@ export const WaterView: FC<{
             height: 0.5, // Keep for compatibility but not used
             heightOffset: 0.5, // Keep for compatibility but not used
             waterLevel: initialWaterLevel, // Water level in container (0-1)
-            frequency: 1.0, // Wave frequency (reduced)
-            amplitude: 0.5, // Wave amplitude (reduced)
+            frequency: 1, // Wave frequency (reduced)
+            amplitude: 0.1, // Wave amplitude (reduced)
             speed: 0.05, // Wave speed (reduced)
             dynamicWaveX: centerX,
             dynamicWave: [0, 0, 0, 0], // No dynamic wave initially
@@ -76,9 +76,16 @@ export const WaterView: FC<{
             uSurfaceBandHalfHeight: 0.08,
             uSurge: 0,
             uPeakHeight: 0.001,
-            uPeakSharpness: 0.1,
+            uPeakSharpness: 1,
             uTroughDepth: 0.006,
             uFlowWaveSpeedScale: 0.0005,
+            uFlowVelocity: 0,
+            uFlowOffset: 0,
+            uSurgeEnergy: 0,
+            uCalmness: 0.5,
+            uCurveCenter: 0.5,
+            uCurveAmp: 0.008,
+            uCurveTilt: 0,
           },
         },
       }),
