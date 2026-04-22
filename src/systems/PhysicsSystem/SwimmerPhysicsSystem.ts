@@ -16,6 +16,10 @@ import {
 } from '@/Game/ecs-components/ObstacleComponent';
 import { LAYOUT_CONSTANTS, getColumnCenterX, getObstacleWidth, getRows } from '@/Layout';
 import { MatterBodyComponentName } from '@/containers/ReactNativeSkiaGameEngine/internal/components/matterBody';
+import {
+  RenderComponentData,
+  RenderComponentName,
+} from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 
 const SWIMMER_WIDTH_COLUMN_RATIO = 2 / 3;
 const SWIMMER_HEIGHT_TO_WIDTH_RATIO = 1.8;
@@ -25,6 +29,12 @@ const MAX_HORIZONTAL_SPEED = 150; // pixels / second
 const BASE_HORIZONTAL_ACCEL = 900; // target speed for inputX = 1 before drag
 const BASE_RESPONSIVENESS = 0.15; // how quickly velocity approaches target
 const PINNED_VELOCITY_DAMPING = 0.7; // vx multiplier when pinned under obstacle
+const MAX_WATER_CURRENT_SPEED = 95; // px/s lateral drift at full flow
+const WATER_CURRENT_RESPONSE_PER_SECOND = 2.8; // higher = snaps faster to current
+const WATER_CURRENT_SURGE_BOOST = 0.45; // extra current strength during surge
+const SURFACE_FOLLOW_RESPONSE_PER_SECOND = 9.5;
+const SURFACE_SUBMERGENCE_RATIO = 0.42;
+const SURFACE_BOB_BLEND = 0.2;
 
 /**
  * SwimmerPhysicsSystem - Handles swimmer movement and game mechanics
@@ -74,6 +84,9 @@ export const SwimmerPhysicsSystem: System = {
 
     const waterEntity = waterEntities[0];
     const waterData = components[WaterComponentName].get(waterEntity) as WaterComponentData | undefined;
+    const waterRenderData = components[RenderComponentName]?.get(
+      waterEntity
+    ) as RenderComponentData | undefined;
 
     if (!waterData) {
       return;
@@ -83,6 +96,35 @@ export const SwimmerPhysicsSystem: System = {
     const containerTop = containerData.centerY - containerData.height / 2;
     const containerBottom = containerData.centerY + containerData.height / 2;
     const halfContainerHeight = containerData.centerY; // Half way up from bottom
+    const clamp01 = (value: number) => {
+      'worklet';
+      return Math.max(0, Math.min(1, value));
+    };
+    const smoothstep = (edge0: number, edge1: number, x: number) => {
+      'worklet';
+      const denom = Math.max(0.0001, edge1 - edge0);
+      const t = clamp01((x - edge0) / denom);
+      return t * t * (3 - 2 * t);
+    };
+    const softGapInfluence = (start: number, end: number, x: number, feather: number) => {
+      'worklet';
+      const left = smoothstep(start - feather, start + feather, x);
+      const right = 1 - smoothstep(end - feather, end + feather, x);
+      return clamp01(left * right);
+    };
+    const bandMask = (y: number, center: number, halfH: number) => {
+      'worklet';
+      const low = smoothstep(center - halfH - 0.02, center - halfH + 0.01, y);
+      const high = 1 - smoothstep(center + halfH - 0.01, center + halfH + 0.02, y);
+      return clamp01(low * high);
+    };
+    const shaderUniforms = waterRenderData?.shader?.uniforms;
+    const shaderITime = (shaderUniforms?.iTime as number | undefined) ?? 0;
+    const shaderFrequency = (shaderUniforms?.frequency as number | undefined) ?? 1;
+    const shaderSpeed = (shaderUniforms?.speed as number | undefined) ?? 0.05;
+    const waterLevelNorm = clamp01(
+      1 - (containerData.waterSurfaceY - containerTop) / Math.max(0.0001, containerData.height)
+    );
 
     // Determine game phase based on first swimmer (they should all be in sync)
     let isInInitialPhase = true;
@@ -296,6 +338,18 @@ export const SwimmerPhysicsSystem: System = {
       let swimmerVelocityX = swimmerComponent.velocityX ?? 0;
       const currentInputX = swimmerComponent.inputX ?? 0;
       let nextInputX = currentInputX;
+      const flowVelocityNorm = Math.max(
+        -1,
+        Math.min(1, waterData.flowVelocity ?? waterData.forceDirection ?? 0)
+      );
+      const surgeNorm = Math.max(
+        0,
+        Math.min(1, waterData.surgeEnergy ?? waterData.surgePhase ?? 0)
+      );
+      const waterCurrentVelocityX =
+        flowVelocityNorm *
+        MAX_WATER_CURRENT_SPEED *
+        (1 + WATER_CURRENT_SURGE_BOOST * surgeNorm);
 
       // Horizontal control: tap-based hyper-casual (useColumnControl) or pan-based.
       if (swimmerComponent.useColumnControl) {
@@ -340,10 +394,6 @@ export const SwimmerPhysicsSystem: System = {
           deltaSeconds
         );
         swimmerVelocityX *= dragFactor;
-
-        const waterXVelocityBase = normalizedSpeed * 1.1
-        const forceDirection = waterData.forceDirection ?? 0
-        swimmerVelocityX += forceDirection * waterXVelocityBase
       } else {
         // --- PAN-BASED CONTROL ---
         // Apply simple drag that grows with water speed (more water speed -> more drag).
@@ -352,6 +402,13 @@ export const SwimmerPhysicsSystem: System = {
         const drag = Math.max(0, Math.min(1, baseDrag - extraDrag));
         swimmerVelocityX *= drag;
       }
+
+      // Water advection: treat flow as a target lateral velocity and relax toward it
+      // with a frame-rate-independent response curve.
+      const currentResponse =
+        1 - Math.exp(-WATER_CURRENT_RESPONSE_PER_SECOND * deltaSeconds);
+      swimmerVelocityX +=
+        (waterCurrentVelocityX - swimmerVelocityX) * currentResponse;
 
       // Clamp horizontal speed.
       if (swimmerVelocityX > MAX_HORIZONTAL_SPEED) {
@@ -375,6 +432,10 @@ export const SwimmerPhysicsSystem: System = {
         swimmerComponent.containerWidth / 2 -
         swimmerWidthForBlockCheck / 2;
       const constrainedX = Math.max(minX, Math.min(maxX, newX));
+      const containerUVX = clamp01(
+        (constrainedX - (containerData.centerX - containerData.width / 2)) /
+        Math.max(0.0001, containerData.width)
+      );
 
       // --- Integrate vertical position manually (arcade-style) ---
       // We no longer rely on Matter's vertical velocity for buoyancy, to avoid
@@ -394,6 +455,86 @@ export const SwimmerPhysicsSystem: System = {
         // Above surface: gently settle back down toward water.
         const maxFall = buoyancySpeed * dtSeconds;
         targetY += maxFall; // positive direction = down
+      }
+
+      // Follow the same surface-curve equation used by the water shader so swimmer
+      // floats on the visual surface at its current X.
+      const gapCurrentStart = waterData.currentGapStartNorm ?? 1 / 6;
+      const gapCurrentEnd = waterData.currentGapEndNorm ?? 5 / 6;
+      const gapPrevStart = waterData.prevGapStartNorm ?? gapCurrentStart;
+      const gapPrevEnd = waterData.prevGapEndNorm ?? gapCurrentEnd;
+      const gapBlend = smoothstep(0, 1, clamp01(waterData.gapBlend ?? 1));
+      const blendedGapStart = gapPrevStart + (gapCurrentStart - gapPrevStart) * gapBlend;
+      const blendedGapEnd = gapPrevEnd + (gapCurrentEnd - gapPrevEnd) * gapBlend;
+      const safeGapEnd = Math.max(blendedGapStart + 0.01, blendedGapEnd);
+      const blendedGapWidth = Math.max(0.02, safeGapEnd - blendedGapStart);
+      const gapFeather = Math.max(0.02, Math.min(0.09, blendedGapWidth * 0.45));
+      const softGap = softGapInfluence(blendedGapStart, safeGapEnd, containerUVX, gapFeather);
+      const surfaceBandCenter = clamp01(waterData.surfaceBandCenterY ?? waterLevelNorm);
+      const surfaceBandHalfHeight = Math.max(
+        0.02,
+        Math.min(0.2, waterData.surfaceBandHalfHeight ?? 0.08)
+      );
+      const activeBandMask = bandMask(waterLevelNorm, surfaceBandCenter, surfaceBandHalfHeight);
+      const surgeEnergy = clamp01(
+        Math.max(waterData.surgeEnergy ?? 0, waterData.surgePhase ?? 0)
+      );
+      const calmness = clamp01(waterData.calmness ?? 0.5);
+      const flowDir = waterData.flowDirection ?? 0;
+      const flowVel = waterData.flowVelocity ?? flowDir;
+      const flowVelocity = Math.max(-1, Math.min(1, flowDir * 0.25 + flowVel * 0.75));
+      const pressure = clamp01(
+        (1 - blendedGapWidth) * 0.72 + Math.abs(flowVelocity) * 0.28
+      );
+      const curveMargin = Math.max(0.01, Math.min(0.08, blendedGapWidth * 0.2));
+      const inertiaTravel = Math.max(0.035, blendedGapWidth * (0.16 + 0.2 * surgeEnergy));
+      const unclampedCurveCenter =
+        waterData.surfaceCurveCenterNorm ?? waterData.gapCenterNorm ?? 0.5;
+      const curveCenter = Math.max(
+        blendedGapStart + curveMargin - inertiaTravel,
+        Math.min(safeGapEnd - curveMargin + inertiaTravel, unclampedCurveCenter)
+      );
+      const gapHalf = Math.max(blendedGapWidth * 0.5, 0.02);
+      const centeredNorm = (containerUVX - curveCenter) / gapHalf;
+      const curveAmp = Math.max(0, waterData.surfaceCurveAmp ?? 0.008);
+      const centerCurve = Math.exp(-centeredNorm * centeredNorm * 2.8) * curveAmp;
+      const curveTilt = (waterData.surfaceCurveTilt ?? 0) * Math.max(-1, Math.min(1, centeredNorm));
+      const calmRippleAmp =
+        (0.0005 + calmness * 0.0038) * (1 - surgeEnergy) * softGap * activeBandMask;
+      const calmRippleA = Math.sin(
+        containerUVX * shaderFrequency * 4.5 +
+        shaderITime * shaderSpeed * (0.02 + 0.04 * Math.abs(flowVelocity))
+      );
+      const calmRippleB = Math.sin(
+        containerUVX * shaderFrequency * 2.8 -
+        shaderITime * shaderSpeed * 0.015 +
+        1.2
+      );
+      const calmRipples = (calmRippleA * 0.65 + calmRippleB * 0.35) * calmRippleAmp;
+      const curveInfluence = 0.18 + 0.82 * activeBandMask;
+      const edgeBend =
+        (1 - softGap) * activeBandMask * (0.003 + 0.01 * (0.4 + pressure * 0.6));
+      const finalSurfaceNorm = clamp01(
+        waterLevelNorm +
+        (centerCurve + curveTilt) * curveInfluence +
+        calmRipples -
+        edgeBend
+      );
+      const curveSurfaceY =
+        containerTop + (1 - finalSurfaceNorm) * containerData.height;
+      const targetFloatCenterY =
+        curveSurfaceY + swimmerHalfHeight * SURFACE_SUBMERGENCE_RATIO + bobbingOffsetY * SURFACE_BOB_BLEND;
+      const surfaceDepth = targetY - curveSurfaceY;
+      const canFollowCurve =
+        !isCollidingWithObstacle &&
+        !isBlockedFromAbove &&
+        softGap > 0.15 &&
+        surfaceDepth > -swimmerHeightForBlockCheck &&
+        surfaceDepth < swimmerHeightForBlockCheck * 2.1;
+      if (canFollowCurve) {
+        const followStep =
+          1 - Math.exp(-SURFACE_FOLLOW_RESPONSE_PER_SECOND * dtSeconds);
+        targetY += (targetFloatCenterY - targetY) * followStep;
       }
 
       if (typeof global.MatterReanimated !== 'undefined') {
@@ -431,7 +572,7 @@ export const SwimmerPhysicsSystem: System = {
         (swimmer) => {
           'worklet';
           swimmer.velocityX = swimmerVelocityX;
-          swimmer.waterSurfaceY = containerData.waterSurfaceY;
+          swimmer.waterSurfaceY = curveSurfaceY;
           swimmer.isCollidingWithObstacle = isCollidingWithObstacle;
           swimmer.isInInitialPhase = swimmerComponent.isInInitialPhase;
           swimmer.column = swimmerComponent.column;
