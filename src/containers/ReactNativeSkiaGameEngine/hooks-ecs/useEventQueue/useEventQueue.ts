@@ -6,6 +6,16 @@ export type Event<T = any> = { type: string; payload?: T };
 export type ExternalEvent<T = any> = Event<T> & { subscriptionId: string };
 export type EventQueue = Event[];
 
+const isValidEvent = (event: unknown): event is Event => {
+  'worklet';
+  return (
+    !!event &&
+    typeof event === 'object' &&
+    'type' in event &&
+    typeof (event as Event).type === 'string'
+  );
+};
+
 export type SubscriptionCallback = (event: ExternalEvent) => void;
 
 export type EventQueueContextType = {
@@ -27,6 +37,7 @@ export const useEventQueue = (): EventQueueContextType => {
 
   const addEvent = useCallback((event: Event) => {
     'worklet';
+    if (!isValidEvent(event)) return;
     if (global?._RNTGE_?.eventQueue) {
       global._RNTGE_.eventQueue.nextEvents = [...global._RNTGE_.eventQueue.nextEvents, event];
     }
@@ -76,7 +87,7 @@ export const useEventQueue = (): EventQueueContextType => {
   const readEvents = useCallback(() => {
     'worklet';
     if (global?._RNTGE_?.eventQueue) {
-      return global._RNTGE_.eventQueue.eventStore;
+      return global._RNTGE_.eventQueue.eventStore.filter(isValidEvent);
     }
     return [];
   }, []);
@@ -84,7 +95,8 @@ export const useEventQueue = (): EventQueueContextType => {
   const clearEvents = useCallback(() => {
     'worklet';
     if (global?._RNTGE_?.eventQueue) {
-      global._RNTGE_.eventQueue.eventStore = global._RNTGE_.eventQueue.nextEvents;
+      global._RNTGE_.eventQueue.eventStore =
+        global._RNTGE_.eventQueue.nextEvents.filter(isValidEvent);
       global._RNTGE_.eventQueue.nextEvents = [];
     }
   }, []);

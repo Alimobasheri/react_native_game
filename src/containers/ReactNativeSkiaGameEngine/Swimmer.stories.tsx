@@ -26,6 +26,7 @@ import { ObstaclesManagerComponentName } from '@/Game/ecs-components/ObstaclesMa
 import { ScoreComponentName } from '@/Game/ecs-components/Score';
 import { ScoreView } from '@/components/ScoreView/ScoreView-rntge';
 import { ObstacleRowComponentName } from '@/Game/ecs-components/ObstacleRowComponent';
+import { GameOverScene } from '../Scenes/GameOverScene/index-rntge';
 
 export const SwimmerGameComp: FC<{}> = memo(
   (args: any) => {
@@ -72,7 +73,7 @@ export const SwimmerGameComp: FC<{}> = memo(
               />
             </Preload>
             <Content>
-              <Scene name="swimmerGame">
+              <Scene name="game">
                 <Preload>
                   <Asset type="image" name="block" uriOrBase64={block} />
                   <Asset type="image" name="block2" uriOrBase64={block2} />
@@ -132,6 +133,7 @@ export const SwimmerGameComp: FC<{}> = memo(
                   <ScoreView />
                 </Content>
               </Scene>
+              <GameOverScene />
             </Content>
           </ReactNativeTurboGameEngine>
         </View>

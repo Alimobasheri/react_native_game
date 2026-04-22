@@ -20,6 +20,10 @@ import {
   RenderComponentData,
   RenderComponentName,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
+import {
+  LoadSceneRequestType,
+  UnLoadSceneRequestType,
+} from '@/containers/ReactNativeSkiaGameEngine/components-rntge/Scene/events';
 
 const SWIMMER_WIDTH_COLUMN_RATIO = 2 / 3;
 const SWIMMER_HEIGHT_TO_WIDTH_RATIO = 1.8;
@@ -52,9 +56,12 @@ const SURFACE_BOB_BLEND = 0.2;
  * - Handles swimmer collision and falling states
  * - Manages horizontal swimmer movement
  */
+const GAME_SCENE_KEY = 'game';
+const GAME_OVER_SCENE_KEY = 'gameOver';
+
 export const SwimmerPhysicsSystem: System = {
   requiredComponents: [SwimmerComponentName, MatterBodyComponentName],
-  process: ({ entities, components, deltaTime, ecs }) => {
+  process: ({ entities, components, deltaTime, ecs, dimensions, eventQueue }) => {
     'worklet';
 
     // Get container entity
@@ -335,6 +342,25 @@ export const SwimmerPhysicsSystem: System = {
         }
       }
 
+      const isUnderWater = depth > 0;
+      const isOutOfScreen = swimmerCenterY > dimensions.value.height;
+      const shouldDispatchGameOver =
+        isBlockedFromAbove &&
+        isUnderWater &&
+        isOutOfScreen &&
+        !swimmerComponent.gameOverDispatched;
+
+      if (shouldDispatchGameOver) {
+        eventQueue.addEvent({
+          type: LoadSceneRequestType,
+          payload: { sceneKey: GAME_OVER_SCENE_KEY },
+        });
+        eventQueue.addEvent({
+          type: UnLoadSceneRequestType,
+          payload: { sceneKey: GAME_SCENE_KEY },
+        });
+      }
+
       let swimmerVelocityX = swimmerComponent.velocityX ?? 0;
       const currentInputX = swimmerComponent.inputX ?? 0;
       let nextInputX = currentInputX;
@@ -579,6 +605,8 @@ export const SwimmerPhysicsSystem: System = {
           swimmer.useColumnControl = swimmerComponent.useColumnControl;
           swimmer.bobbingPhase = bobbingPhase;
           swimmer.inputX = nextInputX;
+          swimmer.gameOverDispatched =
+            swimmerComponent.gameOverDispatched || shouldDispatchGameOver;
           const fullTiltSpeedForComponent = MAX_HORIZONTAL_SPEED * 0.5;
           const tiltNormalizedForComponent = Math.max(
             -1,

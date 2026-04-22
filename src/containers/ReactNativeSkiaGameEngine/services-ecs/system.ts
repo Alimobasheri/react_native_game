@@ -25,6 +25,16 @@ export interface RunSystemsArgs {
   dimensions: SharedValue<{ width: number; height: number }>;
 }
 
+const hasEventType = (event: unknown): event is { type: string } => {
+  'worklet';
+  return (
+    !!event &&
+    typeof event === 'object' &&
+    'type' in event &&
+    typeof (event as { type: string }).type === 'string'
+  );
+};
+
 export type System = {
   process: (args: SystemProcessArgs) => void;
   context?: SystemContext;
@@ -83,7 +93,7 @@ export const createSystemManager = (
   }: RunSystemsArgs) => {
     const ecs = global._RNTGE_.ecs;
     if (!ecs) return;
-    const events = eventQueue.readEvents();
+    const events = eventQueue.readEvents().filter(hasEventType);
     // console.log(systems.map((sys) => sys?.name));
     for (let i = 0; i < systems.length; i++) {
       const system = systems[i];

@@ -115,7 +115,7 @@ export const CaveParallaxBackgroundSystem: System = {
           type: CreateEntityRequestType,
           payload: {
             components: [renderComponent],
-            sceneKey: 'swimmerGame',
+            sceneKey: 'game',
           },
         };
         eventQueue.addEvent(createRequest);
@@ -244,7 +244,7 @@ export const CaveParallaxBackgroundSystem: System = {
         type: CreateEntityRequestType,
         payload: {
           components: [renderComponent],
-          sceneKey: 'swimmerGame',
+          sceneKey: 'game',
         },
       };
       eventQueue.addEvent(createRequest);

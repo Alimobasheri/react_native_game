@@ -13,7 +13,13 @@ export const loadSceneSystem: System = {
     'worklet';
     const events = eventQueue
       .readEvents()
-      .filter((e) => e.type === LoadSceneRequestType);
+      .filter(
+        (e) =>
+          !!e &&
+          typeof e === 'object' &&
+          'type' in e &&
+          e.type === LoadSceneRequestType
+      );
 
     const sceneEntities: Record<string, Entity> = ecs
       .getEntitiesWithComponents([SceneComponentName])
@@ -29,13 +35,16 @@ export const loadSceneSystem: System = {
 
     for (let i = 0; i < events.length; i++) {
       let payload = events[i].payload as LoadSceneRequest['payload'];
+      if (!payload?.sceneKey) continue;
 
       const { sceneKey } = payload;
 
       const sceneEntity = sceneEntities[sceneKey];
+      if (typeof sceneEntity === 'undefined') continue;
 
       const sceneData: SceneComponentData =
         components[SceneComponentName].get(sceneEntity);
+      if (!sceneData) continue;
 
       ecs.updateComponent<SceneComponentData>(
         sceneEntity,

@@ -21,6 +21,8 @@ export type SwimmerComponentData = {
   bobbingPhase?: number;
   /** Visual tilt angle in radians, derived from horizontal velocity. */
   angle?: number;
+  /** Prevents dispatching game-over scene events more than once. */
+  gameOverDispatched?: boolean;
 };
 
 export const createSwimmerComponent = (

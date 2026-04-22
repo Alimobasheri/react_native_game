@@ -96,6 +96,7 @@ export const SwimmerView: FC<{
         useColumnControl,
         column: initialColumn,
         angle: 0,
+        gameOverDispatched: false,
       }),
       createRenderComponent({
         shape: {

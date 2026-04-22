@@ -13,7 +13,13 @@ export const unLoadSceneSystem: System = {
     'worklet';
     const events = eventQueue
       .readEvents()
-      .filter((e) => e.type === UnLoadSceneRequestType);
+      .filter(
+        (e) =>
+          !!e &&
+          typeof e === 'object' &&
+          'type' in e &&
+          e.type === UnLoadSceneRequestType
+      );
 
     const sceneEntities: Record<string, Entity> = ecs.getEntitiesWithComponents([
       SceneComponentName,
@@ -29,14 +35,17 @@ export const unLoadSceneSystem: System = {
 
     for (let i = 0; i < events.length; i++) {
       let payload = events[i].payload as UnLoadSceneRequest['payload'];
+      if (!payload?.sceneKey) continue;
 
       const { sceneKey } = payload;
 
       const sceneEntity = sceneEntities[sceneKey];
+      if (typeof sceneEntity === 'undefined') continue;
 
       const sceneData = ecs.components[SceneComponentName].get(
         sceneEntity
       ) as SceneComponentData;
+      if (!sceneData?.objects) continue;
 
       const { entities, assets, matterBodies, systems } = sceneData.objects;
 
