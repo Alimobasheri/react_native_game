@@ -396,7 +396,7 @@ export const ObstacleSystem: System = {
     // as a row enters the flow band, not after it is already centered.
     const lockAheadY = waterSurfaceY - columnWidth * 0.42;
     // Transition target is even higher to begin cross-row shaping before center alignment.
-    const transitionTargetY = lockAheadY - columnWidth * 0.28;
+    const transitionTargetY = lockAheadY - columnWidth * 0.42;
     let nearestRowEntity: number | undefined;
     let nearestRowDistance = Number.POSITIVE_INFINITY;
     let nearestOverlapRowEntity: number | undefined;
@@ -423,7 +423,7 @@ export const ObstacleSystem: System = {
         const rowBottom = newY + columnWidth / 2;
         const rowCenterDistance = Math.abs(newY - transitionTargetY);
         const overlapsTransitionBand =
-          transitionTargetY >= rowTop && transitionTargetY <= rowBottom;
+          transitionTargetY >= rowTop && transitionTargetY <= rowBottom + columnWidth * 0.42;
         if (overlapsTransitionBand && rowCenterDistance < nearestOverlapDistance) {
           nearestOverlapDistance = rowCenterDistance;
           nearestOverlapRowEntity = obstacleRowEntity;

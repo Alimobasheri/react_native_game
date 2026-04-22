@@ -17,22 +17,22 @@ import { LAYOUT_CONSTANTS } from '@/Layout';
 // to create a gentle but noticeable rise in challenge, like a hyper-casual game.
 const WATER_SPEED_ACCELERATION_PER_SECOND = 0.3; // px/s² - +90 px/s after ~30s
 const WATER_SPEED_MAX = 260; // clamp to avoid impossible speeds
-const FLOW_ACCEL_PER_SECOND = 1.7;
-const FLOW_IMPULSE_ON_ROW_CHANGE = 1.1;
+const FLOW_ACCEL_PER_SECOND = 3.4;
+const FLOW_IMPULSE_ON_ROW_CHANGE = 3.2;
 const FLOW_IMPULSE_BLEND_PER_SECOND = 3.4;
-const FLOW_DRAG_PER_SECOND = 1.05;
-const FLOW_OFFSET_SCALE = 0.68;
-const FLOW_OFFSET_RETURN_PER_SECOND = 0.18;
-const GAP_BLEND_SPEED_PER_SECOND = 0.54;
-const SURGE_RISE_PER_SECOND = 4.2;
-const SURGE_DECAY_PER_SECOND = 0.92;
-const SURFACE_CENTER_SMOOTH_PER_SECOND = 2.25;
-const CURVE_AMP_SMOOTH_PER_SECOND = 1.95;
-const CURVE_TILT_SMOOTH_PER_SECOND = 2.3;
-const CALMNESS_SMOOTH_PER_SECOND = 1.8;
-const BAND_HEIGHT_SMOOTH_PER_SECOND = 0.8;
+const FLOW_DRAG_PER_SECOND = 0.2;
+const FLOW_OFFSET_SCALE = 6.8;
+const FLOW_OFFSET_RETURN_PER_SECOND = 1.8;
+const GAP_BLEND_SPEED_PER_SECOND = 5.4;
+const SURGE_RISE_PER_SECOND = 2.1;
+const SURGE_DECAY_PER_SECOND = 0.2;
+const SURFACE_CENTER_SMOOTH_PER_SECOND = 1.2;
+const CURVE_AMP_SMOOTH_PER_SECOND = 0.9;
+const CURVE_TILT_SMOOTH_PER_SECOND = 1.3;
+const CALMNESS_SMOOTH_PER_SECOND = 9;
+const BAND_HEIGHT_SMOOTH_PER_SECOND = 8;
 const MIN_BAND_HALF_HEIGHT = 0.01;
-const MAX_BAND_HALF_HEIGHT = 0.1;
+const MAX_BAND_HALF_HEIGHT = 0.5;
 
 /**
  * WaterPhysicsSystem - Owns water gameplay properties (speed, difficulty ramp).
@@ -177,12 +177,12 @@ export const WaterPhysicsSystem: System = {
         : clamp01(pressure * 0.16 + Math.abs(flowVelocity) * 0.1);
       const nextSurgeEnergy = surgeTarget > oldSurgeEnergy
         ? oldSurgeEnergy +
-          (surgeTarget - oldSurgeEnergy) *
-            Math.min(1, SURGE_RISE_PER_SECOND * deltaSeconds)
+        (surgeTarget - oldSurgeEnergy) *
+        Math.min(1, SURGE_RISE_PER_SECOND * deltaSeconds)
         : Math.max(
-            0,
-            oldSurgeEnergy - SURGE_DECAY_PER_SECOND * deltaSeconds * (0.55 + pressure * 0.45)
-          );
+          0,
+          oldSurgeEnergy - SURGE_DECAY_PER_SECOND * deltaSeconds * (0.55 + pressure * 0.45)
+        );
       flowOffset *= Math.exp(
         -FLOW_OFFSET_RETURN_PER_SECOND * deltaSeconds * (0.5 + clamp01(1 - nextSurgeEnergy) * 0.5)
       );
@@ -194,9 +194,9 @@ export const WaterPhysicsSystem: System = {
       const transitionEndY = transitionTargetY + rowHeightPx * 0.36;
       const geometricBlend = activeRow
         ? smoothStep01(
-            (activeRow.y - transitionStartY) /
-              Math.max(0.0001, transitionEndY - transitionStartY)
-          )
+          (activeRow.y - transitionStartY) /
+          Math.max(0.0001, transitionEndY - transitionStartY)
+        )
         : 1;
       const timeBlend = hasRowChanged
         ? 0
@@ -254,7 +254,7 @@ export const WaterPhysicsSystem: System = {
           water.surgeEnergy = nextSurgeEnergy;
           const centerStep = Math.min(1, SURFACE_CENTER_SMOOTH_PER_SECOND * deltaSeconds);
           water.surfaceBandCenterY = oldBandCenter + (surfaceBandCenterY - oldBandCenter) * centerStep;
-          const bandHeightStep = Math.min(1, BAND_HEIGHT_SMOOTH_PER_SECOND * deltaSeconds);
+          const bandHeightStep = Math.min(0.01, BAND_HEIGHT_SMOOTH_PER_SECOND * deltaSeconds);
           water.surfaceBandHalfHeight =
             oldBandHalfHeight + (dynamicBandHalfHeight - oldBandHalfHeight) * bandHeightStep;
           const calmnessStep = Math.min(1, CALMNESS_SMOOTH_PER_SECOND * deltaSeconds);
@@ -269,7 +269,7 @@ export const WaterPhysicsSystem: System = {
           const curveAmpTarget = Math.max(
             0.002,
             Math.min(0.03, (0.003 + pressure * 0.012 + nextSurgeEnergy * 0.009 + narrowing * 0.022) * (1 - calmness * 0.46))
-          );
+          ) * 2;
           const curveTiltTarget = flowVelocity * (0.008 + nextSurgeEnergy * 0.015) * (0.6 + pressure * 0.65);
           const curveCenterStep = Math.min(1, SURFACE_CENTER_SMOOTH_PER_SECOND * deltaSeconds);
           const curveAmpStep = Math.min(1, CURVE_AMP_SMOOTH_PER_SECOND * deltaSeconds);
