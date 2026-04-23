@@ -13,13 +13,7 @@ export const unLoadSceneSystem: System = {
     'worklet';
     const events = eventQueue
       .readEvents()
-      .filter(
-        (e) =>
-          !!e &&
-          typeof e === 'object' &&
-          'type' in e &&
-          e.type === UnLoadSceneRequestType
-      );
+      .filter((e) => !e?.type ? console.log(e) : e.type === UnLoadSceneRequestType);
 
     const sceneEntities: Record<string, Entity> = ecs.getEntitiesWithComponents([
       SceneComponentName,

@@ -59,7 +59,7 @@ export const requestRemoveEntityBatch: System = {
               );
               if (matterBody) {
                 component.objects.matterBodies = component.objects.matterBodies.filter(
-                  (body) => body !== matterBody
+                  (body) => body !== matterBody?.id
                 );
               }
             }

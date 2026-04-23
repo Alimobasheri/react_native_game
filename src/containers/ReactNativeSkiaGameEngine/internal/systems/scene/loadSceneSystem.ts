@@ -13,13 +13,7 @@ export const loadSceneSystem: System = {
     'worklet';
     const events = eventQueue
       .readEvents()
-      .filter(
-        (e) =>
-          !!e &&
-          typeof e === 'object' &&
-          'type' in e &&
-          e.type === LoadSceneRequestType
-      );
+      .filter((e) => !e?.type ? console.log(e) : e.type === LoadSceneRequestType);
 
     const sceneEntities: Record<string, Entity> = ecs
       .getEntitiesWithComponents([SceneComponentName])
