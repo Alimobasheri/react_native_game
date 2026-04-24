@@ -86,6 +86,10 @@ export const SwimmerView: FC<{
       createSwimmerComponent({
         velocityX: 0,
         inputX: 0,
+        lastTapTimeMs: undefined,
+        lastTapDirection: undefined,
+        rapidTapStreak: 0,
+        pendingTapMultiplier: 1,
         waterSurfaceY: y,
         containerWidth,
         containerCenterX,

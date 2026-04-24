@@ -8,6 +8,10 @@ import { createTapComponent } from '@/containers/ReactNativeSkiaGameEngine/inter
 import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
 import { LAYOUT_CONSTANTS } from '@/Layout';
 
+const RAPID_TAP_WINDOW_MS = 220;
+const RAPID_TAP_STEP_MULT = 0.2;
+const RAPID_TAP_MAX_MULT = 2.2;
+
 /**
  * TapSwimmer - Full-screen tap overlay that controls swimmer direction for tap-based movement.
  * When the player taps the left half of the screen, the swimmer steers left.
@@ -49,11 +53,41 @@ export const TapSwimmer: FC<{
             ecs.updateComponent(
               entityId,
               SwimmerComponentName,
-              (swimmer: { useColumnControl?: boolean; inputX?: number }) => {
+              (swimmer: {
+                useColumnControl?: boolean;
+                inputX?: number;
+                lastTapTimeMs?: number;
+                lastTapDirection?: -1 | 1;
+                rapidTapStreak?: number;
+                pendingTapMultiplier?: number;
+              }) => {
                 if (!swimmer.useColumnControl) return;
+                const nowMs = data.timestamp ?? Date.now();
+                const previousTapTimeMs = swimmer.lastTapTimeMs;
+                const previousTapDirection = swimmer.lastTapDirection;
+                const deltaMs =
+                  previousTapTimeMs === undefined
+                    ? Number.POSITIVE_INFINITY
+                    : nowMs - previousTapTimeMs;
+                const isRapidSameDirectionTap =
+                  previousTapDirection === inputX &&
+                  deltaMs >= 0 &&
+                  deltaMs <= RAPID_TAP_WINDOW_MS;
+                const streak = isRapidSameDirectionTap
+                  ? (swimmer.rapidTapStreak ?? 0) + 1
+                  : 0;
+                const tapMultiplier = Math.min(
+                  RAPID_TAP_MAX_MULT,
+                  1 + streak * RAPID_TAP_STEP_MULT
+                );
+
                 // Store tap direction as normalized input (-1 left, 1 right).
-                // The SwimmerPhysicsSystem converts this into smooth velocity.
+                // SwimmerPhysicsSystem consumes pendingTapMultiplier once.
                 swimmer.inputX = inputX;
+                swimmer.lastTapTimeMs = nowMs;
+                swimmer.lastTapDirection = inputX;
+                swimmer.rapidTapStreak = streak;
+                swimmer.pendingTapMultiplier = tapMultiplier;
               }
             );
           });

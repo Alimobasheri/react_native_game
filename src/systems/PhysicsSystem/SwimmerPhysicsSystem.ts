@@ -33,6 +33,8 @@ const MAX_HORIZONTAL_SPEED = 150; // pixels / second
 const BASE_HORIZONTAL_ACCEL = 900; // target speed for inputX = 1 before drag
 const BASE_RESPONSIVENESS = 0.15; // how quickly velocity approaches target
 const PINNED_VELOCITY_DAMPING = 0.7; // vx multiplier when pinned under obstacle
+const TAP_IMPULSE_MULTIPLIER_MIN = 1;
+const TAP_IMPULSE_MULTIPLIER_MAX = 3;
 const MAX_WATER_CURRENT_SPEED = 95; // px/s lateral drift at full flow
 const WATER_CURRENT_RESPONSE_PER_SECOND = 2.8; // higher = snaps faster to current
 const WATER_CURRENT_SURGE_BOOST = 0.45; // extra current strength during surge
@@ -399,10 +401,15 @@ export const SwimmerPhysicsSystem: System = {
 
           // Base distance we want to travel per tap: about one column at low water,
           // and less at higher water speeds (harder to move left/right).
-          const distanceScale = 1 - 0.4 * normalizedSpeed; // 1.0 .. 0.6
+          const distanceScale = 1 - 0.1 * normalizedSpeed; // 1.0 .. 0.6
           const desiredDistance = columnWidth * distanceScale;
 
-          const tapImpulse = currentInputX * desiredDistance * k; // pixels/second
+          const tapMultiplierRaw = swimmerComponent.pendingTapMultiplier ?? 1;
+          const tapMultiplier = Math.max(
+            TAP_IMPULSE_MULTIPLIER_MIN,
+            Math.min(TAP_IMPULSE_MULTIPLIER_MAX, tapMultiplierRaw)
+          );
+          const tapImpulse = currentInputX * desiredDistance * k * tapMultiplier; // pixels/second
           swimmerVelocityX += tapImpulse;
 
           // Consume the tap so it does not continuously accelerate.
@@ -605,6 +612,7 @@ export const SwimmerPhysicsSystem: System = {
           swimmer.useColumnControl = swimmerComponent.useColumnControl;
           swimmer.bobbingPhase = bobbingPhase;
           swimmer.inputX = nextInputX;
+          swimmer.pendingTapMultiplier = 1;
           swimmer.gameOverDispatched =
             swimmerComponent.gameOverDispatched || shouldDispatchGameOver;
           const fullTiltSpeedForComponent = MAX_HORIZONTAL_SPEED * 0.5;
