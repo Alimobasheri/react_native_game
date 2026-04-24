@@ -111,6 +111,9 @@ export const SwimmerGameComp: FC<{}> = memo(
                     />
                   )}
 
+                  {/* Dynamic Obstacles */}
+                  <ObstacleView />
+
                   {/* Swimmer - centered in a column; TapSwimmer handles tap-to-move */}
                   <SwimmerView
                     y={swimmerStartY}
@@ -125,9 +128,6 @@ export const SwimmerGameComp: FC<{}> = memo(
                     screenWidth={windowWidth}
                     screenHeight={windowHeight}
                   />
-
-                  {/* Dynamic Obstacles */}
-                  <ObstacleView />
 
                   {/* Score - top center, big and bold */}
                   <ScoreView />
