@@ -29,15 +29,15 @@ const SWIMMER_WIDTH_COLUMN_RATIO = 2 / 3;
 const SWIMMER_HEIGHT_TO_WIDTH_RATIO = 1.8;
 
 // Horizontal movement tuning for tap-based hyper-casual control.
-const MAX_HORIZONTAL_SPEED = 150; // pixels / second
+const MAX_HORIZONTAL_SPEED = 450; // pixels / second
 const BASE_HORIZONTAL_ACCEL = 900; // target speed for inputX = 1 before drag
 const BASE_RESPONSIVENESS = 0.15; // how quickly velocity approaches target
 const PINNED_VELOCITY_DAMPING = 0.7; // vx multiplier when pinned under obstacle
 const TAP_IMPULSE_MULTIPLIER_MIN = 1;
 const TAP_IMPULSE_MULTIPLIER_MAX = 3;
 const MAX_WATER_CURRENT_SPEED = 95; // px/s lateral drift at full flow
-const WATER_CURRENT_RESPONSE_PER_SECOND = 2.8; // higher = snaps faster to current
-const WATER_CURRENT_SURGE_BOOST = 0.45; // extra current strength during surge
+const WATER_CURRENT_RESPONSE_PER_SECOND = 4.5; // higher = snaps faster to current
+const WATER_CURRENT_SURGE_BOOST = 0.6; // extra current strength during surge
 const SURFACE_FOLLOW_RESPONSE_PER_SECOND = 9.5;
 const SURFACE_SUBMERGENCE_RATIO = 0.42;
 const SURFACE_BOB_BLEND = 0.2;
@@ -442,7 +442,6 @@ export const SwimmerPhysicsSystem: System = {
         1 - Math.exp(-WATER_CURRENT_RESPONSE_PER_SECOND * deltaSeconds);
       swimmerVelocityX +=
         (waterCurrentVelocityX - swimmerVelocityX) * currentResponse;
-
       // Clamp horizontal speed.
       if (swimmerVelocityX > MAX_HORIZONTAL_SPEED) {
         swimmerVelocityX = MAX_HORIZONTAL_SPEED;
@@ -577,8 +576,8 @@ export const SwimmerPhysicsSystem: System = {
         });
         // Visual tilt based on horizontal velocity (up to 45 degrees),
         // reaching max tilt already at 50% of MAX_HORIZONTAL_SPEED.
-        const maxTiltRadians = (60 * Math.PI) / 180;
-        const fullTiltSpeed = MAX_HORIZONTAL_SPEED * 0.5;
+        const maxTiltRadians = (75 * Math.PI) / 180;
+        const fullTiltSpeed = MAX_HORIZONTAL_SPEED * 0.25;
         const tiltNormalized = Math.max(
           -1,
           Math.min(1, swimmerVelocityX / fullTiltSpeed)
