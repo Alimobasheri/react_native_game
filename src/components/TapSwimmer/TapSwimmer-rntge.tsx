@@ -9,9 +9,9 @@ import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
 import { LAYOUT_CONSTANTS } from '@/Layout';
 
 const RAPID_TAP_WINDOW_MS = 220;
-const RAPID_TAP_STEP_MULT = 0.2;
+const RAPID_TAP_STEP_MULT = 0.22;
 const RAPID_TAP_STREAK_ACCEL = 0.1;
-const RAPID_TAP_MAX_MULT = 2.2;
+const RAPID_TAP_MAX_MULT = 4.4;
 
 /**
  * TapSwimmer - Full-screen tap overlay that controls swimmer direction for tap-based movement.
@@ -83,7 +83,6 @@ export const TapSwimmer: FC<{
                   RAPID_TAP_MAX_MULT,
                   1 + streak * streakStepMult
                 );
-                console.log(tapMultiplier)
 
                 // Store tap direction as normalized input (-1 left, 1 right).
                 // SwimmerPhysicsSystem consumes pendingTapMultiplier once.

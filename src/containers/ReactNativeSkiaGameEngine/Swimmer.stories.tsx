@@ -133,7 +133,7 @@ export const SwimmerGameComp: FC<{}> = memo(
                   <ScoreView />
                 </Content>
               </Scene>
-              <GameOverScene />
+              <GameOverScene backgroundColor="#2B0A3D" />
             </Content>
           </ReactNativeTurboGameEngine>
         </View>
