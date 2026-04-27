@@ -215,6 +215,15 @@ const createObstacleRow: RowPathTemplate['getRow'] = ({ rowIndex, ecs, sceneEnti
   })
   const obstacleRowEntity = ecs.createEntity()
   ecs.addComponent(obstacleRowEntity, obstacleRowComp)
+  ecs.updateComponent(
+    sceneEntity,
+    SceneComponentName,
+    (scene: SceneComponentData) => {
+      if (!scene.objects.entities.includes(obstacleRowEntity)) {
+        scene.objects.entities.push(obstacleRowEntity);
+      }
+    }
+  );
 
   return obstacleRowEntity
 }
@@ -280,6 +289,15 @@ const restGetRow: RowPathTemplate['getRow'] = (params) => {
   })
   const obstacleRowEntity = ecs.createEntity()
   ecs.addComponent(obstacleRowEntity, obstacleRowComp)
+  ecs.updateComponent(
+    sceneEntity,
+    SceneComponentName,
+    (scene: SceneComponentData) => {
+      if (!scene.objects.entities.includes(obstacleRowEntity)) {
+        scene.objects.entities.push(obstacleRowEntity);
+      }
+    }
+  );
 
   return obstacleRowEntity
 }

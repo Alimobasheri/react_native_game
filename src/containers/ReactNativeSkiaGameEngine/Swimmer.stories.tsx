@@ -1,4 +1,4 @@
-import { FC, memo, useEffect, useState } from 'react';
+import { FC, memo } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import { ReactNativeTurboGameEngine } from './RNTGE';
 import { Preload } from './components-rntge/Scene/Preload';
@@ -32,10 +32,6 @@ export const SwimmerGameComp: FC<{}> = memo(
   (args: any) => {
     const windowDimensions = useWindowDimensions();
     const { width: windowWidth, height: windowHeight } = windowDimensions;
-    const [containerEntityId, setContainerEntityId] = useState<number | null>(
-      null
-    );
-
     // Container setup - rectangular container extending full screen height for endless look
     const containerWidth = windowWidth * 0.8; // Use most of screen width
     const containerHeight = windowHeight; // Full screen height for endless appearance
@@ -96,20 +92,10 @@ export const SwimmerGameComp: FC<{}> = memo(
                     height={containerHeight}
                     initialWaterSurfaceY={initialWaterSurfaceY}
                     waterRiseSpeed={20}
-                    onEntityCreated={setContainerEntityId}
                   />
 
                   {/* Water - rendered separately, will be updated by system */}
-                  {containerEntityId !== null && (
-                    <WaterView
-                      containerEntityId={containerEntityId}
-                      centerX={containerCenterX}
-                      centerY={containerCenterY}
-                      width={containerWidth}
-                      height={containerHeight}
-                      raisingSpeed={100}
-                    />
-                  )}
+                  <WaterView raisingSpeed={100} />
 
                   {/* Dynamic Obstacles */}
                   <ObstacleView />

@@ -70,7 +70,7 @@ export const createSystemManager = (
 
   const removeSystem = (systemId: number): void => {
     const index = systemIdMap[systemId];
-    if (!index) return;
+    if (index === undefined) return;
     systems[index] = undefined;
     systemIdMap[systemId] = undefined;
     reuseIndexes.push(index);
