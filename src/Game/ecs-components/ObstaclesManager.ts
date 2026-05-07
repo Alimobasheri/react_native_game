@@ -13,6 +13,11 @@ export type ObstaclesManagerComponentData = {
     currentTempalteTotalRow: number;
     currentRowIndex: number;
     lastRowEntity: Entity | null;
+    /**
+     * Entity holding the active template context (`TemplateContext` component).
+     * This allows templates to keep state across row generations.
+     */
+    templateContextEntity?: Entity | null;
   }
 };
 

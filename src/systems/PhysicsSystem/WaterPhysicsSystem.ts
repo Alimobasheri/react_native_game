@@ -221,7 +221,7 @@ export const WaterPhysicsSystem: System = {
       const calmnessTarget = clamp01(wideGap * 0.62 + lowFlow * 0.23 + lowSurge * 0.15);
 
       const gapsLength = activeRow?.gaps?.length ?? 0;
-      let multiply = gapsLength / LAYOUT_CONSTANTS.COLUMNS;
+      let multiply = (gapsLength * 2) / LAYOUT_CONSTANTS.COLUMNS;
       multiply = 1 / (multiply || 1);
 
       ecs.updateComponent<WaterComponentData>(

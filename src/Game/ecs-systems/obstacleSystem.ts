@@ -18,7 +18,23 @@ export interface GetRowArgs {
   }
 }
 
+export type TemplateCtx = Record<string, unknown>;
+
+export interface TemplateInitArgs {
+  ecs: ECS;
+  sceneEntity: Entity;
+  rowLength: number;
+  leftX: number;
+  obstacleDimension: {
+    width: number;
+    height: number;
+  };
+  initialY: number;
+}
+
 export interface RowPathTemplate {
-  getRowCount: () => number,
-  getRow: (args: GetRowArgs) => Entity,
+  createCtx?: () => TemplateCtx;
+  init?: (ctx: TemplateCtx, args: TemplateInitArgs) => void;
+  getRowCount: (ctx: TemplateCtx) => number,
+  getRow: (ctx: TemplateCtx, args: GetRowArgs) => Entity,
 }

@@ -45,7 +45,12 @@ import { createObstacleRowComponent, ObstacleRowComponentData, ObstacleRowCompon
 import { Entity } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/entity';
 import { ECS } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/ecs';
 import { TextHeightBehavior } from '@shopify/react-native-skia';
-import { RowPathTemplate } from '@/Game/ecs-systems/obstacleSystem';
+import { RowPathTemplate, TemplateCtx, TemplateInitArgs } from '@/Game/ecs-systems/obstacleSystem';
+import {
+  getOrCreateTemplateContextEntity,
+  TemplateContextComponentData,
+  TemplateContextComponentName,
+} from '@/Game/ecs-components/TemplateContextComponent';
 
 const OBSTACLE_BLOCK_IMAGES = ['block2', 'block3'] as const;
 
@@ -183,7 +188,7 @@ const generateObstacles = ({ gaps, rowLength, y, leftX, obstacleDimension }: {
   return obstacles
 }
 
-const createObstacleRow: RowPathTemplate['getRow'] = ({ rowIndex, ecs, sceneEntity, prevRow, prevRowEntity, initialY, rowLength, leftX, obstacleDimension }) => {
+const createObstacleRow: RowPathTemplate['getRow'] = (_ctx, { rowIndex, ecs, sceneEntity, prevRow, prevRowEntity, initialY, rowLength, leftX, obstacleDimension }) => {
   'worklet';
   let gaps: number[] = []
   gaps = generateGaps(!prevRow ? [] : prevRow.gaps, rowLength)
@@ -228,7 +233,7 @@ const createObstacleRow: RowPathTemplate['getRow'] = ({ rowIndex, ecs, sceneEnti
   return obstacleRowEntity
 }
 
-const getRowCount: RowPathTemplate['getRowCount'] = () => {
+const getRowCount: RowPathTemplate['getRowCount'] = (_ctx) => {
   'worklet'
   return 10 + Math.round(Math.random() * (10 - 1))
 }
@@ -238,7 +243,7 @@ const BaseRowPathTemplate: RowPathTemplate = {
   getRow: createObstacleRow,
 }
 
-const restGetRowCount: RowPathTemplate['getRowCount'] = () => {
+const restGetRowCount: RowPathTemplate['getRowCount'] = (_ctx) => {
   'worklet'
   return 5 + Math.round(Math.random() * (5 - 1))
 }
@@ -265,7 +270,7 @@ const restGenerateObstacles = ({ gaps, rowLength, y, leftX, obstacleDimension }:
 }
 
 
-const restGetRow: RowPathTemplate['getRow'] = (params) => {
+const restGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
   'worklet'
   const { ecs, prevRow, initialY, obstacleDimension, prevRowEntity, rowLength, sceneEntity } = params
   const obstaclesIndexes = restGenerateObstacles({ ...params, y: !prevRow ? initialY : prevRow.y - obstacleDimension.height, gaps: [] })
@@ -310,6 +315,63 @@ const RestRowPathTemplate: RowPathTemplate = {
 const MappedTemplates: Record<string, RowPathTemplate> = {
   'base': BaseRowPathTemplate,
   'rest': RestRowPathTemplate
+}
+
+function selectTemplate(args: {
+  ecs: ECS;
+  components: Record<string, any>;
+  managerEntity: Entity;
+  currentTemplateContextEntity: Entity | null | undefined;
+  templateName: string;
+  initArgs: TemplateInitArgs;
+}): {
+  template: RowPathTemplate;
+  templateName: string;
+  ctxEntity: Entity;
+  ctx: TemplateCtx;
+  rowCount: number;
+  runId: number;
+} {
+  'worklet';
+  const { ecs, components, currentTemplateContextEntity, templateName, initArgs } = args;
+
+  const template = MappedTemplates[templateName] ?? BaseRowPathTemplate;
+  const ctxEntity =
+    typeof currentTemplateContextEntity === 'number'
+      ? currentTemplateContextEntity
+      : getOrCreateTemplateContextEntity(ecs);
+
+  const existing = components[TemplateContextComponentName]?.get(
+    ctxEntity
+  ) as TemplateContextComponentData | undefined;
+
+  const nextRunId = (existing?.runId ?? 0) + 1;
+  const ctx: TemplateCtx = template.createCtx ? template.createCtx() : {};
+
+  if (template.init) {
+    template.init(ctx, initArgs);
+  }
+
+  const rowCount = template.getRowCount(ctx);
+
+  ecs.updateComponent<TemplateContextComponentData>(
+    ctxEntity,
+    TemplateContextComponentName,
+    (data) => {
+      data.templateName = templateName;
+      data.ctx = ctx;
+      data.runId = nextRunId;
+    }
+  );
+
+  return {
+    template,
+    templateName,
+    ctxEntity,
+    ctx,
+    rowCount,
+    runId: nextRunId,
+  };
 }
 
 /**
@@ -497,16 +559,36 @@ export const ObstacleSystem: System = {
 
     if (shouldSeedInitialObstacles) {
       let lastRowEntity: Entity | null = null
+      const initArgs: TemplateInitArgs = {
+        ecs,
+        sceneEntity,
+        rowLength: LAYOUT_CONSTANTS.COLUMNS,
+        leftX,
+        obstacleDimension: {
+          width: columnWidth,
+          height: columnWidth,
+        },
+        initialY: maxY,
+      };
 
-      let template = BaseRowPathTemplate
+      const selected = selectTemplate({
+        ecs,
+        components,
+        managerEntity,
+        currentTemplateContextEntity: managerData.templateInfo?.templateContextEntity,
+        templateName: 'base',
+        initArgs,
+      });
 
-      const numInitialRows = BaseRowPathTemplate.getRowCount()
+      const template = selected.template
+      const ctx = selected.ctx
+      const numInitialRows = selected.rowCount
 
       const rowsInDisplay = Math.ceil((maxY - columnWidth) / columnWidth) + 1
 
       for (let i = 0; i < rowsInDisplay; i++) {
         const prevRow = lastRowEntity ? ecs.components[ObstacleRowComponentName].get(lastRowEntity) as ObstacleRowComponentData : null
-        lastRowEntity = template.getRow({
+        lastRowEntity = template.getRow(ctx, {
           rowIndex: i,
           ecs,
           sceneEntity,
@@ -531,7 +613,8 @@ export const ObstacleSystem: System = {
             currentTemplateName: 'base',
             currentTempalteTotalRow: numInitialRows,
             currentRowIndex: rowsInDisplay,
-            lastRowEntity: lastRowEntity
+            lastRowEntity: lastRowEntity,
+            templateContextEntity: selected.ctxEntity,
           }
         }
       );
@@ -569,6 +652,16 @@ export const ObstacleSystem: System = {
         );
         const templateInfo = updatedManager.templateInfo
 
+        const activeCtxEntity = templateInfo.templateContextEntity
+        const ctxEntity =
+          typeof activeCtxEntity === 'number'
+            ? activeCtxEntity
+            : getOrCreateTemplateContextEntity(ecs);
+        const ctxData = components[TemplateContextComponentName]?.get(
+          ctxEntity
+        ) as TemplateContextComponentData | undefined;
+        const ctx: TemplateCtx = (ctxData?.ctx ?? {}) as TemplateCtx;
+
         const template = MappedTemplates[templateInfo.currentTemplateName]
 
         const lastRowEntinty = templateInfo.lastRowEntity
@@ -578,14 +671,34 @@ export const ObstacleSystem: System = {
 
         if (lastRowIndex > totalRow - 1) {
           const tempalteNames = Object.keys(MappedTemplates)
-          let newTemplateRandIndex = Math.round(Math.random() * (tempalteNames.length - 1))
+          let newTemplateRandIndex = Math.floor(Math.random() * tempalteNames.length)
 
           let newTemplateName = tempalteNames[newTemplateRandIndex]
-          let newTemplate = MappedTemplates[newTemplateName]
-          let newRowCount = newTemplate.getRowCount()
+          const initArgs: TemplateInitArgs = {
+            ecs,
+            sceneEntity,
+            rowLength: LAYOUT_CONSTANTS.COLUMNS,
+            leftX,
+            obstacleDimension: {
+              width: columnWidth,
+              height: columnWidth,
+            },
+            initialY: maxY,
+          };
+
+          const selected = selectTemplate({
+            ecs,
+            components,
+            managerEntity,
+            currentTemplateContextEntity: ctxEntity,
+            templateName: newTemplateName,
+            initArgs,
+          });
+          let newTemplate = selected.template
+          let newRowCount = selected.rowCount
           const prevRow = templateInfo.lastRowEntity ? ecs.components[ObstacleRowComponentName].get(templateInfo.lastRowEntity) as ObstacleRowComponentData : null
 
-          let newRowEntity = newTemplate.getRow({
+          let newRowEntity = newTemplate.getRow(selected.ctx, {
             rowIndex: 0,
             ecs,
             sceneEntity,
@@ -608,14 +721,15 @@ export const ObstacleSystem: System = {
                 currentTemplateName: newTemplateName,
                 currentTempalteTotalRow: newRowCount,
                 currentRowIndex: 0,
-                lastRowEntity: newRowEntity
+                lastRowEntity: newRowEntity,
+                templateContextEntity: selected.ctxEntity,
               }
             }
           );
         } else if (updatedManager.templateInfo) {
           const prevRow = templateInfo.lastRowEntity ? ecs.components[ObstacleRowComponentName].get(templateInfo.lastRowEntity) as ObstacleRowComponentData : null
 
-          let newRowEntity = template.getRow({
+          let newRowEntity = template.getRow(ctx, {
             rowIndex: 0,
             ecs,
             sceneEntity,
@@ -638,7 +752,8 @@ export const ObstacleSystem: System = {
                 m.templateInfo = {
                   ...updatedManager.templateInfo,
                   currentRowIndex: (updatedManager.templateInfo.currentRowIndex || 0) + 1,
-                  lastRowEntity: newRowEntity
+                  lastRowEntity: newRowEntity,
+                  templateContextEntity: ctxEntity,
                 }
               }
 

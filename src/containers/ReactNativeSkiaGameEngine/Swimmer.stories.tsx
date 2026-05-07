@@ -26,6 +26,7 @@ import { ObstaclesManagerComponentName } from '@/Game/ecs-components/ObstaclesMa
 import { ScoreComponentName } from '@/Game/ecs-components/Score';
 import { ScoreView } from '@/components/ScoreView/ScoreView-rntge';
 import { ObstacleRowComponentName } from '@/Game/ecs-components/ObstacleRowComponent';
+import { TemplateContextComponentName } from '@/Game/ecs-components/TemplateContextComponent';
 import { GameOverScene } from '../Scenes/GameOverScene/index-rntge';
 
 export const SwimmerGameComp: FC<{}> = memo(
@@ -57,6 +58,7 @@ export const SwimmerGameComp: FC<{}> = memo(
               ObstacleRowComponentName,
               ObstacleComponentName,
               ObstaclesManagerComponentName,
+              TemplateContextComponentName,
               ScoreComponentName,
             ]}
           >
@@ -91,7 +93,7 @@ export const SwimmerGameComp: FC<{}> = memo(
                     width={containerWidth}
                     height={containerHeight}
                     initialWaterSurfaceY={initialWaterSurfaceY}
-                    waterRiseSpeed={20}
+                    waterRiseSpeed={10}
                   />
 
                   {/* Water - rendered separately, will be updated by system */}

@@ -59,6 +59,7 @@ import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
 import { ContainerComponentName } from '@/Game/ecs-components/Container';
 import { WaterComponentName } from '@/Game/ecs-components/Water';
 import { ObstaclesManagerComponentName } from '@/Game/ecs-components/ObstaclesManager';
+import { TemplateContextComponentName } from '@/Game/ecs-components/TemplateContextComponent';
 import { SwimmerView } from '@/components/SwimmerView/SwimmerView-rntge';
 import { TapSwimmer } from '@/components/TapSwimmer/TapSwimmer-rntge';
 import { ContainerView } from '@/components/ContainerView/ContainerView-rntge';
@@ -378,6 +379,7 @@ export const SwimmerGame: Story = {
       WaterComponentName,
       ObstacleComponentName,
       ObstaclesManagerComponentName,
+      TemplateContextComponentName,
     ],
   },
   render: (args: any) => <SwimmerGameComp {...args} />,
