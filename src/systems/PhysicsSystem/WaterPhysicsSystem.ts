@@ -12,6 +12,15 @@ import {
 import { ObstacleRowComponentName, ObstacleRowComponentData } from '@/Game/ecs-components/ObstacleRowComponent';
 import { ContainerComponentData, ContainerComponentName } from '@/Game/ecs-components/Container';
 import { LAYOUT_CONSTANTS } from '@/Layout';
+import {
+  groupGapsToRanges,
+  matchRanges,
+  packRangesToVec4Pairs,
+  pickUpToFourByWidth,
+  rangeCenter,
+  rangesColToNorm,
+  rangeWidth,
+} from '@/Game/water/gapRanges';
 
 // Water difficulty progression - slowly increase water/obstacle speed over time
 // to create a gentle but noticeable rise in challenge, like a hyper-casual game.
@@ -139,6 +148,72 @@ export const WaterPhysicsSystem: System = {
       const prevRow = activeRow?.prevRowEntity
         ? components[ObstacleRowComponentName].get(activeRow.prevRowEntity) as ObstacleRowComponentData | undefined
         : undefined;
+
+      // --- Multi-gap derived state (max 4 ranges) ---
+      const currRangesCol = groupGapsToRanges(activeRow?.gaps, LAYOUT_CONSTANTS.COLUMNS);
+      const prevRangesCol = groupGapsToRanges(prevRow?.gaps, LAYOUT_CONSTANTS.COLUMNS);
+      const currRanges = pickUpToFourByWidth(
+        rangesColToNorm(currRangesCol, LAYOUT_CONSTANTS.COLUMNS)
+      );
+      const prevRanges = pickUpToFourByWidth(
+        rangesColToNorm(prevRangesCol, LAYOUT_CONSTANTS.COLUMNS)
+      );
+      const links = matchRanges(currRanges, prevRanges);
+      const packedCurr = packRangesToVec4Pairs(currRanges);
+      const packedPrev = packRangesToVec4Pairs(prevRanges);
+      const prevFlow = waterData.flowPerRange ?? [0, 0, 0, 0];
+      const nextFlow: [number, number, number, number] = [
+        prevFlow[0],
+        prevFlow[1],
+        prevFlow[2],
+        prevFlow[3],
+      ];
+
+      // Per-range target flow based on (currCenter - relatedPrevCenter) in normalized gap space.
+      for (let i = 0; i < 4; i++) {
+        if (i >= currRanges.length || currRanges.length === 0 || prevRanges.length === 0) {
+          const v = nextFlow[i] * Math.exp(-FLOW_DRAG_PER_SECOND * deltaSeconds);
+          nextFlow[i] = clampSigned(v, 1.25);
+          continue;
+        }
+        const c = currRanges[i];
+        const link = links[i];
+        const prevA = prevRanges[link.prevA] ?? prevRanges[0];
+        const prevB = typeof link.prevB === 'number' ? prevRanges[link.prevB] : undefined;
+        const blendA = typeof link.blendA === 'number' ? clamp01(link.blendA) : 1;
+        const prevCenter = prevB
+          ? rangeCenter(prevA) * blendA + rangeCenter(prevB) * (1 - blendA)
+          : rangeCenter(prevA);
+        const cCenter = rangeCenter(c);
+        const cWidth = Math.max(0.08, rangeWidth(c));
+        const normalizedDirectionDelta = clampSigned((cCenter - prevCenter) / cWidth, 1);
+        const targetFlowDirection = clampSigned(normalizedDirectionDelta * 1.9, 1);
+        let v =
+          nextFlow[i] +
+          (targetFlowDirection - nextFlow[i]) * FLOW_ACCEL_PER_SECOND * deltaSeconds;
+        v *= Math.exp(-FLOW_DRAG_PER_SECOND * deltaSeconds);
+        nextFlow[i] = clampSigned(v, 1.25);
+      }
+
+      // Per-range crest amplitude budget split by gap width share.
+      const widths = [
+        currRanges[0] ? rangeWidth(currRanges[0]) : 0,
+        currRanges[1] ? rangeWidth(currRanges[1]) : 0,
+        currRanges[2] ? rangeWidth(currRanges[2]) : 0,
+        currRanges[3] ? rangeWidth(currRanges[3]) : 0,
+      ] as const;
+      const totalOpen = widths[0] + widths[1] + widths[2] + widths[3];
+      const avgAbsFlow =
+        (Math.abs(nextFlow[0]) + Math.abs(nextFlow[1]) + Math.abs(nextFlow[2]) + Math.abs(nextFlow[3])) /
+        Math.max(1, currRanges.length);
+      const pressureTotal = clamp01((1 - Math.min(1, totalOpen)) * 0.72 + clamp01(avgAbsFlow / 1.25) * 0.28);
+      const ampTotal = Math.max(0.002, Math.min(0.03, 0.003 + pressureTotal * 0.016));
+      const ampPerRange: [number, number, number, number] = [
+        totalOpen > 0 ? ampTotal * (widths[0] / totalOpen) : 0,
+        totalOpen > 0 ? ampTotal * (widths[1] / totalOpen) : 0,
+        totalOpen > 0 ? ampTotal * (widths[2] / totalOpen) : 0,
+        totalOpen > 0 ? ampTotal * (widths[3] / totalOpen) : 0,
+      ];
       const [gapStartNorm, gapEndNorm] = getGapRangeNorm(activeRow ?? null);
       const [prevGapStartNorm, prevGapEndNorm] = getGapRangeNorm(prevRow ?? null);
       const gapWidthNorm = Math.max(0.01, gapEndNorm - gapStartNorm);
@@ -243,6 +318,13 @@ export const WaterPhysicsSystem: System = {
           water.flowDirection = flowVelocity;
           water.flowVelocity = flowVelocity;
           water.flowOffset = flowOffset;
+          water.gapRangesCurr01 = packedCurr.r01;
+          water.gapRangesCurr23 = packedCurr.r23;
+          water.gapRangesPrev01 = packedPrev.r01;
+          water.gapRangesPrev23 = packedPrev.r23;
+          water.gapRangeCount = packedCurr.count;
+          water.flowPerRange = nextFlow;
+          water.ampPerRange = ampPerRange;
           water.currentGapStartNorm = gapStartNorm;
           water.currentGapEndNorm = gapEndNorm;
           water.prevGapStartNorm = hasRowChanged ? oldGapStart : (water.prevGapStartNorm ?? prevGapStartNorm);

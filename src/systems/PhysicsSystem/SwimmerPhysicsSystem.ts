@@ -135,6 +135,16 @@ export const SwimmerPhysicsSystem: System = {
       1 - (containerData.waterSurfaceY - containerTop) / Math.max(0.0001, containerData.height)
     );
 
+    const softRangeWeight = (range: [number, number], x: number) => {
+      'worklet';
+      const s = clamp01(range[0]);
+      const e = clamp01(range[1]);
+      if (e <= s + 0.0005) return 0;
+      const w = Math.max(0.02, e - s);
+      const feather = Math.max(0.02, Math.min(0.09, w * 0.45));
+      return softGapInfluence(s, Math.max(s + 0.01, e), x, feather);
+    };
+
     // Determine game phase based on first swimmer (they should all be in sync)
     let isInInitialPhase = true;
     if (entities.length > 0) {
@@ -374,8 +384,51 @@ export const SwimmerPhysicsSystem: System = {
         0,
         Math.min(1, waterData.surgeEnergy ?? waterData.surgePhase ?? 0)
       );
+
+      // --- Multi-gap local current sampling (hybrid; silhouette may still be single-gap) ---
+      // We sample the local channel weights at the swimmer's *current* X before we apply
+      // this frame's velocity integration, to avoid circular dependency.
+      const containerLeftX = containerData.centerX - containerData.width / 2;
+      const currentUVX = clamp01(
+        (matterBody.position.x - containerLeftX) / Math.max(0.0001, containerData.width)
+      );
+      const blendT = smoothstep(0, 1, clamp01(waterData.gapBlend ?? 1));
+      const curr01 = waterData.gapRangesCurr01;
+      const curr23 = waterData.gapRangesCurr23;
+      const prev01 = waterData.gapRangesPrev01;
+      const prev23 = waterData.gapRangesPrev23;
+      const fallbackStart = waterData.currentGapStartNorm ?? 1 / 6;
+      const fallbackEnd = waterData.currentGapEndNorm ?? 5 / 6;
+      const r0: [number, number] = [
+        (prev01?.[0] ?? fallbackStart) + ((curr01?.[0] ?? fallbackStart) - (prev01?.[0] ?? fallbackStart)) * blendT,
+        (prev01?.[1] ?? fallbackEnd) + ((curr01?.[1] ?? fallbackEnd) - (prev01?.[1] ?? fallbackEnd)) * blendT,
+      ];
+      const r1: [number, number] = [
+        (prev01?.[2] ?? 0) + ((curr01?.[2] ?? 0) - (prev01?.[2] ?? 0)) * blendT,
+        (prev01?.[3] ?? 0) + ((curr01?.[3] ?? 0) - (prev01?.[3] ?? 0)) * blendT,
+      ];
+      const r2: [number, number] = [
+        (prev23?.[0] ?? 0) + ((curr23?.[0] ?? 0) - (prev23?.[0] ?? 0)) * blendT,
+        (prev23?.[1] ?? 0) + ((curr23?.[1] ?? 0) - (prev23?.[1] ?? 0)) * blendT,
+      ];
+      const r3: [number, number] = [
+        (prev23?.[2] ?? 0) + ((curr23?.[2] ?? 0) - (prev23?.[2] ?? 0)) * blendT,
+        (prev23?.[3] ?? 0) + ((curr23?.[3] ?? 0) - (prev23?.[3] ?? 0)) * blendT,
+      ];
+      const w0 = softRangeWeight(r0, currentUVX);
+      const w1 = softRangeWeight(r1, currentUVX);
+      const w2 = softRangeWeight(r2, currentUVX);
+      const w3 = softRangeWeight(r3, currentUVX);
+      const wSum = w0 + w1 + w2 + w3;
+      const flowSlots = waterData.flowPerRange ?? [waterData.flowVelocity ?? waterData.forceDirection ?? 0, 0, 0, 0];
+      const localFlow =
+        wSum > 0.0001
+          ? (w0 * flowSlots[0] + w1 * flowSlots[1] + w2 * flowSlots[2] + w3 * flowSlots[3]) / wSum
+          : (waterData.flowVelocity ?? waterData.forceDirection ?? 0);
+      const localFlowVelocityNorm = Math.max(-1, Math.min(1, localFlow));
+
       const waterCurrentVelocityX =
-        flowVelocityNorm *
+        localFlowVelocityNorm *
         MAX_WATER_CURRENT_SPEED *
         (1 + WATER_CURRENT_SURGE_BOOST * surgeNorm);
 
@@ -502,6 +555,34 @@ export const SwimmerPhysicsSystem: System = {
       const blendedGapWidth = Math.max(0.02, safeGapEnd - blendedGapStart);
       const gapFeather = Math.max(0.02, Math.min(0.09, blendedGapWidth * 0.45));
       const softGap = softGapInfluence(blendedGapStart, safeGapEnd, containerUVX, gapFeather);
+      // Multi-gap weight at the final constrained X (matches shader packing).
+      const blendTForGap = smoothstep(0, 1, clamp01(waterData.gapBlend ?? 1));
+      const curr01ForGap = waterData.gapRangesCurr01;
+      const curr23ForGap = waterData.gapRangesCurr23;
+      const prev01ForGap = waterData.gapRangesPrev01;
+      const prev23ForGap = waterData.gapRangesPrev23;
+      const r0ForGap: [number, number] = [
+        (prev01ForGap?.[0] ?? blendedGapStart) +
+        ((curr01ForGap?.[0] ?? blendedGapStart) - (prev01ForGap?.[0] ?? blendedGapStart)) * blendTForGap,
+        (prev01ForGap?.[1] ?? safeGapEnd) +
+        ((curr01ForGap?.[1] ?? safeGapEnd) - (prev01ForGap?.[1] ?? safeGapEnd)) * blendTForGap,
+      ];
+      const r1ForGap: [number, number] = [
+        (prev01ForGap?.[2] ?? 0) + ((curr01ForGap?.[2] ?? 0) - (prev01ForGap?.[2] ?? 0)) * blendTForGap,
+        (prev01ForGap?.[3] ?? 0) + ((curr01ForGap?.[3] ?? 0) - (prev01ForGap?.[3] ?? 0)) * blendTForGap,
+      ];
+      const r2ForGap: [number, number] = [
+        (prev23ForGap?.[0] ?? 0) + ((curr23ForGap?.[0] ?? 0) - (prev23ForGap?.[0] ?? 0)) * blendTForGap,
+        (prev23ForGap?.[1] ?? 0) + ((curr23ForGap?.[1] ?? 0) - (prev23ForGap?.[1] ?? 0)) * blendTForGap,
+      ];
+      const r3ForGap: [number, number] = [
+        (prev23ForGap?.[2] ?? 0) + ((curr23ForGap?.[2] ?? 0) - (prev23ForGap?.[2] ?? 0)) * blendTForGap,
+        (prev23ForGap?.[3] ?? 0) + ((curr23ForGap?.[3] ?? 0) - (prev23ForGap?.[3] ?? 0)) * blendTForGap,
+      ];
+      const softGapAny = Math.max(
+        Math.max(softRangeWeight(r0ForGap, containerUVX), softRangeWeight(r1ForGap, containerUVX)),
+        Math.max(softRangeWeight(r2ForGap, containerUVX), softRangeWeight(r3ForGap, containerUVX))
+      );
       const surfaceBandCenter = clamp01(waterData.surfaceBandCenterY ?? waterLevelNorm);
       const surfaceBandHalfHeight = Math.max(
         0.02,
@@ -560,7 +641,7 @@ export const SwimmerPhysicsSystem: System = {
       const canFollowCurve =
         !isCollidingWithObstacle &&
         !isBlockedFromAbove &&
-        softGap > 0.15 &&
+        Math.max(softGap, softGapAny) > 0.15 &&
         surfaceDepth > -swimmerHeightForBlockCheck &&
         surfaceDepth < swimmerHeightForBlockCheck * 2.1;
       if (canFollowCurve) {

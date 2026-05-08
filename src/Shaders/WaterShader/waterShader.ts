@@ -24,6 +24,13 @@ export const waveShaderUniforms = `
   uniform float containerHeight;
   uniform vec2 uGapCurrent;
   uniform vec2 uGapPrev;
+  uniform vec4 uGapCurr01;
+  uniform vec4 uGapCurr23;
+  uniform vec4 uGapPrev01;
+  uniform vec4 uGapPrev23;
+  uniform vec4 uFlowPerRange;
+  uniform vec4 uAmpPerRange;
+  uniform float uHybridGapMaskStrength;
   uniform float uGapBlend;
   uniform float uFlowDir;
   uniform float uGapCenter;
@@ -123,6 +130,30 @@ export const waveShaderCircleMaskFunc = `
     float high = 1.0 - smoothstep(center + halfH - 0.01, center + halfH + 0.02, y);
     return clamp(low * high, 0.0, 1.0);
   }
+
+  vec2 safeRange(vec2 r) {
+    float s = clamp(r.x, 0.0, 1.0);
+    float e = clamp(r.y, 0.0, 1.0);
+    // treat near-empty ranges as disabled
+    if (e <= s + 0.0005) {
+      return vec2(0.0, 0.0);
+    }
+    return vec2(s, max(s + 0.01, e));
+  }
+
+  float softRangeWeight(vec2 r, float x) {
+    vec2 rr = safeRange(r);
+    if (rr.y <= rr.x + 0.0005) return 0.0;
+    float w = rr.y - rr.x;
+    float feather = max(0.02, min(0.09, w * 0.45));
+    return softGapInfluence(rr, x, feather);
+  }
+
+  float hardRangeMask(vec2 r, float x) {
+    vec2 rr = safeRange(r);
+    if (rr.y <= rr.x + 0.0005) return 0.0;
+    return gapMask(rr, x);
+  }
 `;
 
 export const waveShaderMainFunc = `
@@ -147,9 +178,22 @@ export const waveShaderMainFunc = `
     float blendedGapEnd = mix(uGapPrev.y, uGapCurrent.y, blendT);
     vec2 blendedGap = vec2(blendedGapStart, max(blendedGapStart + 0.01, blendedGapEnd));
     float blendedGapWidth = max(0.02, blendedGap.y - blendedGap.x);
-    float activeGapMask = gapMask(blendedGap, containerUV.x);
+    // Multi-gap hybrid: compute combined mask/weight from up to 4 packed ranges.
+    vec2 r0 = vec2(mix(uGapPrev01.x, uGapCurr01.x, blendT), mix(uGapPrev01.y, uGapCurr01.y, blendT));
+    vec2 r1 = vec2(mix(uGapPrev01.z, uGapCurr01.z, blendT), mix(uGapPrev01.w, uGapCurr01.w, blendT));
+    vec2 r2 = vec2(mix(uGapPrev23.x, uGapCurr23.x, blendT), mix(uGapPrev23.y, uGapCurr23.y, blendT));
+    vec2 r3 = vec2(mix(uGapPrev23.z, uGapCurr23.z, blendT), mix(uGapPrev23.w, uGapCurr23.w, blendT));
+    float w0 = softRangeWeight(r0, containerUV.x);
+    float w1 = softRangeWeight(r1, containerUV.x);
+    float w2 = softRangeWeight(r2, containerUV.x);
+    float w3 = softRangeWeight(r3, containerUV.x);
+    float softGapAny = clamp(max(max(w0, w1), max(w2, w3)), 0.0, 1.0);
+    float activeGapMaskAny = clamp(max(max(hardRangeMask(r0, containerUV.x), hardRangeMask(r1, containerUV.x)),
+                                      max(hardRangeMask(r2, containerUV.x), hardRangeMask(r3, containerUV.x))), 0.0, 1.0);
+    // Keep single-gap math for silhouette for now; multi-surface comes next step.
+    float activeGapMask = mix(gapMask(blendedGap, containerUV.x), activeGapMaskAny, clamp(uHybridGapMaskStrength, 0.0, 1.0));
     float gapFeather = max(0.02, min(0.09, blendedGapWidth * 0.45));
-    float softGap = softGapInfluence(blendedGap, containerUV.x, gapFeather);
+    float softGap = mix(softGapInfluence(blendedGap, containerUV.x, gapFeather), softGapAny, clamp(uHybridGapMaskStrength, 0.0, 1.0));
     float activeBandMask = bandMask(
       containerUV.y,
       clamp(uSurfaceBandCenterY, 0.0, 1.0),

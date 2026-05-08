@@ -96,6 +96,24 @@ export const WaterShaderSystem: System = {
             waterComponent.prevGapStartNorm ?? 1 / 6,
             waterComponent.prevGapEndNorm ?? 5 / 6,
           ];
+          uniforms.uGapCurr01 = waterComponent.gapRangesCurr01 ?? [
+            uniforms.uGapCurrent[0],
+            uniforms.uGapCurrent[1],
+            0,
+            0,
+          ];
+          uniforms.uGapCurr23 = waterComponent.gapRangesCurr23 ?? [0, 0, 0, 0];
+          uniforms.uGapPrev01 = waterComponent.gapRangesPrev01 ?? [
+            uniforms.uGapPrev[0],
+            uniforms.uGapPrev[1],
+            0,
+            0,
+          ];
+          uniforms.uGapPrev23 = waterComponent.gapRangesPrev23 ?? [0, 0, 0, 0];
+          uniforms.uFlowPerRange = waterComponent.flowPerRange ?? [uniforms.uFlowDir as number, 0, 0, 0];
+          uniforms.uAmpPerRange = waterComponent.ampPerRange ?? [waterComponent.surfaceCurveAmp ?? 0.008, 0, 0, 0];
+          // Hybrid strength default if not provided by lifecycle init.
+          uniforms.uHybridGapMaskStrength = (uniforms.uHybridGapMaskStrength as number | undefined) ?? 0.9;
           uniforms.uGapBlend = waterComponent.gapBlend ?? 1;
           uniforms.uFlowDir = waterComponent.flowDirection ?? 0;
           uniforms.uGapCenter = waterComponent.gapCenterNorm ?? 0.5;

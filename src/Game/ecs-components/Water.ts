@@ -10,6 +10,19 @@ export type WaterComponentData = {
   lastCenterRowEntity?: number; // persisted to detect row transitions for surge pulse
   forceDirection?: number;
   flowDirection?: number; // Smoothed directional flow used by shader
+  /**
+   * Packed multi-gap ranges (max 4) in UV space.
+   * Each tuple is [s0,e0,s1,e1] and [s2,e2,s3,e3].
+   */
+  gapRangesCurr01?: [number, number, number, number];
+  gapRangesCurr23?: [number, number, number, number];
+  gapRangesPrev01?: [number, number, number, number];
+  gapRangesPrev23?: [number, number, number, number];
+  gapRangeCount?: number;
+  /** Per-gap-group local flow velocity (-1..1), packed as 4 floats. */
+  flowPerRange?: [number, number, number, number];
+  /** Per-gap-group crest amplitude budget (UV units), packed as 4 floats. */
+  ampPerRange?: [number, number, number, number];
   currentGapStartNorm?: number; // 0..1 gap start in container UV X
   currentGapEndNorm?: number; // 0..1 gap end in container UV X
   prevGapStartNorm?: number; // previous row gap start for cross-fade

@@ -51,6 +51,7 @@ import {
   TemplateContextComponentData,
   TemplateContextComponentName,
 } from '@/Game/ecs-components/TemplateContextComponent';
+import { groupGapsToRanges, GapRangeCol } from '@/Game/water/gapRanges';
 
 const OBSTACLE_BLOCK_IMAGES = ['block2', 'block3'] as const;
 
@@ -165,6 +166,311 @@ const generateGaps = (prevGaps: number[], rowLength: number): number[] => {
   }
 }
 
+const clampInt = (v: number, min: number, max: number) => {
+  'worklet';
+  return Math.max(min, Math.min(max, Math.round(v)));
+};
+
+const rangeWidthCols = (r: GapRangeCol) => {
+  'worklet';
+  return Math.max(1, r.endCol - r.startCol + 1);
+};
+
+const rangeCenterCols = (r: GapRangeCol) => {
+  'worklet';
+  return (r.startCol + r.endCol) * 0.5;
+};
+
+const enforceRangeConstraints = (ranges: GapRangeCol[], rowLength: number) => {
+  'worklet';
+  if (rowLength <= 0) return [];
+  // Normalize: clamp, ensure start<=end, sort by start.
+  let normalized = ranges
+    .map((r) => {
+      const a = clampInt(r.startCol, 0, rowLength - 1);
+      const b = clampInt(r.endCol, 0, rowLength - 1);
+      return a <= b ? { startCol: a, endCol: b } : { startCol: b, endCol: a };
+    })
+    .sort((x, y) => x.startCol - y.startCol);
+
+  // Merge overlaps and enforce at least 1 blocked column between ranges.
+  const merged: GapRangeCol[] = [];
+  for (let i = 0; i < normalized.length; i++) {
+    const r = normalized[i];
+    const last = merged[merged.length - 1];
+    if (!last) {
+      merged.push(r);
+      continue;
+    }
+    // If overlapping or touching (no blocked column), merge them.
+    if (r.startCol <= last.endCol + 1) {
+      last.endCol = Math.max(last.endCol, r.endCol);
+    } else {
+      merged.push(r);
+    }
+  }
+
+  // Clamp widths to at least 1.
+  for (let i = 0; i < merged.length; i++) {
+    merged[i].startCol = clampInt(merged[i].startCol, 0, rowLength - 1);
+    merged[i].endCol = clampInt(Math.max(merged[i].endCol, merged[i].startCol), 0, rowLength - 1);
+  }
+
+  return merged;
+};
+
+const splitRange = (r: GapRangeCol, rowLength: number, minWidth: number): GapRangeCol[] => {
+  'worklet';
+  const w = rangeWidthCols(r);
+  // Need enough width for: minWidth + 1 blocked + minWidth
+  if (w < minWidth * 2 + 1) return [r];
+  const center = Math.round(rangeCenterCols(r));
+  // Split around center, leaving exactly 1 blocked column between children.
+  const leftEnd = clampInt(center - 1, r.startCol + minWidth - 1, r.endCol - (minWidth + 1));
+  const rightStart = clampInt(leftEnd + 2, r.startCol + minWidth + 1, r.endCol - (minWidth - 1));
+  const left = { startCol: r.startCol, endCol: leftEnd };
+  const right = { startCol: rightStart, endCol: r.endCol };
+  if (rangeWidthCols(left) < minWidth || rangeWidthCols(right) < minWidth) return [r];
+  if (right.startCol <= left.endCol + 1) return [r];
+  return enforceRangeConstraints([left, right], rowLength);
+};
+
+const maybeMutateRanges = (ranges: GapRangeCol[], rowLength: number) => {
+  'worklet';
+  // Small drift per range: shift center by at most 1 col, widen/narrow by at most 1 col.
+  const mutated = ranges.map((r) => {
+    const shift = Math.random() < 0.5 ? -1 : 1;
+    const doShift = Math.random() < 0.55;
+    const doResize = Math.random() < 0.45;
+    let start = r.startCol;
+    let end = r.endCol;
+    if (doShift) {
+      start += shift;
+      end += shift;
+    }
+    if (doResize) {
+      const widen = Math.random() < 0.5 ? -1 : 1;
+      // widen=-1 => widen (start--, end++), widen=1 => narrow (start++, end--)
+      if (widen < 0) {
+        start -= 1;
+        end += 1;
+      } else if (rangeWidthCols(r) > 1) {
+        start += 1;
+        end -= 1;
+      }
+    }
+    return { startCol: start, endCol: end };
+  });
+  return enforceRangeConstraints(mutated, rowLength);
+};
+
+const overlapCols = (a: GapRangeCol, b: GapRangeCol) => {
+  'worklet';
+  return Math.max(0, Math.min(a.endCol, b.endCol) - Math.max(a.startCol, b.startCol) + 1);
+};
+
+const ensureMinWidth = (ranges: GapRangeCol[], rowLength: number, minWidth: number) => {
+  'worklet';
+  if (!ranges.length) return ranges;
+  const expanded = ranges.map((r) => {
+    const w = rangeWidthCols(r);
+    if (w >= minWidth) return r;
+    const start = clampInt(r.startCol, 0, rowLength - 1);
+    const end = clampInt(Math.min(rowLength - 1, start + minWidth - 1), 0, rowLength - 1);
+    return { startCol: start, endCol: end };
+  });
+  return enforceRangeConstraints(expanded, rowLength);
+};
+
+const ensureEachCurrOverlapsSomePrev = (
+  curr: GapRangeCol[],
+  prev: GapRangeCol[],
+  rowLength: number,
+  minOverlapCols: number
+) => {
+  'worklet';
+  if (!curr.length || !prev.length) return curr;
+  const fixed = curr.map((r) => ({ ...r }));
+
+  for (let i = 0; i < fixed.length; i++) {
+    const r = fixed[i];
+    let bestPrev = prev[0];
+    let bestDist = Number.POSITIVE_INFINITY;
+    const c = rangeCenterCols(r);
+    for (let j = 0; j < prev.length; j++) {
+      const d = Math.abs(c - rangeCenterCols(prev[j]));
+      if (d < bestDist) {
+        bestDist = d;
+        bestPrev = prev[j];
+      }
+    }
+    const ov = overlapCols(r, bestPrev);
+    if (ov >= minOverlapCols) continue;
+
+    // Force overlap by shifting toward bestPrev.
+    let shift = 0;
+    if (r.endCol < bestPrev.startCol) {
+      shift = (bestPrev.startCol + (minOverlapCols - 1)) - r.endCol;
+    } else if (r.startCol > bestPrev.endCol) {
+      shift = (bestPrev.endCol - (minOverlapCols - 1)) - r.startCol;
+    } else {
+      shift = clampInt(Math.round(rangeCenterCols(bestPrev) - rangeCenterCols(r)), -1, 1);
+    }
+    if (shift !== 0) {
+      r.startCol = clampInt(r.startCol + shift, 0, rowLength - 1);
+      r.endCol = clampInt(r.endCol + shift, 0, rowLength - 1);
+      if (r.endCol < r.startCol) r.endCol = r.startCol;
+    }
+  }
+
+  return enforceRangeConstraints(fixed, rowLength);
+};
+
+const ensureContinuityWithPrev = (
+  next: GapRangeCol[],
+  prev: GapRangeCol[],
+  rowLength: number,
+  minOverlapCols: number
+) => {
+  'worklet';
+  if (!prev.length || !next.length) return next;
+  const fixed = next.map((r) => ({ ...r }));
+
+  for (let i = 0; i < fixed.length; i++) {
+    const r = fixed[i];
+    // Find closest prev by center.
+    let bestJ = 0;
+    let bestDist = Number.POSITIVE_INFINITY;
+    const c = rangeCenterCols(r);
+    for (let j = 0; j < prev.length; j++) {
+      const d = Math.abs(c - rangeCenterCols(prev[j]));
+      if (d < bestDist) {
+        bestDist = d;
+        bestJ = j;
+      }
+    }
+    const p = prev[bestJ];
+    const ov = overlapCols(r, p);
+    if (ov >= minOverlapCols) continue;
+
+    // Shift r toward p so they overlap by at least minOverlapCols.
+    // If r is completely left of p -> shift right; if right -> shift left.
+    let shift = 0;
+    if (r.endCol < p.startCol) {
+      shift = (p.startCol + (minOverlapCols - 1)) - r.endCol;
+    } else if (r.startCol > p.endCol) {
+      shift = (p.endCol - (minOverlapCols - 1)) - r.startCol;
+    } else {
+      // Partial overlap but too small: nudge toward p center.
+      shift = Math.round(rangeCenterCols(p) - rangeCenterCols(r));
+      shift = clampInt(shift, -1, 1);
+    }
+    if (shift !== 0) {
+      r.startCol = clampInt(r.startCol + shift, 0, rowLength - 1);
+      r.endCol = clampInt(r.endCol + shift, 0, rowLength - 1);
+      if (r.endCol < r.startCol) r.endCol = r.startCol;
+    }
+  }
+
+  return enforceRangeConstraints(fixed, rowLength);
+};
+
+const rangesToGaps = (ranges: GapRangeCol[]) => {
+  'worklet';
+  const gaps: number[] = [];
+  for (let i = 0; i < ranges.length; i++) {
+    for (let c = ranges[i].startCol; c <= ranges[i].endCol; c++) {
+      gaps.push(c);
+    }
+  }
+  return gaps;
+};
+
+const generateMultiPathGaps = (prevGaps: number[], rowLength: number): number[] => {
+  'worklet';
+  const MAX_PATHS = 4;
+  const MIN_W = 2;
+  const MAX_W = Math.max(MIN_W, Math.min(6, Math.floor(rowLength * 0.6)));
+  const MIN_OVERLAP = 1; // at least one shared column across consecutive rows
+
+  let prevRanges = groupGapsToRanges(prevGaps, rowLength);
+  if (prevRanges.length === 0) {
+    // Seed with 1–2 central-ish ranges.
+    const center = Math.floor(rowLength / 2);
+    const width = Math.random() < 0.6 ? 3 : 2;
+    const startA = clampInt(center - Math.floor(width / 2), 0, rowLength - 1);
+    const a: GapRangeCol = {
+      startCol: startA,
+      endCol: Math.min(rowLength - 1, startA + width - 1),
+    };
+    const twoPaths = rowLength >= 8 && Math.random() < 0.35;
+    if (twoPaths) {
+      const offset = Math.max(2, Math.floor(rowLength / 4));
+      const bCenter = clampInt(center + (Math.random() < 0.5 ? -offset : offset), 0, rowLength - 1);
+      const bStart = clampInt(bCenter - 1, 0, rowLength - 1);
+      const b: GapRangeCol = { startCol: bStart, endCol: Math.min(rowLength - 1, bStart + 1) };
+      prevRanges = enforceRangeConstraints([a, b], rowLength);
+    } else {
+      prevRanges = enforceRangeConstraints([a], rowLength);
+    }
+  }
+
+  // Always start from previous ranges so every path has a "parent" and remains passable.
+  let ranges = ensureMinWidth(prevRanges, rowLength, MIN_W);
+  ranges = maybeMutateRanges(ranges, rowLength);
+  ranges = ensureMinWidth(ranges, rowLength, MIN_W);
+  // Critical: each current range must overlap some prev range (prevents dead-end rows).
+  ranges = ensureEachCurrOverlapsSomePrev(ranges, prevRanges, rowLength, MIN_OVERLAP);
+
+  // Occasionally split a wide range (adds a path).
+  if (ranges.length < MAX_PATHS && Math.random() < 0.25) {
+    // Pick widest range.
+    let widestIdx = 0;
+    let widest = 0;
+    for (let i = 0; i < ranges.length; i++) {
+      const w = rangeWidthCols(ranges[i]);
+      if (w > widest) {
+        widest = w;
+        widestIdx = i;
+      }
+    }
+    if (widest >= MIN_W * 2 + 1) {
+      const children = splitRange(ranges[widestIdx], rowLength, MIN_W);
+      if (children.length > 1) {
+        const next = [...ranges.slice(0, widestIdx), ...children, ...ranges.slice(widestIdx + 1)];
+        ranges = enforceRangeConstraints(next, rowLength);
+        ranges = ensureMinWidth(ranges, rowLength, MIN_W);
+        ranges = ensureEachCurrOverlapsSomePrev(ranges, prevRanges, rowLength, MIN_OVERLAP);
+      }
+    }
+  }
+
+  // If too many ranges due to weird merges/splits, keep the widest ones.
+  if (ranges.length > MAX_PATHS) {
+    ranges = [...ranges]
+      .sort((a, b) => rangeWidthCols(b) - rangeWidthCols(a))
+      .slice(0, MAX_PATHS)
+      .sort((a, b) => a.startCol - b.startCol);
+  }
+
+  ranges = ensureMinWidth(ranges, rowLength, MIN_W);
+  // Clamp maximum width so rows don't become trivial.
+  ranges = ranges.map((r) => {
+    const w = rangeWidthCols(r);
+    if (w <= MAX_W) return r;
+    const center = Math.round(rangeCenterCols(r));
+    const half = Math.floor(MAX_W / 2);
+    const start = clampInt(center - half, 0, rowLength - 1);
+    const end = clampInt(start + MAX_W - 1, 0, rowLength - 1);
+    return { startCol: start, endCol: end };
+  });
+  ranges = enforceRangeConstraints(ranges, rowLength);
+  ranges = ensureMinWidth(ranges, rowLength, MIN_W);
+  ranges = ensureEachCurrOverlapsSomePrev(ranges, prevRanges, rowLength, MIN_OVERLAP);
+
+  return rangesToGaps(ranges);
+};
+
 const generateObstacles = ({ gaps, rowLength, y, leftX, obstacleDimension }: {
   rowIndex: number,
   gaps: number[],
@@ -243,6 +549,54 @@ const BaseRowPathTemplate: RowPathTemplate = {
   getRow: createObstacleRow,
 }
 
+const baseMultiPathGetRow: RowPathTemplate['getRow'] = (
+  _ctx,
+  { rowIndex, ecs, sceneEntity, prevRow, prevRowEntity, initialY, rowLength, leftX, obstacleDimension }
+) => {
+  'worklet';
+  const gaps = generateMultiPathGaps(!prevRow ? [] : prevRow.gaps, rowLength);
+  const y = !prevRow ? initialY : prevRow.y - obstacleDimension.height;
+  const obstacleDatas = generateObstacles({
+    rowIndex,
+    gaps,
+    y,
+    rowLength,
+    leftX,
+    obstacleDimension,
+  });
+  const obstacleEntities: Entity[] = [];
+  for (let i = 0; i < obstacleDatas.length; i++) {
+    const entity = spawnObstacleEntity({
+      ecs,
+      sceneEntity,
+      x: obstacleDatas[i].initialPosition.x,
+      y: obstacleDatas[i].initialPosition.y,
+      width: obstacleDatas[i].width,
+      height: obstacleDatas[i].height,
+    });
+    if (entity !== null) obstacleEntities.push(entity);
+  }
+  const obstacleRowComp = createObstacleRowComponent({
+    y,
+    gaps,
+    obstacles: obstacleEntities,
+    prevRowEntity,
+  });
+  const obstacleRowEntity = ecs.createEntity();
+  ecs.addComponent(obstacleRowEntity, obstacleRowComp);
+  ecs.updateComponent(sceneEntity, SceneComponentName, (scene: SceneComponentData) => {
+    if (!scene.objects.entities.includes(obstacleRowEntity)) {
+      scene.objects.entities.push(obstacleRowEntity);
+    }
+  });
+  return obstacleRowEntity;
+};
+
+const BaseMultiPathRowPathTemplate: RowPathTemplate = {
+  getRowCount,
+  getRow: baseMultiPathGetRow,
+};
+
 const restGetRowCount: RowPathTemplate['getRowCount'] = (_ctx) => {
   'worklet'
   return 5 + Math.round(Math.random() * (5 - 1))
@@ -314,6 +668,7 @@ const RestRowPathTemplate: RowPathTemplate = {
 
 const MappedTemplates: Record<string, RowPathTemplate> = {
   'base': BaseRowPathTemplate,
+  'baseMulti': BaseMultiPathRowPathTemplate,
   'rest': RestRowPathTemplate
 }
 
@@ -576,7 +931,7 @@ export const ObstacleSystem: System = {
         components,
         managerEntity,
         currentTemplateContextEntity: managerData.templateInfo?.templateContextEntity,
-        templateName: 'base',
+        templateName: 'baseMulti',
         initArgs,
       });
 
@@ -610,7 +965,7 @@ export const ObstacleSystem: System = {
         (m) => {
           m.spawnTimerSeconds = 0;
           m.templateInfo = {
-            currentTemplateName: 'base',
+            currentTemplateName: 'baseMulti',
             currentTempalteTotalRow: numInitialRows,
             currentRowIndex: rowsInDisplay,
             lastRowEntity: lastRowEntity,
