@@ -52,6 +52,9 @@ import {
   TemplateContextComponentName,
 } from '@/Game/ecs-components/TemplateContextComponent';
 import { groupGapsToRanges, GapRangeCol } from '@/Game/water/gapRanges';
+import { createJsonLevelRowPathTemplate } from '@/Game/templates/obstacles/jsonLevelRowPathTemplate';
+import { smilyLevelJson } from '@/Game/templates/obstacles/smily';
+import { jellyfishLevelJson } from '@/Game/templates/obstacles/jellyfish';
 
 const OBSTACLE_BLOCK_IMAGES = ['block2', 'block3'] as const;
 
@@ -666,10 +669,34 @@ const RestRowPathTemplate: RowPathTemplate = {
   getRow: restGetRow
 }
 
+const spawnObstacleBlockFromTemplate = (params: {
+  ecs: ECS;
+  sceneEntity: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}): Entity | null => {
+  'worklet';
+  return spawnObstacleEntity(params);
+};
+
+const SmilyRowPathTemplate: RowPathTemplate = createJsonLevelRowPathTemplate({
+  levelJson: smilyLevelJson,
+  spawnBlock: spawnObstacleBlockFromTemplate,
+});
+
+const JellyfishRowPathTemplate: RowPathTemplate = createJsonLevelRowPathTemplate({
+  levelJson: jellyfishLevelJson,
+  spawnBlock: spawnObstacleBlockFromTemplate,
+});
+
 const MappedTemplates: Record<string, RowPathTemplate> = {
   'base': BaseRowPathTemplate,
   'baseMulti': BaseMultiPathRowPathTemplate,
-  'rest': RestRowPathTemplate
+  'rest': RestRowPathTemplate,
+  'smily': SmilyRowPathTemplate,
+  'jellyfish': JellyfishRowPathTemplate,
 }
 
 function selectTemplate(args: {
@@ -751,6 +778,8 @@ export const ObstacleSystem: System = {
     ) as ObstaclesManagerComponentData | undefined;
 
     if (!managerData) return;
+
+    const lockedTemplateName = managerData.lockedTemplateName;
 
     // Get container entity
     const containerEntities = ecs.getEntitiesWithComponents([
@@ -926,25 +955,54 @@ export const ObstacleSystem: System = {
         initialY: maxY,
       };
 
+      // Initial template (first one shown). Keep as `smily` for now.
       const selected = selectTemplate({
         ecs,
         components,
         managerEntity,
         currentTemplateContextEntity: managerData.templateInfo?.templateContextEntity,
-        templateName: 'baseMulti',
+        templateName: lockedTemplateName ?? 'smily',
         initArgs,
       });
 
-      const template = selected.template
-      const ctx = selected.ctx
-      const numInitialRows = selected.rowCount
+      let activeTemplateName = selected.templateName;
+      let activeTemplate = selected.template;
+      let activeCtx = selected.ctx;
+      let activeRowCount = selected.rowCount;
+      let activeCtxEntity = selected.ctxEntity;
+      let activeRowIndex = 0; // next row index within current template
 
       const rowsInDisplay = Math.ceil((maxY - columnWidth) / columnWidth) + 1
 
       for (let i = 0; i < rowsInDisplay; i++) {
         const prevRow = lastRowEntity ? ecs.components[ObstacleRowComponentName].get(lastRowEntity) as ObstacleRowComponentData : null
-        lastRowEntity = template.getRow(ctx, {
-          rowIndex: i,
+
+        // If we've reached the end of the active template, switch to the next template
+        // and continue filling the seed rows.
+        if (activeRowIndex > activeRowCount - 1) {
+          const tempalteNames = Object.keys(MappedTemplates)
+          let newTemplateRandIndex = Math.floor(Math.random() * tempalteNames.length)
+
+          let newTemplateName =
+            lockedTemplateName ?? 'smily' //tempalteNames[newTemplateRandIndex]
+          const nextSelected = selectTemplate({
+            ecs,
+            components,
+            managerEntity,
+            currentTemplateContextEntity: activeCtxEntity,
+            templateName: newTemplateName,
+            initArgs,
+          });
+          activeTemplateName = nextSelected.templateName;
+          activeTemplate = nextSelected.template;
+          activeCtx = nextSelected.ctx;
+          activeRowCount = nextSelected.rowCount;
+          activeCtxEntity = nextSelected.ctxEntity;
+          activeRowIndex = 0;
+        }
+
+        lastRowEntity = activeTemplate.getRow(activeCtx, {
+          rowIndex: activeRowIndex,
           ecs,
           sceneEntity,
           prevRow,
@@ -957,6 +1015,7 @@ export const ObstacleSystem: System = {
             height: columnWidth
           }
         })
+        activeRowIndex += 1;
       }
       // Reset timer after re-seeding
       ecs.updateComponent<ObstaclesManagerComponentData>(
@@ -965,11 +1024,13 @@ export const ObstacleSystem: System = {
         (m) => {
           m.spawnTimerSeconds = 0;
           m.templateInfo = {
-            currentTemplateName: 'baseMulti',
-            currentTempalteTotalRow: numInitialRows,
-            currentRowIndex: rowsInDisplay,
+            // Persist the currently active template after seeding so subsequent frames
+            // continue spawning from the correct template + row index.
+            currentTemplateName: activeTemplateName,
+            currentTempalteTotalRow: activeRowCount,
+            currentRowIndex: activeRowIndex,
             lastRowEntity: lastRowEntity,
-            templateContextEntity: selected.ctxEntity,
+            templateContextEntity: activeCtxEntity,
           }
         }
       );
@@ -1028,7 +1089,7 @@ export const ObstacleSystem: System = {
           const tempalteNames = Object.keys(MappedTemplates)
           let newTemplateRandIndex = Math.floor(Math.random() * tempalteNames.length)
 
-          let newTemplateName = tempalteNames[newTemplateRandIndex]
+          let newTemplateName = lockedTemplateName ?? tempalteNames[newTemplateRandIndex]
           const initArgs: TemplateInitArgs = {
             ecs,
             sceneEntity,
@@ -1085,7 +1146,7 @@ export const ObstacleSystem: System = {
           const prevRow = templateInfo.lastRowEntity ? ecs.components[ObstacleRowComponentName].get(templateInfo.lastRowEntity) as ObstacleRowComponentData : null
 
           let newRowEntity = template.getRow(ctx, {
-            rowIndex: 0,
+            rowIndex: lastRowIndex,
             ecs,
             sceneEntity,
             prevRow: prevRow,

@@ -1,51 +1,48 @@
 import { FC, memo } from 'react';
 import { useWindowDimensions, View } from 'react-native';
-import { ReactNativeTurboGameEngine } from './RNTGE';
-import { Preload } from './components-rntge/Scene/Preload';
-import { Asset } from './components-rntge/Scene/Asset';
-import { SkyBackground } from '@/components/SkyBackground/SkyBackground-rntge';
-import { Scene } from './components-rntge/Scene/Scene';
-import { block } from '@/assets/images';
-import { block2 } from '@/assets/images';
-import { block3 } from '@/assets/images';
-import { caveBg } from '@/assets/images';
-import { sourceCode as waterShaderSourceCode } from '@/Shaders/WaterShader/waterShader';
+import { ReactNativeTurboGameEngine } from '@/containers/ReactNativeSkiaGameEngine/RNTGE';
+import { Preload } from '@/containers/ReactNativeSkiaGameEngine/components-rntge/Scene/Preload';
+import { Asset } from '@/containers/ReactNativeSkiaGameEngine/components-rntge/Scene/Asset';
+import { Scene } from '@/containers/ReactNativeSkiaGameEngine/components-rntge/Scene/Scene';
+import { Content } from '@/containers/ReactNativeSkiaGameEngine/components-rntge/Scene/Content';
 import { CaveBackground } from '@/components/CaveBackground/CaveBackground-rntge';
 import { ContainerView } from '@/components/ContainerView/ContainerView-rntge';
 import { WaterView } from '@/components/WaterView/WaterView-rntge';
 import { SwimmerView } from '@/components/SwimmerView/SwimmerView-rntge';
 import { TapSwimmer } from '@/components/TapSwimmer/TapSwimmer-rntge';
 import { ObstacleView } from '@/components/ObstacleView/ObstacleView-rntge';
+import { ScoreView } from '@/components/ScoreView/ScoreView-rntge';
 import { Meta, StoryObj } from '@storybook/react';
-import { Content } from './components-rntge/Scene/Content';
+
+import { block2, block3, caveBg } from '@/assets/images';
+import { sourceCode as waterShaderSourceCode } from '@/Shaders/WaterShader/waterShader';
+
 import { ObstacleComponentName } from '@/Game/ecs-components/ObstacleComponent';
 import { ContainerComponentName } from '@/Game/ecs-components/Container';
 import { WaterComponentName } from '@/Game/ecs-components/Water';
 import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
 import { ObstaclesManagerComponentName } from '@/Game/ecs-components/ObstaclesManager';
 import { ScoreComponentName } from '@/Game/ecs-components/Score';
-import { ScoreView } from '@/components/ScoreView/ScoreView-rntge';
 import { ObstacleRowComponentName } from '@/Game/ecs-components/ObstacleRowComponent';
 import { TemplateContextComponentName } from '@/Game/ecs-components/TemplateContextComponent';
-import { GameOverScene } from '../Scenes/GameOverScene/index-rntge';
 
-export const SwimmerGameComp: FC<{}> = memo(
-  (args: any) => {
+type ObstacleTemplateStoryProps = {
+  /** Must match keys in `MappedTemplates` (e.g. 'smily', 'jellyfish', 'base', 'baseMulti', 'rest'). */
+  templateName: string;
+};
+
+export const ObstacleTemplateGameComp: FC<ObstacleTemplateStoryProps> = memo(
+  (args) => {
     const windowDimensions = useWindowDimensions();
     const { width: windowWidth, height: windowHeight } = windowDimensions;
-    // Container setup - rectangular container extending full screen height for endless look
-    const containerWidth = windowWidth * 0.8; // Use most of screen width
-    const containerHeight = windowHeight; // Full screen height for endless appearance
+
+    const containerWidth = windowWidth * 0.8;
+    const containerHeight = windowHeight;
     const containerCenterX = windowWidth / 2;
-    const containerCenterY = windowHeight / 2; // Center of screen
-    const containerBottom = containerCenterY + containerHeight / 2;
+    const containerCenterY = windowHeight / 2;
 
-    // Water starts at container center (no initial rising phase)
-    const initialWaterSurfaceY = containerCenterY; // Water at center from the start
-    // Swimmer starts with roughly 1/3 of its body below the water surface
+    const initialWaterSurfaceY = containerCenterY;
     const swimmerStartY = initialWaterSurfaceY - 10;
-
-    // Obstacles will be generated dynamically by the ObstacleSystem
 
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -73,20 +70,14 @@ export const SwimmerGameComp: FC<{}> = memo(
             <Content>
               <Scene name="game">
                 <Preload>
-                  <Asset type="image" name="block" uriOrBase64={block} />
                   <Asset type="image" name="block2" uriOrBase64={block2} />
                   <Asset type="image" name="block3" uriOrBase64={block3} />
                   <Asset type="image" name="cave_bg" uriOrBase64={caveBg} />
-                  <Asset
-                    type="shader"
-                    name="water"
-                    source={waterShaderSourceCode}
-                  />
+                  <Asset type="shader" name="water" source={waterShaderSourceCode} />
                 </Preload>
                 <Content>
-                  {/* Cave background - full screen image */}
                   <CaveBackground />
-                  {/* Container - rectangular with boundaries */}
+
                   <ContainerView
                     x={containerCenterX}
                     y={containerCenterY}
@@ -96,13 +87,10 @@ export const SwimmerGameComp: FC<{}> = memo(
                     waterRiseSpeed={3}
                   />
 
-                  {/* Water - rendered separately, will be updated by system */}
                   <WaterView raisingSpeed={100} />
 
-                  {/* Dynamic Obstacles */}
-                  <ObstacleView />
+                  <ObstacleView lockedTemplateName={args.templateName} />
 
-                  {/* Swimmer - centered in a column; TapSwimmer handles tap-to-move */}
                   <SwimmerView
                     y={swimmerStartY}
                     containerWidth={containerWidth}
@@ -110,37 +98,36 @@ export const SwimmerGameComp: FC<{}> = memo(
                     containerCenterX={containerCenterX}
                     containerCenterY={containerCenterY}
                     useColumnControl={true}
+                    disableGameOver={true}
                   />
 
-                  <TapSwimmer
-                    screenWidth={windowWidth}
-                    screenHeight={windowHeight}
-                  />
+                  <TapSwimmer screenWidth={windowWidth} screenHeight={windowHeight} />
 
-                  {/* Score - top center, big and bold */}
                   <ScoreView />
                 </Content>
               </Scene>
-              <GameOverScene backgroundColor="#2B0A3D" />
             </Content>
           </ReactNativeTurboGameEngine>
         </View>
       </View>
     );
   },
-  (prevProps, nextProps) => {
-    return JSON.stringify(prevProps) === JSON.stringify(nextProps);
-  }
+  (prevProps, nextProps) => JSON.stringify(prevProps) === JSON.stringify(nextProps)
 );
 
 const meta = {
-  title: 'Swimmer Game',
-  component: SwimmerGameComp,
-  args: {},
-} satisfies Meta<typeof SwimmerGameComp>;
+  title: 'Obstacle Templates',
+  component: ObstacleTemplateGameComp,
+  args: { templateName: 'smily' },
+} satisfies Meta<typeof ObstacleTemplateGameComp>;
 
 export default meta;
 
-export const Basic: StoryObj<typeof meta> = {
-  args: {},
+export const Smily: StoryObj<typeof meta> = {
+  args: { templateName: 'smily' },
 };
+
+export const Jellyfish: StoryObj<typeof meta> = {
+  args: { templateName: 'jellyfish' },
+};
+

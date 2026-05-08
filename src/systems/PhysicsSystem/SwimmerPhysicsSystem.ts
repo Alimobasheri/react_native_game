@@ -356,7 +356,9 @@ export const SwimmerPhysicsSystem: System = {
 
       const isUnderWater = depth > 0;
       const isOutOfScreen = swimmerCenterY > dimensions.value.height;
+      const isGameOverDisabled = swimmerComponent.disableGameOver === true;
       const shouldDispatchGameOver =
+        !isGameOverDisabled &&
         isBlockedFromAbove &&
         isUnderWater &&
         isOutOfScreen &&

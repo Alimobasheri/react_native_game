@@ -31,6 +31,8 @@ export type SwimmerComponentData = {
   angle?: number;
   /** Prevents dispatching game-over scene events more than once. */
   gameOverDispatched?: boolean;
+  /** When true, the physics system will never dispatch game-over events. */
+  disableGameOver?: boolean;
 };
 
 export const createSwimmerComponent = (

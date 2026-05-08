@@ -8,6 +8,11 @@ export type ObstaclesManagerComponentData = {
   sceneKey: string;
   /** Accumulated spawn timer in seconds (replaces any global timer). */
   spawnTimerSeconds: number;
+  /**
+   * When provided, the obstacle system will always use this template name and
+   * will never randomly switch templates (storybook/debug use).
+   */
+  lockedTemplateName?: string;
   templateInfo?: {
     currentTemplateName: string;
     currentTempalteTotalRow: number;

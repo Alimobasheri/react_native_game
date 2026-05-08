@@ -13,7 +13,10 @@ import { FC } from 'react';
  * - Moving obstacles downward
  * - Removing obstacles that pass screen boundaries
  */
-export const ObstacleView: FC<{}> = () => {
+export const ObstacleView: FC<{
+  /** If set, the obstacle system will always use this template name. */
+  lockedTemplateName?: string;
+}> = ({ lockedTemplateName }) => {
   const sceneContext = useSceneContextUnsafe();
   const sceneKey = sceneContext?.sceneKey ?? 'swimmerGame';
 
@@ -23,6 +26,7 @@ export const ObstacleView: FC<{}> = () => {
       createObstaclesManagerComponent({
         sceneKey,
         spawnTimerSeconds: 0,
+        lockedTemplateName,
       }),
     ],
   });
