@@ -73,7 +73,11 @@ export const ObstacleTemplateGameComp: FC<ObstacleTemplateStoryProps> = memo(
                   <Asset type="image" name="block2" uriOrBase64={block2} />
                   <Asset type="image" name="block3" uriOrBase64={block3} />
                   <Asset type="image" name="cave_bg" uriOrBase64={caveBg} />
-                  <Asset type="shader" name="water" source={waterShaderSourceCode} />
+                  <Asset
+                    type="shader"
+                    name="water"
+                    source={waterShaderSourceCode}
+                  />
                 </Preload>
                 <Content>
                   <CaveBackground />
@@ -101,7 +105,10 @@ export const ObstacleTemplateGameComp: FC<ObstacleTemplateStoryProps> = memo(
                     disableGameOver={true}
                   />
 
-                  <TapSwimmer screenWidth={windowWidth} screenHeight={windowHeight} />
+                  <TapSwimmer
+                    screenWidth={windowWidth}
+                    screenHeight={windowHeight}
+                  />
 
                   <ScoreView />
                 </Content>
@@ -112,7 +119,8 @@ export const ObstacleTemplateGameComp: FC<ObstacleTemplateStoryProps> = memo(
       </View>
     );
   },
-  (prevProps, nextProps) => JSON.stringify(prevProps) === JSON.stringify(nextProps)
+  (prevProps, nextProps) =>
+    JSON.stringify(prevProps) === JSON.stringify(nextProps)
 );
 
 const meta = {
@@ -131,3 +139,18 @@ export const Jellyfish: StoryObj<typeof meta> = {
   args: { templateName: 'jellyfish' },
 };
 
+export const Micky: StoryObj<typeof meta> = {
+  args: { templateName: 'micky' },
+};
+
+export const Kitty: StoryObj<typeof meta> = {
+  args: { templateName: 'kitty' },
+};
+
+export const Deadpool: StoryObj<typeof meta> = {
+  args: { templateName: 'deadpool' },
+};
+
+export const Megaman: StoryObj<typeof meta> = {
+  args: { templateName: 'megaman' },
+};

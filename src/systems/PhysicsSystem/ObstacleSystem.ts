@@ -55,6 +55,10 @@ import { groupGapsToRanges, GapRangeCol } from '@/Game/water/gapRanges';
 import { createJsonLevelRowPathTemplate } from '@/Game/templates/obstacles/jsonLevelRowPathTemplate';
 import { smilyLevelJson } from '@/Game/templates/obstacles/smily';
 import { jellyfishLevelJson } from '@/Game/templates/obstacles/jellyfish';
+import { mickyLevelJson } from '@/Game/templates/obstacles/micky';
+import { kittyLevelJson } from '@/Game/templates/obstacles/kitty';
+import { deadpoolLevelJson } from '@/Game/templates/obstacles/deadpool';
+import { megamanLevelJson } from '@/Game/templates/obstacles/megaman';
 
 const OBSTACLE_BLOCK_IMAGES = ['block2', 'block3'] as const;
 
@@ -602,7 +606,7 @@ const BaseMultiPathRowPathTemplate: RowPathTemplate = {
 
 const restGetRowCount: RowPathTemplate['getRowCount'] = (_ctx) => {
   'worklet'
-  return 5 + Math.round(Math.random() * (5 - 1))
+  return 10 + Math.round(Math.random() * (5 - 1))
 }
 
 const restGenerateObstacles = ({ gaps, rowLength, y, leftX, obstacleDimension }: {
@@ -691,12 +695,36 @@ const JellyfishRowPathTemplate: RowPathTemplate = createJsonLevelRowPathTemplate
   spawnBlock: spawnObstacleBlockFromTemplate,
 });
 
+const MickyRowPathTemplate: RowPathTemplate = createJsonLevelRowPathTemplate({
+  levelJson: mickyLevelJson,
+  spawnBlock: spawnObstacleBlockFromTemplate,
+});
+
+const KittyRowPathTemplate: RowPathTemplate = createJsonLevelRowPathTemplate({
+  levelJson: kittyLevelJson,
+  spawnBlock: spawnObstacleBlockFromTemplate,
+});
+
+const DeadpoolRowPathTemplate: RowPathTemplate = createJsonLevelRowPathTemplate({
+  levelJson: deadpoolLevelJson,
+  spawnBlock: spawnObstacleBlockFromTemplate,
+});
+
+const MegamanRowPathTemplate: RowPathTemplate = createJsonLevelRowPathTemplate({
+  levelJson: megamanLevelJson,
+  spawnBlock: spawnObstacleBlockFromTemplate,
+});
+
 const MappedTemplates: Record<string, RowPathTemplate> = {
   'base': BaseRowPathTemplate,
   'baseMulti': BaseMultiPathRowPathTemplate,
   'rest': RestRowPathTemplate,
   'smily': SmilyRowPathTemplate,
   'jellyfish': JellyfishRowPathTemplate,
+  'micky': MickyRowPathTemplate,
+  'kitty': KittyRowPathTemplate,
+  'deadpool': DeadpoolRowPathTemplate,
+  'megaman': MegamanRowPathTemplate
 }
 
 function selectTemplate(args: {
@@ -1089,7 +1117,12 @@ export const ObstacleSystem: System = {
           const tempalteNames = Object.keys(MappedTemplates)
           let newTemplateRandIndex = Math.floor(Math.random() * tempalteNames.length)
 
-          let newTemplateName = lockedTemplateName ?? tempalteNames[newTemplateRandIndex]
+          let newTemplateName = tempalteNames[newTemplateRandIndex]
+          if (updatedManager.templateInfo.currentTemplateName !== 'rest') {
+            newTemplateName = 'rest'
+          } else if (lockedTemplateName) {
+            newTemplateName = lockedTemplateName
+          }
           const initArgs: TemplateInitArgs = {
             ecs,
             sceneEntity,

@@ -53,153 +53,153 @@ export const SwimmerView: FC<{
   useColumnControl = false,
   disableGameOver = false,
 }) => {
-    const x = useMemo(() => {
-      if (useColumnControl || initialColumn !== undefined) {
-        return getColumnCenterXJS(
-          initialColumn,
-          containerCenterX,
-          containerWidth
-        );
-      }
-      return xProp ?? containerCenterX;
-    }, [
-      useColumnControl,
-      initialColumn,
-      containerCenterX,
-      containerWidth,
-      xProp,
-    ]);
+  const x = useMemo(() => {
+    if (useColumnControl || initialColumn !== undefined) {
+      return getColumnCenterXJS(
+        initialColumn,
+        containerCenterX,
+        containerWidth
+      );
+    }
+    return xProp ?? containerCenterX;
+  }, [
+    useColumnControl,
+    initialColumn,
+    containerCenterX,
+    containerWidth,
+    xProp,
+  ]);
 
-    const { swimmerWidth, swimmerHeight } = useMemo(() => {
-      const columnWidth = containerWidth / LAYOUT_CONSTANTS.COLUMNS;
-      const width = (1 / 3) * columnWidth;
+  const { swimmerWidth, swimmerHeight } = useMemo(() => {
+    const columnWidth = containerWidth / LAYOUT_CONSTANTS.COLUMNS;
+    const width = (2 / 3) * columnWidth;
 
-      const obstacleWidth = getObstacleWidth(containerWidth);
-      const rawRows = getRows(containerHeight, obstacleWidth);
-      const rows = rawRows > 0 ? rawRows : 1;
-      const rowHeight = containerHeight / rows;
+    const obstacleWidth = getObstacleWidth(containerWidth);
+    const rawRows = getRows(containerHeight, obstacleWidth);
+    const rows = rawRows > 0 ? rawRows : 1;
+    const rowHeight = containerHeight / rows;
 
-      const height = Math.min(1.8 * width, rowHeight * 0.9);
+    const height = Math.min(1.8 * width, rowHeight * 0.9);
 
-      return { swimmerWidth: width, swimmerHeight: height };
-    }, [containerWidth, containerHeight]);
+    return { swimmerWidth: width, swimmerHeight: height };
+  }, [containerWidth, containerHeight]);
 
-    const components = useMemo(() => {
-      const base = [
-        createSwimmerComponent({
-          velocityX: 0,
-          inputX: 0,
-          lastTapTimeMs: undefined,
-          lastTapDirection: undefined,
-          rapidTapStreak: 0,
-          pendingTapMultiplier: 1,
-          waterSurfaceY: y,
-          containerWidth,
-          containerCenterX,
-          containerCenterY,
-          isInInitialPhase: false,
-          isCollidingWithObstacle: false,
-          fallingVelocityY: 0,
-          useColumnControl,
-          column: initialColumn,
-          angle: 0,
-          gameOverDispatched: false,
-          disableGameOver,
-        }),
-        createRenderComponent({
-          shape: {
-            type: ShapeTypes.Rectangle,
-            width: swimmerWidth,
-            height: swimmerHeight,
-          },
-          fillColor: '#4a90e2',
-          visible: true,
-          zIndex: 1,
-        }),
-      ];
-      const panComponent = createPanComponent({
-        onPanUpdate: (data) => {
-          'worklet';
-          const ecs = data.systemArgs.ecs;
-          const swimmerEntities = ecs.getEntitiesWithComponents([
-            SwimmerComponentName,
-          ]);
-          if (swimmerEntities.length === 0) return;
-          const velocityX = data.gesture.data.velocityX * 0.5;
-          swimmerEntities.forEach((entityId) => {
-            ecs.updateComponent(
-              entityId,
-              SwimmerComponentName,
-              (swimmer: any) => {
-                swimmer.velocityX = velocityX;
-              }
-            );
-          });
-        },
-        onPanEnd: (data) => {
-          'worklet';
-          const ecs = data.systemArgs.ecs;
-          const swimmerEntities = ecs.getEntitiesWithComponents([
-            SwimmerComponentName,
-          ]);
-          swimmerEntities.forEach((entityId) => {
-            ecs.updateComponent(
-              entityId,
-              SwimmerComponentName,
-              (swimmer: any) => {
-                swimmer.velocityX = 0;
-              }
-            );
-          });
-        },
-      });
-      return useColumnControl ? base : [...base, panComponent];
-    }, [
-      x,
-      y,
-      containerWidth,
-      containerHeight,
-      containerCenterX,
-      containerCenterY,
-      useColumnControl,
-      initialColumn,
-      disableGameOver,
-      swimmerWidth,
-      swimmerHeight,
-    ]);
-
-    const { entityId } = useAddEntity({ components });
-
-    const matterBodyArgs: CreateMatterBodyArgs = useMemo(
-      () => ({
-        type: 'rectangle',
-        options: {
-          x,
-          y,
+  const components = useMemo(() => {
+    const base = [
+      createSwimmerComponent({
+        velocityX: 0,
+        inputX: 0,
+        lastTapTimeMs: undefined,
+        lastTapDirection: undefined,
+        rapidTapStreak: 0,
+        pendingTapMultiplier: 1,
+        waterSurfaceY: y,
+        containerWidth,
+        containerCenterX,
+        containerCenterY,
+        isInInitialPhase: false,
+        isCollidingWithObstacle: false,
+        fallingVelocityY: 0,
+        useColumnControl,
+        column: initialColumn,
+        angle: 0,
+        gameOverDispatched: false,
+        disableGameOver,
+      }),
+      createRenderComponent({
+        shape: {
+          type: ShapeTypes.Rectangle,
           width: swimmerWidth,
           height: swimmerHeight,
-          options: {
-            isStatic: false,
-            inertia: Infinity, // prevent rotation for arcade feel
-            restitution: 0,
-            friction: 0,
-            frictionStatic: 0,
-            frictionAir: 0.4,
-            collisionFilter: {
-              group: 0x0000,
-              category: 0x0004, // swimmer
-              mask: 0x0002 | 0x0008, // container boundaries + obstacles
-            },
+        },
+        fillColor: '#4a90e2',
+        visible: true,
+        zIndex: 1,
+      }),
+    ];
+    const panComponent = createPanComponent({
+      onPanUpdate: (data) => {
+        'worklet';
+        const ecs = data.systemArgs.ecs;
+        const swimmerEntities = ecs.getEntitiesWithComponents([
+          SwimmerComponentName,
+        ]);
+        if (swimmerEntities.length === 0) return;
+        const velocityX = data.gesture.data.velocityX * 0.5;
+        swimmerEntities.forEach((entityId) => {
+          ecs.updateComponent(
+            entityId,
+            SwimmerComponentName,
+            (swimmer: any) => {
+              swimmer.velocityX = velocityX;
+            }
+          );
+        });
+      },
+      onPanEnd: (data) => {
+        'worklet';
+        const ecs = data.systemArgs.ecs;
+        const swimmerEntities = ecs.getEntitiesWithComponents([
+          SwimmerComponentName,
+        ]);
+        swimmerEntities.forEach((entityId) => {
+          ecs.updateComponent(
+            entityId,
+            SwimmerComponentName,
+            (swimmer: any) => {
+              swimmer.velocityX = 0;
+            }
+          );
+        });
+      },
+    });
+    return useColumnControl ? base : [...base, panComponent];
+  }, [
+    x,
+    y,
+    containerWidth,
+    containerHeight,
+    containerCenterX,
+    containerCenterY,
+    useColumnControl,
+    initialColumn,
+    disableGameOver,
+    swimmerWidth,
+    swimmerHeight,
+  ]);
+
+  const { entityId } = useAddEntity({ components });
+
+  const matterBodyArgs: CreateMatterBodyArgs = useMemo(
+    () => ({
+      type: 'rectangle',
+      options: {
+        x,
+        y,
+        width: swimmerWidth,
+        height: swimmerHeight,
+        options: {
+          isStatic: false,
+          inertia: Infinity, // prevent rotation for arcade feel
+          restitution: 0,
+          friction: 0,
+          frictionStatic: 0,
+          frictionAir: 0.4,
+          collisionFilter: {
+            group: 0x0000,
+            category: 0x0004, // swimmer
+            mask: 0x0002 | 0x0008, // container boundaries + obstacles
           },
         },
-      }),
-      [x, y, swimmerWidth, swimmerHeight]
-    );
+      },
+    }),
+    [x, y, swimmerWidth, swimmerHeight]
+  );
 
-    useAddMatterBody({ args: matterBodyArgs, entityId });
+  useAddMatterBody({ args: matterBodyArgs, entityId });
 
-    // Register the swimmer physics system
-    useAddSystem({ system: SwimmerPhysicsSystem });
+  // Register the swimmer physics system
+  useAddSystem({ system: SwimmerPhysicsSystem });
 
-    return null;
-  };
+  return null;
+};

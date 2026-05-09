@@ -457,7 +457,7 @@ export const SwimmerPhysicsSystem: System = {
           // Base distance we want to travel per tap: about one column at low water,
           // and less at higher water speeds (harder to move left/right).
           const distanceScale = 1 - 0.1 * normalizedSpeed; // 1.0 .. 0.6
-          const desiredDistance = columnWidth * distanceScale;
+          const desiredDistance = (3 * columnWidth) * distanceScale;
 
           const tapMultiplierRaw = swimmerComponent.pendingTapMultiplier ?? 1;
           const tapMultiplier = Math.max(
