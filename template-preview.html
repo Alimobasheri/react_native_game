@@ -173,13 +173,12 @@
       .canvasWrap {
         flex: 1;
         min-height: 0;
-        display: grid;
-        grid-template-rows: 1fr;
+        overflow: auto;
+        background: var(--canvas-bg);
+        overscroll-behavior: contain;
       }
 
       canvas {
-        width: 100%;
-        height: 100%;
         display: block;
         background: var(--canvas-bg);
       }
@@ -236,6 +235,42 @@
 
       .pill input {
         accent-color: var(--accent);
+      }
+
+      .musicBar {
+        border-top: 1px solid var(--border);
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        background: rgba(0, 0, 0, 0.08);
+      }
+
+      .musicControls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .musicStatus {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .inlineField {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .fileInput {
+        max-width: 210px;
+        color: var(--muted);
+        font-size: 12px;
       }
 
       @media (max-width: 980px) {
@@ -317,11 +352,31 @@
             <button id="btnEdit" type="button" title="Toggle edit mode">
               Edit: off
             </button>
-            <button id="btnFit" type="button">Fit</button>
+            <button id="btnFit" type="button">Bottom</button>
           </div>
         </div>
         <div class="canvasWrap">
           <canvas id="canvas"></canvas>
+        </div>
+        <div class="musicBar">
+          <div class="musicControls">
+            <button id="btnLoadDefaultMusic" type="button">Load Empacotatron</button>
+            <input id="musicFile" class="fileInput" type="file" accept="audio/*" />
+            <button id="btnAnalyzeMusic" type="button">Analyze</button>
+            <button id="btnGenerateMusicTemplate" type="button">Generate music template</button>
+            <button id="btnMusicPlay" type="button" disabled>Play</button>
+            <label class="inlineField" title="Same idea as Water.raisingSpeed in the runtime preview">
+              water px/s
+              <input id="musicWaterSpeed" class="smallInput" inputmode="numeric" value="100" />
+            </label>
+            <label class="inlineField" title="Pixel height of one obstacle row for preview timing">
+              row px
+              <input id="musicRowHeight" class="smallInput" inputmode="numeric" value="24" />
+            </label>
+          </div>
+          <div id="musicStatus" class="musicStatus">
+            Music journey: load/analyze the track, generate rows, then play to highlight the active row.
+          </div>
         </div>
         <div class="footer">
           <div id="stats" class="ok">—</div>
@@ -368,13 +423,34 @@
       const $seed = document.getElementById("seed");
       const $btnReroll = document.getElementById("btnReroll");
       const $canvas = document.getElementById("canvas");
+      const $btnLoadDefaultMusic = document.getElementById("btnLoadDefaultMusic");
+      const $musicFile = document.getElementById("musicFile");
+      const $btnAnalyzeMusic = document.getElementById("btnAnalyzeMusic");
+      const $btnGenerateMusicTemplate = document.getElementById("btnGenerateMusicTemplate");
+      const $btnMusicPlay = document.getElementById("btnMusicPlay");
+      const $musicWaterSpeed = document.getElementById("musicWaterSpeed");
+      const $musicRowHeight = document.getElementById("musicRowHeight");
+      const $musicStatus = document.getElementById("musicStatus");
+      const $canvasWrap = $canvas.parentElement;
       const ctx = $canvas.getContext("2d");
 
+      const MUSIC_ASSET_URL = "assets/empacotatron_full_0.ogg";
       const clampInt = (v, min, max) => Math.max(min, Math.min(max, Math.round(v)));
+      const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
       let editMode = false;
       let lastView = null; // { startX, startY, scale, cell, gap, pad, columns, rowCount }
       let lastRenderFit = true;
       let coinAnimRaf = null;
+      let musicAudioContext = null;
+      let musicAudioBuffer = null;
+      let musicAnalysis = null;
+      let musicObjectUrl = null;
+      let musicActiveRow = -1;
+      let musicRaf = null;
+      let musicTemplateActive = false;
+      let lastCanvasContentKey = "";
+      const musicAudio = new Audio();
+      musicAudio.preload = "auto";
 
       function stopCoinAnimation() {
         if (coinAnimRaf) {
@@ -457,7 +533,7 @@
             stopCoinAnimation();
             return;
           }
-          tryRender({ fit: lastRenderFit, animTime: tMs, skipAnimScheduling: true });
+          tryRender({ fit: false, animTime: tMs, skipAnimScheduling: true, scrollMode: "preserve" });
           coinAnimRaf = requestAnimationFrame(loop);
         }
         coinAnimRaf = requestAnimationFrame(loop);
@@ -482,6 +558,222 @@
       function setStatusError(text) {
         $status.className = "error";
         $status.textContent = text;
+      }
+
+      function setMusicStatus(text, isError = false) {
+        $musicStatus.style.color = isError
+          ? getComputedStyle(document.documentElement).getPropertyValue("--danger").trim()
+          : "var(--muted)";
+        $musicStatus.textContent = text;
+      }
+
+      function getMusicTimingConfig() {
+        const waterSpeed = clamp(Number($musicWaterSpeed.value) || 100, 20, 420);
+        const rowHeight = clamp(Number($musicRowHeight.value) || 24, 8, 96);
+        $musicWaterSpeed.value = String(Math.round(waterSpeed));
+        $musicRowHeight.value = String(Math.round(rowHeight));
+        return {
+          waterSpeed,
+          rowHeight,
+          rowDuration: rowHeight / waterSpeed,
+        };
+      }
+
+      function getMusicAudioContext() {
+        const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextCtor) throw new Error("This browser does not support Web Audio.");
+        if (!musicAudioContext) musicAudioContext = new AudioContextCtor();
+        return musicAudioContext;
+      }
+
+      async function decodeMusicArrayBuffer(arrayBuffer, label, playbackUrl) {
+        const audioContext = getMusicAudioContext();
+        const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+        musicAudioBuffer = decoded;
+        musicAnalysis = null;
+        musicTemplateActive = false;
+        musicActiveRow = -1;
+        musicAudio.src = playbackUrl;
+        musicAudio.currentTime = 0;
+        $btnMusicPlay.disabled = false;
+        setMusicStatus(
+          `Loaded ${label}: ${decoded.duration.toFixed(1)}s, ${decoded.sampleRate} Hz. Click Analyze, then Generate music template.`
+        );
+        tryRender({ fit: false, scrollMode: "bottom" });
+      }
+
+      async function loadMusicFromUrl(url) {
+        setMusicStatus(`Loading ${url}...`);
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Could not load ${url} (${response.status}).`);
+        const arrayBuffer = await response.arrayBuffer();
+        await decodeMusicArrayBuffer(arrayBuffer, url, url);
+      }
+
+      async function loadMusicFromFile(file) {
+        if (!file) return;
+        if (musicObjectUrl) URL.revokeObjectURL(musicObjectUrl);
+        musicObjectUrl = URL.createObjectURL(file);
+        const arrayBuffer = await file.arrayBuffer();
+        await decodeMusicArrayBuffer(arrayBuffer, file.name, musicObjectUrl);
+      }
+
+      function downmixAudioBuffer(buffer) {
+        const length = buffer.length;
+        const channels = buffer.numberOfChannels;
+        const mono = new Float32Array(length);
+        for (let ch = 0; ch < channels; ch++) {
+          const data = buffer.getChannelData(ch);
+          for (let i = 0; i < length; i++) mono[i] += data[i] / channels;
+        }
+        return mono;
+      }
+
+      function movingAverage(values, radius) {
+        const out = new Float32Array(values.length);
+        let sum = 0;
+        for (let i = 0; i < values.length; i++) {
+          sum += values[i];
+          const remove = i - radius * 2 - 1;
+          if (remove >= 0) sum -= values[remove];
+          const count = Math.min(i + 1, radius * 2 + 1);
+          out[i] = sum / Math.max(1, count);
+        }
+        return out;
+      }
+
+      function normalizeFloatArray(values) {
+        let max = 0;
+        for (let i = 0; i < values.length; i++) max = Math.max(max, Math.abs(values[i]));
+        if (max <= 0.000001) return values;
+        const out = new Float32Array(values.length);
+        for (let i = 0; i < values.length; i++) out[i] = values[i] / max;
+        return out;
+      }
+
+      function pickBeatPeaks(onset, hopSeconds) {
+        const smooth = movingAverage(onset, Math.max(2, Math.round(0.18 / hopSeconds)));
+        const localRadius = Math.max(2, Math.round(0.08 / hopSeconds));
+        const minSepFrames = Math.max(1, Math.round(0.22 / hopSeconds));
+        const peaks = [];
+        let lastPeak = -minSepFrames;
+
+        for (let i = localRadius; i < onset.length - localRadius; i++) {
+          const v = onset[i];
+          if (v < Math.max(0.08, smooth[i] * 1.55)) continue;
+          if (i - lastPeak < minSepFrames) continue;
+          let isLocalMax = true;
+          for (let j = i - localRadius; j <= i + localRadius; j++) {
+            if (onset[j] > v) {
+              isLocalMax = false;
+              break;
+            }
+          }
+          if (!isLocalMax) continue;
+          peaks.push({ time: i * hopSeconds, strength: clamp(v, 0, 1) });
+          lastPeak = i;
+        }
+        return peaks;
+      }
+
+      function estimateBpm(peaks) {
+        if (!peaks || peaks.length < 4) return 120;
+        const buckets = new Map();
+        for (let i = 0; i < peaks.length; i++) {
+          for (let j = i + 1; j < Math.min(peaks.length, i + 9); j++) {
+            const dt = peaks[j].time - peaks[i].time;
+            if (dt < 0.25 || dt > 1.25) continue;
+            let bpm = 60 / dt;
+            while (bpm < 75) bpm *= 2;
+            while (bpm > 170) bpm /= 2;
+            const bucket = Math.round(bpm / 2) * 2;
+            buckets.set(bucket, (buckets.get(bucket) || 0) + peaks[i].strength + peaks[j].strength);
+          }
+        }
+        let bestBpm = 120;
+        let bestScore = -1;
+        buckets.forEach((score, bpm) => {
+          if (score > bestScore) {
+            bestScore = score;
+            bestBpm = bpm;
+          }
+        });
+        return bestBpm;
+      }
+
+      function analyzeMusicBuffer(buffer) {
+        const mono = downmixAudioBuffer(buffer);
+        const sampleRate = buffer.sampleRate;
+        const frameSize = 2048;
+        const hopSize = 1024;
+        const frameCount = Math.max(1, Math.floor((mono.length - frameSize) / hopSize));
+        const hopSeconds = hopSize / sampleRate;
+        const energy = new Float32Array(frameCount);
+        const brightness = new Float32Array(frameCount);
+        const onsetRaw = new Float32Array(frameCount);
+
+        let prevEnergy = 0;
+        let prevBrightness = 0;
+        for (let frame = 0; frame < frameCount; frame++) {
+          const start = frame * hopSize;
+          let sumSq = 0;
+          let zeroCrossings = 0;
+          let prev = mono[start] || 0;
+          for (let i = 0; i < frameSize; i++) {
+            const s = mono[start + i] || 0;
+            sumSq += s * s;
+            if ((s >= 0 && prev < 0) || (s < 0 && prev >= 0)) zeroCrossings += 1;
+            prev = s;
+          }
+          const rms = Math.sqrt(sumSq / frameSize);
+          const zcr = zeroCrossings / frameSize;
+          energy[frame] = rms;
+          brightness[frame] = clamp(zcr * 12, 0, 1);
+          onsetRaw[frame] =
+            Math.max(0, rms - prevEnergy * 0.94) +
+            Math.max(0, brightness[frame] - prevBrightness) * 0.08;
+          prevEnergy = rms;
+          prevBrightness = brightness[frame];
+        }
+
+        const energyNorm = normalizeFloatArray(energy);
+        const onset = normalizeFloatArray(onsetRaw);
+        const peaks = pickBeatPeaks(onset, hopSeconds);
+        const bpm = estimateBpm(peaks);
+        return {
+          duration: buffer.duration,
+          sampleRate,
+          hopSeconds,
+          bpm,
+          peaks,
+          energy: energyNorm,
+          brightness,
+          onset,
+        };
+      }
+
+      function getFeatureAtTime(analysis, time) {
+        const index = clampInt(time / analysis.hopSeconds, 0, analysis.energy.length - 1);
+        const beatWindow = 0.105;
+        let beatStrength = 0;
+        let nearestBeatTime = null;
+        for (let i = 0; i < analysis.peaks.length; i++) {
+          const p = analysis.peaks[i];
+          const d = Math.abs(p.time - time);
+          if (d > beatWindow) continue;
+          const v = (1 - d / beatWindow) * p.strength;
+          if (v > beatStrength) {
+            beatStrength = v;
+            nearestBeatTime = p.time;
+          }
+        }
+        return {
+          energy: clamp(analysis.energy[index] || 0, 0, 1),
+          brightness: clamp(analysis.brightness[index] || 0, 0, 1),
+          onset: clamp(analysis.onset[index] || 0, 0, 1),
+          beatStrength: clamp(beatStrength, 0, 1),
+          nearestBeatTime,
+        };
       }
 
       function parseLevel(text) {
@@ -753,6 +1045,111 @@
         return rangesToGaps(ranges);
       }
 
+      function smoothstep(edge0, edge1, x) {
+        const t = clamp((x - edge0) / Math.max(0.00001, edge1 - edge0), 0, 1);
+        return t * t * (3 - 2 * t);
+      }
+
+      function blocksFromGaps(columns, gaps) {
+        const gapSet = new Set(gaps || []);
+        const blocks = [];
+        for (let c = 0; c < columns; c++) {
+          if (!gapSet.has(c)) blocks.push(c);
+        }
+        return blocks;
+      }
+
+      function rangeAroundCenter(center, width, columns) {
+        const safeWidth = clampInt(width, 2, Math.max(2, Math.min(6, columns - 2)));
+        let start = Math.round(center - (safeWidth - 1) / 2);
+        start = clampInt(start, 1, Math.max(1, columns - safeWidth - 1));
+        return { startCol: start, endCol: start + safeWidth - 1 };
+      }
+
+      function buildMusicJourneyLevel(analysis, seed) {
+        const columns = 15;
+        const { rowDuration, waterSpeed, rowHeight } = getMusicTimingConfig();
+        const rand = mulberry32((clampInt(Number(seed) || 1, 1, 2147483647) ^ 0x9e3779b9) >>> 0);
+        const rowCount = clampInt(Math.ceil(analysis.duration / rowDuration) + 4, 18, 520);
+        const centerStart = (columns - 1) / 2;
+        const rightGoal = columns - 3;
+        let currentCenter = centerStart;
+        let prevRanges = [];
+        const rows = [];
+
+        for (let r = 0; r < rowCount; r++) {
+          const time = r * rowDuration;
+          const progress = clamp(time / Math.max(0.001, analysis.duration), 0, 1);
+          const feature = getFeatureAtTime(analysis, time);
+          const beatsElapsed = time * analysis.bpm / 60;
+          const phraseIndex = Math.floor(beatsElapsed / 16);
+          const phraseDir = phraseIndex % 2 === 0 ? 1 : -1;
+
+          // The song gives intent, then continuity rules turn it into fair rows.
+          const rightwardJourney = centerStart + (rightGoal - centerStart) * smoothstep(0.12, 0.9, progress);
+          const musicalSwing =
+            Math.sin(progress * Math.PI * 7 + seed * 0.013) * (0.8 + feature.energy * 1.4) +
+            (feature.brightness - 0.42) * 3.2 +
+            phraseDir * feature.onset * 1.4 +
+            (rand() - 0.5) * feature.beatStrength * 2.2;
+          const desiredCenter = clamp(rightwardJourney + musicalSwing, 1.5, columns - 2.5);
+          const maxShift = 0.65 + feature.beatStrength * 0.75 + feature.energy * 0.35;
+          currentCenter += clamp(desiredCenter - currentCenter, -maxShift, maxShift);
+
+          const calmWidthBonus = (1 - feature.energy) * 1.35;
+          const beatNarrowing = feature.beatStrength * 1.45 + feature.onset * 0.65;
+          const width = clampInt(4.8 + calmWidthBonus - beatNarrowing, 2, 6);
+          let ranges = [rangeAroundCenter(currentCenter, width, columns)];
+
+          const canSplit =
+            feature.energy > 0.58 &&
+            feature.beatStrength > 0.34 &&
+            r > 8 &&
+            rand() < 0.32 + feature.onset * 0.22;
+          if (canSplit) {
+            const sideDir = feature.brightness > 0.46 ? 1 : -1;
+            const sideCenter = clamp(currentCenter + sideDir * (2.4 + rand() * 1.8), 1.5, columns - 2.5);
+            ranges = enforceRangeConstraints(
+              [...ranges, rangeAroundCenter(sideCenter, 2, columns)],
+              columns
+            );
+          }
+
+          if (prevRanges.length) {
+            ranges = ensureEachCurrOverlapsSomePrev(ranges, prevRanges, columns, 1);
+          }
+          ranges = ensureMinWidth(enforceRangeConstraints(ranges, columns), columns, 2);
+          const gaps = rangesToGaps(ranges);
+          prevRanges = ranges;
+
+          rows.push({
+            blocks: blocksFromGaps(columns, gaps),
+            gaps,
+            __music: {
+              time: Number(time.toFixed(3)),
+              energy: Number(feature.energy.toFixed(3)),
+              beat: Number(feature.beatStrength.toFixed(3)),
+              brightness: Number(feature.brightness.toFixed(3)),
+              onset: Number(feature.onset.toFixed(3)),
+            },
+          });
+        }
+
+        return {
+          columns,
+          rows,
+          meta: {
+            source: "music-template-preview",
+            bpm: Number(analysis.bpm.toFixed(1)),
+            duration: Number(analysis.duration.toFixed(3)),
+            waterSpeed,
+            rowHeight,
+            rowDuration: Number(rowDuration.toFixed(4)),
+            note: "Rows are generated from local energy/onset/brightness, then clamped for row-to-row gap continuity.",
+          },
+        };
+      }
+
       function buildHybridPreviewLevel(level, seed) {
         const normalized = normalizeLevelForEditing(level);
         const columns = normalized.columns;
@@ -784,16 +1181,37 @@
         return { columns, rows: nextRows };
       }
 
-      function resizeCanvasToCssPixels() {
+      function resizeCanvasToCssPixels(cssWidth, cssHeight) {
         const dpr = window.devicePixelRatio || 1;
-        const rect = $canvas.getBoundingClientRect();
-        const w = Math.max(1, Math.floor(rect.width * dpr));
-        const h = Math.max(1, Math.floor(rect.height * dpr));
+        const width = Math.max(1, Math.ceil(cssWidth));
+        const height = Math.max(1, Math.ceil(cssHeight));
+        $canvas.style.width = `${width}px`;
+        $canvas.style.height = `${height}px`;
+        const w = Math.max(1, Math.floor(width * dpr));
+        const h = Math.max(1, Math.floor(height * dpr));
         if ($canvas.width !== w || $canvas.height !== h) {
           $canvas.width = w;
           $canvas.height = h;
         }
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      function scrollCanvasToBottom() {
+        $canvasWrap.scrollTop = Math.max(0, $canvasWrap.scrollHeight - $canvasWrap.clientHeight);
+      }
+
+      function scrollCanvasToRow(rowIndex, behavior = "auto") {
+        if (!lastView || rowIndex < 0 || rowIndex >= lastView.rowCount) return;
+        const { startY, cell, gap, rowCount } = lastView;
+        const rowFromTop = rowCount - 1 - rowIndex;
+        const rowTop = startY + rowFromTop * (cell + gap);
+        const rowMid = rowTop + cell / 2;
+        const targetTop = clamp(
+          rowMid - $canvasWrap.clientHeight * 0.55,
+          0,
+          Math.max(0, $canvasWrap.scrollHeight - $canvasWrap.clientHeight)
+        );
+        $canvasWrap.scrollTo({ top: targetTop, behavior });
       }
 
       function render(level, opts) {
@@ -814,32 +1232,34 @@
         const showHybridGaps = Boolean(opts.showHybridGaps);
         const showHybridConflicts = Boolean(opts.showHybridConflicts);
         const animTime = opts.animTime != null ? opts.animTime : performance.now();
+        const activeRow = Number.isFinite(opts.activeRow) ? opts.activeRow : -1;
 
         const gridW = columns * cell + (columns - 1) * gap;
         const gridH = rowCount * cell + (rowCount - 1) * gap;
+        const viewportW = Math.max(1, $canvasWrap.clientWidth);
+        const viewportH = Math.max(1, $canvasWrap.clientHeight);
+        const contentW = Math.max(viewportW, gridW + pad * 2 + axisPadLeft);
+        const contentH = Math.max(viewportH, gridH + pad * 2 + axisPadTop);
+        const previousContentKey = lastCanvasContentKey;
+        const contentKey = `${columns}:${rowCount}:${cell}:${gap}:${contentW}:${contentH}`;
 
-        resizeCanvasToCssPixels();
-        const cssW = $canvas.getBoundingClientRect().width;
-        const cssH = $canvas.getBoundingClientRect().height;
+        // Keep block pixels constant. The scroll container handles tall templates.
+        const scale = 1;
 
-        const maxW = Math.max(1, cssW - (pad * 2 + axisPadLeft));
-        const maxH = Math.max(1, cssH - (pad * 2 + axisPadTop));
-
-        // Optional fit scaling (keeps blocks square).
-        let scale = 1;
-        if (opts.fit) {
-          scale = Math.min(maxW / gridW, maxH / gridH, 1);
-        }
+        resizeCanvasToCssPixels(contentW, contentH);
+        const cssW = contentW;
+        const cssH = contentH;
 
         // Clear with purple background.
         ctx.clearRect(0, 0, cssW, cssH);
         ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--canvas-bg").trim();
         ctx.fillRect(0, 0, cssW, cssH);
 
-        const startX = Math.floor((cssW - axisPadLeft - gridW * scale) / 2) + axisPadLeft;
-        const startY = Math.floor((cssH - axisPadTop - gridH * scale) / 2) + axisPadTop;
+        const startX = Math.floor((cssW - axisPadLeft - gridW) / 2) + axisPadLeft;
+        const startY = cssH - pad - gridH;
 
         lastView = { startX, startY, scale, cell, gap, pad, columns, rowCount, axisPadLeft, axisPadTop };
+        lastCanvasContentKey = contentKey;
 
         // Axis labels
         ctx.save();
@@ -875,6 +1295,31 @@
           }
         }
         ctx.restore();
+
+        if (activeRow >= 0 && activeRow < rowCount) {
+          const rr = rowCount - 1 - activeRow;
+          const y = rr * (cell + gap);
+          const rowDef = rows[activeRow] || {};
+          const beat = clamp(Number(rowDef.__music?.beat ?? 0), 0, 1);
+          ctx.save();
+          ctx.translate(startX, startY);
+          ctx.scale(scale, scale);
+          ctx.fillStyle = `rgba(255, 255, 255, ${0.09 + beat * 0.08})`;
+          ctx.fillRect(-4, y - 4, gridW + 8, cell + 8);
+          ctx.strokeStyle = `rgba(255, 244, 156, ${0.74 + beat * 0.24})`;
+          ctx.lineWidth = 2.5;
+          ctx.strokeRect(-4, y - 4, gridW + 8, cell + 8);
+          ctx.fillStyle = "rgba(255,244,156,0.95)";
+          ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+          ctx.textAlign = "left";
+          ctx.textBaseline = "bottom";
+          ctx.fillText(
+            `now row ${activeRow}${rowDef.__music ? `  beat ${rowDef.__music.beat}` : ""}`,
+            0,
+            Math.max(12, y - 7)
+          );
+          ctx.restore();
+        }
 
         // Draw blocks (orange).
         const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
@@ -936,13 +1381,21 @@
         }
         ctx.restore();
 
-        $stats.textContent = `columns=${columns}, rows=${rowCount}, blocks=${totalBlocks}`;
+        const activeText =
+          activeRow >= 0 && activeRow < rowCount ? `, activeRow=${activeRow}` : "";
+        $stats.textContent = `columns=${columns}, rows=${rowCount}, blocks=${totalBlocks}${activeText}`;
+
+        if (opts.scrollMode === "active" && activeRow >= 0) {
+          scrollCanvasToRow(activeRow, opts.scrollBehavior || "auto");
+        } else if (opts.scrollMode === "bottom" || previousContentKey !== contentKey) {
+          scrollCanvasToBottom();
+        }
       }
 
       function drawEmpty(message) {
-        resizeCanvasToCssPixels();
-        const cssW = $canvas.getBoundingClientRect().width;
-        const cssH = $canvas.getBoundingClientRect().height;
+        const cssW = Math.max(1, $canvasWrap.clientWidth);
+        const cssH = Math.max(1, $canvasWrap.clientHeight);
+        resizeCanvasToCssPixels(cssW, cssH);
         ctx.clearRect(0, 0, cssW, cssH);
         ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--canvas-bg").trim();
         ctx.fillRect(0, 0, cssW, cssH);
@@ -967,6 +1420,10 @@
         const fit = options.fit;
         const animTime = options.animTime;
         const skipAnimScheduling = Boolean(options.skipAnimScheduling);
+        const suppressStatus = Boolean(options.suppressStatus);
+        const scrollMode =
+          options.scrollMode ||
+          (skipAnimScheduling || suppressStatus ? "preserve" : "bottom");
         if (typeof fit === "boolean") lastRenderFit = fit;
         try {
           const levelRaw = parseLevel($input.value);
@@ -983,8 +1440,13 @@
           opts.showHybridGaps = isHybrid && Boolean($showHybridGaps.checked);
           opts.showHybridConflicts = isHybrid && Boolean($showHybridConflicts.checked);
           opts.animTime = animTime != null ? animTime : performance.now();
+          opts.activeRow = musicActiveRow;
+          opts.scrollMode = scrollMode;
+          opts.scrollBehavior = options.scrollBehavior;
           render(level, opts);
-          setStatusOk(isHybrid ? `Rendered (hybrid gaps, seed=${seed}).` : "Rendered.");
+          if (!suppressStatus) {
+            setStatusOk(isHybrid ? `Rendered (hybrid gaps, seed=${seed}).` : "Rendered.");
+          }
         } catch (e) {
           drawEmpty("Invalid JSON.");
           setStatusError(String(e?.message || e));
@@ -1008,22 +1470,166 @@
         }
       }
 
+      async function ensureMusicAnalysis() {
+        if (!musicAudioBuffer) {
+          try {
+            await loadMusicFromUrl(MUSIC_ASSET_URL);
+          } catch (e) {
+            throw new Error(
+              `Could not auto-load ${MUSIC_ASSET_URL}. If you opened this HTML directly and the browser blocks local fetch, choose the .ogg with the file picker. ${e?.message || e}`
+            );
+          }
+        }
+        if (!musicAnalysis) {
+          setMusicStatus("Analyzing audio features...");
+          musicAnalysis = analyzeMusicBuffer(musicAudioBuffer);
+          setMusicStatus(
+            `Analyzed: ${musicAnalysis.duration.toFixed(1)}s, estimated ${musicAnalysis.bpm.toFixed(
+              0
+            )} BPM, ${musicAnalysis.peaks.length} beat/onset peaks.`
+          );
+        }
+        return musicAnalysis;
+      }
+
+      async function analyzeMusic() {
+        try {
+          await ensureMusicAnalysis();
+        } catch (e) {
+          setMusicStatus(String(e?.message || e), true);
+        }
+      }
+
+      async function generateMusicTemplate() {
+        try {
+          const analysis = await ensureMusicAnalysis();
+          const seed = clampInt(Number($seed.value) || 1, 1, 2147483647);
+          const level = buildMusicJourneyLevel(analysis, seed);
+          $hybridMode.checked = false;
+          musicTemplateActive = true;
+          musicActiveRow = -1;
+          $input.value = JSON.stringify(level, null, 2);
+          tryRender({ fit: false, scrollMode: "bottom" });
+          const timing = getMusicTimingConfig();
+          setMusicStatus(
+            `Generated ${level.rows.length} rows from music. Row timing: ${timing.rowDuration.toFixed(
+              3
+            )}s (${timing.rowHeight}px / ${timing.waterSpeed}px/s). Press Play to watch the journey.`
+          );
+        } catch (e) {
+          setMusicStatus(String(e?.message || e), true);
+        }
+      }
+
+      function stopMusicPlayback(resetButton = true) {
+        if (musicRaf) {
+          cancelAnimationFrame(musicRaf);
+          musicRaf = null;
+        }
+        if (!musicAudio.paused) musicAudio.pause();
+        if (resetButton) $btnMusicPlay.textContent = "Play";
+      }
+
+      function updateMusicPlayhead() {
+        const timing = getMusicTimingConfig();
+        const nextRow = Math.floor(musicAudio.currentTime / timing.rowDuration);
+        if (nextRow !== musicActiveRow) {
+          musicActiveRow = nextRow;
+          tryRender({
+            fit: false,
+            animTime: performance.now(),
+            skipAnimScheduling: true,
+            suppressStatus: true,
+            scrollMode: "active",
+            scrollBehavior: "smooth",
+          });
+        }
+        if (musicAudio.ended || musicAudio.paused) {
+          stopMusicPlayback();
+          return;
+        }
+        musicRaf = requestAnimationFrame(updateMusicPlayhead);
+      }
+
+      async function toggleMusicPlayback() {
+        if (!musicAudio.src) {
+          await analyzeMusic();
+        }
+        if (!musicTemplateActive) {
+          await generateMusicTemplate();
+        }
+        if (!musicAudio.src) return;
+
+        if (!musicAudio.paused) {
+          stopMusicPlayback();
+          setMusicStatus(`Paused at ${musicAudio.currentTime.toFixed(2)}s, row ${musicActiveRow}.`);
+          return;
+        }
+
+        if (musicAudio.ended) musicAudio.currentTime = 0;
+        try {
+          await musicAudio.play();
+          $btnMusicPlay.textContent = "Pause";
+          setMusicStatus("Playing music template. Highlight follows water speed / row height.");
+          updateMusicPlayhead();
+        } catch (e) {
+          setMusicStatus(String(e?.message || e), true);
+        }
+      }
+
       // Wiring
       document.getElementById("btnSmily").addEventListener("click", () => {
+        stopMusicPlayback();
+        musicTemplateActive = false;
+        musicActiveRow = -1;
         $input.value = JSON.stringify(smilyObj, null, 2);
-        tryRender({ fit: true });
+        tryRender({ fit: false, scrollMode: "bottom" });
       });
       document.getElementById("btnFormat").addEventListener("click", formatInput);
-      document.getElementById("btnRender").addEventListener("click", () => tryRender({ fit: false }));
-      document.getElementById("btnFit").addEventListener("click", () => tryRender({ fit: true }));
-      $hybridMode.addEventListener("change", () => tryRender({ fit: true }));
-      $showHybridGaps.addEventListener("change", () => tryRender({ fit: true }));
-      $showHybridConflicts.addEventListener("change", () => tryRender({ fit: true }));
-      $seed.addEventListener("change", () => tryRender({ fit: true }));
+      document.getElementById("btnRender").addEventListener("click", () => tryRender({ fit: false, scrollMode: "bottom" }));
+      document.getElementById("btnFit").addEventListener("click", () => tryRender({ fit: false, scrollMode: "bottom" }));
+      $hybridMode.addEventListener("change", () => tryRender({ fit: false, scrollMode: "bottom" }));
+      $showHybridGaps.addEventListener("change", () => tryRender({ fit: false, scrollMode: "preserve" }));
+      $showHybridConflicts.addEventListener("change", () => tryRender({ fit: false, scrollMode: "preserve" }));
+      $seed.addEventListener("change", () => tryRender({ fit: false, scrollMode: "bottom" }));
+      $btnLoadDefaultMusic.addEventListener("click", async () => {
+        try {
+          stopMusicPlayback();
+          await loadMusicFromUrl(MUSIC_ASSET_URL);
+        } catch (e) {
+          setMusicStatus(
+            `Could not load default asset. If this page is opened as file://, choose assets/empacotatron_full_0.ogg manually. ${e?.message || e}`,
+            true
+          );
+        }
+      });
+      $musicFile.addEventListener("change", async () => {
+        try {
+          stopMusicPlayback();
+          await loadMusicFromFile($musicFile.files?.[0]);
+        } catch (e) {
+          setMusicStatus(String(e?.message || e), true);
+        }
+      });
+      $btnAnalyzeMusic.addEventListener("click", analyzeMusic);
+      $btnGenerateMusicTemplate.addEventListener("click", generateMusicTemplate);
+      $btnMusicPlay.addEventListener("click", toggleMusicPlayback);
+      $musicWaterSpeed.addEventListener("change", () => {
+        getMusicTimingConfig();
+        if (musicAnalysis) generateMusicTemplate();
+      });
+      $musicRowHeight.addEventListener("change", () => {
+        getMusicTimingConfig();
+        if (musicAnalysis) generateMusicTemplate();
+      });
       $btnReroll.addEventListener("click", () => {
         const next = clampInt(Math.floor(Math.random() * 2147483647) + 1, 1, 2147483647);
         $seed.value = String(next);
-        tryRender({ fit: true });
+        if (musicAnalysis && musicTemplateActive) {
+          generateMusicTemplate();
+          return;
+        }
+        tryRender({ fit: false, scrollMode: "bottom" });
       });
 
       function updateEditButton() {
@@ -1087,27 +1693,34 @@
 
           const next = { ...parsed, columns: normalized.columns, rows: normalized.rows };
           $input.value = JSON.stringify(next, null, 2);
-          tryRender({ fit: true });
+          tryRender({ fit: false, scrollMode: "preserve" });
           setStatusOk(`Toggled row=${jsonRow}, col=${col} → ${hasBlock ? "gap" : "block"}.`);
         } catch (e) {
           setStatusError(String(e?.message || e));
         }
       });
 
-      $cellSize.addEventListener("change", () => tryRender({ fit: true }));
+      $cellSize.addEventListener("change", () => tryRender({ fit: false, scrollMode: "bottom" }));
       $input.addEventListener("input", () => {
+        musicTemplateActive = false;
+        musicActiveRow = -1;
         // light debounce
         window.clearTimeout(window.__rntgePreviewT);
-        window.__rntgePreviewT = window.setTimeout(() => tryRender({ fit: true }), 180);
+        window.__rntgePreviewT = window.setTimeout(() => tryRender({ fit: false, scrollMode: "bottom" }), 180);
       });
 
-      const ro = new ResizeObserver(() => tryRender({ fit: true }));
+      const ro = new ResizeObserver(() => tryRender({ fit: false, scrollMode: "preserve" }));
       ro.observe(document.body);
+
+      musicAudio.addEventListener("ended", () => {
+        stopMusicPlayback();
+        setMusicStatus("Playback ended. Press Play to replay the generated journey.");
+      });
 
       // Initial state
       updateEditButton();
       $input.value = JSON.stringify(smilyObj, null, 2);
-      tryRender({ fit: true });
+      tryRender({ fit: false, scrollMode: "bottom" });
     </script>
   </body>
 </html>
