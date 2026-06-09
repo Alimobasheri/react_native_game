@@ -21,9 +21,7 @@ import {
   ObstacleTypes,
 } from '@/Game/ecs-components/ObstacleComponent';
 import {
-  getGridPosition,
   getObstacleWidth,
-  getRows,
   LAYOUT_CONSTANTS,
 } from '@/Layout';
 import { MatterBodyComponentData, MatterBodyComponentName } from '@/containers/ReactNativeSkiaGameEngine/internal/components/matterBody';
@@ -45,14 +43,62 @@ import { createObstacleRowComponent, ObstacleRowComponentData, ObstacleRowCompon
 import { Entity } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/entity';
 import { ECS } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/ecs';
 import { TextHeightBehavior } from '@shopify/react-native-skia';
-import { RowPathTemplate, TemplateCtx, TemplateInitArgs } from '@/Game/ecs-systems/obstacleSystem';
+import { RowPathTemplate, TemplateCtx, TemplateInitArgs, type GetRowArgs } from '@/Game/ecs-systems/obstacleSystem';
 import {
   getOrCreateTemplateContextEntity,
   TemplateContextComponentData,
   TemplateContextComponentName,
 } from '@/Game/ecs-components/TemplateContextComponent';
-import { groupGapsToRanges, GapRangeCol } from '@/Game/water/gapRanges';
 import { createJsonLevelRowPathTemplate } from '@/Game/templates/obstacles/jsonLevelRowPathTemplate';
+import { mixU32, intMod, mixPathRowStreamSalt } from '@/Game/path/deterministicMix';
+import {
+  generateGapsDeterministic,
+  generateMultiPathGapsDeterministic,
+  templateRowCountDeterministic,
+} from '@/Game/path/proceduralGaps';
+import {
+  gapsFromRow,
+  rowFromGaps,
+  unionMinimalSeam,
+  finalizeGapsForObstacleRow,
+} from '@/Game/path/swimmerGrid';
+import {
+  pacingPhaseAtTotalRows,
+  pacingPhaseToMacroPhase,
+} from '@/Game/path/pacingDirector';
+import {
+  RELEASE_REST_ZONE_ROWS,
+  releaseCatharticRestZoneGaps,
+} from '@/Game/path/releaseGenerators';
+import type { MacroPhase } from '@/Game/path/macroPacing';
+import {
+  CHICANE_DEFAULT_BLOCK_N,
+  FLOW_CHUTE_ROWS_BEFORE_CHICANE,
+  type ChicaneState,
+  createChicaneStateFromEntryCenter,
+  extractTripleGapCenter,
+  flowChicaneNextRow,
+  flowChuteNextRow,
+} from '@/Game/path/flowGenerators';
+import {
+  TENSION_FUNNEL_DURATION_ROWS,
+  tensionFunnelRow,
+  tensionGapCenterFromPrevGaps,
+  tensionParadoxSplitRow,
+} from '@/Game/path/tensionGenerators';
+import {
+  CLIMAX_FALSE_WALL_ROWS,
+  CLIMAX_PINBALL_SEGMENT_ROWS,
+  climaxFalseWallRow,
+  climaxPinballInitialAnchor,
+  climaxPinballStep,
+  type ClimaxPinballState,
+} from '@/Game/path/climaxGenerators';
+import {
+  buildSpawnDiagSnapshot,
+  maybeLogObstacleRowGeneration,
+  maybeLogPlayerActiveObstacleRowTemplate,
+} from '@/Game/path/obstacleRowGenDiag';
 import { smilyLevelJson } from '@/Game/templates/obstacles/smily';
 import { jellyfishLevelJson } from '@/Game/templates/obstacles/jellyfish';
 import { mickyLevelJson } from '@/Game/templates/obstacles/micky';
@@ -62,11 +108,26 @@ import { megamanLevelJson } from '@/Game/templates/obstacles/megaman';
 
 const OBSTACLE_BLOCK_IMAGES = ['block2', 'block3'] as const;
 
-function getRandomBlockImage(): string {
+function rowSpawnDiagFromParams(
+  ctx: TemplateCtx,
+  params: GetRowArgs
+): Pick<ObstacleRowComponentData, 'spawnDiagTemplateName' | 'spawnDiagBranchKey'> | Record<string, never> {
   'worklet';
-  return OBSTACLE_BLOCK_IMAGES[
-    Math.floor(Math.random() * OBSTACLE_BLOCK_IMAGES.length)
-  ];
+  const name = params.spawnDiagTemplateName;
+  if (!name) {
+    return {};
+  }
+  const macro = params.pacingMacroPhase ?? 'flow';
+  return buildSpawnDiagSnapshot(name, macro, ctx as Record<string, unknown>, params.rowIndex);
+}
+
+function pickBlockImageStable(x: number, y: number): string {
+  'worklet';
+  const idx = intMod(
+    mixU32(Math.round(x * 1000), Math.round(y * 1000), 713),
+    OBSTACLE_BLOCK_IMAGES.length
+  );
+  return OBSTACLE_BLOCK_IMAGES[idx];
 }
 
 const COLLISION = {
@@ -107,7 +168,7 @@ function spawnObstacleEntity(args: {
       width,
       height,
     },
-    image: getRandomBlockImage(),
+    image: pickBlockImageStable(x, y),
     visible: true,
     // Render obstacles behind water and swimmer but above background/container interior
     zIndex: 2,
@@ -151,331 +212,59 @@ function spawnObstacleEntity(args: {
   return entity
 }
 
-const generateGaps = (prevGaps: number[], rowLength: number): number[] => {
-  'worklet'
-  if (prevGaps.length === 0) {
-    return [Math.floor(rowLength / 2)]
-  } else {
-    let nextGaps: number[] = []
-    const newDir = Math.random() > 0.5 ? 'left' : 'right'
-    if (newDir === 'left') {
-      let leftMostGap = Math.min(...prevGaps)
-      if (leftMostGap > 0) nextGaps.push(leftMostGap - 1)
-      nextGaps.push(leftMostGap)
-      if (leftMostGap < rowLength - 1) nextGaps.push(leftMostGap + 1)
-    } else {
-      let rightMostGap = Math.max(...prevGaps)
-      if (rightMostGap < rowLength - 1) nextGaps.push(rightMostGap + 1)
-      nextGaps.push(rightMostGap)
-      if (rightMostGap > 0) nextGaps.push(rightMostGap - 1)
+const bumpTotalRowsGenerated = (ecs: ECS, managerEntity: Entity) => {
+  'worklet';
+  ecs.updateComponent<ObstaclesManagerComponentData>(
+    managerEntity,
+    ObstaclesManagerComponentName,
+    (m) => {
+      m.totalRowsGenerated = (m.totalRowsGenerated ?? 0) + 1;
     }
-    return nextGaps
-  }
-}
-
-const clampInt = (v: number, min: number, max: number) => {
-  'worklet';
-  return Math.max(min, Math.min(max, Math.round(v)));
+  );
 };
 
-const rangeWidthCols = (r: GapRangeCol) => {
-  'worklet';
-  return Math.max(1, r.endCol - r.startCol + 1);
-};
+/** Must match `pacingDirector` cycle length (FLOW+TENSION+CLIMAX+RELEASE). */
+const PACING_MACRO_CYCLE_ROW_COUNT = 55;
 
-const rangeCenterCols = (r: GapRangeCol) => {
-  'worklet';
-  return (r.startCol + r.endCol) * 0.5;
-};
-
-const enforceRangeConstraints = (ranges: GapRangeCol[], rowLength: number) => {
-  'worklet';
-  if (rowLength <= 0) return [];
-  // Normalize: clamp, ensure start<=end, sort by start.
-  let normalized = ranges
-    .map((r) => {
-      const a = clampInt(r.startCol, 0, rowLength - 1);
-      const b = clampInt(r.endCol, 0, rowLength - 1);
-      return a <= b ? { startCol: a, endCol: b } : { startCol: b, endCol: a };
-    })
-    .sort((x, y) => x.startCol - y.startCol);
-
-  // Merge overlaps and enforce at least 1 blocked column between ranges.
-  const merged: GapRangeCol[] = [];
-  for (let i = 0; i < normalized.length; i++) {
-    const r = normalized[i];
-    const last = merged[merged.length - 1];
-    if (!last) {
-      merged.push(r);
-      continue;
-    }
-    // If overlapping or touching (no blocked column), merge them.
-    if (r.startCol <= last.endCol + 1) {
-      last.endCol = Math.max(last.endCol, r.endCol);
-    } else {
-      merged.push(r);
-    }
-  }
-
-  // Clamp widths to at least 1.
-  for (let i = 0; i < merged.length; i++) {
-    merged[i].startCol = clampInt(merged[i].startCol, 0, rowLength - 1);
-    merged[i].endCol = clampInt(Math.max(merged[i].endCol, merged[i].startCol), 0, rowLength - 1);
-  }
-
-  return merged;
-};
-
-const splitRange = (r: GapRangeCol, rowLength: number, minWidth: number): GapRangeCol[] => {
-  'worklet';
-  const w = rangeWidthCols(r);
-  // Need enough width for: minWidth + 1 blocked + minWidth
-  if (w < minWidth * 2 + 1) return [r];
-  const center = Math.round(rangeCenterCols(r));
-  // Split around center, leaving exactly 1 blocked column between children.
-  const leftEnd = clampInt(center - 1, r.startCol + minWidth - 1, r.endCol - (minWidth + 1));
-  const rightStart = clampInt(leftEnd + 2, r.startCol + minWidth + 1, r.endCol - (minWidth - 1));
-  const left = { startCol: r.startCol, endCol: leftEnd };
-  const right = { startCol: rightStart, endCol: r.endCol };
-  if (rangeWidthCols(left) < minWidth || rangeWidthCols(right) < minWidth) return [r];
-  if (right.startCol <= left.endCol + 1) return [r];
-  return enforceRangeConstraints([left, right], rowLength);
-};
-
-const maybeMutateRanges = (ranges: GapRangeCol[], rowLength: number) => {
-  'worklet';
-  // Small drift per range: shift center by at most 1 col, widen/narrow by at most 1 col.
-  const mutated = ranges.map((r) => {
-    const shift = Math.random() < 0.5 ? -1 : 1;
-    const doShift = Math.random() < 0.55;
-    const doResize = Math.random() < 0.45;
-    let start = r.startCol;
-    let end = r.endCol;
-    if (doShift) {
-      start += shift;
-      end += shift;
-    }
-    if (doResize) {
-      const widen = Math.random() < 0.5 ? -1 : 1;
-      // widen=-1 => widen (start--, end++), widen=1 => narrow (start++, end--)
-      if (widen < 0) {
-        start -= 1;
-        end += 1;
-      } else if (rangeWidthCols(r) > 1) {
-        start += 1;
-        end -= 1;
-      }
-    }
-    return { startCol: start, endCol: end };
-  });
-  return enforceRangeConstraints(mutated, rowLength);
-};
-
-const overlapCols = (a: GapRangeCol, b: GapRangeCol) => {
-  'worklet';
-  return Math.max(0, Math.min(a.endCol, b.endCol) - Math.max(a.startCol, b.startCol) + 1);
-};
-
-const ensureMinWidth = (ranges: GapRangeCol[], rowLength: number, minWidth: number) => {
-  'worklet';
-  if (!ranges.length) return ranges;
-  const expanded = ranges.map((r) => {
-    const w = rangeWidthCols(r);
-    if (w >= minWidth) return r;
-    const start = clampInt(r.startCol, 0, rowLength - 1);
-    const end = clampInt(Math.min(rowLength - 1, start + minWidth - 1), 0, rowLength - 1);
-    return { startCol: start, endCol: end };
-  });
-  return enforceRangeConstraints(expanded, rowLength);
-};
-
-const ensureEachCurrOverlapsSomePrev = (
-  curr: GapRangeCol[],
-  prev: GapRangeCol[],
-  rowLength: number,
-  minOverlapCols: number
+/**
+ * After each full macro cycle, bump `pathRunId` so multipath / proc rows don't repeat the same
+ * deterministic stream forever while template ctx (chute, funnel, …) stays on one run.
+ */
+const bumpPathRunIdAfterCompletedMacroCycle = (
+  ecs: ECS,
+  components: Record<string, any>,
+  managerEntity: Entity,
+  templateCtxEntity: Entity
 ) => {
   'worklet';
-  if (!curr.length || !prev.length) return curr;
-  const fixed = curr.map((r) => ({ ...r }));
-
-  for (let i = 0; i < fixed.length; i++) {
-    const r = fixed[i];
-    let bestPrev = prev[0];
-    let bestDist = Number.POSITIVE_INFINITY;
-    const c = rangeCenterCols(r);
-    for (let j = 0; j < prev.length; j++) {
-      const d = Math.abs(c - rangeCenterCols(prev[j]));
-      if (d < bestDist) {
-        bestDist = d;
-        bestPrev = prev[j];
-      }
-    }
-    const ov = overlapCols(r, bestPrev);
-    if (ov >= minOverlapCols) continue;
-
-    // Force overlap by shifting toward bestPrev.
-    let shift = 0;
-    if (r.endCol < bestPrev.startCol) {
-      shift = (bestPrev.startCol + (minOverlapCols - 1)) - r.endCol;
-    } else if (r.startCol > bestPrev.endCol) {
-      shift = (bestPrev.endCol - (minOverlapCols - 1)) - r.startCol;
-    } else {
-      shift = clampInt(Math.round(rangeCenterCols(bestPrev) - rangeCenterCols(r)), -1, 1);
-    }
-    if (shift !== 0) {
-      r.startCol = clampInt(r.startCol + shift, 0, rowLength - 1);
-      r.endCol = clampInt(r.endCol + shift, 0, rowLength - 1);
-      if (r.endCol < r.startCol) r.endCol = r.startCol;
-    }
+  const mgr = components[ObstaclesManagerComponentName]?.get(managerEntity) as
+    | ObstaclesManagerComponentData
+    | undefined;
+  const tr = mgr?.totalRowsGenerated ?? 0;
+  if (tr < PACING_MACRO_CYCLE_ROW_COUNT || tr % PACING_MACRO_CYCLE_ROW_COUNT !== 0) {
+    return;
   }
-
-  return enforceRangeConstraints(fixed, rowLength);
+  ecs.updateComponent<TemplateContextComponentData>(
+    templateCtxEntity,
+    TemplateContextComponentName,
+    (data) => {
+      const c = data.ctx as Record<string, unknown>;
+      const cur = (c.pathRunId as number) ?? 0;
+      c.pathRunId = cur + 1;
+    }
+  );
 };
 
-const ensureContinuityWithPrev = (
-  next: GapRangeCol[],
-  prev: GapRangeCol[],
-  rowLength: number,
-  minOverlapCols: number
-) => {
+const readPacingMacroPhase = (
+  components: Record<string, any>,
+  managerEntity: Entity
+): MacroPhase => {
   'worklet';
-  if (!prev.length || !next.length) return next;
-  const fixed = next.map((r) => ({ ...r }));
-
-  for (let i = 0; i < fixed.length; i++) {
-    const r = fixed[i];
-    // Find closest prev by center.
-    let bestJ = 0;
-    let bestDist = Number.POSITIVE_INFINITY;
-    const c = rangeCenterCols(r);
-    for (let j = 0; j < prev.length; j++) {
-      const d = Math.abs(c - rangeCenterCols(prev[j]));
-      if (d < bestDist) {
-        bestDist = d;
-        bestJ = j;
-      }
-    }
-    const p = prev[bestJ];
-    const ov = overlapCols(r, p);
-    if (ov >= minOverlapCols) continue;
-
-    // Shift r toward p so they overlap by at least minOverlapCols.
-    // If r is completely left of p -> shift right; if right -> shift left.
-    let shift = 0;
-    if (r.endCol < p.startCol) {
-      shift = (p.startCol + (minOverlapCols - 1)) - r.endCol;
-    } else if (r.startCol > p.endCol) {
-      shift = (p.endCol - (minOverlapCols - 1)) - r.startCol;
-    } else {
-      // Partial overlap but too small: nudge toward p center.
-      shift = Math.round(rangeCenterCols(p) - rangeCenterCols(r));
-      shift = clampInt(shift, -1, 1);
-    }
-    if (shift !== 0) {
-      r.startCol = clampInt(r.startCol + shift, 0, rowLength - 1);
-      r.endCol = clampInt(r.endCol + shift, 0, rowLength - 1);
-      if (r.endCol < r.startCol) r.endCol = r.startCol;
-    }
-  }
-
-  return enforceRangeConstraints(fixed, rowLength);
-};
-
-const rangesToGaps = (ranges: GapRangeCol[]) => {
-  'worklet';
-  const gaps: number[] = [];
-  for (let i = 0; i < ranges.length; i++) {
-    for (let c = ranges[i].startCol; c <= ranges[i].endCol; c++) {
-      gaps.push(c);
-    }
-  }
-  return gaps;
-};
-
-const generateMultiPathGaps = (prevGaps: number[], rowLength: number): number[] => {
-  'worklet';
-  const MAX_PATHS = 4;
-  const MIN_W = 2;
-  const MAX_W = Math.max(MIN_W, Math.min(6, Math.floor(rowLength * 0.6)));
-  const MIN_OVERLAP = 1; // at least one shared column across consecutive rows
-
-  let prevRanges = groupGapsToRanges(prevGaps, rowLength);
-  if (prevRanges.length === 0) {
-    // Seed with 1–2 central-ish ranges.
-    const center = Math.floor(rowLength / 2);
-    const width = Math.random() < 0.6 ? 3 : 2;
-    const startA = clampInt(center - Math.floor(width / 2), 0, rowLength - 1);
-    const a: GapRangeCol = {
-      startCol: startA,
-      endCol: Math.min(rowLength - 1, startA + width - 1),
-    };
-    const twoPaths = rowLength >= 8 && Math.random() < 0.35;
-    if (twoPaths) {
-      const offset = Math.max(2, Math.floor(rowLength / 4));
-      const bCenter = clampInt(center + (Math.random() < 0.5 ? -offset : offset), 0, rowLength - 1);
-      const bStart = clampInt(bCenter - 1, 0, rowLength - 1);
-      const b: GapRangeCol = { startCol: bStart, endCol: Math.min(rowLength - 1, bStart + 1) };
-      prevRanges = enforceRangeConstraints([a, b], rowLength);
-    } else {
-      prevRanges = enforceRangeConstraints([a], rowLength);
-    }
-  }
-
-  // Always start from previous ranges so every path has a "parent" and remains passable.
-  let ranges = ensureMinWidth(prevRanges, rowLength, MIN_W);
-  ranges = maybeMutateRanges(ranges, rowLength);
-  ranges = ensureMinWidth(ranges, rowLength, MIN_W);
-  // Critical: each current range must overlap some prev range (prevents dead-end rows).
-  ranges = ensureEachCurrOverlapsSomePrev(ranges, prevRanges, rowLength, MIN_OVERLAP);
-
-  // Occasionally split a wide range (adds a path).
-  if (ranges.length < MAX_PATHS && Math.random() < 0.25) {
-    // Pick widest range.
-    let widestIdx = 0;
-    let widest = 0;
-    for (let i = 0; i < ranges.length; i++) {
-      const w = rangeWidthCols(ranges[i]);
-      if (w > widest) {
-        widest = w;
-        widestIdx = i;
-      }
-    }
-    if (widest >= MIN_W * 2 + 1) {
-      const children = splitRange(ranges[widestIdx], rowLength, MIN_W);
-      if (children.length > 1) {
-        const next = [...ranges.slice(0, widestIdx), ...children, ...ranges.slice(widestIdx + 1)];
-        ranges = enforceRangeConstraints(next, rowLength);
-        ranges = ensureMinWidth(ranges, rowLength, MIN_W);
-        ranges = ensureEachCurrOverlapsSomePrev(ranges, prevRanges, rowLength, MIN_OVERLAP);
-      }
-    }
-  }
-
-  // If too many ranges due to weird merges/splits, keep the widest ones.
-  if (ranges.length > MAX_PATHS) {
-    ranges = [...ranges]
-      .sort((a, b) => rangeWidthCols(b) - rangeWidthCols(a))
-      .slice(0, MAX_PATHS)
-      .sort((a, b) => a.startCol - b.startCol);
-  }
-
-  ranges = ensureMinWidth(ranges, rowLength, MIN_W);
-  // Clamp maximum width so rows don't become trivial.
-  ranges = ranges.map((r) => {
-    const w = rangeWidthCols(r);
-    if (w <= MAX_W) return r;
-    const center = Math.round(rangeCenterCols(r));
-    const half = Math.floor(MAX_W / 2);
-    const start = clampInt(center - half, 0, rowLength - 1);
-    const end = clampInt(start + MAX_W - 1, 0, rowLength - 1);
-    return { startCol: start, endCol: end };
-  });
-  ranges = enforceRangeConstraints(ranges, rowLength);
-  ranges = ensureMinWidth(ranges, rowLength, MIN_W);
-  ranges = ensureEachCurrOverlapsSomePrev(ranges, prevRanges, rowLength, MIN_OVERLAP);
-
-  return rangesToGaps(ranges);
+  const mgr = components[ObstaclesManagerComponentName]?.get(
+    managerEntity
+  ) as ObstaclesManagerComponentData | undefined;
+  const tr = mgr?.totalRowsGenerated ?? 0;
+  return pacingPhaseToMacroPhase(pacingPhaseAtTotalRows(tr));
 };
 
 const generateObstacles = ({ gaps, rowLength, y, leftX, obstacleDimension }: {
@@ -501,10 +290,59 @@ const generateObstacles = ({ gaps, rowLength, y, leftX, obstacleDimension }: {
   return obstacles
 }
 
-const createObstacleRow: RowPathTemplate['getRow'] = (_ctx, { rowIndex, ecs, sceneEntity, prevRow, prevRowEntity, initialY, rowLength, leftX, obstacleDimension }) => {
+const createObstacleRow: RowPathTemplate['getRow'] = (_ctx, params) => {
   'worklet';
-  let gaps: number[] = []
-  gaps = generateGaps(!prevRow ? [] : prevRow.gaps, rowLength)
+  const { rowIndex, ecs, sceneEntity, prevRow, prevRowEntity, initialY, rowLength, leftX, obstacleDimension } = params;
+  const pathRunId = ((_ctx as Record<string, unknown>).pathRunId as number) ?? 0;
+  const macroPhase = params.pacingMacroPhase ?? 'flow';
+  const stream = params.proceduralStreamSalt ?? 0;
+  const tctx = _ctx as Record<string, unknown>;
+
+  let gaps: number[];
+
+  if (macroPhase !== 'flow') {
+    tctx.flowMode = undefined;
+    tctx.flowChuteRowCount = undefined;
+    tctx.chicaneState = undefined;
+    gaps = generateGapsDeterministic(
+      !prevRow ? [] : prevRow.gaps,
+      rowLength,
+      rowIndex,
+      pathRunId,
+      macroPhase,
+      stream
+    );
+  } else {
+    const lastSw =
+      prevRow && prevRow.gaps?.length
+        ? rowFromGaps(prevRow.gaps, rowLength)
+        : null;
+
+    if (tctx.flowMode === 'chicane' && tctx.chicaneState) {
+      const st = tctx.chicaneState as ChicaneState;
+      const { row, state } = flowChicaneNextRow(
+        lastSw,
+        st,
+        rowLength,
+        CHICANE_DEFAULT_BLOCK_N
+      );
+      tctx.chicaneState = state;
+      gaps = gapsFromRow(row);
+    } else {
+      const chuteRow = flowChuteNextRow(lastSw, rowLength);
+      gaps = gapsFromRow(chuteRow);
+      const n = ((tctx.flowChuteRowCount as number) ?? 0) + 1;
+      tctx.flowChuteRowCount = n;
+      if (n >= FLOW_CHUTE_ROWS_BEFORE_CHICANE) {
+        tctx.flowMode = 'chicane';
+        tctx.chicaneState = createChicaneStateFromEntryCenter(
+          extractTripleGapCenter(chuteRow, rowLength) ?? Math.floor(rowLength / 2),
+          rowLength
+        );
+      }
+    }
+  }
+  gaps = finalizeGapsForObstacleRow(prevRow?.gaps, gaps, rowLength);
   const obstacleDatas = generateObstacles({
     rowIndex,
     gaps,
@@ -529,7 +367,8 @@ const createObstacleRow: RowPathTemplate['getRow'] = (_ctx, { rowIndex, ecs, sce
     y: !prevRow ? initialY : prevRow.y - obstacleDimension.height,
     gaps,
     obstacles: obstacleEntities,
-    prevRowEntity
+    prevRowEntity,
+    ...rowSpawnDiagFromParams(_ctx, params),
   })
   const obstacleRowEntity = ecs.createEntity()
   ecs.addComponent(obstacleRowEntity, obstacleRowComp)
@@ -546,22 +385,161 @@ const createObstacleRow: RowPathTemplate['getRow'] = (_ctx, { rowIndex, ecs, sce
   return obstacleRowEntity
 }
 
-const getRowCount: RowPathTemplate['getRowCount'] = (_ctx) => {
-  'worklet'
-  return 10 + Math.round(Math.random() * (10 - 1))
-}
+const getRowCount: RowPathTemplate['getRowCount'] = (ctx) => {
+  'worklet';
+  return templateRowCountDeterministic(ctx as Record<string, unknown>, 10, 10);
+};
 
 const BaseRowPathTemplate: RowPathTemplate = {
   getRowCount,
   getRow: createObstacleRow,
 }
 
-const baseMultiPathGetRow: RowPathTemplate['getRow'] = (
-  _ctx,
-  { rowIndex, ecs, sceneEntity, prevRow, prevRowEntity, initialY, rowLength, leftX, obstacleDimension }
-) => {
+const baseMultiPathGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
   'worklet';
-  const gaps = generateMultiPathGaps(!prevRow ? [] : prevRow.gaps, rowLength);
+  const { rowIndex, ecs, sceneEntity, prevRow, prevRowEntity, initialY, rowLength, leftX, obstacleDimension } = params;
+  const pathRunId = ((_ctx as Record<string, unknown>).pathRunId as number) ?? 0;
+  const macroPhase = params.pacingMacroPhase ?? 'flow';
+  const stream = params.proceduralStreamSalt ?? 0;
+  const xctx = _ctx as Record<string, unknown>;
+
+  if (macroPhase !== 'tension') {
+    xctx.tensionStage = undefined;
+    xctx.tensionFunnelStep = undefined;
+    xctx.tensionCenter = undefined;
+    xctx.tensionParadoxEmitted = undefined;
+  }
+  if (macroPhase !== 'climax') {
+    xctx.climaxStage = undefined;
+    xctx.climaxPinballRows = undefined;
+    xctx.climaxPinballState = undefined;
+    xctx.climaxFalseSubRow = undefined;
+  }
+  if (macroPhase !== 'release') {
+    xctx.releaseRestZoneRowsEmitted = undefined;
+  }
+
+  let gaps: number[];
+
+  if (macroPhase === 'tension') {
+    if (!xctx.tensionStage) {
+      xctx.tensionStage = 'funnel';
+      xctx.tensionFunnelStep = 0;
+      xctx.tensionCenter = tensionGapCenterFromPrevGaps(
+        !prevRow ? [] : prevRow.gaps,
+        rowLength
+      );
+      xctx.tensionParadoxEmitted = 0;
+    }
+
+    if (xctx.tensionStage === 'funnel') {
+      const step = (xctx.tensionFunnelStep as number) ?? 0;
+      const center = (xctx.tensionCenter as number) ?? Math.floor(rowLength / 2);
+      const row = tensionFunnelRow(step, center, rowLength);
+      gaps = gapsFromRow(row);
+      xctx.tensionFunnelStep = step + 1;
+      if ((xctx.tensionFunnelStep as number) >= TENSION_FUNNEL_DURATION_ROWS) {
+        xctx.tensionStage = 'paradox';
+      }
+    } else if (xctx.tensionStage === 'paradox' && (xctx.tensionParadoxEmitted as number) < 1) {
+      const center = (xctx.tensionCenter as number) ?? Math.floor(rowLength / 2);
+      const row = tensionParadoxSplitRow(
+        center,
+        rowLength,
+        !prevRow ? [] : prevRow.gaps
+      );
+      gaps = gapsFromRow(row);
+      xctx.tensionParadoxEmitted = 1;
+      xctx.tensionStage = 'free';
+    } else {
+      gaps = generateMultiPathGapsDeterministic(
+        !prevRow ? [] : prevRow.gaps,
+        rowLength,
+        rowIndex,
+        pathRunId,
+        macroPhase,
+        stream
+      );
+    }
+
+  } else if (macroPhase === 'climax') {
+    if (!xctx.climaxStage) {
+      xctx.climaxStage = 'pinball';
+      xctx.climaxPinballRows = 0;
+      xctx.climaxPinballState = {
+        stepMod: 0,
+        anchorLeft: climaxPinballInitialAnchor(!prevRow ? [] : prevRow.gaps, rowLength),
+      };
+    }
+
+    if (xctx.climaxStage === 'pinball') {
+      const rows = (xctx.climaxPinballRows as number) ?? 0;
+      if (rows < CLIMAX_PINBALL_SEGMENT_ROWS) {
+        const st = xctx.climaxPinballState as ClimaxPinballState;
+        const { row, state } = climaxPinballStep(st, rowLength);
+        xctx.climaxPinballState = state;
+        xctx.climaxPinballRows = rows + 1;
+        gaps = gapsFromRow(row);
+        if (rows + 1 >= CLIMAX_PINBALL_SEGMENT_ROWS) {
+          xctx.climaxStage = 'falseWall';
+          xctx.climaxFalseSubRow = 0;
+        }
+      } else {
+        gaps = generateMultiPathGapsDeterministic(
+          !prevRow ? [] : prevRow.gaps,
+          rowLength,
+          rowIndex,
+          pathRunId,
+          macroPhase,
+          stream
+        );
+      }
+    } else if (xctx.climaxStage === 'falseWall') {
+      const sub = (xctx.climaxFalseSubRow as number) ?? 0;
+      const squeezeRight = (mixPathRowStreamSalt(pathRunId, rowIndex, stream, 902) & 1) === 1;
+      const row = climaxFalseWallRow(sub, rowLength, squeezeRight);
+      gaps = gapsFromRow(row);
+      xctx.climaxFalseSubRow = sub + 1;
+      if (sub + 1 >= CLIMAX_FALSE_WALL_ROWS) {
+        xctx.climaxStage = 'free';
+      }
+    } else {
+      gaps = generateMultiPathGapsDeterministic(
+        !prevRow ? [] : prevRow.gaps,
+        rowLength,
+        rowIndex,
+        pathRunId,
+        macroPhase,
+        stream
+      );
+    }
+
+  } else if (macroPhase === 'release') {
+    const emitted = (xctx.releaseRestZoneRowsEmitted as number) ?? 0;
+    if (emitted < RELEASE_REST_ZONE_ROWS) {
+      gaps = releaseCatharticRestZoneGaps(rowLength);
+      xctx.releaseRestZoneRowsEmitted = emitted + 1;
+    } else {
+      gaps = generateMultiPathGapsDeterministic(
+        !prevRow ? [] : prevRow.gaps,
+        rowLength,
+        rowIndex,
+        pathRunId,
+        macroPhase,
+        stream
+      );
+    }
+  } else {
+    gaps = generateMultiPathGapsDeterministic(
+      !prevRow ? [] : prevRow.gaps,
+      rowLength,
+      rowIndex,
+      pathRunId,
+      macroPhase,
+      stream
+    );
+  }
+  gaps = finalizeGapsForObstacleRow(prevRow?.gaps, gaps, rowLength);
   const y = !prevRow ? initialY : prevRow.y - obstacleDimension.height;
   const obstacleDatas = generateObstacles({
     rowIndex,
@@ -588,6 +566,7 @@ const baseMultiPathGetRow: RowPathTemplate['getRow'] = (
     gaps,
     obstacles: obstacleEntities,
     prevRowEntity,
+    ...rowSpawnDiagFromParams(_ctx, params),
   });
   const obstacleRowEntity = ecs.createEntity();
   ecs.addComponent(obstacleRowEntity, obstacleRowComp);
@@ -604,10 +583,27 @@ const BaseMultiPathRowPathTemplate: RowPathTemplate = {
   getRow: baseMultiPathGetRow,
 };
 
-const restGetRowCount: RowPathTemplate['getRowCount'] = (_ctx) => {
-  'worklet'
-  return 10 + Math.round(Math.random() * (5 - 1))
-}
+/** Default run: multipath for every phase so FLOW is not stuck on chute+chicane only (~36% of rows). */
+const directedGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
+  'worklet';
+  return baseMultiPathGetRow(_ctx, params);
+};
+
+/** Keep `directed` on one template run so macro pacing (FLOW→…→RELEASE) stays continuous — no periodic rollover. */
+const directedGetRowCount: RowPathTemplate['getRowCount'] = (_ctx) => {
+  'worklet';
+  return 2000000;
+};
+
+const DirectedRowPathTemplate: RowPathTemplate = {
+  getRowCount: directedGetRowCount,
+  getRow: directedGetRow,
+};
+
+const restGetRowCount: RowPathTemplate['getRowCount'] = (ctx) => {
+  'worklet';
+  return templateRowCountDeterministic(ctx as Record<string, unknown>, 10, 5);
+};
 
 const restGenerateObstacles = ({ gaps, rowLength, y, leftX, obstacleDimension }: {
   rowIndex: number,
@@ -632,9 +628,17 @@ const restGenerateObstacles = ({ gaps, rowLength, y, leftX, obstacleDimension }:
 
 
 const restGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
-  'worklet'
-  const { ecs, prevRow, initialY, obstacleDimension, prevRowEntity, rowLength, sceneEntity } = params
-  const obstaclesIndexes = restGenerateObstacles({ ...params, y: !prevRow ? initialY : prevRow.y - obstacleDimension.height, gaps: [] })
+  'worklet';
+  const { ecs, prevRow, initialY, obstacleDimension, prevRowEntity, rowLength, sceneEntity } = params;
+  const y = !prevRow ? initialY : prevRow.y - obstacleDimension.height;
+  const interior: number[] = [];
+  for (let c = 1; c < rowLength - 1; c++) {
+    interior.push(c);
+  }
+  const prevGaps = !prevRow ? [] : prevRow.gaps ?? [];
+  let gaps = unionMinimalSeam(prevGaps, interior.slice(), rowLength);
+  gaps = finalizeGapsForObstacleRow(prevGaps, gaps, rowLength);
+  const obstaclesIndexes = restGenerateObstacles({ ...params, y, gaps: [] });
   let obstacleEntities: Entity[] = []
   for (let i = 0; i < obstaclesIndexes.length; i++) {
     const entity = spawnObstacleEntity({
@@ -648,11 +652,12 @@ const restGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
     if (entity !== null) obstacleEntities.push(entity)
   }
   const obstacleRowComp = createObstacleRowComponent({
-    y: !prevRow ? initialY : prevRow.y - obstacleDimension.height,
-    gaps: [],
+    y,
+    gaps,
     obstacles: obstacleEntities,
-    prevRowEntity
-  })
+    prevRowEntity,
+    ...rowSpawnDiagFromParams(_ctx, params),
+  });
   const obstacleRowEntity = ecs.createEntity()
   ecs.addComponent(obstacleRowEntity, obstacleRowComp)
   ecs.updateComponent(
@@ -688,43 +693,59 @@ const spawnObstacleBlockFromTemplate = (params: {
 const SmilyRowPathTemplate: RowPathTemplate = createJsonLevelRowPathTemplate({
   levelJson: smilyLevelJson,
   spawnBlock: spawnObstacleBlockFromTemplate,
+  diagTemplateName: 'smily',
 });
 
 const JellyfishRowPathTemplate: RowPathTemplate = createJsonLevelRowPathTemplate({
   levelJson: jellyfishLevelJson,
   spawnBlock: spawnObstacleBlockFromTemplate,
+  diagTemplateName: 'jellyfish',
 });
 
 const MickyRowPathTemplate: RowPathTemplate = createJsonLevelRowPathTemplate({
   levelJson: mickyLevelJson,
   spawnBlock: spawnObstacleBlockFromTemplate,
+  diagTemplateName: 'micky',
 });
 
 const KittyRowPathTemplate: RowPathTemplate = createJsonLevelRowPathTemplate({
   levelJson: kittyLevelJson,
   spawnBlock: spawnObstacleBlockFromTemplate,
+  diagTemplateName: 'kitty',
 });
 
 const DeadpoolRowPathTemplate: RowPathTemplate = createJsonLevelRowPathTemplate({
   levelJson: deadpoolLevelJson,
   spawnBlock: spawnObstacleBlockFromTemplate,
+  diagTemplateName: 'deadpool',
 });
 
 const MegamanRowPathTemplate: RowPathTemplate = createJsonLevelRowPathTemplate({
   levelJson: megamanLevelJson,
   spawnBlock: spawnObstacleBlockFromTemplate,
+  diagTemplateName: 'megaman',
 });
 
 const MappedTemplates: Record<string, RowPathTemplate> = {
-  'base': BaseRowPathTemplate,
-  'baseMulti': BaseMultiPathRowPathTemplate,
-  'rest': RestRowPathTemplate,
+  directed: DirectedRowPathTemplate,
+  base: BaseRowPathTemplate,
+  baseMulti: BaseMultiPathRowPathTemplate,
+  rest: RestRowPathTemplate,
   'smily': SmilyRowPathTemplate,
   'jellyfish': JellyfishRowPathTemplate,
   'micky': MickyRowPathTemplate,
   'kitty': KittyRowPathTemplate,
   'deadpool': DeadpoolRowPathTemplate,
-  'megaman': MegamanRowPathTemplate
+  'megaman': MegamanRowPathTemplate,
+};
+
+/** Story / debug lock only — must match a key in {@link MappedTemplates}. */
+function resolveLockedTemplateName(
+  lockedTemplateName: string | undefined
+): string | undefined {
+  'worklet';
+  if (!lockedTemplateName) return undefined;
+  return MappedTemplates[lockedTemplateName] ? lockedTemplateName : undefined;
 }
 
 function selectTemplate(args: {
@@ -757,6 +778,7 @@ function selectTemplate(args: {
 
   const nextRunId = (existing?.runId ?? 0) + 1;
   const ctx: TemplateCtx = template.createCtx ? template.createCtx() : {};
+  (ctx as Record<string, unknown>).pathRunId = nextRunId;
 
   if (template.init) {
     template.init(ctx, initArgs);
@@ -788,11 +810,14 @@ function selectTemplate(args: {
  * ObstacleSystem - Manages obstacle spawning, movement, and removal for the swimmer game
  *
  * This system:
- * - Seeds 5-7 initial obstacles when none exist (above container top to ~30% from top)
+ * - Seeds initial obstacle rows when none exist (above container top to ~30% from top)
  * - Moves obstacles downward at water speed (raisingSpeed) every frame
- * - Spawns new obstacles over time based on row intervals when not seeding
+ * - Spawns new rows on a timer after the initial phase
  * - Removes obstacles that pass below the container bottom
- * - Uses row-based positioning with random row selection and spacing for gameplay balance
+ * - Default path templates: `base` (single-corridor when not FLOW) and `baseMulti` / `directed`
+ *   (multipath). `directed` uses the same multipath row generator for all macro phases so FLOW
+ *   still gets branching corridors. JSON-shaped levels are only used when `ObstacleView` passes
+ *   `lockedTemplateName` (e.g. Storybook).
  */
 export const ObstacleSystem: System = {
   name: 'obstacleSystem',
@@ -808,6 +833,7 @@ export const ObstacleSystem: System = {
     if (!managerData) return;
 
     const lockedTemplateName = managerData.lockedTemplateName;
+    const lock = resolveLockedTemplateName(lockedTemplateName);
 
     // Get container entity
     const containerEntities = ecs.getEntitiesWithComponents([
@@ -939,6 +965,44 @@ export const ObstacleSystem: System = {
         })
       }
     })
+    // Heal broken prevRowEntity links after rows scroll off (removal does not patch pointers).
+    const healRowEntities = ecs.getEntitiesWithComponents([ObstacleRowComponentName]);
+    for (let hi = 0; hi < healRowEntities.length; hi++) {
+      const rowEntity = healRowEntities[hi];
+      const rowData = components[ObstacleRowComponentName].get(rowEntity) as
+        | ObstacleRowComponentData
+        | undefined;
+      if (!rowData?.prevRowEntity) {
+        continue;
+      }
+      const prevLive = components[ObstacleRowComponentName].get(rowData.prevRowEntity) as
+        | ObstacleRowComponentData
+        | undefined;
+      if (prevLive) {
+        continue;
+      }
+      let bestEnt: Entity | null = null;
+      let bestDy = Number.POSITIVE_INFINITY;
+      const y0 = rowData.y;
+      for (let hj = 0; hj < healRowEntities.length; hj++) {
+        const other = healRowEntities[hj];
+        if (other === rowEntity) {
+          continue;
+        }
+        const od = components[ObstacleRowComponentName].get(other) as ObstacleRowComponentData | undefined;
+        if (!od) {
+          continue;
+        }
+        const dy = od.y - y0;
+        if (dy > 0 && dy < bestDy) {
+          bestDy = dy;
+          bestEnt = other;
+        }
+      }
+      ecs.updateComponent<ObstacleRowComponentData>(rowEntity, ObstacleRowComponentName, (r) => {
+        r.prevRowEntity = bestEnt;
+      });
+    }
     const candidateCenterRowEntity = nearestOverlapRowEntity ?? nearestRowEntity;
     let centerRowEntity = candidateCenterRowEntity;
     if (
@@ -960,11 +1024,22 @@ export const ObstacleSystem: System = {
         centerRowEntity = currentCenterRowEntity;
       }
     }
-    if (typeof centerRowEntity === 'number') {
-      ecs.updateComponent<WaterComponentData>(waterEntity, WaterComponentName, (waterData) => {
+    const trForPacing = managerData.totalRowsGenerated ?? 0;
+    const inReleaseRestZone =
+      pacingPhaseToMacroPhase(pacingPhaseAtTotalRows(trForPacing)) === 'release';
+
+    ecs.updateComponent<WaterComponentData>(waterEntity, WaterComponentName, (waterData) => {
+      waterData.releaseRestZoneActive = inReleaseRestZone;
+      if (typeof centerRowEntity === 'number') {
         waterData.centerRowEntity = centerRowEntity;
-      });
-    }
+      }
+    });
+    const postWater = components[WaterComponentName]?.get(waterEntity) as WaterComponentData | undefined;
+    const centerForPlayerDiag =
+      postWater && typeof postWater.centerRowEntity === 'number'
+        ? postWater.centerRowEntity
+        : undefined;
+    maybeLogPlayerActiveObstacleRowTemplate(ecs, components, managerEntity, centerForPlayerDiag);
 
     // Seed initial obstacles when none exist (either during initial phase or when starting with water at center)
     const shouldSeedInitialObstacles = obstacleRowEntities.length === 0;
@@ -983,13 +1058,15 @@ export const ObstacleSystem: System = {
         initialY: maxY,
       };
 
-      // Initial template (first one shown). Keep as `smily` for now.
+      const initialTemplateName = lock ?? 'directed';
+
+      // Initial segment: `directed` = phase-driven base vs baseMulti; story lock may pick JSON etc.
       const selected = selectTemplate({
         ecs,
         components,
         managerEntity,
         currentTemplateContextEntity: managerData.templateInfo?.templateContextEntity,
-        templateName: lockedTemplateName ?? 'smily',
+        templateName: initialTemplateName,
         initArgs,
       });
 
@@ -1008,11 +1085,7 @@ export const ObstacleSystem: System = {
         // If we've reached the end of the active template, switch to the next template
         // and continue filling the seed rows.
         if (activeRowIndex > activeRowCount - 1) {
-          const tempalteNames = Object.keys(MappedTemplates)
-          let newTemplateRandIndex = Math.floor(Math.random() * tempalteNames.length)
-
-          let newTemplateName =
-            lockedTemplateName ?? 'smily' //tempalteNames[newTemplateRandIndex]
+          const newTemplateName = lock ?? 'directed';
           const nextSelected = selectTemplate({
             ecs,
             components,
@@ -1029,8 +1102,14 @@ export const ObstacleSystem: System = {
           activeRowIndex = 0;
         }
 
+        const macroForRow = readPacingMacroPhase(components, managerEntity);
+        const proceduralStreamSalt =
+          (components[ObstaclesManagerComponentName]?.get(managerEntity) as
+            | ObstaclesManagerComponentData
+            | undefined)?.totalRowsGenerated ?? 0;
+        const spawnedRowIndex = activeRowIndex;
         lastRowEntity = activeTemplate.getRow(activeCtx, {
-          rowIndex: activeRowIndex,
+          rowIndex: spawnedRowIndex,
           ecs,
           sceneEntity,
           prevRow,
@@ -1040,9 +1119,20 @@ export const ObstacleSystem: System = {
           leftX,
           obstacleDimension: {
             width: columnWidth,
-            height: columnWidth
-          }
-        })
+            height: columnWidth,
+          },
+          pacingMacroPhase: macroForRow,
+          spawnDiagTemplateName: activeTemplateName,
+          proceduralStreamSalt,
+        });
+        bumpTotalRowsGenerated(ecs, managerEntity);
+        bumpPathRunIdAfterCompletedMacroCycle(ecs, components, managerEntity, activeCtxEntity);
+        maybeLogObstacleRowGeneration(ecs, components, managerEntity, {
+          templateName: activeTemplateName,
+          macroPhase: macroForRow,
+          templateCtx: activeCtx as Record<string, unknown>,
+          rowIndex: spawnedRowIndex,
+        });
         activeRowIndex += 1;
       }
       // Reset timer after re-seeding
@@ -1104,7 +1194,10 @@ export const ObstacleSystem: System = {
         const ctxData = components[TemplateContextComponentName]?.get(
           ctxEntity
         ) as TemplateContextComponentData | undefined;
+        // Use live ctx from ECS (do not shallow-copy): getRow mutates flow/tension/climax state in place.
         const ctx: TemplateCtx = (ctxData?.ctx ?? {}) as TemplateCtx;
+        (ctx as Record<string, unknown>).pathRunId =
+          (ctx as Record<string, unknown>).pathRunId ?? ctxData?.runId ?? 0;
 
         const template = MappedTemplates[templateInfo.currentTemplateName]
 
@@ -1114,15 +1207,7 @@ export const ObstacleSystem: System = {
         let totalRow = templateInfo.currentTempalteTotalRow
 
         if (lastRowIndex > totalRow - 1) {
-          const tempalteNames = Object.keys(MappedTemplates)
-          let newTemplateRandIndex = Math.floor(Math.random() * tempalteNames.length)
-
-          let newTemplateName = tempalteNames[newTemplateRandIndex]
-          if (updatedManager.templateInfo.currentTemplateName !== 'rest') {
-            newTemplateName = 'rest'
-          } else if (lockedTemplateName) {
-            newTemplateName = lockedTemplateName
-          }
+          const newTemplateName = lock ?? 'directed';
           const initArgs: TemplateInitArgs = {
             ecs,
             sceneEntity,
@@ -1147,6 +1232,8 @@ export const ObstacleSystem: System = {
           let newRowCount = selected.rowCount
           const prevRow = templateInfo.lastRowEntity ? ecs.components[ObstacleRowComponentName].get(templateInfo.lastRowEntity) as ObstacleRowComponentData : null
 
+          const macroForRow = readPacingMacroPhase(components, managerEntity);
+          const proceduralStreamSalt = updatedManager?.totalRowsGenerated ?? 0;
           let newRowEntity = newTemplate.getRow(selected.ctx, {
             rowIndex: 0,
             ecs,
@@ -1158,9 +1245,20 @@ export const ObstacleSystem: System = {
             leftX,
             obstacleDimension: {
               width: columnWidth,
-              height: columnWidth
-            }
-          })
+              height: columnWidth,
+            },
+            pacingMacroPhase: macroForRow,
+            spawnDiagTemplateName: newTemplateName,
+            proceduralStreamSalt,
+          });
+          bumpTotalRowsGenerated(ecs, managerEntity);
+          bumpPathRunIdAfterCompletedMacroCycle(ecs, components, managerEntity, selected.ctxEntity);
+          maybeLogObstacleRowGeneration(ecs, components, managerEntity, {
+            templateName: newTemplateName,
+            macroPhase: macroForRow,
+            templateCtx: selected.ctx as Record<string, unknown>,
+            rowIndex: 0,
+          });
           // Reset timer after re-seeding
           ecs.updateComponent<ObstaclesManagerComponentData>(
             managerEntity,
@@ -1178,6 +1276,8 @@ export const ObstacleSystem: System = {
         } else if (updatedManager.templateInfo) {
           const prevRow = templateInfo.lastRowEntity ? ecs.components[ObstacleRowComponentName].get(templateInfo.lastRowEntity) as ObstacleRowComponentData : null
 
+          const macroForRow = readPacingMacroPhase(components, managerEntity);
+          const proceduralStreamSalt = updatedManager?.totalRowsGenerated ?? 0;
           let newRowEntity = template.getRow(ctx, {
             rowIndex: lastRowIndex,
             ecs,
@@ -1189,10 +1289,21 @@ export const ObstacleSystem: System = {
             leftX,
             obstacleDimension: {
               width: columnWidth,
-              height: columnWidth
-            }
-          })
+              height: columnWidth,
+            },
+            pacingMacroPhase: macroForRow,
+            spawnDiagTemplateName: templateInfo.currentTemplateName,
+            proceduralStreamSalt,
+          });
 
+          bumpTotalRowsGenerated(ecs, managerEntity);
+          bumpPathRunIdAfterCompletedMacroCycle(ecs, components, managerEntity, ctxEntity);
+          maybeLogObstacleRowGeneration(ecs, components, managerEntity, {
+            templateName: templateInfo.currentTemplateName,
+            macroPhase: macroForRow,
+            templateCtx: ctx as Record<string, unknown>,
+            rowIndex: lastRowIndex,
+          });
           ecs.updateComponent<ObstaclesManagerComponentData>(
             managerEntity,
             ObstaclesManagerComponentName,

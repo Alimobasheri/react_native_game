@@ -4,7 +4,7 @@
 
 export const LAYOUT_CONSTANTS = {
   // Grid layout constants
-  COLUMNS: 15,
+  COLUMNS: 9,
 
   // Get obstacle width based on container width
 

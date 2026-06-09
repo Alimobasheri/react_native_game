@@ -14,7 +14,11 @@ import { FC } from 'react';
  * - Removing obstacles that pass screen boundaries
  */
 export const ObstacleView: FC<{
-  /** If set, the obstacle system will always use this template name. */
+  /**
+   * Forces a specific `RowPathTemplate` key from `ObstacleSystem` (e.g. `smily`, `base`, `directed`).
+   * When omitted, the game uses the `directed` template (phase-driven base vs baseMulti); JSON shapes
+   * are never auto-selected.
+   */
   lockedTemplateName?: string;
 }> = ({ lockedTemplateName }) => {
   const sceneContext = useSceneContextUnsafe();
@@ -26,6 +30,7 @@ export const ObstacleView: FC<{
       createObstaclesManagerComponent({
         sceneKey,
         spawnTimerSeconds: 0,
+        totalRowsGenerated: 0,
         lockedTemplateName,
       }),
     ],

@@ -2,6 +2,7 @@ import { ECS } from "@/containers/ReactNativeSkiaGameEngine/services-ecs/ecs"
 import { Entity } from "@/containers/ReactNativeSkiaGameEngine/services-ecs/entity"
 import { ObstacleRowComponentData } from "../ecs-components/ObstacleRowComponent"
 import { ObstacleComponentData } from "../ecs-components/ObstacleComponent"
+import type { MacroPhase } from "@/Game/path/macroPacing"
 
 export interface GetRowArgs {
   rowIndex: number,
@@ -15,10 +16,28 @@ export interface GetRowArgs {
   obstacleDimension: {
     width: number,
     height: number
-  }
+  },
+  /**
+   * From `PacingDirector` / `pacingPhaseToMacroPhase` — procedural templates use this
+   * each row; JSON/rest templates may ignore.
+   */
+  pacingMacroPhase?: MacroPhase,
+  /**
+   * Set by `ObstacleSystem` on every spawn: which template key produced this row, for
+   * player-band diagnostics (`spawnDiagBranchKey` is derived from this + ctx + phase).
+   */
+  spawnDiagTemplateName?: string,
+  /**
+   * Rows already spawned before this one (read from `ObstaclesManager.totalRowsGenerated` before bump).
+   * Mixed into procedural gap noise so the same macro phase / `pathRunId` does not replay identical multipath.
+   */
+  proceduralStreamSalt?: number,
 }
 
-export type TemplateCtx = Record<string, unknown>;
+export type TemplateCtx = Record<string, unknown> & {
+  /** Set by ObstacleSystem / selectTemplate for deterministic procedural rows. */
+  pathRunId?: number;
+};
 
 export interface TemplateInitArgs {
   ecs: ECS;

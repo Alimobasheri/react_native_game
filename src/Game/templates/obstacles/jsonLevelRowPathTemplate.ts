@@ -1,8 +1,10 @@
 import { Entity } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/entity';
-import { ObstacleRowComponentData, ObstacleRowComponentName, createObstacleRowComponent } from '@/Game/ecs-components/ObstacleRowComponent';
+import { createObstacleRowComponent } from '@/Game/ecs-components/ObstacleRowComponent';
 import { SceneComponentData, SceneComponentName } from '@/containers/ReactNativeSkiaGameEngine/internal/components/scene';
 import { ECS } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/ecs';
 import { RowPathTemplate, TemplateCtx } from '@/Game/ecs-systems/obstacleSystem';
+import { buildSpawnDiagSnapshot } from '@/Game/path/obstacleRowGenDiag';
+import type { MacroPhase } from '@/Game/path/macroPacing';
 
 export type JsonLevelRow = {
   /** Blocked columns (stone blocks). */
@@ -47,8 +49,10 @@ export function createJsonLevelRowPathTemplate(args: {
     width: number;
     height: number;
   }) => Entity | null;
+  /** Must match `MappedTemplates` key (`smily`, …) for player-band dev logs. */
+  diagTemplateName: string;
 }): RowPathTemplate {
-  const { levelJson, spawnBlock } = args;
+  const { levelJson, spawnBlock, diagTemplateName } = args;
 
   return {
     createCtx: () => {
@@ -119,6 +123,12 @@ export function createJsonLevelRowPathTemplate(args: {
         gaps,
         obstacles: obstacleEntities,
         prevRowEntity,
+        ...buildSpawnDiagSnapshot(
+          diagTemplateName,
+          (params.pacingMacroPhase ?? 'flow') as MacroPhase,
+          _ctx as Record<string, unknown>,
+          params.rowIndex
+        ),
       });
 
       const obstacleRowEntity = ecs.createEntity();

@@ -220,21 +220,15 @@ Current shape templates include:
 
 These templates can create recognizable block silhouettes such as faces or characters. They are visually strong, but they are hand-authored and do not automatically guarantee the same playability invariants as `baseMulti` unless the rows are drawn carefully.
 
-## Template Switching and Rest Segments
+## Template switching (default run)
 
 `ObstacleSystem` stores active template state in `ObstaclesManager.templateInfo`.
 
-When a template finishes its row count:
+For the default **`directed`** path, row generation does **not** roll over on a short chunk count: one template context drives **continuous** rows while macro pacing cycles (FLOW → TENSION → CLIMAX → RELEASE → …). Easier stretches come from those **phases** (especially macro RELEASE), not from inserting the separate `rest` row template between segments.
 
-- The system can switch to another mapped template.
-- A `rest` template can be inserted between denser templates.
-- `rest` creates mostly side-wall blocks, leaving the middle open.
+When a **finite** template (e.g. a locked JSON level) finishes its row count, the system switches to the next template name (typically back to `directed`, or the locked template again if still locked).
 
-This gives the game a rough rhythm:
-
-```text
-shape / challenge segment -> rest / breathing segment -> next segment
-```
+The optional **`rest`** template in `MappedTemplates` remains available for Storybook / explicit locks: it creates mostly side-wall blocks with the middle open.
 
 The currently available mapping is in `MappedTemplates` in `ObstacleSystem.ts`.
 

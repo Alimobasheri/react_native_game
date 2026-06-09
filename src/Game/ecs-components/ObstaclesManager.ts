@@ -6,6 +6,14 @@ export const ObstaclesManagerComponentName = 'ObstaclesManager';
 export type ObstaclesManagerComponentData = {
   /** Scene key this manager belongs to (used when spawning entities). */
   sceneKey: string;
+  /**
+   * Monotonic count of obstacle rows spawned; drives `PacingDirector` phase (55-row cycle).
+   */
+  totalRowsGenerated?: number;
+  /** Last obstacle row generation diagnostic key (dev logging dedupe). */
+  lastObstacleRowGenLogKey?: string;
+  /** Dev: last `Water.centerRowEntity` used for player-band template logging. */
+  lastPlayerDiagCenterRowEntity?: Entity | null;
   /** Accumulated spawn timer in seconds (replaces any global timer). */
   spawnTimerSeconds: number;
   /**

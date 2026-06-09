@@ -8,6 +8,11 @@ export type WaterComponentData = {
   raisingSpeed: number; // Pixels per second - speed at which water rises
   centerRowEntity?: number;
   lastCenterRowEntity?: number; // persisted to detect row transitions for surge pulse
+  /**
+   * True while the macro cycle is in RELEASE (cathartic rest strip / reward-safe window).
+   * UI or systems may ease visuals or adjust `raisingSpeed` while this is set.
+   */
+  releaseRestZoneActive?: boolean;
   forceDirection?: number;
   flowDirection?: number; // Smoothed directional flow used by shader
   /**

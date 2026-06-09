@@ -29,12 +29,12 @@ const SWIMMER_WIDTH_COLUMN_RATIO = 2 / 3;
 const SWIMMER_HEIGHT_TO_WIDTH_RATIO = 1.8;
 
 // Horizontal movement tuning for tap-based hyper-casual control.
-const MAX_HORIZONTAL_SPEED = 450; // pixels / second
+const MAX_HORIZONTAL_SPEED = 520; // pixels / second (raised for CLIMAX cross-screen recovery after False Wall)
 const BASE_HORIZONTAL_ACCEL = 900; // target speed for inputX = 1 before drag
 const BASE_RESPONSIVENESS = 0.15; // how quickly velocity approaches target
 const PINNED_VELOCITY_DAMPING = 0.7; // vx multiplier when pinned under obstacle
 const TAP_IMPULSE_MULTIPLIER_MIN = 1;
-const TAP_IMPULSE_MULTIPLIER_MAX = 3;
+const TAP_IMPULSE_MULTIPLIER_MAX = 3.5; // headroom for CLIMAX margin dashes
 const MAX_WATER_CURRENT_SPEED = 95; // px/s lateral drift at full flow
 const WATER_CURRENT_RESPONSE_PER_SECOND = 4.5; // higher = snaps faster to current
 const WATER_CURRENT_SURGE_BOOST = 0.6; // extra current strength during surge
@@ -486,7 +486,7 @@ export const SwimmerPhysicsSystem: System = {
         // --- PAN-BASED CONTROL ---
         // Apply simple drag that grows with water speed (more water speed -> more drag).
         const baseDrag = 0.9;
-        const extraDrag = 0.15 * normalizedSpeed; // up to +0.15 extra drag at max speed
+        const extraDrag = 0.25 * normalizedSpeed; // up to +0.15 extra drag at max speed
         const drag = Math.max(0, Math.min(1, baseDrag - extraDrag));
         swimmerVelocityX *= drag;
       }

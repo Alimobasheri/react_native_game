@@ -1,6 +1,8 @@
 import {
   System,
 } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/system';
+import type { ECS } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/ecs';
+import type { Entity } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/entity';
 import {
   WaterComponentName,
   WaterComponentData,
@@ -42,6 +44,53 @@ const CALMNESS_SMOOTH_PER_SECOND = 9;
 const BAND_HEIGHT_SMOOTH_PER_SECOND = 8;
 const MIN_BAND_HALF_HEIGHT = 0.01;
 const MAX_BAND_HALF_HEIGHT = 0.5;
+
+/**
+ * Row spawned earlier sits lower on screen (larger `y`). When `prevRowEntity` still
+ * references a removed entity, gap blending falls back as if there were no previous
+ * row — surface/current can disagree with real stones. Pick the live row with the
+ * smallest positive (y_prev - y_active).
+ */
+function resolvePrevObstacleRowForWater(
+  ecs: ECS,
+  components: Record<string, { get: (e: Entity) => unknown }>,
+  centerRowEntity: Entity | undefined,
+  activeRow: ObstacleRowComponentData | undefined
+): ObstacleRowComponentData | undefined {
+  'worklet';
+  if (!activeRow) {
+    return undefined;
+  }
+  const linkedId = activeRow.prevRowEntity;
+  if (typeof linkedId === 'number') {
+    const linked = components[ObstacleRowComponentName]?.get(linkedId) as
+      | ObstacleRowComponentData
+      | undefined;
+    if (linked) {
+      return linked;
+    }
+  }
+  const rowEntities = ecs.getEntitiesWithComponents([ObstacleRowComponentName]);
+  let best: ObstacleRowComponentData | undefined;
+  let bestDy = Number.POSITIVE_INFINITY;
+  const y0 = activeRow.y;
+  for (let i = 0; i < rowEntities.length; i++) {
+    const e = rowEntities[i];
+    if (e === centerRowEntity) {
+      continue;
+    }
+    const d = components[ObstacleRowComponentName]?.get(e) as ObstacleRowComponentData | undefined;
+    if (!d) {
+      continue;
+    }
+    const dy = d.y - y0;
+    if (dy > 0 && dy < bestDy) {
+      bestDy = dy;
+      best = d;
+    }
+  }
+  return best;
+}
 
 /**
  * WaterPhysicsSystem - Owns water gameplay properties (speed, difficulty ramp).
@@ -142,12 +191,12 @@ export const WaterPhysicsSystem: System = {
       const acceleratedSpeed =
         currentSpeed + WATER_SPEED_ACCELERATION_PER_SECOND * deltaSeconds;
       const clampedSpeed = Math.min(WATER_SPEED_MAX, acceleratedSpeed);
-      const activeRow = waterData.centerRowEntity
-        ? components[ObstacleRowComponentName].get(waterData.centerRowEntity) as ObstacleRowComponentData | undefined
-        : undefined;
-      const prevRow = activeRow?.prevRowEntity
-        ? components[ObstacleRowComponentName].get(activeRow.prevRowEntity) as ObstacleRowComponentData | undefined
-        : undefined;
+      const centerEnt = waterData.centerRowEntity;
+      const activeRow =
+        typeof centerEnt === 'number'
+          ? (components[ObstacleRowComponentName].get(centerEnt) as ObstacleRowComponentData | undefined)
+          : undefined;
+      const prevRow = resolvePrevObstacleRowForWater(ecs, components, centerEnt, activeRow);
 
       // --- Multi-gap derived state (max 4 ranges) ---
       const currRangesCol = groupGapsToRanges(activeRow?.gaps, LAYOUT_CONSTANTS.COLUMNS);
