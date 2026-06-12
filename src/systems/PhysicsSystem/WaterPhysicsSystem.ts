@@ -26,7 +26,7 @@ import {
 
 // Water difficulty progression - slowly increase water/obstacle speed over time
 // to create a gentle but noticeable rise in challenge, like a hyper-casual game.
-const WATER_SPEED_ACCELERATION_PER_SECOND = 0.7; // px/s² - +90 px/s after ~30s
+const WATER_SPEED_ACCELERATION_PER_SECOND = 2.5; // px/s² - +90 px/s after ~30s
 const WATER_SPEED_MAX = 260; // clamp to avoid impossible speeds
 const FLOW_ACCEL_PER_SECOND = 3.4;
 const FLOW_IMPULSE_ON_ROW_CHANGE = 3.2;

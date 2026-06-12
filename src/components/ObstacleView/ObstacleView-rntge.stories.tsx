@@ -25,6 +25,7 @@ import { ObstaclesManagerComponentName } from '@/Game/ecs-components/ObstaclesMa
 import { ScoreComponentName } from '@/Game/ecs-components/Score';
 import { ObstacleRowComponentName } from '@/Game/ecs-components/ObstacleRowComponent';
 import { TemplateContextComponentName } from '@/Game/ecs-components/TemplateContextComponent';
+import { getWaterSurfaceRestY } from '@/Layout';
 
 type ObstacleTemplateStoryProps = {
   /** Must match keys in `MappedTemplates` (e.g. 'smily', 'jellyfish', 'base', 'baseMulti', 'rest'). */
@@ -41,7 +42,10 @@ export const ObstacleTemplateGameComp: FC<ObstacleTemplateStoryProps> = memo(
     const containerCenterX = windowWidth / 2;
     const containerCenterY = windowHeight / 2;
 
-    const initialWaterSurfaceY = containerCenterY;
+    const initialWaterSurfaceY = getWaterSurfaceRestY(
+      containerCenterY,
+      containerHeight
+    );
     const swimmerStartY = initialWaterSurfaceY - 10;
 
     return (

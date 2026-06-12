@@ -23,6 +23,7 @@ import {
 import {
   getObstacleWidth,
   LAYOUT_CONSTANTS,
+  GAP_SHIFT_RUNWAY_DUPLICATE_ROWS,
 } from '@/Layout';
 import { MatterBodyComponentData, MatterBodyComponentName } from '@/containers/ReactNativeSkiaGameEngine/internal/components/matterBody';
 import {
@@ -288,6 +289,130 @@ const generateObstacles = ({ gaps, rowLength, y, leftX, obstacleDimension }: {
     }
   }
   return obstacles
+}
+
+function sortGapsCopy(gaps: readonly number[] | undefined | null): number[] {
+  'worklet';
+  if (!gaps || gaps.length === 0) return [];
+  const a = gaps.slice();
+  a.sort((x, y) => x - y);
+  return a;
+}
+
+function gapsEqual(
+  a: readonly number[] | undefined | null,
+  b: readonly number[] | undefined | null
+): boolean {
+  'worklet';
+  const sa = sortGapsCopy(a);
+  const sb = sortGapsCopy(b);
+  if (sa.length !== sb.length) return false;
+  for (let i = 0; i < sa.length; i++) {
+    if (sa[i] !== sb[i]) return false;
+  }
+  return true;
+}
+
+/**
+ * After a gap **set** change vs the previous band, stack extra rows that repeat the **new**
+ * row’s gaps (runway for higher water speed). Does not call `template.getRow` again.
+ * Declared after `generateObstacles` / `spawnObstacleEntity` / `bumpTotalRowsGenerated` so the
+ * Reanimated UI worklet closure sees defined callees (no TDZ / missing symbol at runtime).
+ */
+function appendGapShiftRunwayRows(args: {
+  ecs: ECS;
+  sceneEntity: Entity;
+  managerEntity: Entity;
+  prevRowBeforeNew: ObstacleRowComponentData | null;
+  newRowEntity: Entity;
+  newRowData: ObstacleRowComponentData;
+  rowIndexForDiag: number;
+  macroForRow: MacroPhase;
+  spawnDiagTemplateName: string | undefined;
+  templateCtx: TemplateCtx;
+  leftX: number;
+  rowLength: number;
+  columnWidth: number;
+}): Entity {
+  'worklet';
+  const dupCount = GAP_SHIFT_RUNWAY_DUPLICATE_ROWS;
+  if (dupCount <= 0) return args.newRowEntity;
+  if (!args.prevRowBeforeNew) return args.newRowEntity;
+  if (gapsEqual(args.prevRowBeforeNew.gaps, args.newRowData.gaps)) {
+    return args.newRowEntity;
+  }
+
+  const obstacleDimension = {
+    width: args.columnWidth,
+    height: args.columnWidth,
+  };
+  const gapsToRepeat = args.newRowData.gaps.slice();
+  let lastEntity = args.newRowEntity;
+  let lastY = args.newRowData.y;
+
+  for (let d = 0; d < dupCount; d++) {
+    const y = lastY - obstacleDimension.height;
+    const obstacleDatas = generateObstacles({
+      rowIndex: args.rowIndexForDiag,
+      gaps: gapsToRepeat,
+      y,
+      rowLength: args.rowLength,
+      leftX: args.leftX,
+      obstacleDimension,
+    });
+    const obstacleEntities: Entity[] = [];
+    for (let i = 0; i < obstacleDatas.length; i++) {
+      const entity = spawnObstacleEntity({
+        ecs: args.ecs,
+        sceneEntity: args.sceneEntity,
+        x: obstacleDatas[i].initialPosition.x,
+        y: obstacleDatas[i].initialPosition.y,
+        width: obstacleDatas[i].width,
+        height: obstacleDatas[i].height,
+      });
+      if (entity !== null) obstacleEntities.push(entity);
+    }
+
+    const rowEntity = args.ecs.createEntity();
+    const prevRowComp = args.ecs.components[ObstacleRowComponentName].get(
+      lastEntity
+    ) as ObstacleRowComponentData | undefined;
+    const rowComp = createObstacleRowComponent({
+      y,
+      gaps: gapsToRepeat.slice(),
+      obstacles: obstacleEntities,
+      prevRowEntity: lastEntity,
+      ...rowSpawnDiagFromParams(args.templateCtx, {
+        rowIndex: args.rowIndexForDiag,
+        ecs: args.ecs,
+        sceneEntity: args.sceneEntity,
+        prevRow: prevRowComp ?? args.newRowData,
+        prevRowEntity: lastEntity,
+        initialY: y,
+        rowLength: args.rowLength,
+        leftX: args.leftX,
+        obstacleDimension,
+        pacingMacroPhase: args.macroForRow,
+        spawnDiagTemplateName: args.spawnDiagTemplateName,
+      }),
+    });
+    args.ecs.addComponent(rowEntity, rowComp);
+    args.ecs.updateComponent(
+      args.sceneEntity,
+      SceneComponentName,
+      (scene: SceneComponentData) => {
+        if (!scene.objects.entities.includes(rowEntity)) {
+          scene.objects.entities.push(rowEntity);
+        }
+      }
+    );
+
+    bumpTotalRowsGenerated(args.ecs, args.managerEntity);
+    lastEntity = rowEntity;
+    lastY = y;
+  }
+
+  return lastEntity;
 }
 
 const createObstacleRow: RowPathTemplate['getRow'] = (_ctx, params) => {
@@ -1125,6 +1250,24 @@ export const ObstacleSystem: System = {
           spawnDiagTemplateName: activeTemplateName,
           proceduralStreamSalt,
         });
+        const newRowData = ecs.components[ObstacleRowComponentName].get(
+          lastRowEntity
+        ) as ObstacleRowComponentData;
+        lastRowEntity = appendGapShiftRunwayRows({
+          ecs,
+          sceneEntity,
+          managerEntity,
+          prevRowBeforeNew: prevRow,
+          newRowEntity: lastRowEntity,
+          newRowData,
+          rowIndexForDiag: spawnedRowIndex,
+          macroForRow: macroForRow,
+          spawnDiagTemplateName: activeTemplateName,
+          templateCtx: activeCtx,
+          leftX,
+          rowLength: LAYOUT_CONSTANTS.COLUMNS,
+          columnWidth,
+        });
         bumpTotalRowsGenerated(ecs, managerEntity);
         bumpPathRunIdAfterCompletedMacroCycle(ecs, components, managerEntity, activeCtxEntity);
         maybeLogObstacleRowGeneration(ecs, components, managerEntity, {
@@ -1251,6 +1394,24 @@ export const ObstacleSystem: System = {
             spawnDiagTemplateName: newTemplateName,
             proceduralStreamSalt,
           });
+          const newRowData = ecs.components[ObstacleRowComponentName].get(
+            newRowEntity
+          ) as ObstacleRowComponentData;
+          newRowEntity = appendGapShiftRunwayRows({
+            ecs,
+            sceneEntity,
+            managerEntity,
+            prevRowBeforeNew: prevRow,
+            newRowEntity,
+            newRowData,
+            rowIndexForDiag: 0,
+            macroForRow: macroForRow,
+            spawnDiagTemplateName: newTemplateName,
+            templateCtx: selected.ctx,
+            leftX,
+            rowLength: LAYOUT_CONSTANTS.COLUMNS,
+            columnWidth,
+          });
           bumpTotalRowsGenerated(ecs, managerEntity);
           bumpPathRunIdAfterCompletedMacroCycle(ecs, components, managerEntity, selected.ctxEntity);
           maybeLogObstacleRowGeneration(ecs, components, managerEntity, {
@@ -1294,6 +1455,24 @@ export const ObstacleSystem: System = {
             pacingMacroPhase: macroForRow,
             spawnDiagTemplateName: templateInfo.currentTemplateName,
             proceduralStreamSalt,
+          });
+          const newRowData = ecs.components[ObstacleRowComponentName].get(
+            newRowEntity
+          ) as ObstacleRowComponentData;
+          newRowEntity = appendGapShiftRunwayRows({
+            ecs,
+            sceneEntity,
+            managerEntity,
+            prevRowBeforeNew: prevRow,
+            newRowEntity,
+            newRowData,
+            rowIndexForDiag: lastRowIndex,
+            macroForRow: macroForRow,
+            spawnDiagTemplateName: templateInfo.currentTemplateName,
+            templateCtx: ctx,
+            leftX,
+            rowLength: LAYOUT_CONSTANTS.COLUMNS,
+            columnWidth,
           });
 
           bumpTotalRowsGenerated(ecs, managerEntity);

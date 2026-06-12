@@ -66,6 +66,7 @@ import { ContainerView } from '@/components/ContainerView/ContainerView-rntge';
 import { ObstacleView } from '@/components/ObstacleView/ObstacleView-rntge';
 import { WaterView } from '@/components/WaterView/WaterView-rntge';
 import { CaveBackground } from '@/components/CaveBackground/CaveBackground-rntge';
+import { getWaterSurfaceRestY } from '@/Layout';
 
 // Test components for different gesture types
 const TapTestComponent: FC<{ x: number; y: number }> = ({ x, y }) => {
@@ -283,8 +284,10 @@ const SwimmerGameComp: FC<{}> = memo(
     const containerCenterY = windowHeight / 2; // Center of screen
     const containerBottom = containerCenterY + containerHeight / 2;
 
-    // Water starts at container center (no initial rising phase)
-    const initialWaterSurfaceY = containerCenterY; // Water at center from the start
+    const initialWaterSurfaceY = getWaterSurfaceRestY(
+      containerCenterY,
+      containerHeight
+    );
     // Swimmer starts with roughly 1/3 of its body below the water surface
     const swimmerStartY = initialWaterSurfaceY - 10;
 

@@ -14,7 +14,13 @@ import {
 import {
   ObstacleComponentName,
 } from '@/Game/ecs-components/ObstacleComponent';
-import { LAYOUT_CONSTANTS, getColumnCenterX, getObstacleWidth, getRows } from '@/Layout';
+import {
+  LAYOUT_CONSTANTS,
+  getColumnCenterX,
+  getObstacleWidth,
+  getRows,
+  getWaterSurfaceRestY,
+} from '@/Layout';
 import { MatterBodyComponentName } from '@/containers/ReactNativeSkiaGameEngine/internal/components/matterBody';
 import {
   RenderComponentData,
@@ -35,7 +41,7 @@ const BASE_RESPONSIVENESS = 0.15; // how quickly velocity approaches target
 const PINNED_VELOCITY_DAMPING = 0.7; // vx multiplier when pinned under obstacle
 const TAP_IMPULSE_MULTIPLIER_MIN = 1;
 const TAP_IMPULSE_MULTIPLIER_MAX = 3.5; // headroom for CLIMAX margin dashes
-const MAX_WATER_CURRENT_SPEED = 95; // px/s lateral drift at full flow
+const MAX_WATER_CURRENT_SPEED = 200; // px/s lateral drift at full flow
 const WATER_CURRENT_RESPONSE_PER_SECOND = 4.5; // higher = snaps faster to current
 const WATER_CURRENT_SURGE_BOOST = 0.6; // extra current strength during surge
 const SURFACE_FOLLOW_RESPONSE_PER_SECOND = 9.5;
@@ -46,7 +52,7 @@ const SURFACE_BOB_BLEND = 0.2;
  * SwimmerPhysicsSystem - Handles swimmer movement and game mechanics
  *
  * Game phases:
- * 1. Initial phase: Water rises to half container height, swimmer follows water surface
+ * 1. Initial phase: Water rises until surface reaches `getWaterSurfaceRestY` (fraction up from container bottom; see Layout)
  * 2. Platformer phase: Water stops rising, swimmer's Y is locked to water surface,
  *    obstacles move down at water speed (creating platformer effect)
  * 3. Collision phase: If swimmer collides with obstacle, swimmer falls at obstacle speed
@@ -104,7 +110,10 @@ export const SwimmerPhysicsSystem: System = {
     const deltaSeconds = deltaTime / 1000;
     const containerTop = containerData.centerY - containerData.height / 2;
     const containerBottom = containerData.centerY + containerData.height / 2;
-    const halfContainerHeight = containerData.centerY; // Half way up from bottom
+    const waterSurfaceRestY = getWaterSurfaceRestY(
+      containerData.centerY,
+      containerData.height
+    );
     const clamp01 = (value: number) => {
       'worklet';
       return Math.max(0, Math.min(1, value));
@@ -156,13 +165,12 @@ export const SwimmerPhysicsSystem: System = {
 
     // PHASE 1: Initial water rising phase
     if (isInInitialPhase) {
-      // Update water level - rise until half container height
+      // Update water level — rise (Y decreases) until surface reaches configured rest line
       const newWaterSurfaceY = containerData.waterSurfaceY - waterData.raisingSpeed * deltaSeconds;
-      const targetHeight = halfContainerHeight;
-      const constrainedWaterY = Math.max(newWaterSurfaceY, targetHeight);
+      const constrainedWaterY = Math.max(newWaterSurfaceY, waterSurfaceRestY);
 
       // Check if we've reached the target height
-      const hasReachedHalfHeight = constrainedWaterY <= targetHeight;
+      const hasReachedHalfHeight = constrainedWaterY <= waterSurfaceRestY;
 
       ecs.updateComponent<ContainerComponentData>(
         containerEntity,

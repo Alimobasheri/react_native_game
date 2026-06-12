@@ -28,6 +28,7 @@ import { ScoreView } from '@/components/ScoreView/ScoreView-rntge';
 import { ObstacleRowComponentName } from '@/Game/ecs-components/ObstacleRowComponent';
 import { TemplateContextComponentName } from '@/Game/ecs-components/TemplateContextComponent';
 import { GameOverScene } from '../Scenes/GameOverScene/index-rntge';
+import { getWaterSurfaceRestY } from '@/Layout';
 
 export const SwimmerGameComp: FC<{}> = memo(
   (args: any) => {
@@ -40,8 +41,10 @@ export const SwimmerGameComp: FC<{}> = memo(
     const containerCenterY = windowHeight / 2; // Center of screen
     const containerBottom = containerCenterY + containerHeight / 2;
 
-    // Water starts at container center (no initial rising phase)
-    const initialWaterSurfaceY = containerCenterY; // Water at center from the start
+    const initialWaterSurfaceY = getWaterSurfaceRestY(
+      containerCenterY,
+      containerHeight
+    );
     // Swimmer starts with roughly 1/3 of its body below the water surface
     const swimmerStartY = initialWaterSurfaceY - 10;
 
@@ -93,7 +96,7 @@ export const SwimmerGameComp: FC<{}> = memo(
                     width={containerWidth}
                     height={containerHeight}
                     initialWaterSurfaceY={initialWaterSurfaceY}
-                    waterRiseSpeed={3}
+                    waterRiseSpeed={20}
                   />
 
                   {/* Water - rendered separately, will be updated by system */}

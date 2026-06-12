@@ -2,6 +2,27 @@
  * Layout constants for the swimmer game
  */
 
+/**
+ * Resting water surface Y: **fraction of container height measured up from the container bottom**.
+ * Not defined relative to `centerY` as a reference point—only `centerY` + `height` are used to locate the bottom edge.
+ * - `0` → surface on the bottom edge
+ * - `1/3` → one third of a container height above the bottom
+ * - `1/2` → mid container (same as old “surface at centerY” when center is geometric center)
+ * - `1` → top edge
+ */
+export const WATER_SURFACE_FROM_CONTAINER_BOTTOM_FRACTION = 1 / 3;
+
+export const getWaterSurfaceRestY = (
+  containerCenterY: number,
+  containerHeight: number
+): number => {
+  'worklet';
+  const h = Math.max(1, containerHeight);
+  const f = Math.max(0, Math.min(1, WATER_SURFACE_FROM_CONTAINER_BOTTOM_FRACTION));
+  const bottomY = containerCenterY + h * 0.5;
+  return bottomY - f * h;
+};
+
 export const LAYOUT_CONSTANTS = {
   // Grid layout constants
   COLUMNS: 9,
@@ -15,6 +36,15 @@ export const LAYOUT_CONSTANTS = {
   // Removal threshold - remove when obstacle passes 100% of screen height
   REMOVAL_THRESHOLD_OFFSET: 100, // Extra buffer in pixels
 } as const;
+
+/**
+ * When a new band’s gap set differs from the previous band, spawn this many **extra**
+ * stacked rows that **repeat the new band’s gaps** (vertical runway after lateral shifts).
+ * `0` = off. `1` = new pattern appears on **two** consecutive rows before the next generator step.
+ * Standalone export (not only inside `LAYOUT_CONSTANTS`) so UI worklets can import a primitive without pulling the whole constants object graph.
+ * Consumed by `ObstacleSystem` worklet.
+ */
+export const GAP_SHIFT_RUNWAY_DUPLICATE_ROWS = 1;
 
 export const getObstacleWidth = (containerWidth: number): number => {
   'worklet';
