@@ -44,7 +44,7 @@ export const LAYOUT_CONSTANTS = {
  * Standalone export (not only inside `LAYOUT_CONSTANTS`) so UI worklets can import a primitive without pulling the whole constants object graph.
  * Consumed by `ObstacleSystem` worklet.
  */
-export const GAP_SHIFT_RUNWAY_DUPLICATE_ROWS = 1;
+export const GAP_SHIFT_RUNWAY_DUPLICATE_ROWS = 4;
 
 export const getObstacleWidth = (containerWidth: number): number => {
   'worklet';

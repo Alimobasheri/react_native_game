@@ -3,7 +3,6 @@ import { useWindowDimensions, View } from 'react-native';
 import { ReactNativeTurboGameEngine } from './RNTGE';
 import { Preload } from './components-rntge/Scene/Preload';
 import { Asset } from './components-rntge/Scene/Asset';
-import { SkyBackground } from '@/components/SkyBackground/SkyBackground-rntge';
 import { Scene } from './components-rntge/Scene/Scene';
 import { block } from '@/assets/images';
 import { block2 } from '@/assets/images';
@@ -28,10 +27,50 @@ import { ScoreView } from '@/components/ScoreView/ScoreView-rntge';
 import { ObstacleRowComponentName } from '@/Game/ecs-components/ObstacleRowComponent';
 import { TemplateContextComponentName } from '@/Game/ecs-components/TemplateContextComponent';
 import { GameOverScene } from '../Scenes/GameOverScene/index-rntge';
-import { getWaterSurfaceRestY } from '@/Layout';
+import { WATER_SURFACE_FROM_CONTAINER_BOTTOM_FRACTION } from '@/Layout';
 
-export const SwimmerGameComp: FC<{}> = memo(
-  (args: any) => {
+/** Same geometry as `getWaterSurfaceRestY` but uses story arg `fraction` for experiments. */
+function waterSurfaceYFromBottomFraction(
+  containerCenterY: number,
+  containerHeight: number,
+  fraction: number
+): number {
+  const h = Math.max(1, containerHeight);
+  const f = Math.max(0, Math.min(1, fraction));
+  const bottomY = containerCenterY + h * 0.5;
+  return bottomY - f * h;
+}
+
+export type SwimmerStoryArgs = {
+  /**
+   * Resting water surface as fraction of container height up from the bottom (see Layout.ts).
+   * Default matches `WATER_SURFACE_FROM_CONTAINER_BOTTOM_FRACTION`.
+   */
+  waterSurfaceFromBottomFraction: number;
+  waterRiseSpeed: number;
+  raisingSpeed: number;
+  /**
+   * Keys in `ObstacleSystem` `MappedTemplates`. Empty string = omit prop (directed pacing / default).
+   */
+  lockedTemplateName: string;
+};
+
+const TEMPLATE_OPTIONS = [
+  '',
+  'directed',
+  'base',
+  'baseMulti',
+  'rest',
+  'smily',
+  'jellyfish',
+  'micky',
+  'kitty',
+  'deadpool',
+  'megaman',
+] as const;
+
+export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
+  (args) => {
     const windowDimensions = useWindowDimensions();
     const { width: windowWidth, height: windowHeight } = windowDimensions;
     // Container setup - rectangular container extending full screen height for endless look
@@ -39,11 +78,11 @@ export const SwimmerGameComp: FC<{}> = memo(
     const containerHeight = windowHeight; // Full screen height for endless appearance
     const containerCenterX = windowWidth / 2;
     const containerCenterY = windowHeight / 2; // Center of screen
-    const containerBottom = containerCenterY + containerHeight / 2;
 
-    const initialWaterSurfaceY = getWaterSurfaceRestY(
+    const initialWaterSurfaceY = waterSurfaceYFromBottomFraction(
       containerCenterY,
-      containerHeight
+      containerHeight,
+      args.waterSurfaceFromBottomFraction
     );
     // Swimmer starts with roughly 1/3 of its body below the water surface
     const swimmerStartY = initialWaterSurfaceY - 10;
@@ -96,14 +135,20 @@ export const SwimmerGameComp: FC<{}> = memo(
                     width={containerWidth}
                     height={containerHeight}
                     initialWaterSurfaceY={initialWaterSurfaceY}
-                    waterRiseSpeed={20}
+                    waterRiseSpeed={args.waterRiseSpeed}
                   />
 
                   {/* Water - rendered separately, will be updated by system */}
-                  <WaterView raisingSpeed={100} />
+                  <WaterView raisingSpeed={args.raisingSpeed} />
 
                   {/* Dynamic Obstacles */}
-                  <ObstacleView />
+                  <ObstacleView
+                    lockedTemplateName={
+                      args.lockedTemplateName
+                        ? args.lockedTemplateName
+                        : undefined
+                    }
+                  />
 
                   {/* Swimmer - centered in a column; TapSwimmer handles tap-to-move */}
                   <SwimmerView
@@ -139,7 +184,24 @@ export const SwimmerGameComp: FC<{}> = memo(
 const meta = {
   title: 'Swimmer Game',
   component: SwimmerGameComp,
-  args: {},
+  args: {
+    waterSurfaceFromBottomFraction:
+      WATER_SURFACE_FROM_CONTAINER_BOTTOM_FRACTION,
+    waterRiseSpeed: 20,
+    raisingSpeed: 100,
+    lockedTemplateName: '',
+  },
+  argTypes: {
+    waterSurfaceFromBottomFraction: {
+      control: { type: 'range', min: 0, max: 1, step: 0.05 },
+    },
+    waterRiseSpeed: { control: { type: 'number' } },
+    raisingSpeed: { control: { type: 'number' } },
+    lockedTemplateName: {
+      control: 'select',
+      options: [...TEMPLATE_OPTIONS],
+    },
+  },
 } satisfies Meta<typeof SwimmerGameComp>;
 
 export default meta;

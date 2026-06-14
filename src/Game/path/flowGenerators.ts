@@ -8,14 +8,14 @@ import { gapsFromRow, rowFromGaps, type SwimmerRow } from './swimmerGrid';
 export const FLOW_GAP_WIDTH = 3;
 
 /** Rows of Chute before switching to Chicane within a FLOW macro segment. */
-export const FLOW_CHUTE_ROWS_BEFORE_CHICANE = 10;
+export const FLOW_CHUTE_ROWS_BEFORE_CHICANE = 20;
 
 /**
  * Chicane: how many consecutive rows reuse the same 3-wide gap before the center shifts.
  * Higher = more vertical "runway" in the same corridor (full brick rows, water still reads continuous).
  * 2 felt too pinchy at higher water speeds; 3+ gives time to commit before the lateral step.
  */
-export const CHICANE_DEFAULT_BLOCK_N = 3;
+export const CHICANE_DEFAULT_BLOCK_N = 9;
 
 export type ChicaneState = {
   /** Center column index of the 3-wide gap (passable at center-1, center, center+1). */

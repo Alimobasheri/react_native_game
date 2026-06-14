@@ -7,6 +7,7 @@ import {
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import { WaterComponentName } from '@/Game/ecs-components/Water';
 import { ContainerComponentName, ContainerComponentData } from '@/Game/ecs-components/Container';
+import { waterShaderRuntimeTuning } from '@/config/swimmerTuning';
 
 /**
  * WaterShaderSystem - Updates water shader uniforms based on container water level
@@ -68,7 +69,9 @@ export const WaterShaderSystem: System = {
           const uniforms = renderComponent.shader.uniforms;
 
           // Update time for animation
-          uniforms.iTime = (uniforms.iTime as number || 0) + deltaTime / 100;
+          uniforms.iTime =
+            (uniforms.iTime as number || 0) +
+            deltaTime / waterShaderRuntimeTuning.iTimeDeltaDivisor;
 
           // Calculate water level in container UV space (0 = container bottom, 1 = container top).
           const containerTop = containerData.centerY - containerData.height / 2;

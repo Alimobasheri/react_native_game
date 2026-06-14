@@ -67,6 +67,7 @@ import {
   pacingPhaseAtTotalRows,
   pacingPhaseToMacroPhase,
 } from '@/Game/path/pacingDirector';
+import { OBSTACLE_PACING_CYCLE_ROW_COUNT } from '@/config/obstaclePacing';
 import {
   RELEASE_REST_ZONE_ROWS,
   releaseCatharticRestZoneGaps,
@@ -224,8 +225,6 @@ const bumpTotalRowsGenerated = (ecs: ECS, managerEntity: Entity) => {
   );
 };
 
-/** Must match `pacingDirector` cycle length (FLOW+TENSION+CLIMAX+RELEASE). */
-const PACING_MACRO_CYCLE_ROW_COUNT = 55;
 
 /**
  * After each full macro cycle, bump `pathRunId` so multipath / proc rows don't repeat the same
@@ -242,7 +241,7 @@ const bumpPathRunIdAfterCompletedMacroCycle = (
     | ObstaclesManagerComponentData
     | undefined;
   const tr = mgr?.totalRowsGenerated ?? 0;
-  if (tr < PACING_MACRO_CYCLE_ROW_COUNT || tr % PACING_MACRO_CYCLE_ROW_COUNT !== 0) {
+  if (tr < OBSTACLE_PACING_CYCLE_ROW_COUNT || tr % OBSTACLE_PACING_CYCLE_ROW_COUNT !== 0) {
     return;
   }
   ecs.updateComponent<TemplateContextComponentData>(

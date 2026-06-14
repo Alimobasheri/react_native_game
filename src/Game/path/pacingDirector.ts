@@ -1,20 +1,25 @@
 /**
- * Macro Pacing Director — 55-row emotional cycle (worklet-safe: literals only inside worklets).
+ * Macro Pacing Director — emotional cycle over obstacle row counts (worklet-safe).
  *
- * Phases: FLOW (20) → TENSION (15) → CLIMAX (10) → RELEASE (10) → repeat.
+ * Phase lengths and cycle total: `src/config/obstaclePacing.ts` (`obstaclePacingTuning`).
  */
 
+import {
+  obstaclePacingTuning,
+  OBSTACLE_PACING_CYCLE_ROW_COUNT,
+} from '@/config/obstaclePacing';
 import type { MacroPhase } from './macroPacing';
 import { hasVerticalSeam, type SwimmerRow } from './swimmerGrid';
 
 export type PacingDirectorPhase = 'FLOW' | 'TENSION' | 'CLIMAX' | 'RELEASE';
 
-/** Row index within the 55-row macro cycle [0, 54]. */
+/** Row index within the macro cycle [0, cycleLength - 1]. */
 export function pacingRowInCycle(totalRowsGenerated: number): number {
   'worklet';
   const t = Math.floor(totalRowsGenerated);
-  const m = t % 55;
-  return m < 0 ? m + 55 : m;
+  const c = OBSTACLE_PACING_CYCLE_ROW_COUNT;
+  const m = t % c;
+  return m < 0 ? m + c : m;
 }
 
 /**
@@ -24,9 +29,12 @@ export function pacingRowInCycle(totalRowsGenerated: number): number {
 export function pacingPhaseAtTotalRows(totalRowsGenerated: number): PacingDirectorPhase {
   'worklet';
   const r = pacingRowInCycle(totalRowsGenerated);
-  if (r < 20) return 'FLOW';
-  if (r < 35) return 'TENSION';
-  if (r < 45) return 'CLIMAX';
+  const f = obstaclePacingTuning.FLOW_ROW_COUNT;
+  const tensionEnd = f + obstaclePacingTuning.TENSION_ROW_COUNT;
+  const climaxEnd = tensionEnd + obstaclePacingTuning.CLIMAX_ROW_COUNT;
+  if (r < f) return 'FLOW';
+  if (r < tensionEnd) return 'TENSION';
+  if (r < climaxEnd) return 'CLIMAX';
   return 'RELEASE';
 }
 
@@ -105,22 +113,30 @@ export function runEmbeddedPacingValidations(): void {
     fail('validateSeam should accept shared gap');
   }
 
-  if (pacingPhaseAtTotalRows(44) !== 'CLIMAX') {
-    fail('row 44 must be CLIMAX');
+  const f = obstaclePacingTuning.FLOW_ROW_COUNT;
+  const t = obstaclePacingTuning.TENSION_ROW_COUNT;
+  const x = obstaclePacingTuning.CLIMAX_ROW_COUNT;
+  const lastClimaxRow = f + t + x - 1;
+  const firstReleaseRow = f + t + x;
+
+  if (pacingPhaseAtTotalRows(lastClimaxRow) !== 'CLIMAX') {
+    fail(`row ${lastClimaxRow} must be CLIMAX`);
   }
-  if (pacingPhaseAtTotalRows(45) !== 'RELEASE') {
-    fail('row 45 must be RELEASE');
+  if (pacingPhaseAtTotalRows(firstReleaseRow) !== 'RELEASE') {
+    fail(`row ${firstReleaseRow} must be RELEASE`);
   }
-  if (pacingPhaseAtTotalRows(55) !== 'FLOW') {
-    fail('row 55 must wrap to FLOW');
+  if (pacingPhaseAtTotalRows(OBSTACLE_PACING_CYCLE_ROW_COUNT) !== 'FLOW') {
+    fail(`row ${OBSTACLE_PACING_CYCLE_ROW_COUNT} must wrap to FLOW`);
   }
 
   const d = new PacingDirector();
-  for (let i = 0; i < 45; i++) {
+  for (let i = 0; i < firstReleaseRow; i++) {
     d.consumeRowForNextGeneration();
   }
   if (d.currentPhase !== 'RELEASE') {
-    fail('after 45 generated rows, currentPhase must be RELEASE');
+    fail(
+      `after ${firstReleaseRow} generated rows, currentPhase must be RELEASE`
+    );
   }
 }
 

@@ -1,4 +1,8 @@
 import {
+  OBSTACLE_PACING_CYCLE_ROW_COUNT,
+  obstaclePacingTuning,
+} from '@/config/obstaclePacing';
+import {
   PacingDirector,
   pacingPhaseAtTotalRows,
   pacingRowInCycle,
@@ -6,6 +10,19 @@ import {
   validateSeam,
 } from '@/Game/path/pacingDirector';
 import type { SwimmerRow } from '@/Game/path/swimmerGrid';
+
+const F = obstaclePacingTuning.FLOW_ROW_COUNT;
+const T = obstaclePacingTuning.TENSION_ROW_COUNT;
+const X = obstaclePacingTuning.CLIMAX_ROW_COUNT;
+const R = obstaclePacingTuning.RELEASE_ROW_COUNT;
+const C = OBSTACLE_PACING_CYCLE_ROW_COUNT;
+const lastFlow = F - 1;
+const firstTension = F;
+const lastTension = F + T - 1;
+const firstClimax = F + T;
+const lastClimax = F + T + X - 1;
+const firstRelease = F + T + X;
+const lastRelease = C - 1;
 
 beforeAll(() => {
   runEmbeddedPacingValidations();
@@ -37,41 +54,45 @@ describe('validateSeam', () => {
 });
 
 describe('PacingDirector phases', () => {
-  it('uses a 55-row cycle with FLOW=20, TENSION=15, CLIMAX=10, RELEASE=10', () => {
-    expect(pacingRowInCycle(0)).toBe(0);
-    expect(pacingRowInCycle(54)).toBe(54);
-    expect(pacingRowInCycle(55)).toBe(0);
-    expect(pacingRowInCycle(-1)).toBe(54);
-
-    expect(pacingPhaseAtTotalRows(0)).toBe('FLOW');
-    expect(pacingPhaseAtTotalRows(19)).toBe('FLOW');
-    expect(pacingPhaseAtTotalRows(20)).toBe('TENSION');
-    expect(pacingPhaseAtTotalRows(34)).toBe('TENSION');
-    expect(pacingPhaseAtTotalRows(35)).toBe('CLIMAX');
-    expect(pacingPhaseAtTotalRows(44)).toBe('CLIMAX');
-    expect(pacingPhaseAtTotalRows(45)).toBe('RELEASE');
-    expect(pacingPhaseAtTotalRows(54)).toBe('RELEASE');
-    expect(pacingPhaseAtTotalRows(55)).toBe('FLOW');
+  it('cycle length matches sum of phase row counts', () => {
+    expect(F + T + X + R).toBe(C);
   });
 
-  it('switches from CLIMAX to RELEASE exactly at row 45 (no off-by-one)', () => {
-    expect(pacingPhaseAtTotalRows(44)).toBe('CLIMAX');
-    expect(pacingPhaseAtTotalRows(45)).toBe('RELEASE');
+  it('indexes cycle and phases from config', () => {
+    expect(pacingRowInCycle(0)).toBe(0);
+    expect(pacingRowInCycle(lastRelease)).toBe(lastRelease);
+    expect(pacingRowInCycle(C)).toBe(0);
+    expect(pacingRowInCycle(-1)).toBe(lastRelease);
+
+    expect(pacingPhaseAtTotalRows(0)).toBe('FLOW');
+    expect(pacingPhaseAtTotalRows(lastFlow)).toBe('FLOW');
+    expect(pacingPhaseAtTotalRows(firstTension)).toBe('TENSION');
+    expect(pacingPhaseAtTotalRows(lastTension)).toBe('TENSION');
+    expect(pacingPhaseAtTotalRows(firstClimax)).toBe('CLIMAX');
+    expect(pacingPhaseAtTotalRows(lastClimax)).toBe('CLIMAX');
+    expect(pacingPhaseAtTotalRows(firstRelease)).toBe('RELEASE');
+    expect(pacingPhaseAtTotalRows(lastRelease)).toBe('RELEASE');
+    expect(pacingPhaseAtTotalRows(C)).toBe('FLOW');
+  });
+
+  it('switches from CLIMAX to RELEASE with no off-by-one', () => {
+    expect(pacingPhaseAtTotalRows(lastClimax)).toBe('CLIMAX');
+    expect(pacingPhaseAtTotalRows(firstRelease)).toBe('RELEASE');
   });
 
   it('PacingDirector.consumeRowForNextGeneration advances phase in lockstep with counts', () => {
     const d = new PacingDirector();
     const phases: string[] = [];
-    for (let i = 0; i < 56; i++) {
+    for (let i = 0; i < C + 1; i++) {
       phases.push(d.consumeRowForNextGeneration());
     }
     expect(phases[0]).toBe('FLOW');
-    expect(phases[19]).toBe('FLOW');
-    expect(phases[20]).toBe('TENSION');
-    expect(phases[44]).toBe('CLIMAX');
-    expect(phases[45]).toBe('RELEASE');
-    expect(phases[54]).toBe('RELEASE');
-    expect(phases[55]).toBe('FLOW');
-    expect(d.totalRowsGenerated).toBe(56);
+    expect(phases[lastFlow]).toBe('FLOW');
+    expect(phases[firstTension]).toBe('TENSION');
+    expect(phases[lastClimax]).toBe('CLIMAX');
+    expect(phases[firstRelease]).toBe('RELEASE');
+    expect(phases[lastRelease]).toBe('RELEASE');
+    expect(phases[C]).toBe('FLOW');
+    expect(d.totalRowsGenerated).toBe(C + 1);
   });
 });

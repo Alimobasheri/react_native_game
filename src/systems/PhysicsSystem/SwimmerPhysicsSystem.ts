@@ -30,23 +30,7 @@ import {
   LoadSceneRequestType,
   UnLoadSceneRequestType,
 } from '@/containers/ReactNativeSkiaGameEngine/components-rntge/Scene/events';
-
-const SWIMMER_WIDTH_COLUMN_RATIO = 2 / 3;
-const SWIMMER_HEIGHT_TO_WIDTH_RATIO = 1.8;
-
-// Horizontal movement tuning for tap-based hyper-casual control.
-const MAX_HORIZONTAL_SPEED = 520; // pixels / second (raised for CLIMAX cross-screen recovery after False Wall)
-const BASE_HORIZONTAL_ACCEL = 900; // target speed for inputX = 1 before drag
-const BASE_RESPONSIVENESS = 0.15; // how quickly velocity approaches target
-const PINNED_VELOCITY_DAMPING = 0.7; // vx multiplier when pinned under obstacle
-const TAP_IMPULSE_MULTIPLIER_MIN = 1;
-const TAP_IMPULSE_MULTIPLIER_MAX = 3.5; // headroom for CLIMAX margin dashes
-const MAX_WATER_CURRENT_SPEED = 200; // px/s lateral drift at full flow
-const WATER_CURRENT_RESPONSE_PER_SECOND = 4.5; // higher = snaps faster to current
-const WATER_CURRENT_SURGE_BOOST = 0.6; // extra current strength during surge
-const SURFACE_FOLLOW_RESPONSE_PER_SECOND = 9.5;
-const SURFACE_SUBMERGENCE_RATIO = 0.42;
-const SURFACE_BOB_BLEND = 0.2;
+import { swimmerPhysicsTuning } from '@/config/swimmerTuning';
 
 /**
  * SwimmerPhysicsSystem - Handles swimmer movement and game mechanics
@@ -287,9 +271,9 @@ export const SwimmerPhysicsSystem: System = {
       const rowsForBuoyancy = rawRowsForBuoyancy > 0 ? rawRowsForBuoyancy : 1;
       const rowHeightForBuoyancy = containerData.height / rowsForBuoyancy;
       const swimmerWidthForBuoyancy =
-        obstacleWidthForBuoyancy * SWIMMER_WIDTH_COLUMN_RATIO;
+        obstacleWidthForBuoyancy * swimmerPhysicsTuning.SWIMMER_WIDTH_COLUMN_RATIO;
       const swimmerHeightForBuoyancy = Math.min(
-        swimmerWidthForBuoyancy * SWIMMER_HEIGHT_TO_WIDTH_RATIO,
+        swimmerWidthForBuoyancy * swimmerPhysicsTuning.SWIMMER_HEIGHT_TO_WIDTH_RATIO,
         rowHeightForBuoyancy * 0.9
       );
 
@@ -328,9 +312,9 @@ export const SwimmerPhysicsSystem: System = {
       const rowsForBlockCheck = rawRowsForBlockCheck > 0 ? rawRowsForBlockCheck : 1;
       const rowHeightForBlockCheck = containerData.height / rowsForBlockCheck;
       const swimmerWidthForBlockCheck =
-        obstacleWidth * SWIMMER_WIDTH_COLUMN_RATIO;
+        obstacleWidth * swimmerPhysicsTuning.SWIMMER_WIDTH_COLUMN_RATIO;
       const swimmerHeightForBlockCheck = Math.min(
-        swimmerWidthForBlockCheck * SWIMMER_HEIGHT_TO_WIDTH_RATIO,
+        swimmerWidthForBlockCheck * swimmerPhysicsTuning.SWIMMER_HEIGHT_TO_WIDTH_RATIO,
         rowHeightForBlockCheck * 0.9
       );
       const swimmerHalfHeight = swimmerHeightForBlockCheck / 2;
@@ -439,8 +423,8 @@ export const SwimmerPhysicsSystem: System = {
 
       const waterCurrentVelocityX =
         localFlowVelocityNorm *
-        MAX_WATER_CURRENT_SPEED *
-        (1 + WATER_CURRENT_SURGE_BOOST * surgeNorm);
+        swimmerPhysicsTuning.MAX_WATER_CURRENT_SPEED *
+        (1 + swimmerPhysicsTuning.WATER_CURRENT_SURGE_BOOST * surgeNorm);
 
       // Horizontal control: tap-based hyper-casual (useColumnControl) or pan-based.
       if (swimmerComponent.useColumnControl) {
@@ -469,8 +453,8 @@ export const SwimmerPhysicsSystem: System = {
 
           const tapMultiplierRaw = swimmerComponent.pendingTapMultiplier ?? 1;
           const tapMultiplier = Math.max(
-            TAP_IMPULSE_MULTIPLIER_MIN,
-            Math.min(TAP_IMPULSE_MULTIPLIER_MAX, tapMultiplierRaw)
+            swimmerPhysicsTuning.TAP_IMPULSE_MULTIPLIER_MIN,
+            Math.min(swimmerPhysicsTuning.TAP_IMPULSE_MULTIPLIER_MAX, tapMultiplierRaw)
           );
           const tapImpulse = currentInputX * desiredDistance * k * tapMultiplier; // pixels/second
           swimmerVelocityX += tapImpulse;
@@ -502,19 +486,19 @@ export const SwimmerPhysicsSystem: System = {
       // Water advection: treat flow as a target lateral velocity and relax toward it
       // with a frame-rate-independent response curve.
       const currentResponse =
-        1 - Math.exp(-WATER_CURRENT_RESPONSE_PER_SECOND * deltaSeconds);
+        1 - Math.exp(-swimmerPhysicsTuning.WATER_CURRENT_RESPONSE_PER_SECOND * deltaSeconds);
       swimmerVelocityX +=
         (waterCurrentVelocityX - swimmerVelocityX) * currentResponse;
       // Clamp horizontal speed.
-      if (swimmerVelocityX > MAX_HORIZONTAL_SPEED) {
-        swimmerVelocityX = MAX_HORIZONTAL_SPEED;
-      } else if (swimmerVelocityX < -MAX_HORIZONTAL_SPEED) {
-        swimmerVelocityX = -MAX_HORIZONTAL_SPEED;
+      if (swimmerVelocityX > swimmerPhysicsTuning.MAX_HORIZONTAL_SPEED) {
+        swimmerVelocityX = swimmerPhysicsTuning.MAX_HORIZONTAL_SPEED;
+      } else if (swimmerVelocityX < -swimmerPhysicsTuning.MAX_HORIZONTAL_SPEED) {
+        swimmerVelocityX = -swimmerPhysicsTuning.MAX_HORIZONTAL_SPEED;
       }
 
       // When pinned against/under an obstacle, horizontal movement is heavily damped.
       if (isCollidingWithObstacle) {
-        swimmerVelocityX *= PINNED_VELOCITY_DAMPING;
+        swimmerVelocityX *= swimmerPhysicsTuning.PINNED_VELOCITY_DAMPING;
       }
 
       const newX = matterBody.position.x + swimmerVelocityX * deltaSeconds;
@@ -646,7 +630,7 @@ export const SwimmerPhysicsSystem: System = {
       const curveSurfaceY =
         containerTop + (1 - finalSurfaceNorm) * containerData.height;
       const targetFloatCenterY =
-        curveSurfaceY + swimmerHalfHeight * SURFACE_SUBMERGENCE_RATIO + bobbingOffsetY * SURFACE_BOB_BLEND;
+        curveSurfaceY + swimmerHalfHeight * swimmerPhysicsTuning.SURFACE_SUBMERGENCE_RATIO + bobbingOffsetY * swimmerPhysicsTuning.SURFACE_BOB_BLEND;
       const surfaceDepth = targetY - curveSurfaceY;
       const canFollowCurve =
         !isCollidingWithObstacle &&
@@ -656,7 +640,7 @@ export const SwimmerPhysicsSystem: System = {
         surfaceDepth < swimmerHeightForBlockCheck * 2.1;
       if (canFollowCurve) {
         const followStep =
-          1 - Math.exp(-SURFACE_FOLLOW_RESPONSE_PER_SECOND * dtSeconds);
+          1 - Math.exp(-swimmerPhysicsTuning.SURFACE_FOLLOW_RESPONSE_PER_SECOND * dtSeconds);
         targetY += (targetFloatCenterY - targetY) * followStep;
       }
 
@@ -668,7 +652,7 @@ export const SwimmerPhysicsSystem: System = {
         // Visual tilt based on horizontal velocity (up to 45 degrees),
         // reaching max tilt already at 50% of MAX_HORIZONTAL_SPEED.
         const maxTiltRadians = (75 * Math.PI) / 180;
-        const fullTiltSpeed = MAX_HORIZONTAL_SPEED * 0.25;
+        const fullTiltSpeed = swimmerPhysicsTuning.MAX_HORIZONTAL_SPEED * 0.25;
         const tiltNormalized = Math.max(
           -1,
           Math.min(1, swimmerVelocityX / fullTiltSpeed)
@@ -705,7 +689,7 @@ export const SwimmerPhysicsSystem: System = {
           swimmer.pendingTapMultiplier = 1;
           swimmer.gameOverDispatched =
             swimmerComponent.gameOverDispatched || shouldDispatchGameOver;
-          const fullTiltSpeedForComponent = MAX_HORIZONTAL_SPEED * 0.5;
+          const fullTiltSpeedForComponent = swimmerPhysicsTuning.MAX_HORIZONTAL_SPEED * 0.5;
           const tiltNormalizedForComponent = Math.max(
             -1,
             Math.min(1, swimmerVelocityX / fullTiltSpeedForComponent)

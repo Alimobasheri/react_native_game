@@ -4,7 +4,7 @@
 
 import { rowFromGaps, type SwimmerRow } from './swimmerGrid';
 
-/** Deterministic wide-open strip length (matches 55-row macro RELEASE span). */
+/** Deterministic wide-open strip length (tune with `RELEASE_ROW_COUNT` in `obstaclePacing.ts`). */
 export const RELEASE_REST_ZONE_ROWS = 10;
 
 /** Gaps for columns `1 .. columnCount-2` (interior only; edges stay solid). */

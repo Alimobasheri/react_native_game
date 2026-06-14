@@ -3,6 +3,8 @@
  * Macro cycle / director lives in `pacingDirector.ts`.
  */
 
+import { OBSTACLE_PACING_RUN_DEPTH_DIVISOR } from '@/config/obstaclePacing';
+
 export type MacroPhase = 'flow' | 'tension' | 'climax' | 'release';
 
 /** Bias values in [0,1] for tuning archetype thresholds per phase. */
@@ -28,7 +30,8 @@ export function macroPhaseTension01(phase: MacroPhase): number {
 export function runDepthTensionBonus01(rowsSpawnedBeforeThis: number): number {
   'worklet';
   const r = rowsSpawnedBeforeThis >>> 0;
-  const raw = r / 550;
+  const denom = Math.max(1, OBSTACLE_PACING_RUN_DEPTH_DIVISOR);
+  const raw = r / denom;
   return raw > 0.34 ? 0.34 : raw;
 }
 

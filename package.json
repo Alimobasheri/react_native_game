@@ -11,6 +11,7 @@
     "storybook": "cross-env STORYBOOK_ENABLED='true' expo start --offline --clear",
     "storybook:ios": "cross-env STORYBOOK_ENABLED='true' expo ios",
     "storybook:android": "cross-env STORYBOOK_ENABLED='true' expo android",
+    "snapshot:swimmer": "node scripts/snapshot-swimmer-config.mjs",
     "test": "jest --watchAll"
   },
   "dependencies": {

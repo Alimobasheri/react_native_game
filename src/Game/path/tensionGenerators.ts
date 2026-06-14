@@ -34,7 +34,7 @@ export function tensionFunnelWidthAtStep(stepIndex: number): number {
   return Math.max(
     1,
     TENSION_FUNNEL_START_WIDTH -
-      Math.min(raw, TENSION_FUNNEL_START_WIDTH - 1)
+    Math.min(raw, TENSION_FUNNEL_START_WIDTH - 1)
   );
 }
 

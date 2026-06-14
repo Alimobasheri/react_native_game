@@ -1,4 +1,5 @@
 import { LAYOUT_CONSTANTS } from '@/Layout';
+import { OBSTACLE_PREV_RUN_REACH_SLOP_COLUMNS } from '@/config/obstaclePacing';
 
 /** Passable cell (gap). */
 export type SwimmerCellOpen = 0;
@@ -95,6 +96,65 @@ export function normalizeGapColumns(
   return [...set].sort((a, b) => a - b);
 }
 
+/** Contiguous gap runs on sorted unique column indices. */
+function connectedGapRunsFromSorted(sorted: readonly number[]): { lo: number; hi: number }[] {
+  'worklet';
+  if (!sorted.length) return [];
+  const runs: { lo: number; hi: number }[] = [];
+  let lo = sorted[0];
+  let hi = sorted[0];
+  for (let i = 1; i < sorted.length; i++) {
+    const v = sorted[i];
+    if (v === hi + 1) hi = v;
+    else {
+      runs.push({ lo, hi });
+      lo = v;
+      hi = v;
+    }
+  }
+  runs.push({ lo, hi });
+  return runs;
+}
+
+/**
+ * For every contiguous passable run on the previous row, ensure the next row has at least one
+ * gap column within **±OBSTACLE_PREV_RUN_REACH_SLOP_COLUMNS** of that run (see `obstaclePacing.ts`).
+ * Without this, a global vertical seam can exist while a second gap "island" is still a dead end.
+ */
+export function repairGapsEachPrevRunNearNext(
+  prevGaps: readonly number[],
+  nextGaps: readonly number[],
+  columnCount: number
+): number[] {
+  'worklet';
+  const prev = normalizeGapColumns(prevGaps, columnCount);
+  let next = normalizeGapColumns(nextGaps, columnCount);
+  if (!prev.length) return next;
+  if (!next.length) {
+    next = [Math.max(0, Math.min(columnCount - 1, Math.floor(columnCount / 2)))];
+  }
+  const nextSet = new Set(next);
+  const runs = connectedGapRunsFromSorted(prev);
+  const slack = OBSTACLE_PREV_RUN_REACH_SLOP_COLUMNS;
+  for (let r = 0; r < runs.length; r++) {
+    const { lo, hi } = runs[r];
+    const eLo = Math.max(0, lo - slack);
+    const eHi = Math.min(columnCount - 1, hi + slack);
+    let ok = false;
+    for (let c = eLo; c <= eHi; c++) {
+      if (nextSet.has(c)) {
+        ok = true;
+        break;
+      }
+    }
+    if (!ok) {
+      const add = Math.min(eHi, Math.max(eLo, Math.round((lo + hi) * 0.5)));
+      nextSet.add(add);
+    }
+  }
+  return normalizeGapColumns([...nextSet], columnCount);
+}
+
 /**
  * After {@link unionMinimalSeam}, guarantee ∃ column open in both bands (strict repair).
  * Use when generators must never ship a dead vertical cut vs `prevGaps`.
@@ -140,6 +200,7 @@ export function finalizeGapsForObstacleRow(
   const prev = normalizeGapColumns(prevGaps, columnCount);
   if (prev.length) {
     g = repairGapsVerticalSeamIfNeeded(prev, g, columnCount);
+    g = repairGapsEachPrevRunNearNext(prev, g, columnCount);
   }
   return g;
 }

@@ -6,12 +6,7 @@ import {
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import { createTapComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/touch';
 import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
-import { LAYOUT_CONSTANTS } from '@/Layout';
-
-const RAPID_TAP_WINDOW_MS = 220;
-const RAPID_TAP_STEP_MULT = 0.22;
-const RAPID_TAP_STREAK_ACCEL = 0.1;
-const RAPID_TAP_MAX_MULT = 4.4;
+import { tapInputTuning } from '@/config/swimmerTuning';
 
 /**
  * TapSwimmer - Full-screen tap overlay that controls swimmer direction for tap-based movement.
@@ -73,14 +68,15 @@ export const TapSwimmer: FC<{
                 const isRapidSameDirectionTap =
                   previousTapDirection === inputX &&
                   deltaMs >= 0 &&
-                  deltaMs <= RAPID_TAP_WINDOW_MS;
+                  deltaMs <= tapInputTuning.RAPID_TAP_WINDOW_MS;
                 const streak = isRapidSameDirectionTap
                   ? (swimmer.rapidTapStreak ?? 0) + 1
                   : 0;
                 const streakStepMult =
-                  RAPID_TAP_STEP_MULT * (1 + streak * RAPID_TAP_STREAK_ACCEL);
+                  tapInputTuning.RAPID_TAP_STEP_MULT *
+                  (1 + streak * tapInputTuning.RAPID_TAP_STREAK_ACCEL);
                 const tapMultiplier = Math.min(
-                  RAPID_TAP_MAX_MULT,
+                  tapInputTuning.RAPID_TAP_MAX_MULT,
                   1 + streak * streakStepMult
                 );
 
