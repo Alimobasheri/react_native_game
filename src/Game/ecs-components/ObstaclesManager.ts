@@ -1,5 +1,6 @@
 import { Component } from '@/containers/ReactNativeSkiaGameEngine/services-ecs';
 import { Entity } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/entity';
+import type { StoryLockedProceduralSegment } from '@/Game/ecs-systems/obstacleSystem';
 
 export const ObstaclesManagerComponentName = 'ObstaclesManager';
 
@@ -22,6 +23,11 @@ export type ObstaclesManagerComponentData = {
    * will never randomly switch templates (storybook/debug use).
    */
   lockedTemplateName?: string;
+  /**
+   * Storybook: repeat a single deterministic multipath branch (funnel, pinball, …).
+   * Only applies when the active template uses `baseMultiPathGetRow` (`directed`, `baseMulti`).
+   */
+  storyLockedProceduralSegment?: StoryLockedProceduralSegment;
   templateInfo?: {
     currentTemplateName: string;
     currentTempalteTotalRow: number;

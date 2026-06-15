@@ -4,6 +4,21 @@ import { ObstacleRowComponentData } from "../ecs-components/ObstacleRowComponent
 import { ObstacleComponentData } from "../ecs-components/ObstacleComponent"
 import type { MacroPhase } from "@/Game/path/macroPacing"
 
+/**
+ * Storybook / debug: keep `baseMulti` / `directed` procedural generation on one branch
+ * (funnel, pinball, …) instead of advancing through the full tension → climax → release graph.
+ */
+export type StoryLockedProceduralSegment =
+  | "funnel"
+  | "paradoxSplit"
+  | "tensionMultipath"
+  | "pinball"
+  | "falseWall"
+  | "climaxMultipath"
+  | "releaseRestZone"
+  | "releaseMultipath"
+  | "flowMultipath"
+
 export interface GetRowArgs {
   rowIndex: number,
   ecs: ECS,
@@ -30,8 +45,12 @@ export interface GetRowArgs {
   /**
    * Rows already spawned before this one (read from `ObstaclesManager.totalRowsGenerated` before bump).
    * Mixed into procedural gap noise so the same macro phase / `pathRunId` does not replay identical multipath.
+   * Also drives the gap difficulty ramp (narrower gaps + fewer gap-shift runway rows over time); tune in
+   * `src/config/gapDifficultyRamp.ts`.
    */
   proceduralStreamSalt?: number,
+  /** When set, overrides pacing macro phase and loops one procedural branch (see type doc). */
+  storyLockedProceduralSegment?: StoryLockedProceduralSegment,
 }
 
 export type TemplateCtx = Record<string, unknown> & {

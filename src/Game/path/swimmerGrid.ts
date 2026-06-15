@@ -1,5 +1,4 @@
 import { LAYOUT_CONSTANTS } from '@/Layout';
-import { OBSTACLE_PREV_RUN_REACH_SLOP_COLUMNS } from '@/config/obstaclePacing';
 
 /** Passable cell (gap). */
 export type SwimmerCellOpen = 0;
@@ -118,8 +117,12 @@ function connectedGapRunsFromSorted(sorted: readonly number[]): { lo: number; hi
 
 /**
  * For every contiguous passable run on the previous row, ensure the next row has at least one
- * gap column within **±OBSTACLE_PREV_RUN_REACH_SLOP_COLUMNS** of that run (see `obstaclePacing.ts`).
- * Without this, a global vertical seam can exist while a second gap "island" is still a dead end.
+ * gap column **in that same column interval [lo, hi]** on the grid.
+ *
+ * A wider window (e.g. lo−1..hi+1) is wrong: the swimmer can only move vertically from columns that
+ * are passable on the previous row; counting a next-row gap just *outside* the run (e.g. run [5,6],
+ * next gap only at 7) can mark the island "served" while someone standing in the run still has no
+ * open cell above them or beside them on the next band.
  */
 export function repairGapsEachPrevRunNearNext(
   prevGaps: readonly number[],
@@ -135,20 +138,17 @@ export function repairGapsEachPrevRunNearNext(
   }
   const nextSet = new Set(next);
   const runs = connectedGapRunsFromSorted(prev);
-  const slack = OBSTACLE_PREV_RUN_REACH_SLOP_COLUMNS;
   for (let r = 0; r < runs.length; r++) {
     const { lo, hi } = runs[r];
-    const eLo = Math.max(0, lo - slack);
-    const eHi = Math.min(columnCount - 1, hi + slack);
     let ok = false;
-    for (let c = eLo; c <= eHi; c++) {
+    for (let c = lo; c <= hi; c++) {
       if (nextSet.has(c)) {
         ok = true;
         break;
       }
     }
     if (!ok) {
-      const add = Math.min(eHi, Math.max(eLo, Math.round((lo + hi) * 0.5)));
+      const add = Math.min(hi, Math.max(lo, Math.round((lo + hi) * 0.5)));
       nextSet.add(add);
     }
   }

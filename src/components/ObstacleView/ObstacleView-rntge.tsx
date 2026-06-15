@@ -4,6 +4,7 @@ import { ObstacleSystem } from '@/systems/PhysicsSystem/ObstacleSystem';
 import { useSceneContextUnsafe } from '@/containers/ReactNativeSkiaGameEngine/components-rntge/Scene/hooks';
 import { createObstaclesManagerComponent } from '@/Game/ecs-components/ObstaclesManager';
 import { FC } from 'react';
+import type { StoryLockedProceduralSegment } from '@/Game/ecs-systems/obstacleSystem';
 
 /**
  * ObstacleView - Component that manages dynamic obstacles for the swimmer game
@@ -20,7 +21,12 @@ export const ObstacleView: FC<{
    * are never auto-selected.
    */
   lockedTemplateName?: string;
-}> = ({ lockedTemplateName }) => {
+  /**
+   * Storybook: repeat one procedural branch from the multipath template (funnel, pinball, …).
+   * Requires `lockedTemplateName` `directed` or `baseMulti`.
+   */
+  storyLockedProceduralSegment?: StoryLockedProceduralSegment;
+}> = ({ lockedTemplateName, storyLockedProceduralSegment }) => {
   const sceneContext = useSceneContextUnsafe();
   const sceneKey = sceneContext?.sceneKey ?? 'swimmerGame';
 
@@ -32,6 +38,7 @@ export const ObstacleView: FC<{
         spawnTimerSeconds: 0,
         totalRowsGenerated: 0,
         lockedTemplateName,
+        storyLockedProceduralSegment,
       }),
     ],
   });

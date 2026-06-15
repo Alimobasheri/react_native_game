@@ -2,10 +2,10 @@ import { buildObstacleRowGenerationLogKey, buildSpawnDiagSnapshot } from '@/Game
 import type { MacroPhase } from '@/Game/path/macroPacing';
 
 describe('buildObstacleRowGenerationLogKey', () => {
-  it('uses coarse keys for chute and cathartic release', () => {
+  it('uses coarse keys for flow multipath and cathartic release', () => {
     expect(
       buildObstacleRowGenerationLogKey('directed', 'flow', { flowChuteRowCount: 3 }, 0)
-    ).toBe('directed|flow|chute');
+    ).toBe('directed|flow|multipathProc');
     expect(
       buildObstacleRowGenerationLogKey('directed', 'release', { releaseRestZoneRowsEmitted: 5 }, 0)
     ).toBe('directed|release|catharticRestZone');
@@ -25,10 +25,10 @@ describe('buildObstacleRowGenerationLogKey', () => {
   });
 
   it('buildSpawnDiagSnapshot matches branch key for template + ctx', () => {
-    const snap = buildSpawnDiagSnapshot('directed', 'flow', { flowMode: 'chicane' }, 3);
+    const snap = buildSpawnDiagSnapshot('directed', 'flow', {}, 3);
     expect(snap.spawnDiagTemplateName).toBe('directed');
     expect(snap.spawnDiagBranchKey).toBe(
-      buildObstacleRowGenerationLogKey('directed', 'flow', { flowMode: 'chicane' }, 3)
+      buildObstacleRowGenerationLogKey('directed', 'flow', {}, 3)
     );
   });
 });

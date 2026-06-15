@@ -3,6 +3,11 @@
  * Deterministic from (pathRunId, rowIndex, salts, proceduralStreamSalt) + optional macro phase.
  */
 
+import {
+  gapDifficulty01FromTotalRows,
+  gapDifficultyRampTuning,
+  multipathGapWidthParamsFromTotalRows,
+} from '@/config/gapDifficultyRamp';
 import { groupGapsToRanges, GapRangeCol } from '@/Game/water/gapRanges';
 import { mixU32, mixPathRowStreamSalt, unitFloatFromU32, intMod } from './deterministicMix';
 import { effectiveGapTension01, runDepthTensionBonus01, type MacroPhase } from './macroPacing';
@@ -207,7 +212,9 @@ export function generateGapsDeterministic(
   rowIndex: number,
   pathRunId: number,
   macroPhase: MacroPhase,
-  proceduralStreamSalt = 0
+  proceduralStreamSalt = 0,
+  /** Same basis as `GetRowArgs.proceduralStreamSalt` — rows spawned before this row. */
+  totalRowsGeneratedForGapDifficulty = 0
 ): number[] {
   'worklet';
   const u = unitFloatFromU32(mixPathRowStreamSalt(pathRunId, rowIndex, proceduralStreamSalt, 11));
@@ -227,17 +234,21 @@ export function generateGapsDeterministic(
     return [Math.floor(rowLength / 2)];
   }
 
+  const difficulty01 = gapDifficulty01FromTotalRows(totalRowsGeneratedForGapDifficulty);
+  const includeAdjacent =
+    difficulty01 < gapDifficultyRampTuning.SINGLE_PATH_INCLUDE_ADJACENT_UNTIL_DIFFICULTY;
+
   const nextGaps: number[] = [];
   if (goLeftFirst) {
     const leftMostGap = Math.min(...prevGaps);
-    if (leftMostGap > 0) nextGaps.push(leftMostGap - 1);
+    if (includeAdjacent && leftMostGap > 0) nextGaps.push(leftMostGap - 1);
     nextGaps.push(leftMostGap);
-    if (leftMostGap < rowLength - 1) nextGaps.push(leftMostGap + 1);
+    if (includeAdjacent && leftMostGap < rowLength - 1) nextGaps.push(leftMostGap + 1);
   } else {
     const rightMostGap = Math.max(...prevGaps);
-    if (rightMostGap < rowLength - 1) nextGaps.push(rightMostGap + 1);
+    if (includeAdjacent && rightMostGap < rowLength - 1) nextGaps.push(rightMostGap + 1);
     nextGaps.push(rightMostGap);
-    if (rightMostGap > 0) nextGaps.push(rightMostGap - 1);
+    if (includeAdjacent && rightMostGap > 0) nextGaps.push(rightMostGap - 1);
   }
   return unionMinimalSeam(prevGaps, nextGaps, rowLength);
 }
@@ -249,12 +260,16 @@ export function generateMultiPathGapsDeterministic(
   rowIndex: number,
   pathRunId: number,
   macroPhase: MacroPhase,
-  proceduralStreamSalt = 0
+  proceduralStreamSalt = 0,
+  /** Same basis as `GetRowArgs.proceduralStreamSalt` — rows spawned before this row. */
+  totalRowsGeneratedForGapDifficulty = 0
 ): number[] {
   'worklet';
   const MAX_PATHS = 4;
-  const MIN_W = 2;
-  const MAX_W = Math.max(MIN_W, Math.min(6, Math.floor(rowLength * 0.6)));
+  const { minW: MIN_W, maxW: MAX_W, initialWideThreshold } = multipathGapWidthParamsFromTotalRows(
+    totalRowsGeneratedForGapDifficulty,
+    rowLength
+  );
   const MIN_OVERLAP = 1;
   const tension = effectiveGapTension01(macroPhase, proceduralStreamSalt);
 
@@ -262,7 +277,7 @@ export function generateMultiPathGapsDeterministic(
   if (prevRanges.length === 0) {
     const center = Math.floor(rowLength / 2);
     const uW = unitFloatFromU32(mixPathRowStreamSalt(pathRunId, rowIndex, proceduralStreamSalt, 21));
-    const width = uW < 0.55 + tension * 0.2 ? 3 : 2;
+    const width = uW < initialWideThreshold + tension * 0.2 ? 3 : 2;
     const startA = clampInt(center - Math.floor(width / 2), 0, rowLength - 1);
     const a: GapRangeCol = {
       startCol: startA,

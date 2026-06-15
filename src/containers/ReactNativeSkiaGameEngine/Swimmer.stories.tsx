@@ -28,6 +28,7 @@ import { ObstacleRowComponentName } from '@/Game/ecs-components/ObstacleRowCompo
 import { TemplateContextComponentName } from '@/Game/ecs-components/TemplateContextComponent';
 import { GameOverScene } from '../Scenes/GameOverScene/index-rntge';
 import { WATER_SURFACE_FROM_CONTAINER_BOTTOM_FRACTION } from '@/Layout';
+import type { StoryLockedProceduralSegment } from '@/Game/ecs-systems/obstacleSystem';
 
 /** Same geometry as `getWaterSurfaceRestY` but uses story arg `fraction` for experiments. */
 function waterSurfaceYFromBottomFraction(
@@ -53,6 +54,11 @@ export type SwimmerStoryArgs = {
    * Keys in `ObstacleSystem` `MappedTemplates`. Empty string = omit prop (directed pacing / default).
    */
   lockedTemplateName: string;
+  /**
+   * When set with `directed` or `baseMulti`, repeats one deterministic procedural branch
+   * (funnel, pinball, …) instead of cycling macro pacing shapes.
+   */
+  storyLockedProceduralSegment: '' | StoryLockedProceduralSegment;
 };
 
 const TEMPLATE_OPTIONS = [
@@ -68,6 +74,19 @@ const TEMPLATE_OPTIONS = [
   'deadpool',
   'megaman',
 ] as const;
+
+const PROC_SEGMENT_OPTIONS: ('' | StoryLockedProceduralSegment)[] = [
+  '',
+  'funnel',
+  'paradoxSplit',
+  'tensionMultipath',
+  'pinball',
+  'falseWall',
+  'climaxMultipath',
+  'releaseRestZone',
+  'releaseMultipath',
+  'flowMultipath',
+];
 
 export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
   (args) => {
@@ -148,6 +167,9 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                         ? args.lockedTemplateName
                         : undefined
                     }
+                    storyLockedProceduralSegment={
+                      args.storyLockedProceduralSegment || undefined
+                    }
                   />
 
                   {/* Swimmer - centered in a column; TapSwimmer handles tap-to-move */}
@@ -190,6 +212,7 @@ const meta = {
     waterRiseSpeed: 20,
     raisingSpeed: 100,
     lockedTemplateName: '',
+    storyLockedProceduralSegment: '',
   },
   argTypes: {
     waterSurfaceFromBottomFraction: {
@@ -201,11 +224,99 @@ const meta = {
       control: 'select',
       options: [...TEMPLATE_OPTIONS],
     },
+    storyLockedProceduralSegment: {
+      control: 'select',
+      options: PROC_SEGMENT_OPTIONS,
+      description:
+        'Requires template `directed` or `baseMulti`. Loops one procedural path for Storybook.',
+    },
   },
 } satisfies Meta<typeof SwimmerGameComp>;
 
 export default meta;
-
+const directedMultipath = {
+  lockedTemplateName: 'directed' as const,
+};
 export const Basic: StoryObj<typeof meta> = {
   args: {},
+};
+
+/** Repeats the tension funnel width ramp forever (same template as production multipath). */
+export const LockedPathFunnelLoop: StoryObj<typeof meta> = {
+  args: {
+    ...directedMultipath,
+    storyLockedProceduralSegment: 'funnel',
+  },
+};
+
+/** Repeats the climax pinball zig-zag segment forever. */
+export const LockedPathPinballLoop: StoryObj<typeof meta> = {
+  args: {
+    ...directedMultipath,
+    storyLockedProceduralSegment: 'pinball',
+  },
+};
+
+/** Repeats the paradox fork row forever (deterministic split from funnel center). */
+export const LockedPathParadoxSplitLoop: StoryObj<typeof meta> = {
+  args: {
+    ...directedMultipath,
+    storyLockedProceduralSegment: 'paradoxSplit',
+  },
+};
+
+/** Repeats the false-wall squeeze segment forever. */
+export const LockedPathFalseWallLoop: StoryObj<typeof meta> = {
+  args: {
+    ...directedMultipath,
+    storyLockedProceduralSegment: 'falseWall',
+  },
+};
+
+/** Tension phase multipath only (no funnel / paradox). */
+export const LockedPathTensionMultipathLoop: StoryObj<typeof meta> = {
+  args: {
+    ...directedMultipath,
+    storyLockedProceduralSegment: 'tensionMultipath',
+  },
+};
+
+/** Climax phase multipath only (no pinball / false wall). */
+export const LockedPathClimaxMultipathLoop: StoryObj<typeof meta> = {
+  args: {
+    ...directedMultipath,
+    storyLockedProceduralSegment: 'climaxMultipath',
+  },
+};
+
+/** Cathartic full-width strip forever. */
+export const LockedPathReleaseRestLoop: StoryObj<typeof meta> = {
+  args: {
+    ...directedMultipath,
+    storyLockedProceduralSegment: 'releaseRestZone',
+  },
+};
+
+/** Release-phase branching gaps only (skips cathartic strip). */
+export const LockedPathReleaseMultipathLoop: StoryObj<typeof meta> = {
+  args: {
+    ...directedMultipath,
+    storyLockedProceduralSegment: 'releaseMultipath',
+  },
+};
+
+/** Flow-phase `generateMultiPathGapsDeterministic` only (macro forced to flow for this story). */
+export const LockedPathFlowMultipathLoop: StoryObj<typeof meta> = {
+  args: {
+    ...directedMultipath,
+    storyLockedProceduralSegment: 'flowMultipath',
+  },
+};
+
+/** Same segment locks using the shorter `baseMulti` template run (rollover every few rows). */
+export const LockedPathFunnelLoopBaseMulti: StoryObj<typeof meta> = {
+  args: {
+    lockedTemplateName: 'baseMulti',
+    storyLockedProceduralSegment: 'funnel',
+  },
 };

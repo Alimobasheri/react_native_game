@@ -20,11 +20,8 @@ import {
   createObstacleComponent,
   ObstacleTypes,
 } from '@/Game/ecs-components/ObstacleComponent';
-import {
-  getObstacleWidth,
-  LAYOUT_CONSTANTS,
-  GAP_SHIFT_RUNWAY_DUPLICATE_ROWS,
-} from '@/Layout';
+import { getObstacleWidth, LAYOUT_CONSTANTS } from '@/Layout';
+import { gapShiftRunwayDupRowsFromTotalRows } from '@/config/gapDifficultyRamp';
 import { MatterBodyComponentData, MatterBodyComponentName } from '@/containers/ReactNativeSkiaGameEngine/internal/components/matterBody';
 import {
   SceneComponentData,
@@ -44,7 +41,13 @@ import { createObstacleRowComponent, ObstacleRowComponentData, ObstacleRowCompon
 import { Entity } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/entity';
 import { ECS } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/ecs';
 import { TextHeightBehavior } from '@shopify/react-native-skia';
-import { RowPathTemplate, TemplateCtx, TemplateInitArgs, type GetRowArgs } from '@/Game/ecs-systems/obstacleSystem';
+import {
+  RowPathTemplate,
+  TemplateCtx,
+  TemplateInitArgs,
+  type GetRowArgs,
+  type StoryLockedProceduralSegment,
+} from '@/Game/ecs-systems/obstacleSystem';
 import {
   getOrCreateTemplateContextEntity,
   TemplateContextComponentData,
@@ -110,6 +113,46 @@ import { megamanLevelJson } from '@/Game/templates/obstacles/megaman';
 
 const OBSTACLE_BLOCK_IMAGES = ['block2', 'block3'] as const;
 
+function readStoryLockedProceduralSegment(
+  components: Record<string, any>,
+  managerEntity: Entity
+): StoryLockedProceduralSegment | undefined {
+  'worklet';
+  const mgr = components[ObstaclesManagerComponentName]?.get(
+    managerEntity
+  ) as ObstaclesManagerComponentData | undefined;
+  return mgr?.storyLockedProceduralSegment;
+}
+
+function effectiveMacroPhaseForProceduralRow(params: GetRowArgs): MacroPhase {
+  'worklet';
+  const seg = params.storyLockedProceduralSegment;
+  if (!seg) {
+    return params.pacingMacroPhase ?? 'flow';
+  }
+  if (
+    seg === 'funnel' ||
+    seg === 'paradoxSplit' ||
+    seg === 'tensionMultipath'
+  ) {
+    return 'tension';
+  }
+  if (
+    seg === 'pinball' ||
+    seg === 'falseWall' ||
+    seg === 'climaxMultipath'
+  ) {
+    return 'climax';
+  }
+  if (seg === 'releaseRestZone' || seg === 'releaseMultipath') {
+    return 'release';
+  }
+  if (seg === 'flowMultipath') {
+    return 'flow';
+  }
+  return params.pacingMacroPhase ?? 'flow';
+}
+
 function rowSpawnDiagFromParams(
   ctx: TemplateCtx,
   params: GetRowArgs
@@ -119,7 +162,9 @@ function rowSpawnDiagFromParams(
   if (!name) {
     return {};
   }
-  const macro = params.pacingMacroPhase ?? 'flow';
+  const macro = params.storyLockedProceduralSegment
+    ? effectiveMacroPhaseForProceduralRow(params)
+    : (params.pacingMacroPhase ?? 'flow');
   return buildSpawnDiagSnapshot(name, macro, ctx as Record<string, unknown>, params.rowIndex);
 }
 
@@ -241,6 +286,9 @@ const bumpPathRunIdAfterCompletedMacroCycle = (
     | ObstaclesManagerComponentData
     | undefined;
   const tr = mgr?.totalRowsGenerated ?? 0;
+  if (mgr?.storyLockedProceduralSegment) {
+    return;
+  }
   if (tr < OBSTACLE_PACING_CYCLE_ROW_COUNT || tr % OBSTACLE_PACING_CYCLE_ROW_COUNT !== 0) {
     return;
   }
@@ -332,9 +380,11 @@ function appendGapShiftRunwayRows(args: {
   leftX: number;
   rowLength: number;
   columnWidth: number;
+  /** Same basis as `proceduralStreamSalt` for this spawn — rows generated before the new band row. */
+  runwayDupRowsBasisRows: number;
 }): Entity {
   'worklet';
-  const dupCount = GAP_SHIFT_RUNWAY_DUPLICATE_ROWS;
+  const dupCount = gapShiftRunwayDupRowsFromTotalRows(args.runwayDupRowsBasisRows);
   if (dupCount <= 0) return args.newRowEntity;
   if (!args.prevRowBeforeNew) return args.newRowEntity;
   if (gapsEqual(args.prevRowBeforeNew.gaps, args.newRowData.gaps)) {
@@ -434,6 +484,7 @@ const createObstacleRow: RowPathTemplate['getRow'] = (_ctx, params) => {
       rowIndex,
       pathRunId,
       macroPhase,
+      stream,
       stream
     );
   } else {
@@ -523,7 +574,8 @@ const baseMultiPathGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
   'worklet';
   const { rowIndex, ecs, sceneEntity, prevRow, prevRowEntity, initialY, rowLength, leftX, obstacleDimension } = params;
   const pathRunId = ((_ctx as Record<string, unknown>).pathRunId as number) ?? 0;
-  const macroPhase = params.pacingMacroPhase ?? 'flow';
+  const storySeg = params.storyLockedProceduralSegment;
+  const macroPhase = effectiveMacroPhaseForProceduralRow(params);
   const stream = params.proceduralStreamSalt ?? 0;
   const xctx = _ctx as Record<string, unknown>;
 
@@ -547,13 +599,24 @@ const baseMultiPathGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
 
   if (macroPhase === 'tension') {
     if (!xctx.tensionStage) {
-      xctx.tensionStage = 'funnel';
-      xctx.tensionFunnelStep = 0;
-      xctx.tensionCenter = tensionGapCenterFromPrevGaps(
-        !prevRow ? [] : prevRow.gaps,
-        rowLength
-      );
-      xctx.tensionParadoxEmitted = 0;
+      if (storySeg === 'paradoxSplit') {
+        xctx.tensionStage = 'paradox';
+        xctx.tensionParadoxEmitted = 0;
+        xctx.tensionCenter = tensionGapCenterFromPrevGaps(
+          !prevRow ? [] : prevRow.gaps,
+          rowLength
+        );
+      } else if (storySeg === 'tensionMultipath') {
+        xctx.tensionStage = 'free';
+      } else {
+        xctx.tensionStage = 'funnel';
+        xctx.tensionFunnelStep = 0;
+        xctx.tensionCenter = tensionGapCenterFromPrevGaps(
+          !prevRow ? [] : prevRow.gaps,
+          rowLength
+        );
+        xctx.tensionParadoxEmitted = 0;
+      }
     }
 
     if (xctx.tensionStage === 'funnel') {
@@ -563,7 +626,11 @@ const baseMultiPathGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
       gaps = gapsFromRow(row);
       xctx.tensionFunnelStep = step + 1;
       if ((xctx.tensionFunnelStep as number) >= TENSION_FUNNEL_DURATION_ROWS) {
-        xctx.tensionStage = 'paradox';
+        if (storySeg === 'funnel') {
+          xctx.tensionFunnelStep = 0;
+        } else {
+          xctx.tensionStage = 'paradox';
+        }
       }
     } else if (xctx.tensionStage === 'paradox' && (xctx.tensionParadoxEmitted as number) < 1) {
       const center = (xctx.tensionCenter as number) ?? Math.floor(rowLength / 2);
@@ -574,7 +641,11 @@ const baseMultiPathGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
       );
       gaps = gapsFromRow(row);
       xctx.tensionParadoxEmitted = 1;
-      xctx.tensionStage = 'free';
+      if (storySeg === 'paradoxSplit') {
+        xctx.tensionParadoxEmitted = 0;
+      } else {
+        xctx.tensionStage = 'free';
+      }
     } else {
       gaps = generateMultiPathGapsDeterministic(
         !prevRow ? [] : prevRow.gaps,
@@ -582,18 +653,26 @@ const baseMultiPathGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
         rowIndex,
         pathRunId,
         macroPhase,
+        stream,
         stream
       );
     }
 
   } else if (macroPhase === 'climax') {
     if (!xctx.climaxStage) {
-      xctx.climaxStage = 'pinball';
-      xctx.climaxPinballRows = 0;
-      xctx.climaxPinballState = {
-        stepMod: 0,
-        anchorLeft: climaxPinballInitialAnchor(!prevRow ? [] : prevRow.gaps, rowLength),
-      };
+      if (storySeg === 'falseWall') {
+        xctx.climaxStage = 'falseWall';
+        xctx.climaxFalseSubRow = 0;
+      } else if (storySeg === 'climaxMultipath') {
+        xctx.climaxStage = 'free';
+      } else {
+        xctx.climaxStage = 'pinball';
+        xctx.climaxPinballRows = 0;
+        xctx.climaxPinballState = {
+          stepMod: 0,
+          anchorLeft: climaxPinballInitialAnchor(!prevRow ? [] : prevRow.gaps, rowLength),
+        };
+      }
     }
 
     if (xctx.climaxStage === 'pinball') {
@@ -605,8 +684,16 @@ const baseMultiPathGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
         xctx.climaxPinballRows = rows + 1;
         gaps = gapsFromRow(row);
         if (rows + 1 >= CLIMAX_PINBALL_SEGMENT_ROWS) {
-          xctx.climaxStage = 'falseWall';
-          xctx.climaxFalseSubRow = 0;
+          if (storySeg === 'pinball') {
+            xctx.climaxPinballRows = 0;
+            xctx.climaxPinballState = {
+              stepMod: 0,
+              anchorLeft: climaxPinballInitialAnchor(!prevRow ? [] : prevRow.gaps, rowLength),
+            };
+          } else {
+            xctx.climaxStage = 'falseWall';
+            xctx.climaxFalseSubRow = 0;
+          }
         }
       } else {
         gaps = generateMultiPathGapsDeterministic(
@@ -615,6 +702,7 @@ const baseMultiPathGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
           rowIndex,
           pathRunId,
           macroPhase,
+          stream,
           stream
         );
       }
@@ -625,7 +713,11 @@ const baseMultiPathGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
       gaps = gapsFromRow(row);
       xctx.climaxFalseSubRow = sub + 1;
       if (sub + 1 >= CLIMAX_FALSE_WALL_ROWS) {
-        xctx.climaxStage = 'free';
+        if (storySeg === 'falseWall') {
+          xctx.climaxFalseSubRow = 0;
+        } else {
+          xctx.climaxStage = 'free';
+        }
       }
     } else {
       gaps = generateMultiPathGapsDeterministic(
@@ -634,24 +726,40 @@ const baseMultiPathGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
         rowIndex,
         pathRunId,
         macroPhase,
+        stream,
         stream
       );
     }
 
   } else if (macroPhase === 'release') {
-    const emitted = (xctx.releaseRestZoneRowsEmitted as number) ?? 0;
-    if (emitted < RELEASE_REST_ZONE_ROWS) {
+    if (storySeg === 'releaseRestZone') {
       gaps = releaseCatharticRestZoneGaps(rowLength);
-      xctx.releaseRestZoneRowsEmitted = emitted + 1;
-    } else {
+    } else if (storySeg === 'releaseMultipath') {
       gaps = generateMultiPathGapsDeterministic(
         !prevRow ? [] : prevRow.gaps,
         rowLength,
         rowIndex,
         pathRunId,
         macroPhase,
+        stream,
         stream
       );
+    } else {
+      const emitted = (xctx.releaseRestZoneRowsEmitted as number) ?? 0;
+      if (emitted < RELEASE_REST_ZONE_ROWS) {
+        gaps = releaseCatharticRestZoneGaps(rowLength);
+        xctx.releaseRestZoneRowsEmitted = emitted + 1;
+      } else {
+        gaps = generateMultiPathGapsDeterministic(
+          !prevRow ? [] : prevRow.gaps,
+          rowLength,
+          rowIndex,
+          pathRunId,
+          macroPhase,
+          stream,
+          stream
+        );
+      }
     }
   } else {
     gaps = generateMultiPathGapsDeterministic(
@@ -660,6 +768,7 @@ const baseMultiPathGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
       rowIndex,
       pathRunId,
       macroPhase,
+      stream,
       stream
     );
   }
@@ -1248,6 +1357,10 @@ export const ObstacleSystem: System = {
           pacingMacroPhase: macroForRow,
           spawnDiagTemplateName: activeTemplateName,
           proceduralStreamSalt,
+          storyLockedProceduralSegment: readStoryLockedProceduralSegment(
+            components,
+            managerEntity
+          ),
         });
         const newRowData = ecs.components[ObstacleRowComponentName].get(
           lastRowEntity
@@ -1266,6 +1379,7 @@ export const ObstacleSystem: System = {
           leftX,
           rowLength: LAYOUT_CONSTANTS.COLUMNS,
           columnWidth,
+          runwayDupRowsBasisRows: proceduralStreamSalt,
         });
         bumpTotalRowsGenerated(ecs, managerEntity);
         bumpPathRunIdAfterCompletedMacroCycle(ecs, components, managerEntity, activeCtxEntity);
@@ -1392,6 +1506,10 @@ export const ObstacleSystem: System = {
             pacingMacroPhase: macroForRow,
             spawnDiagTemplateName: newTemplateName,
             proceduralStreamSalt,
+            storyLockedProceduralSegment: readStoryLockedProceduralSegment(
+              components,
+              managerEntity
+            ),
           });
           const newRowData = ecs.components[ObstacleRowComponentName].get(
             newRowEntity
@@ -1410,6 +1528,7 @@ export const ObstacleSystem: System = {
             leftX,
             rowLength: LAYOUT_CONSTANTS.COLUMNS,
             columnWidth,
+            runwayDupRowsBasisRows: proceduralStreamSalt,
           });
           bumpTotalRowsGenerated(ecs, managerEntity);
           bumpPathRunIdAfterCompletedMacroCycle(ecs, components, managerEntity, selected.ctxEntity);
@@ -1454,6 +1573,10 @@ export const ObstacleSystem: System = {
             pacingMacroPhase: macroForRow,
             spawnDiagTemplateName: templateInfo.currentTemplateName,
             proceduralStreamSalt,
+            storyLockedProceduralSegment: readStoryLockedProceduralSegment(
+              components,
+              managerEntity
+            ),
           });
           const newRowData = ecs.components[ObstacleRowComponentName].get(
             newRowEntity
@@ -1472,6 +1595,7 @@ export const ObstacleSystem: System = {
             leftX,
             rowLength: LAYOUT_CONSTANTS.COLUMNS,
             columnWidth,
+            runwayDupRowsBasisRows: proceduralStreamSalt,
           });
 
           bumpTotalRowsGenerated(ecs, managerEntity);

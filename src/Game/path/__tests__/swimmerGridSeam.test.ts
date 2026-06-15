@@ -5,7 +5,6 @@ import {
   finalizeGapsForObstacleRow,
   rowFromGaps,
 } from '@/Game/path/swimmerGrid';
-import { OBSTACLE_PREV_RUN_REACH_SLOP_COLUMNS } from '@/config/obstaclePacing';
 
 const COLS = 15;
 
@@ -28,7 +27,14 @@ describe('repairGapsVerticalSeamIfNeeded', () => {
 });
 
 describe('repairGapsEachPrevRunNearNext', () => {
-  it('adds a near gap when a prev island has no reach to next within slack columns', () => {
+  it('forces a next-row gap on the same column as a singleton prev run (not only near it)', () => {
+    const prev = [5];
+    const next = [3];
+    const merged = repairGapsEachPrevRunNearNext(prev, next, 9);
+    expect(merged).toContain(5);
+  });
+
+  it('adds a gap inside a prev island when next row only lines up with a different island', () => {
     const prev = [1, 2, 3, 7, 8];
     const next = [7, 8];
     const merged = repairGapsEachPrevRunNearNext(prev, next, COLS);
@@ -41,6 +47,13 @@ describe('repairGapsEachPrevRunNearNext', () => {
       }
     }
     expect(okLeft).toBe(true);
+  });
+
+  it('does not treat a next gap one column past the run end as serving that run', () => {
+    const prev = [5, 6];
+    const next = [7];
+    const merged = repairGapsEachPrevRunNearNext(prev, next, 10);
+    expect(merged.includes(5) || merged.includes(6)).toBe(true);
   });
 });
 
@@ -60,25 +73,22 @@ describe('finalizeGapsForObstacleRow', () => {
     expect(g[0]).toBeLessThan(COLS);
   });
 
-  it('keeps each prev gap island within reach slack of some next gap (game grid width)', () => {
+  it('keeps each prev gap island with a next-row gap in the same column interval [lo, hi]', () => {
     const COLS9 = 9;
     const prev = [1, 2, 6, 7];
     const raw = [6, 7];
     const g = finalizeGapsForObstacleRow(prev, raw, COLS9);
     expect(hasVerticalSeam(rowFromGaps(prev, COLS9), rowFromGaps(g, COLS9))).toBe(true);
-    const slack = OBSTACLE_PREV_RUN_REACH_SLOP_COLUMNS;
     const runs = [[1, 2], [6, 7]] as const;
     for (const [lo, hi] of runs) {
-      const eLo = Math.max(0, lo - slack);
-      const eHi = Math.min(COLS9 - 1, hi + slack);
-      let near = false;
-      for (let c = eLo; c <= eHi; c++) {
+      let inRun = false;
+      for (let c = lo; c <= hi; c++) {
         if (g.includes(c)) {
-          near = true;
+          inRun = true;
           break;
         }
       }
-      expect(near).toBe(true);
+      expect(inRun).toBe(true);
     }
   });
 });

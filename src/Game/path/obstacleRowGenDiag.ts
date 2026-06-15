@@ -94,8 +94,8 @@ export function buildObstacleRowGenerationLogKey(
   }
   if (templateName === 'directed') {
     if (macro === 'flow') {
-      if (c.flowMode === 'chicane') return 'directed|flow|chicane';
-      return 'directed|flow|chute';
+      /** `directed` uses multipath proc for FLOW (`baseMultiPathGetRow`); chute/chicane ctx is only for `base`. */
+      return 'directed|flow|multipathProc';
     }
     if (macro === 'tension' || macro === 'climax' || macro === 'release') {
       return buildBaseMultiBranchKey(macro, c).replace(/^baseMulti/, 'directed');

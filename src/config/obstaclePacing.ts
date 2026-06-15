@@ -30,9 +30,3 @@ export const OBSTACLE_PACING_CYCLE_ROW_COUNT =
 export const OBSTACLE_PACING_RUN_DEPTH_DIVISOR =
   OBSTACLE_PACING_CYCLE_ROW_COUNT * 10;
 
-/**
- * Seam repair (`repairGapsEachPrevRunNearNext`): each previous gap run must see a next-row gap
- * within ±this many columns. `1` = same/adjacent only; `2` better matches floater width, 1.05×
- * obstacle bodies, and a tap stride on a 9-column grid.
- */
-export const OBSTACLE_PREV_RUN_REACH_SLOP_COLUMNS = 2;

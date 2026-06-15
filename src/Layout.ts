@@ -25,7 +25,7 @@ export const getWaterSurfaceRestY = (
 
 export const LAYOUT_CONSTANTS = {
   // Grid layout constants
-  COLUMNS: 9,
+  COLUMNS: 15,
 
   // Get obstacle width based on container width
 
@@ -38,13 +38,10 @@ export const LAYOUT_CONSTANTS = {
 } as const;
 
 /**
- * When a new band’s gap set differs from the previous band, spawn this many **extra**
- * stacked rows that **repeat the new band’s gaps** (vertical runway after lateral shifts).
- * `0` = off. `1` = new pattern appears on **two** consecutive rows before the next generator step.
- * Standalone export (not only inside `LAYOUT_CONSTANTS`) so UI worklets can import a primitive without pulling the whole constants object graph.
- * Consumed by `ObstacleSystem` worklet.
+ * Gap-shift runway duplicate row count is scaled at runtime from
+ * `ObstaclesManager.totalRowsGenerated` — see `gapDifficultyRampTuning` in
+ * `src/config/gapDifficultyRamp.ts`.
  */
-export const GAP_SHIFT_RUNWAY_DUPLICATE_ROWS = 4;
 
 export const getObstacleWidth = (containerWidth: number): number => {
   'worklet';
