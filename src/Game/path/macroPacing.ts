@@ -3,7 +3,7 @@
  * Macro cycle / director lives in `pacingDirector.ts`.
  */
 
-import { OBSTACLE_PACING_RUN_DEPTH_DIVISOR } from '@/config/obstaclePacing';
+import { OBSTACLE_PACING_RUN_DEPTH_DIVISOR } from '@/config/gapDifficultyRamp';
 
 export type MacroPhase = 'flow' | 'tension' | 'climax' | 'release';
 

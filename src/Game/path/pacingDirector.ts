@@ -1,25 +1,94 @@
 /**
  * Macro Pacing Director — emotional cycle over obstacle row counts (worklet-safe).
  *
- * Phase lengths and cycle total: `src/config/obstaclePacing.ts` (`obstaclePacingTuning`).
+ * Phase lengths are **ranged** and grow with total rows spawned (same ramp as gaps); see
+ * `pacingCycleLayoutFromCycleStart` in `src/config/gapDifficultyRamp.ts`.
  */
 
 import {
-  obstaclePacingTuning,
-  OBSTACLE_PACING_CYCLE_ROW_COUNT,
-} from '@/config/obstaclePacing';
+  pacingCycleLayoutFromCycleStart,
+  type PacingCyclePhaseRowCounts,
+} from '@/config/gapDifficultyRamp';
 import type { MacroPhase } from './macroPacing';
 import { hasVerticalSeam, type SwimmerRow } from './swimmerGrid';
 
 export type PacingDirectorPhase = 'FLOW' | 'TENSION' | 'CLIMAX' | 'RELEASE';
 
-/** Row index within the macro cycle [0, cycleLength - 1]. */
+export type PacingCycleState = PacingCyclePhaseRowCounts & {
+  cycleStartTotalRows: number;
+  rowInCycle: number;
+  cycleTotalRows: number;
+};
+
+function pacingFirstCycleTotalRows(): number {
+  'worklet';
+  const l = pacingCycleLayoutFromCycleStart(0);
+  return l.flowRows + l.tensionRows + l.climaxRows + l.releaseRows;
+}
+
+function pacingPhaseFromLayoutAndRowInCycle(
+  layout: PacingCyclePhaseRowCounts,
+  rowInCycle: number
+): PacingDirectorPhase {
+  'worklet';
+  const r = rowInCycle;
+  if (r < layout.flowRows) return 'FLOW';
+  if (r < layout.flowRows + layout.tensionRows) return 'TENSION';
+  if (r < layout.flowRows + layout.tensionRows + layout.climaxRows) return 'CLIMAX';
+  return 'RELEASE';
+}
+
+/**
+ * Resolves which macro cycle `totalRowsGenerated` falls into and the per-phase row budgets
+ * picked for that cycle (deterministic from cycle start).
+ */
+export function getPacingCycleState(totalRowsGenerated: number): PacingCycleState {
+  'worklet';
+  const tr = Math.floor(Math.max(0, totalRowsGenerated));
+  let cursor = 0;
+  for (let guard = 0; guard < 500000; guard++) {
+    const layout = pacingCycleLayoutFromCycleStart(cursor);
+    const L = layout.flowRows + layout.tensionRows + layout.climaxRows + layout.releaseRows;
+    if (L <= 0) {
+      const fb = pacingCycleLayoutFromCycleStart(0);
+      const L0 = fb.flowRows + fb.tensionRows + fb.climaxRows + fb.releaseRows;
+      return {
+        ...fb,
+        cycleStartTotalRows: 0,
+        rowInCycle: Math.min(tr, Math.max(0, L0 - 1)),
+        cycleTotalRows: Math.max(1, L0),
+      };
+    }
+    if (tr < cursor + L) {
+      return {
+        ...layout,
+        cycleStartTotalRows: cursor,
+        rowInCycle: tr - cursor,
+        cycleTotalRows: L,
+      };
+    }
+    cursor += L;
+  }
+  const fb = pacingCycleLayoutFromCycleStart(0);
+  const L0 = fb.flowRows + fb.tensionRows + fb.climaxRows + fb.releaseRows;
+  return {
+    ...fb,
+    cycleStartTotalRows: 0,
+    rowInCycle: 0,
+    cycleTotalRows: Math.max(1, L0),
+  };
+}
+
+/** Row index within the current macro cycle [0, cycleTotalRows - 1]. */
 export function pacingRowInCycle(totalRowsGenerated: number): number {
   'worklet';
   const t = Math.floor(totalRowsGenerated);
-  const c = OBSTACLE_PACING_CYCLE_ROW_COUNT;
-  const m = t % c;
-  return m < 0 ? m + c : m;
+  if (t < 0) {
+    const L0 = pacingFirstCycleTotalRows();
+    if (L0 <= 0) return 0;
+    return ((t % L0) + L0) % L0;
+  }
+  return getPacingCycleState(t).rowInCycle;
 }
 
 /**
@@ -28,14 +97,14 @@ export function pacingRowInCycle(totalRowsGenerated: number): number {
  */
 export function pacingPhaseAtTotalRows(totalRowsGenerated: number): PacingDirectorPhase {
   'worklet';
-  const r = pacingRowInCycle(totalRowsGenerated);
-  const f = obstaclePacingTuning.FLOW_ROW_COUNT;
-  const tensionEnd = f + obstaclePacingTuning.TENSION_ROW_COUNT;
-  const climaxEnd = tensionEnd + obstaclePacingTuning.CLIMAX_ROW_COUNT;
-  if (r < f) return 'FLOW';
-  if (r < tensionEnd) return 'TENSION';
-  if (r < climaxEnd) return 'CLIMAX';
-  return 'RELEASE';
+  const t = Math.floor(totalRowsGenerated);
+  if (t < 0) {
+    const layout = pacingCycleLayoutFromCycleStart(0);
+    const r = pacingRowInCycle(t);
+    return pacingPhaseFromLayoutAndRowInCycle(layout, r);
+  }
+  const st = getPacingCycleState(t);
+  return pacingPhaseFromLayoutAndRowInCycle(st, st.rowInCycle);
 }
 
 /** Maps director phase to existing procedural tension curve (lowercase). */
@@ -113,9 +182,11 @@ export function runEmbeddedPacingValidations(): void {
     fail('validateSeam should accept shared gap');
   }
 
-  const f = obstaclePacingTuning.FLOW_ROW_COUNT;
-  const t = obstaclePacingTuning.TENSION_ROW_COUNT;
-  const x = obstaclePacingTuning.CLIMAX_ROW_COUNT;
+  const L0 = getPacingCycleState(0).cycleTotalRows;
+  const layout0 = pacingCycleLayoutFromCycleStart(0);
+  const f = layout0.flowRows;
+  const t = layout0.tensionRows;
+  const x = layout0.climaxRows;
   const lastClimaxRow = f + t + x - 1;
   const firstReleaseRow = f + t + x;
 
@@ -125,8 +196,8 @@ export function runEmbeddedPacingValidations(): void {
   if (pacingPhaseAtTotalRows(firstReleaseRow) !== 'RELEASE') {
     fail(`row ${firstReleaseRow} must be RELEASE`);
   }
-  if (pacingPhaseAtTotalRows(OBSTACLE_PACING_CYCLE_ROW_COUNT) !== 'FLOW') {
-    fail(`row ${OBSTACLE_PACING_CYCLE_ROW_COUNT} must wrap to FLOW`);
+  if (pacingPhaseAtTotalRows(L0) !== 'FLOW') {
+    fail(`row ${L0} must wrap to FLOW`);
   }
 
   const d = new PacingDirector();
@@ -134,9 +205,14 @@ export function runEmbeddedPacingValidations(): void {
     d.consumeRowForNextGeneration();
   }
   if (d.currentPhase !== 'RELEASE') {
-    fail(
-      `after ${firstReleaseRow} generated rows, currentPhase must be RELEASE`
-    );
+    fail(`after ${firstReleaseRow} generated rows, currentPhase must be RELEASE`);
+  }
+
+  const stMid = getPacingCycleState(Math.floor(L0 / 2));
+  if (stMid.cycleStartTotalRows !== 0) {
+    fail('mid first cycle must belong to cycle start 0');
+  }
+  if (stMid.rowInCycle !== Math.floor(L0 / 2)) {
+    fail('rowInCycle must match offset from cycle start');
   }
 }
-

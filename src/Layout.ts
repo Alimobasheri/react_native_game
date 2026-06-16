@@ -25,7 +25,7 @@ export const getWaterSurfaceRestY = (
 
 export const LAYOUT_CONSTANTS = {
   // Grid layout constants
-  COLUMNS: 15,
+  COLUMNS: 9,
 
   // Get obstacle width based on container width
 
@@ -36,6 +36,17 @@ export const LAYOUT_CONSTANTS = {
   // Removal threshold - remove when obstacle passes 100% of screen height
   REMOVAL_THRESHOLD_OFFSET: 100, // Extra buffer in pixels
 } as const;
+
+/**
+ * Minimum cavern (wide open-band) rows before each false-wall squeeze row.
+ * Intentionally uses `LAYOUT_CONSTANTS.COLUMNS` only — not runway `row_dup` / gap-shift spacing.
+ */
+export const FALSE_WALL_MIN_CAVERN_ROWS_BEFORE_SQUEEZE =
+  LAYOUT_CONSTANTS.COLUMNS - 2;
+
+/** Minimum obstacle rows for one false-wall micro-segment (cavern rows + one squeeze row). */
+export const FALSE_WALL_MIN_PHASE_ROWS_SINGLE_SEGMENT =
+  FALSE_WALL_MIN_CAVERN_ROWS_BEFORE_SQUEEZE + 1;
 
 /**
  * Gap-shift runway duplicate row count is scaled at runtime from

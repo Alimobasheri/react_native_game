@@ -266,9 +266,16 @@ export function generateMultiPathGapsDeterministic(
 ): number[] {
   'worklet';
   const MAX_PATHS = 4;
+  const gapParamSeed = mixPathRowStreamSalt(
+    pathRunId,
+    rowIndex,
+    proceduralStreamSalt,
+    705
+  );
   const { minW: MIN_W, maxW: MAX_W, initialWideThreshold } = multipathGapWidthParamsFromTotalRows(
     totalRowsGeneratedForGapDifficulty,
-    rowLength
+    rowLength,
+    gapParamSeed
   );
   const MIN_OVERLAP = 1;
   const tension = effectiveGapTension01(macroPhase, proceduralStreamSalt);

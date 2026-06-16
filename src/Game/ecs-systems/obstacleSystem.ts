@@ -45,8 +45,8 @@ export interface GetRowArgs {
   /**
    * Rows already spawned before this one (read from `ObstaclesManager.totalRowsGenerated` before bump).
    * Mixed into procedural gap noise so the same macro phase / `pathRunId` does not replay identical multipath.
-   * Also drives the gap difficulty ramp (narrower gaps + fewer gap-shift runway rows over time); tune in
-   * `src/config/gapDifficultyRamp.ts`.
+   * Also drives the gap difficulty ramp and procedural **segment row counts** (funnel, pinball, …);
+   * tune in `src/config/gapDifficultyRamp.ts`.
    */
   proceduralStreamSalt?: number,
   /** When set, overrides pacing macro phase and loops one procedural branch (see type doc). */

@@ -366,6 +366,9 @@ export const renderSystem: System = {
               );
               shaderPaint.setShader(shader);
               shaderPaint.setAntiAlias(true);
+              if (typeof renderData.opacity === 'number') {
+                shaderPaint.setAlphaf(renderData.opacity);
+              }
               canvas.drawPath(path, shaderPaint);
               shaderPaint.dispose();
             }

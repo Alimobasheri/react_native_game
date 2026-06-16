@@ -46,9 +46,97 @@
       .app {
         height: 100%;
         display: grid;
-        grid-template-columns: minmax(360px, 1fr) minmax(420px, 1.2fr);
+        grid-template-columns: minmax(340px, 1fr) minmax(420px, 1.25fr);
         gap: 14px;
         padding: 14px;
+      }
+
+      .leftStack {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 0;
+        min-width: 0;
+      }
+
+      .leftStack .panel {
+        min-height: 0;
+      }
+
+      .jsonPanel {
+        flex: 1.1;
+        min-height: 180px;
+      }
+
+      .pathLabPanel {
+        flex: 0.95;
+        max-height: 48vh;
+      }
+
+      .pathLabBody {
+        padding: 10px 12px 12px;
+        overflow: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .pathLabRow {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .pathLabRow label {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .pathLabSelect {
+        min-width: 200px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--text);
+        border-radius: 10px;
+        padding: 7px 10px;
+        font-size: 13px;
+      }
+
+      .pathLabHint {
+        font-size: 11px;
+        line-height: 1.35;
+        color: var(--muted);
+      }
+
+      details.pathLabAdv {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 8px 10px;
+        background: rgba(0, 0, 0, 0.12);
+      }
+
+      details.pathLabAdv summary {
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--text);
+      }
+
+      .pathLabAdv textarea {
+        margin-top: 8px;
+        min-height: 120px;
+        width: 100%;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--text);
+        font-family: ui-monospace, Menlo, monospace;
+        font-size: 11px;
+        padding: 8px;
       }
 
       .panel {
@@ -273,17 +361,18 @@
         font-size: 12px;
       }
 
-      @media (max-width: 980px) {
+      @media (max-width: 1100px) {
         .app {
           grid-template-columns: 1fr;
-          grid-template-rows: 1fr 1fr;
+          grid-template-rows: auto 1fr;
         }
       }
     </style>
   </head>
   <body>
     <div class="app">
-      <section class="panel">
+      <div class="leftStack">
+      <section class="panel jsonPanel">
         <div class="panelHeader">
           <div class="titleWrap">
             <div class="title">Template JSON</div>
@@ -309,6 +398,78 @@
           </div>
         </div>
       </section>
+
+      <section class="panel pathLabPanel">
+        <div class="panelHeader">
+          <div class="titleWrap">
+            <div class="title">Deterministic path lab</div>
+            <div class="subtitle">
+              Same generators as <code>ObstacleSystem</code> / <code>gapDifficultyRamp.ts</code> (preview).
+              Enable to paint the canvas from path type + tuning (JSON template ignored).
+            </div>
+          </div>
+          <div class="controls">
+            <label class="pill" title="Drive canvas from PathLab.buildLevel instead of textarea JSON">
+              <input id="pathLabEnabled" type="checkbox" />
+              Path lab on
+            </label>
+            <button id="btnPathLabApply" type="button">Apply</button>
+          </div>
+        </div>
+        <div class="pathLabBody">
+          <div class="pathLabRow">
+            <label>
+              Segment
+              <select id="pl_segment" class="pathLabSelect">
+                <option value="directedMacro">directedMacro (FLOW→TENSION→CLIMAX→RELEASE)</option>
+                <option value="flowMultipath">flowMultipath</option>
+                <option value="flowChute">flowChute (chute → chicane)</option>
+                <option value="funnel">funnel (loop)</option>
+                <option value="tensionArc">tensionArc (funnel → paradox → multipath)</option>
+                <option value="paradoxSplit">paradoxSplit (loop)</option>
+                <option value="tensionMultipath">tensionMultipath</option>
+                <option value="pinball">pinball → multipath</option>
+                <option value="falseWall">falseWall → multipath</option>
+                <option value="climaxMultipath">climaxMultipath</option>
+                <option value="releaseRestZone">releaseRestZone (cathartic strip)</option>
+                <option value="releaseMultipath">releaseMultipath</option>
+                <option value="releaseDefault">releaseDefault (strip then multipath)</option>
+              </select>
+            </label>
+          </div>
+          <div class="pathLabRow">
+            <label>columns <input id="pl_columns" class="smallInput" type="number" value="15" min="5" max="32" /></label>
+            <label>rows <input id="pl_rowCount" class="smallInput" type="number" value="48" min="1" max="400" /></label>
+            <label>pathRunId <input id="pl_pathRunId" class="smallInput" type="number" value="0" /></label>
+            <label>stream start <input id="pl_streamStart" class="smallInput" type="number" value="0" title="totalRowsGenerated before row 0" /></label>
+            <label class="pill" title="After each row, increment stream like spawned row count">
+              <input id="pl_advanceStream" type="checkbox" checked />
+              +stream / row
+            </label>
+          </div>
+          <div class="pathLabHint">
+            Optional overrides (leave empty to use ramped random from stream): funnel duration, pinball segment rows,
+            false-wall total rows, cathartic strip rows, chute rows before chicane.
+          </div>
+          <div class="pathLabRow">
+            <label>funnel rows <input id="pl_ov_funnel" class="smallInput" placeholder="auto" /></label>
+            <label>pinball rows <input id="pl_ov_pinball" class="smallInput" placeholder="auto" /></label>
+            <label>false wall rows <input id="pl_ov_falsewall" class="smallInput" placeholder="auto" /></label>
+            <label>rest strip <input id="pl_ov_rest" class="smallInput" placeholder="auto" /></label>
+            <label>chute rows <input id="pl_ov_chute" class="smallInput" placeholder="auto" /></label>
+          </div>
+          <div class="pathLabHint" id="pl_runwayHint">Runway dup rows (sample stream=0, rowIdx=0): —</div>
+          <details class="pathLabAdv">
+            <summary>Advanced — merge JSON into gap ramp tuning</summary>
+            <div class="pathLabHint" style="margin-top: 6px">
+              Keys match <code>gapDifficultyRamp.ts</code> (e.g. <code>ROWS_FOR_FULL_RAMP</code>, <code>CURVE_EXPONENT</code>,
+              <code>FLOW_PHASE_ROWS_*</code>, <code>TENSION_PHASE_ROWS_*</code>, …). Merged over defaults.
+            </div>
+            <textarea id="pl_tuningJson" spellcheck="false">{}</textarea>
+          </details>
+        </div>
+      </section>
+      </div>
 
       <section class="panel">
         <div class="panelHeader">
@@ -387,6 +548,7 @@
       </section>
     </div>
 
+    <script src="scripts/template-preview-path-lab.js"></script>
     <script>
       const smilyObj = {
         columns: 15,
@@ -412,7 +574,61 @@
         ],
       };
 
-      const $input = document.getElementById("input");
+      const $pathLabEnabled = document.getElementById("pathLabEnabled");
+      const $plRunwayHint = document.getElementById("pl_runwayHint");
+      const $btnPathLabApply = document.getElementById("btnPathLabApply");
+
+      function mergePathLabTuning() {
+        const base = typeof PathLab !== "undefined" ? PathLab.defaultGapTuning() : {};
+        let extra = {};
+        try {
+          const raw = (document.getElementById("pl_tuningJson")?.value || "").trim() || "{}";
+          extra = JSON.parse(raw);
+          if (typeof extra !== "object" || extra === null) extra = {};
+        } catch (_) {
+          extra = {};
+        }
+        return Object.assign({}, base, extra);
+      }
+
+      function readPathLabConfig(tuning) {
+        const el = (id) => document.getElementById(id);
+        const num = (id, d) => {
+          const n = Number(el(id)?.value);
+          return Number.isFinite(n) ? n : d;
+        };
+        const str = (id) => (el(id)?.value || "").trim();
+        return {
+          segment: el("pl_segment")?.value || "flowMultipath",
+          columns: num("pl_columns", 15),
+          rowCount: num("pl_rowCount", 48),
+          pathRunId: num("pl_pathRunId", 0),
+          streamStart: num("pl_streamStart", 0),
+          advanceStream: Boolean(el("pl_advanceStream")?.checked),
+          tuning,
+          overrides: {
+            funnelRows: str("pl_ov_funnel") || null,
+            pinballRows: str("pl_ov_pinball") || null,
+            falseWallRows: str("pl_ov_falsewall") || null,
+            restRows: str("pl_ov_rest") || null,
+            chuteRows: str("pl_ov_chute") || null,
+          },
+        };
+      }
+
+      function refreshPathLabHint() {
+        if (!$plRunwayHint || typeof PathLab === "undefined") return;
+        try {
+          const tuning = mergePathLabTuning();
+          const dup = PathLab.gapShiftRunwayDupRowsPreview(tuning, 0, 0x72756e77);
+          const dupLate = PathLab.gapShiftRunwayDupRowsPreview(tuning, tuning.ROWS_FOR_FULL_RAMP || 2400, 0x72756e78);
+          const c0 = PathLab.getPacingCycleState(tuning, 0);
+          const c1 = PathLab.getPacingCycleState(tuning, c0.cycleTotalRows);
+          $plRunwayHint.textContent = `Runway dup: stream≈0 → ${dup}; stream≈full ramp → ${dupLate}. Macro cycle @0: FLOW ${c0.flowRows}, TENSION ${c0.tensionRows}, CLIMAX ${c0.climaxRows}, RELEASE ${c0.releaseRows} (${c0.cycleTotalRows} rows). Next cycle @${c0.cycleTotalRows}: FLOW ${c1.flowRows}, … (${c1.cycleTotalRows} rows).`;
+        } catch (e) {
+          $plRunwayHint.textContent = String(e?.message || e);
+        }
+      }
       const $status = document.getElementById("status");
       const $stats = document.getElementById("stats");
       const $cellSize = document.getElementById("cellSize");
@@ -1426,8 +1642,30 @@
           (skipAnimScheduling || suppressStatus ? "preserve" : "bottom");
         if (typeof fit === "boolean") lastRenderFit = fit;
         try {
+          const tuning = mergePathLabTuning();
+          refreshPathLabHint();
+          if (typeof PathLab !== "undefined" && $pathLabEnabled?.checked) {
+            const level = PathLab.buildLevel(readPathLabConfig(tuning));
+            if (!level || typeof level !== "object") throw new Error("PathLab returned empty.");
+            if (!Array.isArray(level.rows)) throw new Error("PathLab rows missing.");
+            const opts = readOptions();
+            opts.fit = Boolean(fit !== undefined ? fit : lastRenderFit);
+            opts.showHybridGaps = Boolean($showHybridGaps.checked);
+            opts.showHybridConflicts = false;
+            opts.animTime = animTime != null ? animTime : performance.now();
+            opts.activeRow = musicActiveRow;
+            opts.scrollMode = scrollMode;
+            opts.scrollBehavior = options.scrollBehavior;
+            render(level, opts);
+            if (!suppressStatus) {
+              setStatusOk(`Path lab: ${level.meta?.segment || "?"} (${level.rows.length} rows).`);
+            }
+            stopCoinAnimation();
+            return;
+          }
+
           const levelRaw = parseLevel($input.value);
-          const isHybrid = Boolean($hybridMode.checked);
+          const isHybrid = Boolean($hybridMode.checked) && !$pathLabEnabled?.checked;
           const seed = clampInt(Number($seed.value) || 1, 1, 2147483647);
           if (String(seed) !== $seed.value) $seed.value = String(seed);
 
@@ -1578,6 +1816,33 @@
       }
 
       // Wiring
+      $btnPathLabApply.addEventListener("click", () => tryRender({ fit: false, scrollMode: "bottom" }));
+      $pathLabEnabled.addEventListener("change", () => tryRender({ fit: false, scrollMode: "bottom" }));
+      document.getElementById("pl_tuningJson")?.addEventListener("input", () => {
+        window.clearTimeout(window.__plHintT);
+        window.__plHintT = window.setTimeout(refreshPathLabHint, 120);
+      });
+      [
+        "pl_segment",
+        "pl_columns",
+        "pl_rowCount",
+        "pl_pathRunId",
+        "pl_streamStart",
+        "pl_advanceStream",
+        "pl_ov_funnel",
+        "pl_ov_pinball",
+        "pl_ov_falsewall",
+        "pl_ov_rest",
+        "pl_ov_chute",
+      ].forEach((id) => {
+        const n = document.getElementById(id);
+        if (!n) return;
+        n.addEventListener("change", () => {
+          refreshPathLabHint();
+          if ($pathLabEnabled?.checked) tryRender({ fit: false, scrollMode: "bottom" });
+        });
+      });
+
       document.getElementById("btnSmily").addEventListener("click", () => {
         stopMusicPlayback();
         musicTemplateActive = false;
@@ -1719,6 +1984,7 @@
 
       // Initial state
       updateEditButton();
+      refreshPathLabHint();
       $input.value = JSON.stringify(smilyObj, null, 2);
       tryRender({ fit: false, scrollMode: "bottom" });
     </script>

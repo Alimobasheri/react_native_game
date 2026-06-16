@@ -1,17 +1,28 @@
 import { validateSeam } from '@/Game/path/pacingDirector';
+import { mixU32 } from '@/Game/path/deterministicMix';
 import {
   CLIMAX_FALSE_WALL_ROWS,
   CLIMAX_PINBALL_SEGMENT_ROWS,
   climaxClampTwoWideLeft,
+  climaxFalseWallFullWidthGapRow,
   climaxFalseWallRow,
+  climaxFalseWallSegmentCount,
+  climaxPinballDriftDeltaFromSeed,
   climaxPinballInitialAnchor,
   climaxPinballRepairHopOverlap,
   climaxPinballStep,
   climaxRowHasGap,
+  createClimaxPinballRollState,
 } from '@/Game/path/climaxGenerators';
+import {
+  FALSE_WALL_MIN_CAVERN_ROWS_BEFORE_SQUEEZE,
+  FALSE_WALL_MIN_PHASE_ROWS_SINGLE_SEGMENT,
+} from '@/Layout';
 import { gapsFromRow, rowFromGaps, unionMinimalSeam } from '@/Game/path/swimmerGrid';
 
 const COLS = 15;
+const MIN_CAVERN = FALSE_WALL_MIN_CAVERN_ROWS_BEFORE_SQUEEZE;
+const MIN_PHASE = FALSE_WALL_MIN_PHASE_ROWS_SINGLE_SEGMENT;
 
 describe('climaxPinballRepairHopOverlap', () => {
   it('always returns a 2-wide interval overlapping prev 2-wide', () => {
@@ -29,8 +40,15 @@ describe('climaxPinballRepairHopOverlap', () => {
 });
 
 describe('climaxPinballStep', () => {
-  it('tilts +1 for three rows then hops with seam vs previous row', () => {
-    let state = { stepMod: 0, anchorLeft: 5 };
+  it('matches legacy +1,+1 drift then hop when patternSeed yields +1,+1 and hopMag -5', () => {
+    let state = {
+      stepMod: 0,
+      anchorLeft: 5,
+      wanderLeft: 5,
+      driftCount: 3,
+      patternSeed: 27,
+      hopMag: -5,
+    };
     const lefts: number[] = [];
     for (let i = 0; i < 4; i++) {
       const { row, state: next } = climaxPinballStep(state, COLS);
@@ -46,12 +64,22 @@ describe('climaxPinballStep', () => {
     const hop = lefts[3];
     expect(hop <= lefts[2] + 1 && lefts[2] <= hop + 1).toBe(true);
   });
+
+  it('drift deltas are always in {-1,0,+1}', () => {
+    for (let ps = 0; ps < 200; ps++) {
+      for (let j = 0; j < 12; j++) {
+        const d = climaxPinballDriftDeltaFromSeed(ps, j);
+        expect([-1, 0, 1]).toContain(d);
+      }
+    }
+  });
 });
 
 describe('climaxFalseWallRow', () => {
-  it('opens columns 2..12 for cavern rows', () => {
-    for (let sub = 0; sub < 3; sub++) {
-      const row = climaxFalseWallRow(sub, COLS, false);
+  it(`opens columns 2..12 for cavern rows (first segment, R=${MIN_PHASE})`, () => {
+    const salt = 0;
+    for (let sub = 0; sub < MIN_CAVERN; sub++) {
+      const row = climaxFalseWallRow(sub, COLS, MIN_PHASE, salt);
       for (let c = 2; c <= 12; c++) {
         expect(row[c]).toBe(0);
       }
@@ -62,16 +90,39 @@ describe('climaxFalseWallRow', () => {
     }
   });
 
-  it('squeeze row is single gap at margin 1 or 13', () => {
-    const leftSqueeze = climaxFalseWallRow(3, COLS, false);
+  it(`squeeze row at end (R=${MIN_PHASE})`, () => {
+    const leftSqueeze = climaxFalseWallRow(MIN_PHASE - 1, COLS, MIN_PHASE, 0);
     expect(gapsFromRow(leftSqueeze)).toEqual([1]);
-    const rightSqueeze = climaxFalseWallRow(3, COLS, true);
+    const rightSqueeze = climaxFalseWallRow(MIN_PHASE - 1, COLS, MIN_PHASE, 2);
     expect(gapsFromRow(rightSqueeze)).toEqual([13]);
+  });
+
+  it('extra rows add cavern depth with one segment', () => {
+    const total = 10;
+    const salt = 0;
+    for (let sub = 0; sub < total - 1; sub++) {
+      const row = climaxFalseWallRow(sub, COLS, total, salt);
+      for (let c = 2; c <= 12; c++) {
+        expect(row[c]).toBe(0);
+      }
+    }
+    expect(gapsFromRow(climaxFalseWallRow(total - 1, COLS, total, salt))).toEqual([1]);
+  });
+
+  it('R=17 yields two segments and a full-width gap bridge', () => {
+    const R = 17;
+    const salt = 0;
+    expect(climaxFalseWallSegmentCount(R)).toBe(2);
+    const full = climaxFalseWallFullWidthGapRow(COLS);
+    expect(gapsFromRow(full).length).toBe(COLS);
+    expect(gapsFromRow(climaxFalseWallRow(8, COLS, R, salt))).toEqual(gapsFromRow(full));
+    expect(gapsFromRow(climaxFalseWallRow(7, COLS, R, salt))).toEqual([13]);
+    expect(gapsFromRow(climaxFalseWallRow(16, COLS, R, salt))).toEqual([1]);
   });
 });
 
 /**
- * Mirrors ObstacleSystem CLIMAX branch: Pinball (8) → False Wall (4), with seam union vs previous row.
+ * Mirrors ObstacleSystem CLIMAX branch: Pinball (8) → False Wall (min phase rows), with seam union vs previous row.
  */
 function simulateClimaxSegment(args: {
   columnCount: number;
@@ -86,10 +137,11 @@ function simulateClimaxSegment(args: {
   }
   const prevGaps: number[] = [...initialPrev];
   let prevRow = rowFromGaps(prevGaps, columnCount);
-  let pinState = {
-    stepMod: 0,
-    anchorLeft: climaxPinballInitialAnchor(initialPrev, columnCount),
-  };
+  let pinState = createClimaxPinballRollState(
+    initialPrev,
+    columnCount,
+    mixU32(pathRunId >>> 0, rowIndexBase >>> 0, 0x70696e62)
+  );
 
   for (let i = 0; i < CLIMAX_PINBALL_SEGMENT_ROWS; i++) {
     const { row, state } = climaxPinballStep(pinState, columnCount);
@@ -106,8 +158,8 @@ function simulateClimaxSegment(args: {
   }
 
   for (let sub = 0; sub < CLIMAX_FALSE_WALL_ROWS; sub++) {
-    const squeezeRight = (pathRunId * 31 + rowIndexBase + sub) % 2 === 1;
-    const row = climaxFalseWallRow(sub, columnCount, squeezeRight);
+    const fwSalt = mixU32(pathRunId >>> 0, rowIndexBase >>> 0, 0x666c7741);
+    const row = climaxFalseWallRow(sub, columnCount, CLIMAX_FALSE_WALL_ROWS, fwSalt);
     let gaps = gapsFromRow(row);
     gaps = unionMinimalSeam(prevGaps, gaps, columnCount);
     const patched = rowFromGaps(gaps, columnCount);
@@ -169,8 +221,11 @@ describe('climaxPinballInitialAnchor', () => {
     expect(climaxPinballInitialAnchor([1, 5, 9], COLS)).toBe(4);
   });
 
-  it('with two equal-width islands, prefers the run closest to mean then the rightmost tie', () => {
-    // Symmetric around 6.5 → pick right island [10,11,12] → anchor 10
+  it('with two equal-width islands, default salt picks right island anchor 10', () => {
     expect(climaxPinballInitialAnchor([1, 2, 3, 10, 11, 12], COLS)).toBe(10);
+  });
+
+  it('with two equal-width islands, salt can pick the left island', () => {
+    expect(climaxPinballInitialAnchor([1, 2, 3, 10, 11, 12], COLS, 0)).toBe(1);
   });
 });

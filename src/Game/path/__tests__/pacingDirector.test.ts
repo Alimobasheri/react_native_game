@@ -1,28 +1,13 @@
 import {
-  OBSTACLE_PACING_CYCLE_ROW_COUNT,
-  obstaclePacingTuning,
-} from '@/config/obstaclePacing';
-import {
+  getPacingCycleState,
   PacingDirector,
   pacingPhaseAtTotalRows,
   pacingRowInCycle,
   runEmbeddedPacingValidations,
   validateSeam,
 } from '@/Game/path/pacingDirector';
+import { pacingCycleLayoutFromCycleStart } from '@/config/gapDifficultyRamp';
 import type { SwimmerRow } from '@/Game/path/swimmerGrid';
-
-const F = obstaclePacingTuning.FLOW_ROW_COUNT;
-const T = obstaclePacingTuning.TENSION_ROW_COUNT;
-const X = obstaclePacingTuning.CLIMAX_ROW_COUNT;
-const R = obstaclePacingTuning.RELEASE_ROW_COUNT;
-const C = OBSTACLE_PACING_CYCLE_ROW_COUNT;
-const lastFlow = F - 1;
-const firstTension = F;
-const lastTension = F + T - 1;
-const firstClimax = F + T;
-const lastClimax = F + T + X - 1;
-const firstRelease = F + T + X;
-const lastRelease = C - 1;
 
 beforeAll(() => {
   runEmbeddedPacingValidations();
@@ -53,16 +38,29 @@ describe('validateSeam', () => {
   });
 });
 
-describe('PacingDirector phases', () => {
-  it('cycle length matches sum of phase row counts', () => {
-    expect(F + T + X + R).toBe(C);
+describe('PacingDirector phases (dynamic cycles)', () => {
+  const layout0 = pacingCycleLayoutFromCycleStart(0);
+  const C =
+    layout0.flowRows + layout0.tensionRows + layout0.climaxRows + layout0.releaseRows;
+  const lastFlow = layout0.flowRows - 1;
+  const firstTension = layout0.flowRows;
+  const lastTension = layout0.flowRows + layout0.tensionRows - 1;
+  const firstClimax = layout0.flowRows + layout0.tensionRows;
+  const lastClimax = layout0.flowRows + layout0.tensionRows + layout0.climaxRows - 1;
+  const firstRelease = layout0.flowRows + layout0.tensionRows + layout0.climaxRows;
+  const lastRelease = C - 1;
+
+  it('first cycle length matches sum of phase row counts from ramp', () => {
+    expect(C).toBe(getPacingCycleState(0).cycleTotalRows);
   });
 
-  it('indexes cycle and phases from config', () => {
+  it('indexes cycle and phases from dynamic layout', () => {
     expect(pacingRowInCycle(0)).toBe(0);
     expect(pacingRowInCycle(lastRelease)).toBe(lastRelease);
     expect(pacingRowInCycle(C)).toBe(0);
-    expect(pacingRowInCycle(-1)).toBe(lastRelease);
+    const L0 = pacingCycleLayoutFromCycleStart(0);
+    const L0sum = L0.flowRows + L0.tensionRows + L0.climaxRows + L0.releaseRows;
+    expect(pacingRowInCycle(-1)).toBe(L0sum - 1);
 
     expect(pacingPhaseAtTotalRows(0)).toBe('FLOW');
     expect(pacingPhaseAtTotalRows(lastFlow)).toBe('FLOW');
@@ -94,5 +92,15 @@ describe('PacingDirector phases', () => {
     expect(phases[lastRelease]).toBe('RELEASE');
     expect(phases[C]).toBe('FLOW');
     expect(d.totalRowsGenerated).toBe(C + 1);
+  });
+
+  it('second cycle can differ in total length from the first', () => {
+    const L0 = getPacingCycleState(0).cycleTotalRows;
+    const L1 = getPacingCycleState(L0).cycleTotalRows;
+    expect(L1).toBeGreaterThan(0);
+    expect(getPacingCycleState(L0).cycleStartTotalRows).toBe(L0);
+    expect(getPacingCycleState(L0).rowInCycle).toBe(0);
+    expect(getPacingCycleState(L0 + L1 - 1).rowInCycle).toBe(L1 - 1);
+    expect(getPacingCycleState(L0 + L1).rowInCycle).toBe(0);
   });
 });

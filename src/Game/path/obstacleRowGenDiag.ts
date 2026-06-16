@@ -42,7 +42,8 @@ const buildBaseMultiBranchKey = (macro: MacroPhase, c: Record<string, unknown>):
   }
   if (macro === 'release') {
     const em = (c.releaseRestZoneRowsEmitted as number) ?? 0;
-    if (em > 0 && em <= RELEASE_REST_ZONE_ROWS) {
+    const cap = (c.releaseRestZoneTargetRows as number) ?? RELEASE_REST_ZONE_ROWS;
+    if (em > 0 && em <= cap) {
       return 'baseMulti|release|catharticRestZone';
     }
     return 'baseMulti|release|multipathFallback';

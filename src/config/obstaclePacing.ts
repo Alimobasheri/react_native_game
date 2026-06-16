@@ -1,8 +1,9 @@
 /**
- * Macro obstacle row pacing: lengths of each phase within one cycle, then repeat.
- * Safe for worklets: plain numeric constants only.
+ * Reference **midpoint** macro phase row counts (legacy ~80-row cycle shape).
  *
- * `totalRowsGenerated` in ObstacleSystem (including runway duplicate rows) indexes this cycle.
+ * Live pacing uses **ranged** phase lengths that grow with total spawned rows; see
+ * `pacingCycleLayoutFromCycleStart` / `getPacingCycleState` in `gapDifficultyRamp.ts` and
+ * `pacingDirector.ts`. `totalRowsGenerated` in ObstacleSystem indexes those dynamic cycles.
  */
 
 export const obstaclePacingTuning = {
@@ -16,17 +17,11 @@ export const obstaclePacingTuning = {
   RELEASE_ROW_COUNT: 15,
 } as const;
 
-/** Sum of phase row counts; modulo base for `pacingRowInCycle`. */
+/** Sum of reference phase row counts (documentation / rough scale only). */
 export const OBSTACLE_PACING_CYCLE_ROW_COUNT =
   obstaclePacingTuning.FLOW_ROW_COUNT +
   obstaclePacingTuning.TENSION_ROW_COUNT +
   obstaclePacingTuning.CLIMAX_ROW_COUNT +
   obstaclePacingTuning.RELEASE_ROW_COUNT;
 
-/**
- * Long-run procedural bias in `runDepthTensionBonus01`: scales with cycle length
- * (~10 full cycles before bonus approaches its cap).
- */
-export const OBSTACLE_PACING_RUN_DEPTH_DIVISOR =
-  OBSTACLE_PACING_CYCLE_ROW_COUNT * 10;
-
+export { OBSTACLE_PACING_RUN_DEPTH_DIVISOR } from '@/config/gapDifficultyRamp';

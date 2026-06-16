@@ -55,6 +55,11 @@ export type SwimmerStoryArgs = {
    */
   lockedTemplateName: string;
   /**
+   * Multiplies water shader alpha so the swimmer reads more clearly through the water (Storybook).
+   * 1 = full shader opacity; try ~0.45–0.65.
+   */
+  waterShaderOpacity: number;
+  /**
    * When set with `directed` or `baseMulti`, repeats one deterministic procedural branch
    * (funnel, pinball, …) instead of cycling macro pacing shapes.
    */
@@ -158,7 +163,10 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                   />
 
                   {/* Water - rendered separately, will be updated by system */}
-                  <WaterView raisingSpeed={args.raisingSpeed} />
+                  <WaterView
+                    raisingSpeed={args.raisingSpeed}
+                    shaderOpacity={args.waterShaderOpacity}
+                  />
 
                   {/* Dynamic Obstacles */}
                   <ObstacleView
@@ -206,11 +214,13 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
 const meta = {
   title: 'Swimmer Game',
   component: SwimmerGameComp,
+  /** Procedural gap/runway + path segment row counts (funnel, pinball, …): `src/config/gapDifficultyRamp.ts`. Macro phase cycle: `src/config/obstaclePacing.ts`. */
   args: {
     waterSurfaceFromBottomFraction:
       WATER_SURFACE_FROM_CONTAINER_BOTTOM_FRACTION,
-    waterRiseSpeed: 20,
-    raisingSpeed: 100,
+    waterRiseSpeed: 50,
+    raisingSpeed: 200,
+    waterShaderOpacity: 0.52,
     lockedTemplateName: '',
     storyLockedProceduralSegment: '',
   },
@@ -220,6 +230,11 @@ const meta = {
     },
     waterRiseSpeed: { control: { type: 'number' } },
     raisingSpeed: { control: { type: 'number' } },
+    waterShaderOpacity: {
+      control: { type: 'range', min: 0.15, max: 1, step: 0.01 },
+      description:
+        'Lower = more transparent water (swimmer easier to see). Multiplies shader/paint alpha.',
+    },
     lockedTemplateName: {
       control: 'select',
       options: [...TEMPLATE_OPTIONS],

@@ -112,7 +112,7 @@ export const SwimmerView: FC<{
           width: swimmerWidth,
           height: swimmerHeight,
         },
-        fillColor: '#4a90e2',
+        fillColor: '#006f06',
         visible: true,
         zIndex: 1,
       }),

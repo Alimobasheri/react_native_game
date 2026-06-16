@@ -25,8 +25,10 @@ const DEFAULT_GAP_END = 5 / 6;
 export const createWaterLifecycleSystem = (params: {
   sceneKey: string;
   raisingSpeed: number;
+  /** When set, multiplied with shader fragment alpha via paint (see renderSystem shader path). */
+  shaderOpacity?: number;
 }): System => {
-  const { sceneKey, raisingSpeed } = params;
+  const { sceneKey, raisingSpeed, shaderOpacity } = params;
 
   return {
     name: `waterLifecycleSystem:${sceneKey}`,
@@ -100,6 +102,9 @@ export const createWaterLifecycleSystem = (params: {
           position: { x: containerData.centerX, y: containerData.centerY },
           visible: true,
           zIndex: 1,
+          ...(typeof shaderOpacity === 'number'
+            ? { opacity: shaderOpacity }
+            : {}),
           shader: {
             key: 'water',
             uniforms: {

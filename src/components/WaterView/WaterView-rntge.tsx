@@ -7,7 +7,12 @@ import { FC, useMemo } from 'react';
 
 export const WaterView: FC<{
   raisingSpeed: number;
-}> = ({ raisingSpeed }) => {
+  /**
+   * Multiplies water shader output alpha (0–1). Lower = clearer view of swimmer/obstacles under water.
+   * Omit for full strength (production default).
+   */
+  shaderOpacity?: number;
+}> = ({ raisingSpeed, shaderOpacity }) => {
   const sceneContext = useSceneContextUnsafe();
   const sceneKey = sceneContext?.sceneKey ?? 'game';
   const waterLifecycleSystem = useMemo(
@@ -15,8 +20,9 @@ export const WaterView: FC<{
       createWaterLifecycleSystem({
         sceneKey,
         raisingSpeed,
+        shaderOpacity,
       }),
-    [sceneKey, raisingSpeed]
+    [sceneKey, raisingSpeed, shaderOpacity]
   );
 
   // Register water-related systems

@@ -8,8 +8,8 @@ export type ObstaclesManagerComponentData = {
   /** Scene key this manager belongs to (used when spawning entities). */
   sceneKey: string;
   /**
-   * Monotonic count of obstacle rows spawned; drives `PacingDirector` phase
-   * (`OBSTACLE_PACING_CYCLE_ROW_COUNT` in `src/config/obstaclePacing.ts`).
+   * Monotonic count of obstacle rows spawned; drives macro pacing
+   * (`getPacingCycleState` / `pacingPhaseAtTotalRows` in `src/Game/path/pacingDirector.ts`).
    */
   totalRowsGenerated?: number;
   /** Last obstacle row generation diagnostic key (dev logging dedupe). */

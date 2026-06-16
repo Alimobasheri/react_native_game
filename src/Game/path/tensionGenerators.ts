@@ -5,7 +5,7 @@
 
 import { rowFromGaps, type SwimmerRow } from './swimmerGrid';
 
-/** Funnel: rows 0..5 with W = 5,4,3,2,1,1 (6 rows total). */
+/** Funnel: default row count for tests / docs; live game uses `pathSegmentTensionFunnelDurationRows` in `gapDifficultyRamp.ts`. */
 export const TENSION_FUNNEL_DURATION_ROWS = 6;
 
 /** Starting gap width at funnel row 0. */
