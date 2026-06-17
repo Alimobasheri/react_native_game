@@ -33,16 +33,22 @@ export const gapDifficultyRampTuning = {
   RUNWAY_DUP_ROWS_END_MIN: 0,
   RUNWAY_DUP_ROWS_END_MAX: 2,
 
-  /** Multipath contiguous gap width (columns), clamped to row and seam logic. */
-  MULTIPATH_MIN_GAP_COLS_START_MIN: 4,
-  MULTIPATH_MIN_GAP_COLS_START_MAX: 6,
-  MULTIPATH_MIN_GAP_COLS_END_MIN: 1,
-  MULTIPATH_MIN_GAP_COLS_END_MAX: 3,
-  /** Hard cap on span before `rowLength * fraction` clamp. */
-  MULTIPATH_MAX_GAP_COLS_CAP_START_MIN: 5,
-  MULTIPATH_MAX_GAP_COLS_CAP_START_MAX: 8,
-  MULTIPATH_MAX_GAP_COLS_CAP_END_MIN: 1,
-  MULTIPATH_MAX_GAP_COLS_CAP_END_MAX: 4,
+  /**
+   * Multipath contiguous gap width as **fractions** of `rowLength`, converted to integer columns.
+   * This keeps FLOW readable on narrow grids (e.g. 9 columns) and preserves fork potential.
+   */
+  MULTIPATH_MIN_GAP_FRAC_START_MIN: 0.22,
+  MULTIPATH_MIN_GAP_FRAC_START_MAX: 0.33,
+  MULTIPATH_MIN_GAP_FRAC_END_MIN: 0.11,
+  MULTIPATH_MIN_GAP_FRAC_END_MAX: 0.22,
+  /**
+   * Hard cap on span (as fraction of rowLength) before applying `rowLength * ROW_LENGTH_WIDTH_FRAC_*`.
+   * Acts as a primary maximum corridor width for multipath.
+   */
+  MULTIPATH_MAX_GAP_FRAC_CAP_START_MIN: 0.44,
+  MULTIPATH_MAX_GAP_FRAC_CAP_START_MAX: 0.55,
+  MULTIPATH_MAX_GAP_FRAC_CAP_END_MIN: 0.22,
+  MULTIPATH_MAX_GAP_FRAC_CAP_END_MAX: 0.33,
   ROW_LENGTH_WIDTH_FRAC_START_MIN: 0.66,
   ROW_LENGTH_WIDTH_FRAC_START_MAX: 0.76,
   ROW_LENGTH_WIDTH_FRAC_END_MIN: 0.45,
@@ -295,26 +301,39 @@ export function multipathGapWidthParamsFromTotalRows(
   const d = gapDifficulty01FromTotalRows(totalRowsGenerated);
   const t = gapDifficultyRampTuning;
 
-  const minW = Math.max(
-    1,
-    intFromRampedRange(
-      d,
-      t.MULTIPATH_MIN_GAP_COLS_START_MIN,
-      t.MULTIPATH_MIN_GAP_COLS_START_MAX,
-      t.MULTIPATH_MIN_GAP_COLS_END_MIN,
-      t.MULTIPATH_MIN_GAP_COLS_END_MAX,
-      rowParamSubmix(rowStreamSeed, 1)
-    )
+  const colsFromRampedFrac = (
+    startMinF: number,
+    startMaxF: number,
+    endMinF: number,
+    endMaxF: number,
+    pickU32: number
+  ): number => {
+    'worklet';
+    if (!Number.isFinite(rowLength) || rowLength <= 0) return 1;
+    const lo = lerpNum(startMinF, endMinF, d);
+    const hi = lerpNum(startMaxF, endMaxF, d);
+    const fa = Math.min(lo, hi);
+    const fb = Math.max(lo, hi);
+    const frac = fa + unitFloatFromU32(pickU32) * (fb - fa);
+    const cols = Math.round(rowLength * frac);
+    return Math.max(1, Math.min(rowLength, cols));
+  };
+
+  const minW = colsFromRampedFrac(
+    t.MULTIPATH_MIN_GAP_FRAC_START_MIN,
+    t.MULTIPATH_MIN_GAP_FRAC_START_MAX,
+    t.MULTIPATH_MIN_GAP_FRAC_END_MIN,
+    t.MULTIPATH_MIN_GAP_FRAC_END_MAX,
+    rowParamSubmix(rowStreamSeed, 1)
   );
 
   const maxCap = Math.max(
     minW,
-    intFromRampedRange(
-      d,
-      t.MULTIPATH_MAX_GAP_COLS_CAP_START_MIN,
-      t.MULTIPATH_MAX_GAP_COLS_CAP_START_MAX,
-      t.MULTIPATH_MAX_GAP_COLS_CAP_END_MIN,
-      t.MULTIPATH_MAX_GAP_COLS_CAP_END_MAX,
+    colsFromRampedFrac(
+      t.MULTIPATH_MAX_GAP_FRAC_CAP_START_MIN,
+      t.MULTIPATH_MAX_GAP_FRAC_CAP_START_MAX,
+      t.MULTIPATH_MAX_GAP_FRAC_CAP_END_MIN,
+      t.MULTIPATH_MAX_GAP_FRAC_CAP_END_MAX,
       rowParamSubmix(rowStreamSeed, 2)
     )
   );

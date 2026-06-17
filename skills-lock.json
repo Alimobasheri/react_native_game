@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": {
+    "game-design-document": {
+      "source": "ityes22/game-design-document",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "c891402a593b05587c4ea37179419502980998112da3aec64797ad24f491aa99"
+    },
+    "level-design": {
+      "source": "pluginagentmarketplace/custom-plugin-game-developer",
+      "sourceType": "github",
+      "skillPath": "skills/level-design/SKILL.md",
+      "computedHash": "38da1df6988ebff0cdf597e21be2b00124fa63cd45901b0d34aabe94ad697883"
+    },
+    "mobile-game-dev": {
+      "source": "omer-metin/skills-for-antigravity",
+      "sourceType": "github",
+      "skillPath": "skills/mobile-game-dev/SKILL.md",
+      "computedHash": "0d6692e93b62406b5a91fad10512451bfdd4677314fb085fcab3ac6528e57882"
+    }
+  }
+}

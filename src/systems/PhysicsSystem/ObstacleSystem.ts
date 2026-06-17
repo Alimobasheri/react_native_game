@@ -61,7 +61,7 @@ import {
   TemplateContextComponentName,
 } from '@/Game/ecs-components/TemplateContextComponent';
 import { createJsonLevelRowPathTemplate } from '@/Game/templates/obstacles/jsonLevelRowPathTemplate';
-import { mixU32, intMod } from '@/Game/path/deterministicMix';
+import { mixU32, intMod, randomU32 } from '@/Game/path/deterministicMix';
 import {
   generateGapsDeterministic,
   generateMultiPathGapsDeterministic,
@@ -272,8 +272,8 @@ const bumpTotalRowsGenerated = (ecs: ECS, managerEntity: Entity) => {
 
 
 /**
- * After each full macro cycle, bump `pathRunId` so multipath / proc rows don't repeat the same
- * deterministic stream forever while template ctx (chute, funnel, …) stays on one run.
+ * After each full macro cycle, re-roll `pathRunId` so multipath / proc rows don't repeat the same
+ * layout stream while template ctx (chute, funnel, …) stays on one run.
  */
 const bumpPathRunIdAfterCompletedMacroCycle = (
   ecs: ECS,
@@ -298,8 +298,7 @@ const bumpPathRunIdAfterCompletedMacroCycle = (
     TemplateContextComponentName,
     (data) => {
       const c = data.ctx as Record<string, unknown>;
-      const cur = (c.pathRunId as number) ?? 0;
-      c.pathRunId = cur + 1;
+      c.pathRunId = randomU32();
     }
   );
 };
@@ -1073,11 +1072,7 @@ function selectTemplate(args: {
       ? currentTemplateContextEntity
       : getOrCreateTemplateContextEntity(ecs);
 
-  const existing = components[TemplateContextComponentName]?.get(
-    ctxEntity
-  ) as TemplateContextComponentData | undefined;
-
-  const nextRunId = (existing?.runId ?? 0) + 1;
+  const nextRunId = randomU32();
   const ctx: TemplateCtx = template.createCtx ? template.createCtx() : {};
   (ctx as Record<string, unknown>).pathRunId = nextRunId;
 

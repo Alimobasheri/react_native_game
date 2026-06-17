@@ -206,6 +206,6 @@ export function maybeLogPlayerActiveObstacleRowTemplate(
   const tName = row?.spawnDiagTemplateName ?? '?';
   const branch = row?.spawnDiagBranchKey ?? 'unknown';
   runOnJS(logPlayerBandToJS)(
-    `[ObstacleRowGen] playerBand template=${tName} branch=${branch} centerRowEntity=${centerRowEntity} note=diagOnWaterCenterRow_notNecessarilyBlockerRow`
+    `[ObstacleRowGen] branch=${branch}`
   );
 }

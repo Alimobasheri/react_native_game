@@ -54,7 +54,7 @@ export interface GetRowArgs {
 }
 
 export type TemplateCtx = Record<string, unknown> & {
-  /** Set by ObstacleSystem / selectTemplate for deterministic procedural rows. */
+  /** Random per-run seed set by ObstacleSystem / selectTemplate; mixed into row gap noise. */
   pathRunId?: number;
 };
 

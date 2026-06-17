@@ -43,3 +43,9 @@ export function intMod(x: number, mod: number): number {
   if (mod <= 0) return 0;
   return (Math.abs(x >>> 0) % mod + mod) % mod;
 }
+
+/** Uniform unsigned 32-bit value for per-run path seeds (`pathRunId`). */
+export function randomU32(): number {
+  'worklet';
+  return (Math.random() * 0x100000000) >>> 0;
+}

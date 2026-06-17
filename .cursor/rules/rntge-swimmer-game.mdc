@@ -1,4 +1,6 @@
 ---
+description: RNTGE game engine and Swimmer ECS architecture — View/System/Component patterns, game vs engine boundaries, and UI-thread global state
+globs: src/containers/ReactNativeSkiaGameEngine/**,**/*-rntge.tsx,**/*-rntge.ts,src/Game/**,src/systems/**,src/config/swimmerTuning.ts,src/config/gapDifficultyRamp.ts
 alwaysApply: false
 ---
 # RNTGE Game Engine & Swimmer Game

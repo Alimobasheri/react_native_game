@@ -9,7 +9,7 @@ export type TemplateContextComponentData = {
   templateName: string;
   /** Arbitrary, template-owned state. Mutated in place by templates. */
   ctx: TemplateCtx;
-  /** Monotonic id to distinguish template selections/runs if needed. */
+  /** Random per-run seed; mirrors `ctx.pathRunId` for procedural layout variation. */
   runId: number;
 };
 

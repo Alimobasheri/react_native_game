@@ -620,11 +620,24 @@
         if (!$plRunwayHint || typeof PathLab === "undefined") return;
         try {
           const tuning = mergePathLabTuning();
+          const cols = num("pl_columns", 15);
+          const gapSeed = 0;
+          const w0 = PathLab.multipathGapWidthParamsFromTotalRows(tuning, 0, cols, gapSeed);
+          const wLate = PathLab.multipathGapWidthParamsFromTotalRows(
+            tuning,
+            tuning.ROWS_FOR_FULL_RAMP || 2400,
+            cols,
+            gapSeed
+          );
           const dup = PathLab.gapShiftRunwayDupRowsPreview(tuning, 0, 0x72756e77);
           const dupLate = PathLab.gapShiftRunwayDupRowsPreview(tuning, tuning.ROWS_FOR_FULL_RAMP || 2400, 0x72756e78);
           const c0 = PathLab.getPacingCycleState(tuning, 0);
           const c1 = PathLab.getPacingCycleState(tuning, c0.cycleTotalRows);
-          $plRunwayHint.textContent = `Runway dup: stream≈0 → ${dup}; stream≈full ramp → ${dupLate}. Macro cycle @0: FLOW ${c0.flowRows}, TENSION ${c0.tensionRows}, CLIMAX ${c0.climaxRows}, RELEASE ${c0.releaseRows} (${c0.cycleTotalRows} rows). Next cycle @${c0.cycleTotalRows}: FLOW ${c1.flowRows}, … (${c1.cycleTotalRows} rows).`;
+          $plRunwayHint.textContent =
+            `Multipath widths (@cols=${cols}): stream≈0 → minW ${w0.minW}, maxW ${w0.maxW}; stream≈full ramp → minW ${wLate.minW}, maxW ${wLate.maxW}. ` +
+            `Runway dup: stream≈0 → ${dup}; stream≈full ramp → ${dupLate}. ` +
+            `Macro cycle @0: FLOW ${c0.flowRows}, TENSION ${c0.tensionRows}, CLIMAX ${c0.climaxRows}, RELEASE ${c0.releaseRows} (${c0.cycleTotalRows} rows). ` +
+            `Next cycle @${c0.cycleTotalRows}: FLOW ${c1.flowRows}, … (${c1.cycleTotalRows} rows).`;
         } catch (e) {
           $plRunwayHint.textContent = String(e?.message || e);
         }

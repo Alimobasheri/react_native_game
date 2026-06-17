@@ -21,69 +21,69 @@
   const defaultGapTuning = () => ({
     ROWS_FOR_FULL_RAMP: 2400,
     CURVE_EXPONENT: 0.55,
-    RUNWAY_DUP_ROWS_START_MIN: 7,
-    RUNWAY_DUP_ROWS_START_MAX: 10,
+    RUNWAY_DUP_ROWS_START_MIN: 5,
+    RUNWAY_DUP_ROWS_START_MAX: 8,
     RUNWAY_DUP_ROWS_END_MIN: 0,
-    RUNWAY_DUP_ROWS_END_MAX: 4,
-    MULTIPATH_MIN_GAP_COLS_START_MIN: 4,
-    MULTIPATH_MIN_GAP_COLS_START_MAX: 6,
-    MULTIPATH_MIN_GAP_COLS_END_MIN: 1,
-    MULTIPATH_MIN_GAP_COLS_END_MAX: 3,
-    MULTIPATH_MAX_GAP_COLS_CAP_START_MIN: 8,
-    MULTIPATH_MAX_GAP_COLS_CAP_START_MAX: 10,
-    MULTIPATH_MAX_GAP_COLS_CAP_END_MIN: 5,
-    MULTIPATH_MAX_GAP_COLS_CAP_END_MAX: 7,
-    ROW_LENGTH_WIDTH_FRAC_START_MIN: 0.85,
-    ROW_LENGTH_WIDTH_FRAC_START_MAX: 0.95,
+    RUNWAY_DUP_ROWS_END_MAX: 2,
+    MULTIPATH_MIN_GAP_FRAC_START_MIN: 0.22,
+    MULTIPATH_MIN_GAP_FRAC_START_MAX: 0.33,
+    MULTIPATH_MIN_GAP_FRAC_END_MIN: 0.11,
+    MULTIPATH_MIN_GAP_FRAC_END_MAX: 0.22,
+    MULTIPATH_MAX_GAP_FRAC_CAP_START_MIN: 0.44,
+    MULTIPATH_MAX_GAP_FRAC_CAP_START_MAX: 0.55,
+    MULTIPATH_MAX_GAP_FRAC_CAP_END_MIN: 0.22,
+    MULTIPATH_MAX_GAP_FRAC_CAP_END_MAX: 0.33,
+    ROW_LENGTH_WIDTH_FRAC_START_MIN: 0.66,
+    ROW_LENGTH_WIDTH_FRAC_START_MAX: 0.76,
     ROW_LENGTH_WIDTH_FRAC_END_MIN: 0.45,
     ROW_LENGTH_WIDTH_FRAC_END_MAX: 0.55,
     SINGLE_PATH_INCLUDE_ADJACENT_UNTIL_DIFFICULTY: 0.55,
     MULTIPATH_INITIAL_WIDE_WIDTH_THRESHOLD_START: 0.55,
     MULTIPATH_INITIAL_WIDE_WIDTH_THRESHOLD_END: 0.82,
-    TENSION_FUNNEL_ROWS_START_MIN: 5,
-    TENSION_FUNNEL_ROWS_START_MAX: 7,
-    TENSION_FUNNEL_ROWS_END_MIN: 8,
-    TENSION_FUNNEL_ROWS_END_MAX: 12,
-    CLIMAX_PINBALL_SEGMENT_ROWS_START_MIN: 6,
-    CLIMAX_PINBALL_SEGMENT_ROWS_START_MAX: 9,
-    CLIMAX_PINBALL_SEGMENT_ROWS_END_MIN: 10,
-    CLIMAX_PINBALL_SEGMENT_ROWS_END_MAX: 16,
-    CLIMAX_FALSE_WALL_ROWS_START_MIN: 4,
-    CLIMAX_FALSE_WALL_ROWS_START_MAX: 5,
-    CLIMAX_FALSE_WALL_ROWS_END_MIN: 5,
-    CLIMAX_FALSE_WALL_ROWS_END_MAX: 8,
-    FLOW_CHUTE_ROWS_BEFORE_CHICANE_START_MIN: 14,
-    FLOW_CHUTE_ROWS_BEFORE_CHICANE_START_MAX: 20,
-    FLOW_CHUTE_ROWS_BEFORE_CHICANE_END_MIN: 22,
-    FLOW_CHUTE_ROWS_BEFORE_CHICANE_END_MAX: 32,
+    TENSION_FUNNEL_ROWS_START_MIN: 8,
+    TENSION_FUNNEL_ROWS_START_MAX: 15,
+    TENSION_FUNNEL_ROWS_END_MIN: 15,
+    TENSION_FUNNEL_ROWS_END_MAX: 24,
+    CLIMAX_PINBALL_SEGMENT_ROWS_START_MIN: 9,
+    CLIMAX_PINBALL_SEGMENT_ROWS_START_MAX: 15,
+    CLIMAX_PINBALL_SEGMENT_ROWS_END_MIN: 15,
+    CLIMAX_PINBALL_SEGMENT_ROWS_END_MAX: 24,
+    CLIMAX_FALSE_WALL_ROWS_START_MIN: 8,
+    CLIMAX_FALSE_WALL_ROWS_START_MAX: 12,
+    CLIMAX_FALSE_WALL_ROWS_END_MIN: 15,
+    CLIMAX_FALSE_WALL_ROWS_END_MAX: 24,
+    FLOW_CHUTE_ROWS_BEFORE_CHICANE_START_MIN: 20,
+    FLOW_CHUTE_ROWS_BEFORE_CHICANE_START_MAX: 32,
+    FLOW_CHUTE_ROWS_BEFORE_CHICANE_END_MIN: 32,
+    FLOW_CHUTE_ROWS_BEFORE_CHICANE_END_MAX: 48,
     RELEASE_REST_ZONE_ROWS_START_MIN: 6,
     RELEASE_REST_ZONE_ROWS_START_MAX: 10,
     RELEASE_REST_ZONE_ROWS_END_MIN: 12,
     RELEASE_REST_ZONE_ROWS_END_MAX: 18,
 
-    FLOW_PHASE_ROWS_START_MIN: 22,
-    FLOW_PHASE_ROWS_START_MAX: 34,
-    FLOW_PHASE_ROWS_END_MIN: 28,
-    FLOW_PHASE_ROWS_END_MAX: 42,
-    FLOW_PHASE_ROWS_HARD_MIN: 12,
+    FLOW_PHASE_ROWS_START_MIN: 34,
+    FLOW_PHASE_ROWS_START_MAX: 50,
+    FLOW_PHASE_ROWS_END_MIN: 52,
+    FLOW_PHASE_ROWS_END_MAX: 80,
+    FLOW_PHASE_ROWS_HARD_MIN: 25,
 
-    TENSION_PHASE_ROWS_START_MIN: 14,
-    TENSION_PHASE_ROWS_START_MAX: 22,
-    TENSION_PHASE_ROWS_END_MIN: 18,
-    TENSION_PHASE_ROWS_END_MAX: 28,
-    TENSION_PHASE_ROWS_HARD_MIN: 10,
+    TENSION_PHASE_ROWS_START_MIN: 25,
+    TENSION_PHASE_ROWS_START_MAX: 36,
+    TENSION_PHASE_ROWS_END_MIN: 38,
+    TENSION_PHASE_ROWS_END_MAX: 60,
+    TENSION_PHASE_ROWS_HARD_MIN: 15,
 
-    CLIMAX_PHASE_ROWS_START_MIN: 10,
-    CLIMAX_PHASE_ROWS_START_MAX: 16,
-    CLIMAX_PHASE_ROWS_END_MIN: 14,
-    CLIMAX_PHASE_ROWS_END_MAX: 22,
+    CLIMAX_PHASE_ROWS_START_MIN: 32,
+    CLIMAX_PHASE_ROWS_START_MAX: 50,
+    CLIMAX_PHASE_ROWS_END_MIN: 52,
+    CLIMAX_PHASE_ROWS_END_MAX: 80,
     CLIMAX_PHASE_ROWS_HARD_MIN: 10,
 
-    RELEASE_PHASE_ROWS_START_MIN: 10,
-    RELEASE_PHASE_ROWS_START_MAX: 16,
-    RELEASE_PHASE_ROWS_END_MIN: 14,
-    RELEASE_PHASE_ROWS_END_MAX: 22,
-    RELEASE_PHASE_ROWS_HARD_MIN: 8,
+    RELEASE_PHASE_ROWS_START_MIN: 25,
+    RELEASE_PHASE_ROWS_START_MAX: 36,
+    RELEASE_PHASE_ROWS_END_MIN: 38,
+    RELEASE_PHASE_ROWS_END_MAX: 60,
+    RELEASE_PHASE_ROWS_HARD_MIN: 10,
   });
 
   function mixU32(a, b, c) {
@@ -384,25 +384,31 @@
   function multipathGapWidthParamsFromTotalRows(tuning, totalRowsGenerated, rowLength, rowStreamSeed) {
     const d = gapDifficulty01FromTotalRows(tuning, totalRowsGenerated);
     const t = tuning;
-    const minW = Math.max(
-      1,
-      intFromRampedRange(
-        d,
-        t.MULTIPATH_MIN_GAP_COLS_START_MIN,
-        t.MULTIPATH_MIN_GAP_COLS_START_MAX,
-        t.MULTIPATH_MIN_GAP_COLS_END_MIN,
-        t.MULTIPATH_MIN_GAP_COLS_END_MAX,
-        rowParamSubmix(rowStreamSeed, 1)
-      )
+    function colsFromRampedFrac(startMinF, startMaxF, endMinF, endMaxF, pickU32) {
+      if (!Number.isFinite(rowLength) || rowLength <= 0) return 1;
+      const lo = lerpNum(startMinF, endMinF, d);
+      const hi = lerpNum(startMaxF, endMaxF, d);
+      const fa = Math.min(lo, hi);
+      const fb = Math.max(lo, hi);
+      const frac = fa + unitFloatFromU32(pickU32 >>> 0) * (fb - fa);
+      const cols = Math.round(rowLength * frac);
+      return Math.max(1, Math.min(rowLength, cols));
+    }
+
+    const minW = colsFromRampedFrac(
+      t.MULTIPATH_MIN_GAP_FRAC_START_MIN,
+      t.MULTIPATH_MIN_GAP_FRAC_START_MAX,
+      t.MULTIPATH_MIN_GAP_FRAC_END_MIN,
+      t.MULTIPATH_MIN_GAP_FRAC_END_MAX,
+      rowParamSubmix(rowStreamSeed, 1)
     );
     const maxCap = Math.max(
       minW,
-      intFromRampedRange(
-        d,
-        t.MULTIPATH_MAX_GAP_COLS_CAP_START_MIN,
-        t.MULTIPATH_MAX_GAP_COLS_CAP_START_MAX,
-        t.MULTIPATH_MAX_GAP_COLS_CAP_END_MIN,
-        t.MULTIPATH_MAX_GAP_COLS_CAP_END_MAX,
+      colsFromRampedFrac(
+        t.MULTIPATH_MAX_GAP_FRAC_CAP_START_MIN,
+        t.MULTIPATH_MAX_GAP_FRAC_CAP_START_MAX,
+        t.MULTIPATH_MAX_GAP_FRAC_CAP_END_MIN,
+        t.MULTIPATH_MAX_GAP_FRAC_CAP_END_MAX,
         rowParamSubmix(rowStreamSeed, 2)
       )
     );
@@ -642,17 +648,21 @@
     if (prevRanges.length === 0) {
       const center = Math.floor(rowLength / 2);
       const uW = unitFloatFromU32(mixPathRowStreamSalt(pathRunId, rowIndex, proceduralStreamSalt, 21));
-      const width = uW < initialWideThreshold + tension * 0.2 ? 3 : 2;
+      const narrowW = Math.min(MAX_W, Math.max(1, Math.round(rowLength * 0.22)));
+      const wideW = Math.min(MAX_W, Math.max(narrowW + 1, Math.round(rowLength * 0.33)));
+      const width = uW < initialWideThreshold + tension * 0.2 ? wideW : narrowW;
       const startA = clampInt(center - Math.floor(width / 2), 0, rowLength - 1);
       const a = { startCol: startA, endCol: Math.min(rowLength - 1, startA + width - 1) };
       const u2 = unitFloatFromU32(mixPathRowStreamSalt(pathRunId, rowIndex, proceduralStreamSalt, 22));
-      const twoPaths = rowLength >= 8 && u2 < 0.26 + tension * 0.14;
+      const twoPathThreshold = rowLength <= 10 ? 0.32 + tension * 0.14 : 0.26 + tension * 0.14;
+      const twoPaths = rowLength >= 8 && u2 < twoPathThreshold;
       if (twoPaths) {
         const offset = Math.max(2, Math.floor(rowLength / 4));
         const uSide = unitFloatFromU32(mixPathRowStreamSalt(pathRunId, rowIndex, proceduralStreamSalt, 23));
         const bCenter = clampInt(center + (uSide < 0.5 ? -offset : offset), 0, rowLength - 1);
-        const bStart = clampInt(bCenter - 1, 0, rowLength - 1);
-        const b = { startCol: bStart, endCol: Math.min(rowLength - 1, bStart + 1) };
+        const bHalf = Math.floor(Math.max(1, Math.min(2, Math.round(MIN_W * 0.75))) / 2);
+        const bStart = clampInt(bCenter - bHalf, 0, rowLength - 1);
+        const b = { startCol: bStart, endCol: Math.min(rowLength - 1, bStart + Math.max(0, 2 * bHalf)) };
         prevRanges = enforceRangeConstraints([a, b], rowLength);
       } else prevRanges = enforceRangeConstraints([a], rowLength);
     }
@@ -1533,6 +1543,13 @@
     getPacingCycleState: (tuning, tr) => getPacingCycleState(tuning, tr >>> 0),
     pacingCycleLayoutFromCycleStart: (tuning, cycleStart) =>
       pacingCycleLayoutFromCycleStart(tuning, Math.floor(Math.max(0, cycleStart))),
+    multipathGapWidthParamsFromTotalRows: (tuning, totalRowsGenerated, rowLength, rowStreamSeed) =>
+      multipathGapWidthParamsFromTotalRows(
+        tuning,
+        Math.floor(Math.max(0, totalRowsGenerated)),
+        Math.floor(Math.max(0, rowLength)),
+        rowStreamSeed >>> 0
+      ),
     gapShiftRunwayDupRowsPreview(tuning, totalRows, varianceU32) {
       const d = gapDifficulty01FromTotalRows(tuning, totalRows);
       const t = tuning;

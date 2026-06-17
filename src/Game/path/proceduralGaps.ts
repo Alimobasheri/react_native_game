@@ -284,22 +284,26 @@ export function generateMultiPathGapsDeterministic(
   if (prevRanges.length === 0) {
     const center = Math.floor(rowLength / 2);
     const uW = unitFloatFromU32(mixPathRowStreamSalt(pathRunId, rowIndex, proceduralStreamSalt, 21));
-    const width = uW < initialWideThreshold + tension * 0.2 ? 3 : 2;
+    const narrowW = Math.min(MAX_W, Math.max(1, Math.round(rowLength * 0.22)));
+    const wideW = Math.min(MAX_W, Math.max(narrowW + 1, Math.round(rowLength * 0.33)));
+    const width = uW < initialWideThreshold + tension * 0.2 ? wideW : narrowW;
     const startA = clampInt(center - Math.floor(width / 2), 0, rowLength - 1);
     const a: GapRangeCol = {
       startCol: startA,
       endCol: Math.min(rowLength - 1, startA + width - 1),
     };
     const u2 = unitFloatFromU32(mixPathRowStreamSalt(pathRunId, rowIndex, proceduralStreamSalt, 22));
-    const twoPaths = rowLength >= 8 && u2 < 0.26 + tension * 0.14;
+    const twoPathThreshold = rowLength <= 10 ? 0.32 + tension * 0.14 : 0.26 + tension * 0.14;
+    const twoPaths = rowLength >= 8 && u2 < twoPathThreshold;
     if (twoPaths) {
       const offset = Math.max(2, Math.floor(rowLength / 4));
       const uSide = unitFloatFromU32(mixPathRowStreamSalt(pathRunId, rowIndex, proceduralStreamSalt, 23));
       const bCenter = clampInt(center + (uSide < 0.5 ? -offset : offset), 0, rowLength - 1);
-      const bStart = clampInt(bCenter - 1, 0, rowLength - 1);
+      const bHalf = Math.floor(Math.max(1, Math.min(2, Math.round(MIN_W * 0.75))) / 2);
+      const bStart = clampInt(bCenter - bHalf, 0, rowLength - 1);
       const b: GapRangeCol = {
         startCol: bStart,
-        endCol: Math.min(rowLength - 1, bStart + 1),
+        endCol: Math.min(rowLength - 1, bStart + Math.max(0, 2 * bHalf)),
       };
       prevRanges = enforceRangeConstraints([a, b], rowLength);
     } else {
