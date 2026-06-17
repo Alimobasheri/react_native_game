@@ -30,6 +30,15 @@ import {
   LoadSceneRequestType,
   UnLoadSceneRequestType,
 } from '@/containers/ReactNativeSkiaGameEngine/components-rntge/Scene/events';
+import {
+  ScoreComponentName,
+  ScoreComponentData,
+} from '@/Game/ecs-components/Score';
+import {
+  getOrCreateRunResultEntity,
+  RunResultComponentData,
+  RunResultComponentName,
+} from '@/Game/ecs-components/RunResult';
 import { swimmerPhysicsTuning } from '@/config/swimmerTuning';
 
 /**
@@ -357,6 +366,26 @@ export const SwimmerPhysicsSystem: System = {
         !swimmerComponent.gameOverDispatched;
 
       if (shouldDispatchGameOver) {
+        const scoreEntities = ecs.getEntitiesWithComponents([ScoreComponentName]);
+        let finalScore = 0;
+        for (let s = 0; s < scoreEntities.length; s++) {
+          const scoreData = components[ScoreComponentName].get(
+            scoreEntities[s]
+          ) as ScoreComponentData | undefined;
+          if (scoreData) {
+            finalScore = Math.max(finalScore, Math.floor(scoreData.score));
+          }
+        }
+
+        const runResultEntity = getOrCreateRunResultEntity(ecs);
+        ecs.updateComponent<RunResultComponentData>(
+          runResultEntity,
+          RunResultComponentName,
+          (runResult) => {
+            runResult.finalScore = finalScore;
+          }
+        );
+
         eventQueue.addEvent({
           type: LoadSceneRequestType,
           payload: { sceneKey: GAME_OVER_SCENE_KEY },

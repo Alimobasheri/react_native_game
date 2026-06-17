@@ -14,6 +14,7 @@ import {
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import { FC, useMemo } from 'react';
 import { GameOverTitle } from './GameOverTitle/GameOverTitle-rntge';
+import { GameOverScore } from './GameOverScore/GameOverScore-rntge';
 import { RestartGameButton } from './RestartGameButton/RestartGameButton-rntge';
 
 type GameOverSceneProps = {
@@ -51,6 +52,7 @@ export const GameOverScene: FC<GameOverSceneProps> = ({ backgroundColor }) => {
       <Content>
         {backgroundColor ? <GameOverBackground color={backgroundColor} /> : null}
         <GameOverTitle />
+        <GameOverScore />
         <RestartGameButton />
       </Content>
     </Scene>

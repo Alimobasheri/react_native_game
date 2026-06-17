@@ -23,6 +23,8 @@ import { WaterComponentName } from '@/Game/ecs-components/Water';
 import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
 import { ObstaclesManagerComponentName } from '@/Game/ecs-components/ObstaclesManager';
 import { ScoreComponentName } from '@/Game/ecs-components/Score';
+import { RunResultComponentName } from '@/Game/ecs-components/RunResult';
+import { GameOverScoreComponentName } from '@/Game/ecs-components/GameOverScore';
 import { ScoreView } from '@/components/ScoreView/ScoreView-rntge';
 import { ObstacleRowComponentName } from '@/Game/ecs-components/ObstacleRowComponent';
 import { TemplateContextComponentName } from '@/Game/ecs-components/TemplateContextComponent';
@@ -126,6 +128,8 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
               ObstaclesManagerComponentName,
               TemplateContextComponentName,
               ScoreComponentName,
+              RunResultComponentName,
+              GameOverScoreComponentName,
             ]}
           >
             <Preload>

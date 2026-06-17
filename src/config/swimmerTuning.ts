@@ -20,7 +20,7 @@ export const swimmerPhysicsTuning = {
 } as const;
 
 export const waterPhysicsTuning = {
-  WATER_SPEED_ACCELERATION_PER_SECOND: 2.5,
+  WATER_SPEED_ACCELERATION_PER_SECOND: 2,
   WATER_SPEED_MAX: 400,
   FLOW_ACCEL_PER_SECOND: 6.8,
   FLOW_IMPULSE_ON_ROW_CHANGE: 3.2,
