@@ -1,11 +1,23 @@
 {
   "version": 1,
   "skills": {
+    "expo-react-native-performance": {
+      "source": "pproenca/dot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/.experimental/expo-react-native-performance/SKILL.md",
+      "computedHash": "da6e70dd6c48bd87388d966d8789063041a70928fa824841a3e097e59e924a54"
+    },
     "game-design-document": {
       "source": "ityes22/game-design-document",
       "sourceType": "github",
       "skillPath": "SKILL.md",
       "computedHash": "c891402a593b05587c4ea37179419502980998112da3aec64797ad24f491aa99"
+    },
+    "game-engine": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "skillPath": "skills/game-engine/SKILL.md",
+      "computedHash": "20057f62cf7a8b2d9f940b3de0b18e5426e8f4bb50e236d36b1033aa0d42c4d8"
     },
     "level-design": {
       "source": "pluginagentmarketplace/custom-plugin-game-developer",
@@ -18,6 +30,18 @@
       "sourceType": "github",
       "skillPath": "skills/mobile-game-dev/SKILL.md",
       "computedHash": "0d6692e93b62406b5a91fad10512451bfdd4677314fb085fcab3ac6528e57882"
+    },
+    "react-native-skia": {
+      "source": "tristanmanchester/agent-skills",
+      "sourceType": "github",
+      "skillPath": "react-native-skia/SKILL.md",
+      "computedHash": "1804dbfbdded1f21cbc7f93f6c52f7db514860ca42fbc76a3e323a61fe784e7b"
+    },
+    "reanimated-skia-performance": {
+      "source": "andreev-danila/skills",
+      "sourceType": "github",
+      "skillPath": "skills/reanimated-skia-performance/SKILL.md",
+      "computedHash": "14ab8be93ebb822d4f9c6ebdce0204f0b5e3837b15b43cdb061a06973751364e"
     }
   }
 }
