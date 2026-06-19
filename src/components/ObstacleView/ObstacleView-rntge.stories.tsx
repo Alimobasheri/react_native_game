@@ -24,6 +24,7 @@ import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
 import { ObstaclesManagerComponentName } from '@/Game/ecs-components/ObstaclesManager';
 import { ScoreComponentName } from '@/Game/ecs-components/Score';
 import { ObstacleRowComponentName } from '@/Game/ecs-components/ObstacleRowComponent';
+import { CaveBackgroundSegmentComponentName } from '@/Game/ecs-components/CaveBackgroundSegment';
 import { TemplateContextComponentName } from '@/Game/ecs-components/TemplateContextComponent';
 import { getWaterSurfaceRestY } from '@/Layout';
 
@@ -59,6 +60,7 @@ export const ObstacleTemplateGameComp: FC<ObstacleTemplateStoryProps> = memo(
               ObstacleRowComponentName,
               ObstaclesManagerComponentName,
               TemplateContextComponentName,
+              CaveBackgroundSegmentComponentName,
               ScoreComponentName,
             ]}
           >

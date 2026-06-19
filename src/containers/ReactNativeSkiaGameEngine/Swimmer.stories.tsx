@@ -26,6 +26,7 @@ import { RunResultComponentName } from '@/Game/ecs-components/RunResult';
 import { GameOverScoreComponentName } from '@/Game/ecs-components/GameOverScore';
 import { ScoreView } from '@/components/ScoreView/ScoreView-rntge';
 import { ObstacleRowComponentName } from '@/Game/ecs-components/ObstacleRowComponent';
+import { CaveBackgroundSegmentComponentName } from '@/Game/ecs-components/CaveBackgroundSegment';
 import { TemplateContextComponentName } from '@/Game/ecs-components/TemplateContextComponent';
 import { GameOverScene } from '../Scenes/GameOverScene/index-rntge';
 import { WATER_SURFACE_FROM_CONTAINER_BOTTOM_FRACTION } from '@/Layout';
@@ -125,6 +126,7 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
               ObstacleRowComponentName,
               ObstaclesManagerComponentName,
               TemplateContextComponentName,
+              CaveBackgroundSegmentComponentName,
               ScoreComponentName,
               RunResultComponentName,
               GameOverScoreComponentName,

@@ -56,6 +56,7 @@ import { GameOverScene } from '../Scenes/GameOverScene/index-rntge';
 import { ObstacleComponentName } from '@/Game/ecs-components/ObstacleComponent';
 import { Obstacles } from '@/components/Obstacles/Obstacles-rntge';
 import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
+import { CaveBackgroundSegmentComponentName } from '@/Game/ecs-components/CaveBackgroundSegment';
 import { ContainerComponentName } from '@/Game/ecs-components/Container';
 import { WaterComponentName } from '@/Game/ecs-components/Water';
 import { ObstaclesManagerComponentName } from '@/Game/ecs-components/ObstaclesManager';
@@ -455,6 +456,7 @@ export const SwimmerGame: Story = {
       WaterComponentName,
       ObstaclesManagerComponentName,
       TemplateContextComponentName,
+      CaveBackgroundSegmentComponentName,
     ],
   },
   render: (args: any) => <SwimmerGameComp {...args} />,
