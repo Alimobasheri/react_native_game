@@ -82,9 +82,9 @@ export const TapSwimmer: FC<{
                   1 + streak * streakStepMult
                 );
 
-                runOnJS(logSwimmerTapDebug)(
-                  `[SwimmerTap] dir=${inputX} deltaMs=${Math.round(deltaMs)} streak=${streak} mult=${tapMultiplier.toFixed(2)} rapid=${isRapidSameDirectionTap} prevDir=${previousTapDirection ?? 'none'} prevTapMs=${previousTapTimeMs ?? 'none'} nowMs=${Math.round(nowMs)}`
-                );
+                // runOnJS(logSwimmerTapDebug)(
+                //   `[SwimmerTap] dir=${inputX} deltaMs=${Math.round(deltaMs)} streak=${streak} mult=${tapMultiplier.toFixed(2)} rapid=${isRapidSameDirectionTap} prevDir=${previousTapDirection ?? 'none'} prevTapMs=${previousTapTimeMs ?? 'none'} nowMs=${Math.round(nowMs)}`
+                // );
 
                 // Store tap direction as normalized input (-1 left, 1 right).
                 // SwimmerPhysicsSystem consumes pendingTapMultiplier once.
