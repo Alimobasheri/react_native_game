@@ -9,6 +9,7 @@ import {
   RemoveEntityBatchRequest,
   RemoveEntityBatchRequestType,
 } from '../events/entity';
+import { evictPictureCacheEntry } from '../utils/pictureCache';
 
 export const requestRemoveEntityBatch: System = {
   requiredComponents: [],
@@ -49,6 +50,7 @@ export const requestRemoveEntityBatch: System = {
           }
         }
         ecs.removeEntity(payload.entityIds[j]);
+        evictPictureCacheEntry(payload.entityIds[j]);
         if (payload.sceneKey) {
           ecs.updateComponent<SceneComponentData>(
             sceneEntities[payload.sceneKey],

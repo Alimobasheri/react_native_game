@@ -3,11 +3,19 @@ import {
   Skia,
   SkPicture,
   SkPath,
+  SkCanvas,
   PaintStyle,
   SkShader,
   BlendMode,
 } from '@shopify/react-native-skia';
-import { RenderComponentData, RenderComponentName } from '../components/render';
+import {
+  RenderComponentData,
+  RenderComponentName,
+  RenderLayerData,
+  RenderShapeCircle,
+  RenderShapePolygon,
+  RenderShapeRectangle,
+} from '../components/render';
 import { ComponentStore } from '../../services-ecs';
 import { MatterBodyComponentName } from '../components/matterBody';
 import { IBodyDefinition } from 'matter-js';
@@ -17,23 +25,37 @@ import { TextComponentData, TextComponentName } from '../components/text';
 import { renderTextForEntity } from '../utils/textRenderer';
 import { SceneComponentData, SceneComponentName } from '../components/scene';
 
-const createPathFromShape = (
-  renderData: RenderComponentData
-): SkPath | null => {
+type RenderShape =
+  | RenderShapeRectangle
+  | RenderShapeCircle
+  | RenderShapePolygon;
+
+type DrawableRenderData = {
+  shape: RenderShape;
+  fillColor?: string;
+  strokeColor?: string;
+  lineWidth?: number;
+  opacity?: number;
+  image?: string;
+  sprite?: RenderComponentData['sprite'];
+  blendMode?: BlendMode;
+};
+
+const createPathFromShapeData = (shape: RenderShape): SkPath | null => {
   'worklet';
   const skPath = Skia.Path.Make();
-  switch (renderData.shape.type) {
+  switch (shape.type) {
     case 'rectangle': {
-      const { width, height } = renderData.shape;
+      const { width, height } = shape;
       skPath.addRect(Skia.XYWHRect(-width / 2, -height / 2, width, height));
       break;
     }
     case 'circle': {
-      skPath.addCircle(0, 0, renderData.shape.radius);
+      skPath.addCircle(0, 0, shape.radius);
       break;
     }
     case 'polygon': {
-      const { vertices } = renderData.shape;
+      const { vertices } = shape;
       if (vertices.length > 0) {
         skPath.moveTo(vertices[0].x, vertices[0].y);
         for (let i = 1; i < vertices.length; i++) {
@@ -49,16 +71,21 @@ const createPathFromShape = (
   return skPath;
 };
 
+const createPathFromShape = (
+  renderData: RenderComponentData
+): SkPath | null => {
+  'worklet';
+  return createPathFromShapeData(renderData.shape);
+};
+
 const getSpriteFrameInfo = (
-  renderData: RenderComponentData,
+  renderData: Pick<DrawableRenderData, 'sprite'>,
   spriteComponent?: any
 ): { sourceRect: any; width: number; height: number } | null => {
   'worklet';
-  // Priority 1: Use SpriteComponent data (unified system)
   if (spriteComponent && spriteComponent.currentFrame !== undefined) {
     const currentFrame = spriteComponent.currentFrame || 0;
 
-    // Handle atlas-based sprites (variable frame sizes and positions)
     if (spriteComponent.type === 'atlas') {
       const frameData = spriteComponent.frameData[currentFrame];
       if (frameData) {
@@ -75,7 +102,6 @@ const getSpriteFrameInfo = (
       }
     }
 
-    // Handle sprite sheet (uniform frame sizes)
     if (spriteComponent.type === 'sprite') {
       const framesPerRow = spriteComponent.framesPerRow || 4;
       const frameWidth = spriteComponent.frameWidth || 64;
@@ -95,7 +121,6 @@ const getSpriteFrameInfo = (
     }
   }
 
-  // Priority 2: Use legacy SpriteInfo (backward compatibility)
   if (renderData.sprite) {
     const currentFrame = renderData.sprite.currentFrame || 0;
     const row = Math.floor(currentFrame / renderData.sprite.framesPerRow);
@@ -119,12 +144,144 @@ const getSpriteFrameInfo = (
   return null;
 };
 
+const drawDrawableContent = (
+  canvas: SkCanvas,
+  drawData: DrawableRenderData,
+  spriteComponent?: any
+): void => {
+  'worklet';
+  const imageCache = global._RNTGE_.imageCache;
+
+  if (drawData.image) {
+    const image = imageCache[drawData.image];
+    if (image) {
+      let width = image.width();
+      let height = image.height();
+      let sourceRect = Skia.XYWHRect(0, 0, image.width(), image.height());
+
+      const spriteFrameInfo = getSpriteFrameInfo(drawData, spriteComponent);
+
+      if (spriteFrameInfo) {
+        sourceRect = spriteFrameInfo.sourceRect;
+        width = spriteFrameInfo.width;
+        height = spriteFrameInfo.height;
+      }
+
+      if (drawData.shape.type === 'rectangle') {
+        width = drawData.shape.width;
+        height = drawData.shape.height;
+      } else if (drawData.shape.type === 'circle') {
+        width = drawData.shape.radius * 2;
+        height = drawData.shape.radius * 2;
+      }
+
+      const destRect = Skia.XYWHRect(-width / 2, -height / 2, width, height);
+      const paint = Skia.Paint();
+      paint.setAntiAlias(true);
+      paint.setBlendMode(drawData.blendMode || BlendMode.SrcOver);
+      if (drawData.opacity) {
+        paint.setAlphaf(drawData.opacity);
+      }
+
+      canvas.drawImageRect(image, sourceRect, destRect, paint);
+    } else {
+      const errorPaint = Skia.Paint();
+      errorPaint.setColor(Skia.Color('magenta'));
+      let size = 0;
+      if (drawData.shape.type === 'rectangle') {
+        size = Math.max(drawData.shape.width, drawData.shape.height);
+      } else if (drawData.shape.type === 'circle') {
+        size = drawData.shape.radius * 2;
+      } else {
+        size = 50;
+      }
+      canvas.drawRect(
+        Skia.XYWHRect(-size / 2, -size / 2, size, size),
+        errorPaint
+      );
+    }
+    return;
+  }
+
+  const skPath = createPathFromShapeData(drawData.shape);
+
+  if (skPath) {
+    const fillPaint = Skia.Paint();
+    fillPaint.setAntiAlias(true);
+    fillPaint.setStyle(PaintStyle.Fill);
+    fillPaint.setColor(Skia.Color(drawData.fillColor || '#0099ff'));
+    if (drawData.opacity) {
+      fillPaint.setAlphaf(drawData.opacity);
+    }
+    canvas.drawPath(skPath, fillPaint);
+
+    if (drawData.strokeColor) {
+      const strokePaint = Skia.Paint();
+      strokePaint.setStyle(PaintStyle.Stroke);
+      strokePaint.setStrokeWidth(drawData.lineWidth || 1);
+      strokePaint.setColor(Skia.Color(drawData.strokeColor || '#2E3440'));
+      if (drawData.opacity) {
+        strokePaint.setAlphaf(drawData.opacity);
+      }
+      canvas.drawPath(skPath, strokePaint);
+    }
+  }
+};
+
+const layerHasSpriteAnimation = (layer: RenderLayerData): boolean => {
+  'worklet';
+  return !!layer.sprite;
+};
+
+const groupHasSpriteAnimation = (renderData: RenderComponentData): boolean => {
+  'worklet';
+  const layers = renderData.renderLayers;
+  if (!layers) return false;
+  for (let i = 0; i < layers.length; i++) {
+    if (layerHasSpriteAnimation(layers[i])) return true;
+  }
+  return false;
+};
+
+const createAndCacheGroupPicture = (
+  renderData: RenderComponentData
+): SkPicture | null => {
+  'worklet';
+  const layers = renderData.renderLayers;
+  if (!layers || layers.length === 0) return null;
+  if (renderData.visible === false) return null;
+  if (renderData.shape.type !== 'rectangle') return null;
+
+  const { width, height } = renderData.shape;
+  const recorder = Skia.PictureRecorder();
+  const canvas = recorder.beginRecording(
+    Skia.XYWHRect(-width / 2, -height / 2, width, height)
+  );
+
+  for (let i = 0; i < layers.length; i++) {
+    const layer = layers[i];
+    if (layer.visible === false) continue;
+
+    canvas.save();
+    const lx = layer.position?.x ?? 0;
+    const ly = layer.position?.y ?? 0;
+    canvas.translate(lx, ly);
+    const layerAngle = layer.angle ?? 0;
+    if (layerAngle !== 0) {
+      canvas.rotate((layerAngle * 180) / Math.PI, 0, 0);
+    }
+    drawDrawableContent(canvas, layer);
+    canvas.restore();
+  }
+
+  return recorder.finishRecordingAsPicture();
+};
+
 const createAndCacheEntityPicture = (
   components: Record<string, ComponentStore<any>>,
   entityId: Entity
 ): SkPicture | null => {
   'worklet';
-  const imageCache = global._RNTGE_.imageCache;
   const renderData: RenderComponentData | undefined =
     components[RenderComponentName].get(entityId);
   const textComponent: TextComponentData | undefined =
@@ -134,8 +291,9 @@ const createAndCacheEntityPicture = (
     return null;
   }
 
-  // Sprite animation is now handled by spriteUpdateSystem
-  // No need to update sprite animation here
+  if (renderData.renderLayers?.length) {
+    return createAndCacheGroupPicture(renderData);
+  }
 
   const recorder = Skia.PictureRecorder();
   const canvas = recorder.beginRecording();
@@ -148,81 +306,9 @@ const createAndCacheEntityPicture = (
       textComponent
     );
     if (!text) return null;
-  } else if (renderData.image) {
-    let image = imageCache[renderData.image];
-    if (image) {
-      let width = image.width();
-      let height = image.height();
-      let sourceRect = Skia.XYWHRect(0, 0, image.width(), image.height());
-
-      // Handle unified sprite rendering
-      const spriteComponent = components[SpriteComponentName]?.get(entityId);
-      const spriteFrameInfo = getSpriteFrameInfo(renderData, spriteComponent);
-
-      if (spriteFrameInfo) {
-        sourceRect = spriteFrameInfo.sourceRect;
-        width = spriteFrameInfo.width;
-        height = spriteFrameInfo.height;
-      }
-
-      // Override dimensions based on shape if specified
-      if (renderData.shape.type === 'rectangle') {
-        width = renderData.shape.width;
-        height = renderData.shape.height;
-      } else if (renderData.shape.type === 'circle') {
-        width = renderData.shape.radius * 2;
-        height = renderData.shape.radius * 2;
-      }
-
-      const destRect = Skia.XYWHRect(-width / 2, -height / 2, width, height);
-      const paint = Skia.Paint();
-      paint.setAntiAlias(true);
-      paint.setBlendMode(renderData.blendMode || BlendMode.SrcOver);
-      if (renderData.opacity) {
-        paint.setAlphaf(renderData.opacity);
-      }
-
-      canvas.drawImageRect(image, sourceRect, destRect, paint);
-    } else {
-      const errorPaint = Skia.Paint();
-      errorPaint.setColor(Skia.Color('magenta'));
-      let size = 0;
-      if (renderData.shape.type === 'rectangle') {
-        size = Math.max(renderData.shape.width, renderData.shape.height);
-      } else if (renderData.shape.type === 'circle') {
-        size = renderData.shape.radius * 2;
-      } else {
-        size = 50;
-      }
-      canvas.drawRect(
-        Skia.XYWHRect(-size / 2, -size / 2, size, size),
-        errorPaint
-      );
-    }
   } else {
-    const skPath = createPathFromShape(renderData);
-
-    if (skPath) {
-      const fillPaint = Skia.Paint();
-      fillPaint.setAntiAlias(true);
-      fillPaint.setStyle(PaintStyle.Fill);
-      fillPaint.setColor(Skia.Color(renderData.fillColor || '#0099ff'));
-      if (renderData.opacity) {
-        fillPaint.setAlphaf(renderData.opacity);
-      }
-      canvas.drawPath(skPath, fillPaint);
-
-      if (renderData.strokeColor) {
-        const strokePaint = Skia.Paint();
-        strokePaint.setStyle(PaintStyle.Stroke);
-        strokePaint.setStrokeWidth(renderData.lineWidth || 1);
-        strokePaint.setColor(Skia.Color(renderData.strokeColor || '#2E3440'));
-        if (renderData.opacity) {
-          strokePaint.setAlphaf(renderData.opacity);
-        }
-        canvas.drawPath(skPath, strokePaint);
-      }
-    }
+    const spriteComponent = components[SpriteComponentName]?.get(entityId);
+    drawDrawableContent(canvas, renderData, spriteComponent);
   }
 
   return recorder.finishRecordingAsPicture();
@@ -238,9 +324,7 @@ export const renderSystem: System = {
       global._RNTGE_.picture = null;
       global._RNTGE_.pictureCache = {};
     }
-    const picture = global._RNTGE_.picture;
     const pictureCache = global._RNTGE_.pictureCache;
-    const imageCache = global._RNTGE_.imageCache;
     const shaderEffects = global._RNTGE_.shaderCache;
 
     const recorder = Skia.PictureRecorder();
@@ -265,7 +349,6 @@ export const renderSystem: System = {
       SceneComponentName,
     ]);
 
-    // Gather active scenes and order them by zIndex (then by id for stability).
     const activeScenes: { sceneEntity: Entity; data: SceneComponentData }[] =
       [];
     for (let i = 0; i < sceneEntities.length; i++) {
@@ -289,7 +372,6 @@ export const renderSystem: System = {
       const sceneData = activeScenes[s].data;
       const sceneEntityIds = sceneData.objects.entities;
 
-      // Build a per-scene render queue ordered by zIndex (then entity id for stability)
       const renderQueue: {
         entity: Entity;
         zIndex: number;
@@ -318,7 +400,6 @@ export const renderSystem: System = {
       for (let i = 0; i < renderQueue.length; i++) {
         const { entity, renderData } = renderQueue[i];
 
-        // 1. Universal Transformation Logic
         const body: IBodyDefinition | undefined =
           components[MatterBodyComponentName]?.get(entity);
         const position = body?.position ||
@@ -334,8 +415,7 @@ export const renderSystem: System = {
         canvas.save();
         canvas.concat(matrix);
 
-        // 2. Conditional Rendering Logic
-        if (renderData.shader) {
+        if (renderData.shader && !renderData.renderLayers?.length) {
           const shaderPaint = Skia.Paint();
           shaderPaint.setAntiAlias(true);
           const effect = shaderEffects[renderData.shader.key];
@@ -379,7 +459,9 @@ export const renderSystem: System = {
           const spriteComponent =
             components[SpriteComponentName]?.get(entity);
           const hasSpriteAnimation =
-            spriteComponent?.currentFrame !== undefined || renderData.sprite;
+            spriteComponent?.currentFrame !== undefined ||
+            renderData.sprite ||
+            groupHasSpriteAnimation(renderData);
 
           if (renderData.isDirty || !entityPicture || hasSpriteAnimation) {
             const newEntityPicture = createAndCacheEntityPicture(
@@ -397,7 +479,6 @@ export const renderSystem: System = {
           }
         }
 
-        // 3. Universal Cleanup Logic
         canvas.restore();
         renderData.isDirty = false;
       }

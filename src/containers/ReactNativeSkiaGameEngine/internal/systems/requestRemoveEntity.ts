@@ -3,6 +3,7 @@ import { RemoveEntityRequest, RemoveEntityRequestType } from '../events/entity';
 import { MatterBodyComponentName } from '../components/matterBody';
 import { SceneComponentData, SceneComponentName } from '../components/scene';
 import { Entity } from '../../services-ecs/entity';
+import { evictPictureCacheEntry } from '../utils/pictureCache';
 
 export const requestRemoveEntity: System = {
   requiredComponents: [],
@@ -43,6 +44,7 @@ export const requestRemoveEntity: System = {
         }
       }
       ecs.removeEntity(payload.entityId);
+      evictPictureCacheEntry(payload.entityId);
       if (payload.sceneKey) {
         ecs.updateComponent<SceneComponentData>(
           sceneEntities[payload.sceneKey],

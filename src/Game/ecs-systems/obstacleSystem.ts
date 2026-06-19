@@ -1,7 +1,6 @@
 import { ECS } from "@/containers/ReactNativeSkiaGameEngine/services-ecs/ecs"
 import { Entity } from "@/containers/ReactNativeSkiaGameEngine/services-ecs/entity"
 import { ObstacleRowComponentData } from "../ecs-components/ObstacleRowComponent"
-import { ObstacleComponentData } from "../ecs-components/ObstacleComponent"
 import type { MacroPhase } from "@/Game/path/macroPacing"
 
 /**

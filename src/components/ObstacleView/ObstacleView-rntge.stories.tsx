@@ -17,7 +17,7 @@ import { Meta, StoryObj } from '@storybook/react';
 import { block2, block3, caveBg } from '@/assets/images';
 import { sourceCode as waterShaderSourceCode } from '@/Shaders/WaterShader/waterShader';
 
-import { ObstacleComponentName } from '@/Game/ecs-components/ObstacleComponent';
+
 import { ContainerComponentName } from '@/Game/ecs-components/Container';
 import { WaterComponentName } from '@/Game/ecs-components/Water';
 import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
@@ -57,7 +57,6 @@ export const ObstacleTemplateGameComp: FC<ObstacleTemplateStoryProps> = memo(
               ContainerComponentName,
               WaterComponentName,
               ObstacleRowComponentName,
-              ObstacleComponentName,
               ObstaclesManagerComponentName,
               TemplateContextComponentName,
               ScoreComponentName,

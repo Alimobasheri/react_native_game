@@ -17,7 +17,6 @@ import { TapSwimmer } from '@/components/TapSwimmer/TapSwimmer-rntge';
 import { ObstacleView } from '@/components/ObstacleView/ObstacleView-rntge';
 import { Meta, StoryObj } from '@storybook/react';
 import { Content } from './components-rntge/Scene/Content';
-import { ObstacleComponentName } from '@/Game/ecs-components/ObstacleComponent';
 import { ContainerComponentName } from '@/Game/ecs-components/Container';
 import { WaterComponentName } from '@/Game/ecs-components/Water';
 import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
@@ -124,7 +123,6 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
               ContainerComponentName,
               WaterComponentName,
               ObstacleRowComponentName,
-              ObstacleComponentName,
               ObstaclesManagerComponentName,
               TemplateContextComponentName,
               ScoreComponentName,

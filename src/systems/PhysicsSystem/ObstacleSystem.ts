@@ -3,7 +3,7 @@ import {
   ShapeTypes,
   createRenderComponent,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
-import { ObstacleComponentData, ObstacleComponentName } from '@/Game/ecs-components/ObstacleComponent';
+import { ObstacleRowComponentData, ObstacleRowComponentName, createObstacleRowComponent } from '@/Game/ecs-components/ObstacleRowComponent';
 import {
   ContainerComponentName,
   ContainerComponentData,
@@ -16,10 +16,7 @@ import {
   SwimmerComponentName,
   SwimmerComponentData,
 } from '@/Game/ecs-components/Swimmer';
-import {
-  createObstacleComponent,
-  ObstacleTypes,
-} from '@/Game/ecs-components/ObstacleComponent';
+import { buildObstacleRowRenderLayers } from '@/Game/render/buildObstacleRowRenderLayers';
 import { getObstacleWidth, LAYOUT_CONSTANTS, FALSE_WALL_MIN_PHASE_ROWS_SINGLE_SEGMENT } from '@/Layout';
 import {
   gapShiftRunwayDupRowsFromTotalRows,
@@ -47,7 +44,6 @@ import {
   RemoveEntityRequest,
   RemoveEntityRequestType,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/events/entity';
-import { createObstacleRowComponent, ObstacleRowComponentData, ObstacleRowComponentName } from '@/Game/ecs-components/ObstacleRowComponent';
 import { Entity } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/entity';
 import { ECS } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/ecs';
 import { TextHeightBehavior } from '@shopify/react-native-skia';
@@ -181,54 +177,82 @@ function pickBlockImageStable(x: number, y: number): string {
 }
 
 
-function spawnObstacleEntity(args: {
+function spawnObstacleRowEntity(args: {
   ecs: ECS;
-  sceneEntity: number;
-  x: number;
+  sceneEntity: Entity;
   y: number;
-  width: number;
-  height: number;
-}): Entity | null {
+  gaps: number[];
+  rowLength: number;
+  leftX: number;
+  obstacleDimension: { width: number; height: number };
+  prevRowEntity: Entity | null;
+  spawnDiag?: Pick<
+    ObstacleRowComponentData,
+    'spawnDiagTemplateName' | 'spawnDiagBranchKey'
+  >;
+}): Entity {
   'worklet';
-  const { ecs, sceneEntity, x, y, width: argsWidth, height: argsHeight } = args;
+  const {
+    ecs,
+    sceneEntity,
+    y,
+    gaps,
+    rowLength,
+    leftX,
+    obstacleDimension,
+    prevRowEntity,
+    spawnDiag,
+  } = args;
 
-  let width = argsWidth * 1.05
-  let height = argsHeight * 1.05
+  const containerWidth = rowLength * obstacleDimension.width;
+  const rowCenterX = leftX + containerWidth / 2;
 
-  const entity = ecs.createEntity();
+  const renderLayers = buildObstacleRowRenderLayers({
+    gaps,
+    rowLength,
+    leftX,
+    blockWidth: obstacleDimension.width,
+    blockHeight: obstacleDimension.height,
+    rowCenterX,
+    rowY: y,
+    pickImage: pickBlockImageStable,
+  });
 
-  const obstacleComponent = createObstacleComponent({
-    type: ObstacleTypes.Stone,
-    width,
-    height,
-    initialPosition: { x, y },
+  const rowEntity = ecs.createEntity();
+
+  const obstacleRowComp = createObstacleRowComponent({
+    y,
+    gaps,
+    prevRowEntity,
+    ...spawnDiag,
   });
 
   const renderComponent = createRenderComponent({
     shape: {
       type: ShapeTypes.Rectangle,
-      width,
-      height,
+      width: containerWidth,
+      height: obstacleDimension.height,
     },
-    position: { x, y },
-    image: pickBlockImageStable(x, y),
+    position: { x: rowCenterX, y },
+    renderLayers,
     visible: true,
-    // Render obstacles behind water and swimmer but above background/container interior
     zIndex: 2,
   });
 
-  ecs.addComponent(entity, obstacleComponent);
-  ecs.addComponent(entity, renderComponent);
+  ecs.addComponent(rowEntity, obstacleRowComp);
+  ecs.addComponent(rowEntity, renderComponent);
 
   ecs.updateComponent(
     sceneEntity,
     SceneComponentName,
     (scene: SceneComponentData) => {
-      scene.objects.entities.push(entity);
+      if (!scene.objects.entities.includes(rowEntity)) {
+        scene.objects.entities.push(rowEntity);
+      }
     }
   );
 
-  return entity
+  return rowEntity;
 }
 
 const bumpTotalRowsGenerated = (ecs: ECS, managerEntity: Entity) => {
@@ -287,29 +311,6 @@ const readPacingMacroPhase = (
   return pacingPhaseToMacroPhase(pacingPhaseAtTotalRows(tr));
 };
 
-const generateObstacles = ({ gaps, rowLength, y, leftX, obstacleDimension }: {
-  rowIndex: number,
-  gaps: number[],
-  rowLength: number,
-  y: number,
-  leftX: number,
-  obstacleDimension: { width: number, height: number }
-}): ObstacleComponentData[] => {
-  'worklet'
-  let obstacles: ObstacleComponentData[] = []
-  for (let i = 0; i < rowLength; i++) {
-    if (!gaps.includes(i)) {
-      obstacles.push({
-        initialPosition: { y: y, x: leftX + (i + 1) * obstacleDimension.width - obstacleDimension.width / 2 },
-        type: ObstacleTypes.Stone,
-        width: obstacleDimension.width,
-        height: obstacleDimension.height
-      })
-    }
-  }
-  return obstacles
-}
-
 function sortGapsCopy(gaps: readonly number[] | undefined | null): number[] {
   'worklet';
   if (!gaps || gaps.length === 0) return [];
@@ -335,7 +336,7 @@ function gapsEqual(
 /**
  * After a gap **set** change vs the previous band, stack extra rows that repeat the **new**
  * row’s gaps (runway for higher water speed). Does not call `template.getRow` again.
- * Declared after `generateObstacles` / `spawnObstacleEntity` / `bumpTotalRowsGenerated` so the
+ * Declared after `spawnObstacleRowEntity` / `bumpTotalRowsGenerated` so the
  * Reanimated UI worklet closure sees defined callees (no TDZ / missing symbol at runtime).
  */
 function appendGapShiftRunwayRows(args: {
@@ -376,41 +377,22 @@ function appendGapShiftRunwayRows(args: {
 
   for (let d = 0; d < dupCount; d++) {
     const y = lastY - obstacleDimension.height;
-    const obstacleDatas = generateObstacles({
-      rowIndex: args.rowIndexForDiag,
-      gaps: gapsToRepeat,
+    const rowEntity = spawnObstacleRowEntity({
+      ecs: args.ecs,
+      sceneEntity: args.sceneEntity,
       y,
+      gaps: gapsToRepeat.slice(),
       rowLength: args.rowLength,
       leftX: args.leftX,
       obstacleDimension,
-    });
-    const obstacleEntities: Entity[] = [];
-    for (let i = 0; i < obstacleDatas.length; i++) {
-      const entity = spawnObstacleEntity({
-        ecs: args.ecs,
-        sceneEntity: args.sceneEntity,
-        x: obstacleDatas[i].initialPosition.x,
-        y: obstacleDatas[i].initialPosition.y,
-        width: obstacleDatas[i].width,
-        height: obstacleDatas[i].height,
-      });
-      if (entity !== null) obstacleEntities.push(entity);
-    }
-
-    const rowEntity = args.ecs.createEntity();
-    const prevRowComp = args.ecs.components[ObstacleRowComponentName].get(
-      lastEntity
-    ) as ObstacleRowComponentData | undefined;
-    const rowComp = createObstacleRowComponent({
-      y,
-      gaps: gapsToRepeat.slice(),
-      obstacles: obstacleEntities,
       prevRowEntity: lastEntity,
-      ...rowSpawnDiagFromParams(args.templateCtx, {
+      spawnDiag: rowSpawnDiagFromParams(args.templateCtx, {
         rowIndex: args.rowIndexForDiag,
         ecs: args.ecs,
         sceneEntity: args.sceneEntity,
-        prevRow: prevRowComp ?? args.newRowData,
+        prevRow: args.ecs.components[ObstacleRowComponentName].get(
+          lastEntity
+        ) as ObstacleRowComponentData | undefined ?? args.newRowData,
         prevRowEntity: lastEntity,
         initialY: y,
         rowLength: args.rowLength,
@@ -420,16 +402,6 @@ function appendGapShiftRunwayRows(args: {
         spawnDiagTemplateName: args.spawnDiagTemplateName,
       }),
     });
-    args.ecs.addComponent(rowEntity, rowComp);
-    args.ecs.updateComponent(
-      args.sceneEntity,
-      SceneComponentName,
-      (scene: SceneComponentData) => {
-        if (!scene.objects.entities.includes(rowEntity)) {
-          scene.objects.entities.push(rowEntity);
-        }
-      }
-    );
 
     bumpTotalRowsGenerated(args.ecs, args.managerEntity);
     lastEntity = rowEntity;
@@ -503,46 +475,18 @@ const createObstacleRow: RowPathTemplate['getRow'] = (_ctx, params) => {
     }
   }
   gaps = finalizeGapsForObstacleRow(prevRow?.gaps, gaps, rowLength);
-  const obstacleDatas = generateObstacles({
-    rowIndex,
+  const y = !prevRow ? initialY : prevRow.y - obstacleDimension.height;
+  return spawnObstacleRowEntity({
+    ecs,
+    sceneEntity,
+    y,
     gaps,
-    y: !prevRow ? initialY : prevRow.y - obstacleDimension.height,
     rowLength,
     leftX,
-    obstacleDimension
-  })
-  let obstacleEntities: Entity[] = []
-  for (let i = 0; i < obstacleDatas.length; i++) {
-    const entity = spawnObstacleEntity({
-      ecs,
-      sceneEntity,
-      x: obstacleDatas[i].initialPosition.x,
-      y: obstacleDatas[i].initialPosition.y,
-      width: obstacleDatas[i].width,
-      height: obstacleDatas[i].height
-    })
-    if (entity !== null) obstacleEntities.push(entity)
-  }
-  const obstacleRowComp = createObstacleRowComponent({
-    y: !prevRow ? initialY : prevRow.y - obstacleDimension.height,
-    gaps,
-    obstacles: obstacleEntities,
+    obstacleDimension,
     prevRowEntity,
-    ...rowSpawnDiagFromParams(_ctx, params),
-  })
-  const obstacleRowEntity = ecs.createEntity()
-  ecs.addComponent(obstacleRowEntity, obstacleRowComp)
-  ecs.updateComponent(
-    sceneEntity,
-    SceneComponentName,
-    (scene: SceneComponentData) => {
-      if (!scene.objects.entities.includes(obstacleRowEntity)) {
-        scene.objects.entities.push(obstacleRowEntity);
-      }
-    }
-  );
-
-  return obstacleRowEntity
+    spawnDiag: rowSpawnDiagFromParams(_ctx, params),
+  });
 }
 
 const getRowCount: RowPathTemplate['getRowCount'] = (ctx) => {
@@ -813,41 +757,17 @@ const baseMultiPathGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
   }
   gaps = finalizeGapsForObstacleRow(prevRow?.gaps, gaps, rowLength);
   const y = !prevRow ? initialY : prevRow.y - obstacleDimension.height;
-  const obstacleDatas = generateObstacles({
-    rowIndex,
-    gaps,
+  return spawnObstacleRowEntity({
+    ecs,
+    sceneEntity,
     y,
+    gaps,
     rowLength,
     leftX,
     obstacleDimension,
-  });
-  const obstacleEntities: Entity[] = [];
-  for (let i = 0; i < obstacleDatas.length; i++) {
-    const entity = spawnObstacleEntity({
-      ecs,
-      sceneEntity,
-      x: obstacleDatas[i].initialPosition.x,
-      y: obstacleDatas[i].initialPosition.y,
-      width: obstacleDatas[i].width,
-      height: obstacleDatas[i].height,
-    });
-    if (entity !== null) obstacleEntities.push(entity);
-  }
-  const obstacleRowComp = createObstacleRowComponent({
-    y,
-    gaps,
-    obstacles: obstacleEntities,
     prevRowEntity,
-    ...rowSpawnDiagFromParams(_ctx, params),
+    spawnDiag: rowSpawnDiagFromParams(_ctx, params),
   });
-  const obstacleRowEntity = ecs.createEntity();
-  ecs.addComponent(obstacleRowEntity, obstacleRowComp);
-  ecs.updateComponent(sceneEntity, SceneComponentName, (scene: SceneComponentData) => {
-    if (!scene.objects.entities.includes(obstacleRowEntity)) {
-      scene.objects.entities.push(obstacleRowEntity);
-    }
-  });
-  return obstacleRowEntity;
 };
 
 const BaseMultiPathRowPathTemplate: RowPathTemplate = {
@@ -877,31 +797,9 @@ const restGetRowCount: RowPathTemplate['getRowCount'] = (ctx) => {
   return templateRowCountDeterministic(ctx as Record<string, unknown>, 10, 5);
 };
 
-const restGenerateObstacles = ({ gaps, rowLength, y, leftX, obstacleDimension }: {
-  rowIndex: number,
-  gaps: number[],
-  rowLength: number,
-  y: number,
-  leftX: number,
-  obstacleDimension: { width: number, height: number }
-}): ObstacleComponentData[] => {
-  'worklet'
-  let obstacles: ObstacleComponentData[] = []
-  Array.from([0, rowLength - 1]).map(i => {
-    obstacles.push({
-      initialPosition: { y: y, x: leftX + (i + 1) * obstacleDimension.width - obstacleDimension.width / 2 },
-      type: ObstacleTypes.Stone,
-      width: obstacleDimension.width,
-      height: obstacleDimension.height
-    })
-  })
-  return obstacles
-}
-
-
 const restGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
   'worklet';
-  const { ecs, prevRow, initialY, obstacleDimension, prevRowEntity, rowLength, sceneEntity } = params;
+  const { ecs, prevRow, initialY, obstacleDimension, prevRowEntity, rowLength, sceneEntity, leftX } = params;
   const y = !prevRow ? initialY : prevRow.y - obstacleDimension.height;
   const interior: number[] = [];
   for (let c = 1; c < rowLength - 1; c++) {
@@ -910,91 +808,75 @@ const restGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
   const prevGaps = !prevRow ? [] : prevRow.gaps ?? [];
   let gaps = unionMinimalSeam(prevGaps, interior.slice(), rowLength);
   gaps = finalizeGapsForObstacleRow(prevGaps, gaps, rowLength);
-  const obstaclesIndexes = restGenerateObstacles({ ...params, y, gaps: [] });
-  let obstacleEntities: Entity[] = []
-  for (let i = 0; i < obstaclesIndexes.length; i++) {
-    const entity = spawnObstacleEntity({
-      ecs,
-      sceneEntity,
-      x: obstaclesIndexes[i].initialPosition.x,
-      y: obstaclesIndexes[i].initialPosition.y,
-      width: obstaclesIndexes[i].width,
-      height: obstaclesIndexes[i].height
-    })
-    if (entity !== null) obstacleEntities.push(entity)
-  }
-  const obstacleRowComp = createObstacleRowComponent({
+  return spawnObstacleRowEntity({
+    ecs,
+    sceneEntity,
     y,
     gaps,
-    obstacles: obstacleEntities,
+    rowLength,
+    leftX,
+    obstacleDimension,
     prevRowEntity,
-    ...rowSpawnDiagFromParams(_ctx, params),
+    spawnDiag: rowSpawnDiagFromParams(_ctx, params),
   });
-  const obstacleRowEntity = ecs.createEntity()
-  ecs.addComponent(obstacleRowEntity, obstacleRowComp)
-  ecs.updateComponent(
-    sceneEntity,
-    SceneComponentName,
-    (scene: SceneComponentData) => {
-      if (!scene.objects.entities.includes(obstacleRowEntity)) {
-        scene.objects.entities.push(obstacleRowEntity);
-      }
-    }
-  );
-
-  return obstacleRowEntity
-}
+};
 
 const RestRowPathTemplate: RowPathTemplate = {
   getRowCount: restGetRowCount,
   getRow: restGetRow
 }
 
-const spawnObstacleBlockFromTemplate = (params: {
+const spawnObstacleRowFromTemplate = (params: {
   ecs: ECS;
-  sceneEntity: number;
-  x: number;
+  sceneEntity: Entity;
   y: number;
-  width: number;
-  height: number;
-}): Entity | null => {
+  gaps: number[];
+  rowLength: number;
+  leftX: number;
+  obstacleDimension: { width: number; height: number };
+  prevRowEntity: Entity | null;
+  spawnDiag?: Pick<
+    ObstacleRowComponentData,
+    'spawnDiagTemplateName' | 'spawnDiagBranchKey'
+  >;
+}): Entity => {
   'worklet';
-  return spawnObstacleEntity(params);
+  return spawnObstacleRowEntity(params);
 };
 
 const SmilyRowPathTemplate: RowPathTemplate = createJsonLevelRowPathTemplate({
   levelJson: smilyLevelJson,
-  spawnBlock: spawnObstacleBlockFromTemplate,
+  spawnRow: spawnObstacleRowFromTemplate,
   diagTemplateName: 'smily',
 });
 
 const JellyfishRowPathTemplate: RowPathTemplate = createJsonLevelRowPathTemplate({
   levelJson: jellyfishLevelJson,
-  spawnBlock: spawnObstacleBlockFromTemplate,
+  spawnRow: spawnObstacleRowFromTemplate,
   diagTemplateName: 'jellyfish',
 });
 
 const MickyRowPathTemplate: RowPathTemplate = createJsonLevelRowPathTemplate({
   levelJson: mickyLevelJson,
-  spawnBlock: spawnObstacleBlockFromTemplate,
+  spawnRow: spawnObstacleRowFromTemplate,
   diagTemplateName: 'micky',
 });
 
 const KittyRowPathTemplate: RowPathTemplate = createJsonLevelRowPathTemplate({
   levelJson: kittyLevelJson,
-  spawnBlock: spawnObstacleBlockFromTemplate,
+  spawnRow: spawnObstacleRowFromTemplate,
   diagTemplateName: 'kitty',
 });
 
 const DeadpoolRowPathTemplate: RowPathTemplate = createJsonLevelRowPathTemplate({
   levelJson: deadpoolLevelJson,
-  spawnBlock: spawnObstacleBlockFromTemplate,
+  spawnRow: spawnObstacleRowFromTemplate,
   diagTemplateName: 'deadpool',
 });
 
 const MegamanRowPathTemplate: RowPathTemplate = createJsonLevelRowPathTemplate({
   levelJson: megamanLevelJson,
-  spawnBlock: spawnObstacleBlockFromTemplate,
+  spawnRow: spawnObstacleRowFromTemplate,
   diagTemplateName: 'megaman',
 });
 
@@ -1197,7 +1079,7 @@ export const ObstacleSystem: System = {
       if (newY > containerBottom + LAYOUT_CONSTANTS.REMOVAL_THRESHOLD_OFFSET) {
         const removeRequest: RemoveEntityBatchRequest = {
           type: RemoveEntityBatchRequestType,
-          payload: { entityIds: [obstacleRowEntity, ...rowData.obstacles], sceneKey: managerData.sceneKey },
+          payload: { entityIds: [obstacleRowEntity], sceneKey: managerData.sceneKey },
         };
         eventQueue.addEvent(removeRequest);
         return;
@@ -1205,6 +1087,16 @@ export const ObstacleSystem: System = {
         ecs.updateComponent<ObstacleRowComponentData>(obstacleRowEntity, ObstacleRowComponentName, (rowData) => {
           rowData.y = newY
         })
+        ecs.updateComponent<RenderComponentData>(
+          obstacleRowEntity,
+          RenderComponentName,
+          (render) => {
+            render.position = {
+              x: containerData.centerX,
+              y: newY,
+            };
+          }
+        );
         const rowTop = newY - columnWidth / 2;
         const rowBottom = newY + columnWidth / 2;
         const rowCenterDistance = Math.abs(newY - transitionTargetY);
@@ -1221,24 +1113,6 @@ export const ObstacleSystem: System = {
         if (obstacleRowEntity === currentCenterRowEntity) {
           currentRowDistance = rowCenterDistance;
         }
-        rowData.obstacles.forEach((oEnt) => {
-          const obstacleData = components[ObstacleComponentName].get(oEnt) as
-            | ObstacleComponentData
-            | undefined;
-          if (!obstacleData) {
-            return;
-          }
-          ecs.updateComponent(
-            oEnt,
-            RenderComponentName,
-            (render: RenderComponentData) => {
-              render.position = {
-                x: obstacleData.initialPosition.x,
-                y: newY,
-              };
-            }
-          );
-        })
       }
     })
     // Heal broken prevRowEntity links after rows scroll off (removal does not patch pointers).

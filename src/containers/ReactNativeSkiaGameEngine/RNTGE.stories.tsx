@@ -143,6 +143,54 @@ const LongPressTestComponent: FC<{ x: number; y: number }> = ({ x, y }) => {
   return null;
 };
 
+/** Engine demo: grouped renderLayers move as one unit when parent position changes. */
+const RenderLayersGroupTestComponent: FC<{ centerX: number; centerY: number }> = ({
+  centerX,
+  centerY,
+}) => {
+  const groupWidth = 220;
+  const groupHeight = 48;
+  const layerWidth = 40;
+  const layerHeight = 40;
+  const layerCount = 5;
+  const spacing = 44;
+  const startX = -((layerCount - 1) * spacing) / 2;
+
+  const renderLayers = Array.from({ length: layerCount }, (_, i) => ({
+    position: { x: startX + i * spacing, y: 0 },
+    shape: { type: ShapeTypes.Rectangle, width: layerWidth, height: layerHeight },
+    fillColor: ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#3498db'][i],
+    visible: true,
+  }));
+
+  const components = [
+    createRenderComponent({
+      shape: { type: ShapeTypes.Rectangle, width: groupWidth, height: groupHeight },
+      position: { x: centerX, y: centerY },
+      renderLayers,
+      visible: true,
+      zIndex: 20,
+    }),
+    createPanComponent({
+      onPanUpdate: (data) => {
+        'worklet';
+        if (global._RNTGE_.ecs) {
+          global._RNTGE_.ecs.updateComponent<RenderComponentData>(
+            data.entityId,
+            'render',
+            (renderComponent) => {
+              renderComponent.position = { x: data.x, y: data.y };
+            }
+          );
+        }
+      },
+    }),
+  ];
+
+  useAddEntity({ components });
+  return null;
+};
+
 const meta = {
   title: 'React Native Turbo Game Engine',
   component: ReactNativeTurboGameEngine,
@@ -374,13 +422,37 @@ const SwimmerGameComp: FC<{}> = memo(
   }
 );
 
+export const RenderLayersGroup: Story = {
+  args: {
+    componentNames: [],
+  },
+  render: () => {
+    const { width, height } = useWindowDimensions();
+    return (
+      <View style={{ flex: 1 }}>
+        <ReactNativeTurboGameEngine componentNames={[]}>
+          <Content>
+            <Scene name="renderLayersDemo">
+              <Content>
+                <RenderLayersGroupTestComponent
+                  centerX={width / 2}
+                  centerY={height / 2}
+                />
+              </Content>
+            </Scene>
+          </Content>
+        </ReactNativeTurboGameEngine>
+      </View>
+    );
+  },
+};
+
 export const SwimmerGame: Story = {
   args: {
     componentNames: [
       SwimmerComponentName,
       ContainerComponentName,
       WaterComponentName,
-      ObstacleComponentName,
       ObstaclesManagerComponentName,
       TemplateContextComponentName,
     ],

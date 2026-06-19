@@ -1,6 +1,5 @@
 import { Entity } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/entity';
-import { createObstacleRowComponent } from '@/Game/ecs-components/ObstacleRowComponent';
-import { SceneComponentData, SceneComponentName } from '@/containers/ReactNativeSkiaGameEngine/internal/components/scene';
+import { ObstacleRowComponentData } from '@/Game/ecs-components/ObstacleRowComponent';
 import { ECS } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/ecs';
 import { RowPathTemplate, TemplateCtx } from '@/Game/ecs-systems/obstacleSystem';
 import { buildSpawnDiagSnapshot } from '@/Game/path/obstacleRowGenDiag';
@@ -38,21 +37,27 @@ export function createJsonLevelRowPathTemplate(args: {
    */
   levelJson: string;
   /**
-   * Spawns a single obstacle block at the given column + y.
-   * Provided by the system module (it knows physics/render wiring).
+   * Spawns a full obstacle row (ObstacleRow + grouped RenderComponent).
+   * Provided by the system module (it knows render wiring).
    */
-  spawnBlock: (params: {
+  spawnRow: (params: {
     ecs: ECS;
-    sceneEntity: number;
-    x: number;
+    sceneEntity: Entity;
     y: number;
-    width: number;
-    height: number;
-  }) => Entity | null;
+    gaps: number[];
+    rowLength: number;
+    leftX: number;
+    obstacleDimension: { width: number; height: number };
+    prevRowEntity: Entity | null;
+    spawnDiag?: Pick<
+      ObstacleRowComponentData,
+      'spawnDiagTemplateName' | 'spawnDiagBranchKey'
+    >;
+  }) => Entity;
   /** Must match `MappedTemplates` key (`smily`, …) for player-band dev logs. */
   diagTemplateName: string;
 }): RowPathTemplate {
-  const { levelJson, spawnBlock, diagTemplateName } = args;
+  const { levelJson, spawnRow, diagTemplateName } = args;
 
   return {
     createCtx: () => {
@@ -61,7 +66,6 @@ export function createJsonLevelRowPathTemplate(args: {
     },
     init: (ctx: TemplateCtx) => {
       'worklet';
-      // Parse inside the worklet to keep it "shareable" for Reanimated.
       (ctx as JsonTemplateCtx).level = JSON.parse(levelJson) as JsonLevel;
     },
     getRowCount: (ctx: TemplateCtx) => {
@@ -81,10 +85,11 @@ export function createJsonLevelRowPathTemplate(args: {
         initialY,
         leftX,
         obstacleDimension,
+        rowLength,
       } = params;
 
       const level = ctx.level;
-      const columns = level?.columns ?? params.rowLength;
+      const columns = level?.columns ?? rowLength;
       const rowDef = level?.rows?.[rowIndex];
 
       const y = !prevRow ? initialY : prevRow.y - obstacleDimension.height;
@@ -103,44 +108,22 @@ export function createJsonLevelRowPathTemplate(args: {
           return g;
         })();
 
-      const obstacleEntities: Entity[] = [];
-      for (let i = 0; i < blocks.length; i++) {
-        const col = blocks[i];
-        const x = leftX + col * obstacleDimension.width + obstacleDimension.width / 2;
-        const entity = spawnBlock({
-          ecs,
-          sceneEntity,
-          x,
-          y,
-          width: obstacleDimension.width,
-          height: obstacleDimension.height,
-        });
-        if (entity !== null) obstacleEntities.push(entity);
-      }
-
-      const obstacleRowComp = createObstacleRowComponent({
+      return spawnRow({
+        ecs,
+        sceneEntity,
         y,
         gaps,
-        obstacles: obstacleEntities,
+        rowLength: columns,
+        leftX,
+        obstacleDimension,
         prevRowEntity,
-        ...buildSpawnDiagSnapshot(
+        spawnDiag: buildSpawnDiagSnapshot(
           diagTemplateName,
           (params.pacingMacroPhase ?? 'flow') as MacroPhase,
           _ctx as Record<string, unknown>,
           params.rowIndex
         ),
       });
-
-      const obstacleRowEntity = ecs.createEntity();
-      ecs.addComponent(obstacleRowEntity, obstacleRowComp);
-      ecs.updateComponent(sceneEntity, SceneComponentName, (scene: SceneComponentData) => {
-        if (!scene.objects.entities.includes(obstacleRowEntity)) {
-          scene.objects.entities.push(obstacleRowEntity);
-        }
-      });
-
-      return obstacleRowEntity;
     },
   };
 }
-

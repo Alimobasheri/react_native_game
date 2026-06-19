@@ -6,7 +6,6 @@ export const ObstacleRowComponentName = 'ObstacleRow';
 export type ObstacleRowComponentData = {
   y: number;
   gaps: number[];
-  obstacles: Entity[];
   prevRowEntity: Entity | null;
   /**
    * Which `MappedTemplates` key produced this row (`directed`, `smily`, …). Used for
