@@ -120,8 +120,15 @@ export function buildSpawnDiagSnapshot(
   };
 }
 
+/** Flip to true when debugging obstacle row spawn / player-band logs. */
+const OBSTACLE_ROW_GEN_LOGS_ENABLED = false;
+
 function logObstacleRowGenToJS(line: string): void {
-  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+  if (
+    OBSTACLE_ROW_GEN_LOGS_ENABLED &&
+    typeof __DEV__ !== 'undefined' &&
+    __DEV__
+  ) {
     console.log(line);
   }
 }
@@ -138,6 +145,9 @@ export function maybeLogObstacleRowGeneration(
   args: ObstacleRowGenLogArgs
 ): void {
   'worklet';
+  if (!OBSTACLE_ROW_GEN_LOGS_ENABLED) {
+    return;
+  }
   const key = buildObstacleRowGenerationLogKey(
     args.templateName,
     args.macroPhase,
@@ -163,7 +173,11 @@ export function maybeLogObstacleRowGeneration(
 }
 
 function logPlayerBandToJS(line: string): void {
-  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+  if (
+    OBSTACLE_ROW_GEN_LOGS_ENABLED &&
+    typeof __DEV__ !== 'undefined' &&
+    __DEV__
+  ) {
     console.log(line);
   }
 }
@@ -179,6 +193,9 @@ export function maybeLogPlayerActiveObstacleRowTemplate(
   centerRowEntity: Entity | undefined
 ): void {
   'worklet';
+  if (!OBSTACLE_ROW_GEN_LOGS_ENABLED) {
+    return;
+  }
   if (typeof __DEV__ === 'undefined' || !__DEV__) {
     return;
   }

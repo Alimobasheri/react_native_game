@@ -29,7 +29,10 @@ import {
   pathSegmentReleaseRestZoneRows,
   pathSegmentTensionFunnelDurationRows,
 } from '@/config/gapDifficultyRamp';
-import { MatterBodyComponentData, MatterBodyComponentName } from '@/containers/ReactNativeSkiaGameEngine/internal/components/matterBody';
+import {
+  RenderComponentData,
+  RenderComponentName,
+} from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import {
   SceneComponentData,
   SceneComponentName,
@@ -177,11 +180,6 @@ function pickBlockImageStable(x: number, y: number): string {
   return OBSTACLE_BLOCK_IMAGES[idx];
 }
 
-const COLLISION = {
-  containerBoundaryCategory: 0x0002,
-  swimmerCategory: 0x0004,
-  obstacleCategory: 0x0008,
-} as const;
 
 function spawnObstacleEntity(args: {
   ecs: ECS;
@@ -192,9 +190,6 @@ function spawnObstacleEntity(args: {
   height: number;
 }): Entity | null {
   'worklet';
-  if (!global._RNTGE_?.physics) return null;
-  if (typeof global.MatterReanimated === 'undefined') return null;
-
   const { ecs, sceneEntity, x, y, width: argsWidth, height: argsHeight } = args;
 
   let width = argsWidth * 1.05
@@ -215,6 +210,7 @@ function spawnObstacleEntity(args: {
       width,
       height,
     },
+    position: { x, y },
     image: pickBlockImageStable(x, y),
     visible: true,
     // Render obstacles behind water and swimmer but above background/container interior
@@ -224,35 +220,11 @@ function spawnObstacleEntity(args: {
   ecs.addComponent(entity, obstacleComponent);
   ecs.addComponent(entity, renderComponent);
 
-  const body = global.MatterReanimated.Bodies.rectangle(x, y, width, height, {
-    isStatic: true,
-    inertia: Infinity,
-    restitution: 0,
-    friction: 0,
-    frictionStatic: 0,
-    frictionAir: 0,
-    collisionFilter: {
-      group: 0x0000,
-      category: COLLISION.obstacleCategory,
-      mask: COLLISION.containerBoundaryCategory | COLLISION.swimmerCategory,
-    },
-  });
-
-  global.MatterReanimated.Composite.add(global._RNTGE_.physics.engine.world, [
-    body,
-  ]);
-
-  ecs.addComponent(entity, {
-    name: MatterBodyComponentName,
-    data: body,
-  });
-
   ecs.updateComponent(
     sceneEntity,
     SceneComponentName,
     (scene: SceneComponentData) => {
       scene.objects.entities.push(entity);
-      scene.objects.matterBodies.push(body.id);
     }
   );
 
@@ -1250,14 +1222,22 @@ export const ObstacleSystem: System = {
           currentRowDistance = rowCenterDistance;
         }
         rowData.obstacles.forEach((oEnt) => {
-          const body = components[MatterBodyComponentName].get(oEnt) as MatterBodyComponentData | undefined
-
-          if (body) {
-            global.MatterReanimated.Body.setPosition(body as Matter.Body, {
-              x: body.position?.x || 0,
-              y: newY,
-            });
+          const obstacleData = components[ObstacleComponentName].get(oEnt) as
+            | ObstacleComponentData
+            | undefined;
+          if (!obstacleData) {
+            return;
           }
+          ecs.updateComponent(
+            oEnt,
+            RenderComponentName,
+            (render: RenderComponentData) => {
+              render.position = {
+                x: obstacleData.initialPosition.x,
+                y: newY,
+              };
+            }
+          );
         })
       }
     })

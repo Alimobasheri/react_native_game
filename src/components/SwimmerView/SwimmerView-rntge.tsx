@@ -1,5 +1,4 @@
 import { useAddEntity } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useAddEntity/useAddEntity';
-import { useAddMatterBody } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useAddMatterBody/useAddMatterBody';
 import {
   createRenderComponent,
   ShapeTypes,
@@ -9,7 +8,7 @@ import { createSwimmerComponent } from '@/Game/ecs-components/Swimmer';
 import { useAddSystem } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useAddSystem/useAddSystem';
 import { SwimmerPhysicsSystem } from '@/systems/PhysicsSystem/SwimmerPhysicsSystem';
 import { LAYOUT_CONSTANTS, getObstacleWidth, getRows } from '@/Layout';
-import { CreateMatterBodyArgs } from '@/containers/ReactNativeSkiaGameEngine/internal/systems/physics/bodiesTypes';
+import { swimmerPhysicsTuning } from '@/config/swimmerTuning';
 import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
 import { FC, useMemo } from 'react';
 
@@ -72,14 +71,17 @@ export const SwimmerView: FC<{
 
   const { swimmerWidth, swimmerHeight } = useMemo(() => {
     const columnWidth = containerWidth / LAYOUT_CONSTANTS.COLUMNS;
-    const width = (1 / 2) * columnWidth;
+    const width = columnWidth * swimmerPhysicsTuning.SWIMMER_WIDTH_COLUMN_RATIO;
 
     const obstacleWidth = getObstacleWidth(containerWidth);
     const rawRows = getRows(containerHeight, obstacleWidth);
     const rows = rawRows > 0 ? rawRows : 1;
     const rowHeight = containerHeight / rows;
 
-    const height = Math.min(1.8 * width, 1.5 * rowHeight * 0.9);
+    const height = Math.min(
+      swimmerPhysicsTuning.SWIMMER_HEIGHT_TO_WIDTH_RATIO * width,
+      1.5 * rowHeight * 0.9
+    );
 
     return { swimmerWidth: width, swimmerHeight: height };
   }, [containerWidth, containerHeight]);
@@ -87,6 +89,8 @@ export const SwimmerView: FC<{
   const components = useMemo(() => {
     const base = [
       createSwimmerComponent({
+        x,
+        y,
         velocityX: 0,
         inputX: 0,
         lastTapTimeMs: undefined,
@@ -99,6 +103,7 @@ export const SwimmerView: FC<{
         containerCenterY,
         isInInitialPhase: false,
         isCollidingWithObstacle: false,
+        isPinnedFromAbove: false,
         fallingVelocityY: 0,
         useColumnControl,
         column: initialColumn,
@@ -112,6 +117,7 @@ export const SwimmerView: FC<{
           width: swimmerWidth,
           height: swimmerHeight,
         },
+        position: { x, y },
         fillColor: '#006f06',
         visible: true,
         zIndex: 1,
@@ -169,34 +175,6 @@ export const SwimmerView: FC<{
   ]);
 
   const { entityId } = useAddEntity({ components });
-
-  const matterBodyArgs: CreateMatterBodyArgs = useMemo(
-    () => ({
-      type: 'rectangle',
-      options: {
-        x,
-        y,
-        width: swimmerWidth,
-        height: swimmerHeight,
-        options: {
-          isStatic: false,
-          inertia: Infinity, // prevent rotation for arcade feel
-          restitution: 0,
-          friction: 0,
-          frictionStatic: 0,
-          frictionAir: 0.4,
-          collisionFilter: {
-            group: 0x0000,
-            category: 0x0004, // swimmer
-            mask: 0x0002 | 0x0008, // container boundaries + obstacles
-          },
-        },
-      },
-    }),
-    [x, y, swimmerWidth, swimmerHeight]
-  );
-
-  useAddMatterBody({ args: matterBodyArgs, entityId });
 
   // Register the swimmer physics system
   useAddSystem({ system: SwimmerPhysicsSystem });

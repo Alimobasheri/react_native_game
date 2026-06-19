@@ -4,7 +4,8 @@
  */
 
 export const swimmerPhysicsTuning = {
-  SWIMMER_WIDTH_COLUMN_RATIO: 2 / 3,
+  /** Swimmer render width and collision hitbox width as a fraction of one grid column. */
+  SWIMMER_WIDTH_COLUMN_RATIO: 1 / 2,
   SWIMMER_HEIGHT_TO_WIDTH_RATIO: 1.8,
 
   MAX_HORIZONTAL_SPEED: 520,
@@ -17,6 +18,10 @@ export const swimmerPhysicsTuning = {
   SURFACE_FOLLOW_RESPONSE_PER_SECOND: 6,
   SURFACE_SUBMERGENCE_RATIO: 0.82,
   SURFACE_BOB_BLEND: 2,
+  /** Visual tilt cap (radians) — matches former Matter body rotation. */
+  MAX_TILT_RADIANS: (75 * Math.PI) / 180,
+  /** |velocityX| at which MAX_TILT_RADIANS is reached. */
+  FULL_TILT_SPEED_FRACTION: 0.25,
 } as const;
 
 export const waterPhysicsTuning = {

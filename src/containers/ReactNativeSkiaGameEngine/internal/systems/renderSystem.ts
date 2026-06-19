@@ -323,7 +323,7 @@ export const renderSystem: System = {
           components[MatterBodyComponentName]?.get(entity);
         const position = body?.position ||
           renderData.position || { x: 0, y: 0 };
-        const angle = body?.angle || 0;
+        const angle = body?.angle ?? renderData.angle ?? 0;
 
         const matrix = Skia.Matrix();
         matrix.translate(position.x, position.y);

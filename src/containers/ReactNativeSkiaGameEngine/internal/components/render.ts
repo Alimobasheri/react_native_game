@@ -47,6 +47,8 @@ export interface SpriteInfo {
 export interface RenderComponentData {
   shape: RenderShapeRectangle | RenderShapeCircle | RenderShapePolygon;
   position?: PositionComponentData; // For static objects without a physics body
+  /** Rotation in radians when transform is not driven by a Matter body. */
+  angle?: number;
   visible?: boolean;
   fillColor?: string;
   strokeColor?: string;

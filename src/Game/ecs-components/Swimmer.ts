@@ -3,6 +3,10 @@ import { Component } from '@/containers/ReactNativeSkiaGameEngine/services-ecs';
 export const SwimmerComponentName = 'Swimmer';
 
 export type SwimmerComponentData = {
+  /** World-space center X (pixels). */
+  x: number;
+  /** World-space center Y (pixels). */
+  y: number;
   velocityX: number; // Horizontal velocity for left/right movement
   /** Normalized horizontal input from controls (-1..1). Used for tap-based hyper-casual movement. */
   inputX?: number;
@@ -20,6 +24,8 @@ export type SwimmerComponentData = {
   containerCenterY: number; // Center Y of container
   isInInitialPhase: boolean; // Whether we're in the initial water rising phase
   isCollidingWithObstacle: boolean; // Whether swimmer is currently colliding with an obstacle
+  /** Pinned under a ceiling block (used for velocity damping, distinct from side graze). */
+  isPinnedFromAbove?: boolean;
   fallingVelocityY: number; // Vertical velocity when falling after collision
   /** When true, swimmer X is driven by column (tap-to-move); when false, by velocityX (pan) */
   useColumnControl?: boolean;

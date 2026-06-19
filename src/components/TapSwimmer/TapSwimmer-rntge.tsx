@@ -1,4 +1,5 @@
 import { FC, useMemo } from 'react';
+import { runOnJS } from 'react-native-reanimated';
 import { useAddEntity } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useAddEntity/useAddEntity';
 import {
   createRenderComponent,
@@ -7,6 +8,7 @@ import {
 import { createTapComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/touch';
 import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
 import { tapInputTuning } from '@/config/swimmerTuning';
+import { logSwimmerTapDebug } from '@/Game/debug/swimmerTapDebug';
 
 /**
  * TapSwimmer - Full-screen tap overlay that controls swimmer direction for tap-based movement.
@@ -78,6 +80,10 @@ export const TapSwimmer: FC<{
                 const tapMultiplier = Math.min(
                   tapInputTuning.RAPID_TAP_MAX_MULT,
                   1 + streak * streakStepMult
+                );
+
+                runOnJS(logSwimmerTapDebug)(
+                  `[SwimmerTap] dir=${inputX} deltaMs=${Math.round(deltaMs)} streak=${streak} mult=${tapMultiplier.toFixed(2)} rapid=${isRapidSameDirectionTap} prevDir=${previousTapDirection ?? 'none'} prevTapMs=${previousTapTimeMs ?? 'none'} nowMs=${Math.round(nowMs)}`
                 );
 
                 // Store tap direction as normalized input (-1 left, 1 right).
