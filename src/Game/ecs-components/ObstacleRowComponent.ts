@@ -6,6 +6,8 @@ export const ObstacleRowComponentName = 'ObstacleRow';
 export type ObstacleRowComponentData = {
   y: number;
   gaps: number[];
+  /** World X centers of solid block columns; immutable after spawn. */
+  solidColumnCentersX: readonly number[];
   prevRowEntity: Entity | null;
   /**
    * Which `MappedTemplates` key produced this row (`directed`, `smily`, …). Used for

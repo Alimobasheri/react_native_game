@@ -11,10 +11,7 @@ import {
   WaterComponentData,
   WaterComponentName,
 } from '@/Game/ecs-components/Water';
-import {
-  ObstacleRowComponentData,
-  ObstacleRowComponentName,
-} from '@/Game/ecs-components/ObstacleRowComponent';
+import { ObstacleRowComponentName } from '@/Game/ecs-components/ObstacleRowComponent';
 import {
   LAYOUT_CONSTANTS,
   getObstacleWidth,
@@ -27,9 +24,8 @@ import {
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import {
   resolveSwimmerAgainstRows,
-  selectRowsNearSwimmer,
+  selectRowsNearSwimmerFromComponentStore,
   tiltedAabbHalfExtents,
-  type CollisionRow,
 } from '@/Game/collision/swimmerBlockCollision';
 import {
   LoadSceneRequestType,
@@ -207,16 +203,7 @@ export const SwimmerPhysicsSystem: System = {
     const obstacleRowEntities = ecs.getEntitiesWithComponents([
       ObstacleRowComponentName,
     ]);
-    const collisionRows: CollisionRow[] = [];
-    for (let ri = 0; ri < obstacleRowEntities.length; ri++) {
-      const rowData = components[ObstacleRowComponentName].get(
-        obstacleRowEntities[ri]
-      ) as ObstacleRowComponentData | undefined;
-      if (!rowData) {
-        continue;
-      }
-      collisionRows.push({ y: rowData.y, gaps: rowData.gaps });
-    }
+    const obstacleRowStore = components[ObstacleRowComponentName];
 
     entities.forEach((swimmerEntity) => {
       const swimmerComponent = components[SwimmerComponentName].get(swimmerEntity) as
@@ -620,8 +607,9 @@ export const SwimmerPhysicsSystem: System = {
         swimmerComponent.containerCenterX +
         swimmerComponent.containerWidth / 2 -
         collisionHalfWidth;
-      const nearbyRows = selectRowsNearSwimmer(
-        collisionRows,
+      const nearbyRows = selectRowsNearSwimmerFromComponentStore(
+        obstacleRowEntities,
+        obstacleRowStore,
         swimmerCenterY,
         collisionHalfHeight,
         rowHeight

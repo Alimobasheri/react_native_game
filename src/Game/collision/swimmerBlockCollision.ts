@@ -1,4 +1,7 @@
 import { getColumnCenterX, LAYOUT_CONSTANTS } from '@/Layout';
+import { ComponentStore } from '@/containers/ReactNativeSkiaGameEngine/services-ecs';
+import { Entity } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/entity';
+import { ObstacleRowComponentData } from '@/Game/ecs-components/ObstacleRowComponent';
 
 /** Axis-aligned bounding box in world pixels. */
 export type AABB = {
@@ -11,6 +14,7 @@ export type AABB = {
 export type CollisionRow = {
   y: number;
   gaps: readonly number[];
+  solidColumnCentersX?: readonly number[];
 };
 
 export type ContainerLayout = {
@@ -199,6 +203,33 @@ export function selectRowsNearSwimmer(
   return out;
 }
 
+export function selectRowsNearSwimmerFromComponentStore(
+  entities: readonly Entity[],
+  rowStore: ComponentStore<ObstacleRowComponentData>,
+  swimmerY: number,
+  swimmerHalfHeight: number,
+  rowHeight: number
+): CollisionRow[] {
+  'worklet';
+  const band = rowHeight + swimmerHalfHeight + rowHeight;
+  const out: CollisionRow[] = [];
+  for (let i = 0; i < entities.length; i++) {
+    const rowData = rowStore.get(entities[i]);
+    if (!rowData) {
+      continue;
+    }
+    if (Math.abs(rowData.y - swimmerY) >= band) {
+      continue;
+    }
+    out.push({
+      y: rowData.y,
+      gaps: rowData.gaps,
+      solidColumnCentersX: rowData.solidColumnCentersX,
+    });
+  }
+  return out;
+}
+
 export function solidAABBsFromRow(
   row: CollisionRow,
   container: ContainerLayout,
@@ -206,9 +237,25 @@ export function solidAABBsFromRow(
   hitboxScale: number
 ): AABB[] {
   'worklet';
-  const columnCount = container.columnCount ?? LAYOUT_CONSTANTS.COLUMNS;
   const halfW = (blockSize.width * hitboxScale) / 2;
   const halfH = (blockSize.height * hitboxScale) / 2;
+
+  if (row.solidColumnCentersX && row.solidColumnCentersX.length > 0) {
+    const solids: AABB[] = [];
+    const centers = row.solidColumnCentersX;
+    for (let i = 0; i < centers.length; i++) {
+      const cx = centers[i];
+      solids.push({
+        minX: cx - halfW,
+        maxX: cx + halfW,
+        minY: row.y - halfH,
+        maxY: row.y + halfH,
+      });
+    }
+    return solids;
+  }
+
+  const columnCount = container.columnCount ?? LAYOUT_CONSTANTS.COLUMNS;
   const gapSet = new Set<number>();
   for (let g = 0; g < row.gaps.length; g++) {
     gapSet.add(row.gaps[g]);

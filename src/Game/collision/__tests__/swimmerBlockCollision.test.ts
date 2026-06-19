@@ -3,11 +3,15 @@ import {
   aabbOverlap,
   resolveSwimmerAgainstRows,
   selectRowsNearSwimmer,
+  selectRowsNearSwimmerFromComponentStore,
   solidAABBsFromRow,
   sweptAabbTOI,
   tiltedAabbHalfExtents,
   type CollisionRow,
 } from '@/Game/collision/swimmerBlockCollision';
+import { getColumnCenterX } from '@/Layout';
+import type { ObstacleRowComponentData } from '@/Game/ecs-components/ObstacleRowComponent';
+import type { ComponentStore } from '@/containers/ReactNativeSkiaGameEngine/services-ecs';
 
 const CONTAINER = { centerX: 200, width: 360, columnCount: 9 };
 const BLOCK = { width: 40, height: 40 };
@@ -77,6 +81,73 @@ describe('solidAABBsFromRow', () => {
   it('skips gap columns', () => {
     const solids = solidAABBsFromRow(rowAt(200, [4]), CONTAINER, BLOCK, 1.05);
     expect(solids.length).toBe(8);
+  });
+
+  it('fast path with solidColumnCentersX matches gaps path bounds', () => {
+    const gaps = [4];
+    const y = 200;
+    const hitboxScale = 1.05;
+    const gapRow = rowAt(y, gaps);
+    const fromGaps = solidAABBsFromRow(gapRow, CONTAINER, BLOCK, hitboxScale);
+
+    const solidColumnCentersX: number[] = [];
+    for (let col = 0; col < 9; col++) {
+      if (col === 4) continue;
+      solidColumnCentersX.push(
+        getColumnCenterX(col, CONTAINER.centerX, CONTAINER.width)
+      );
+    }
+    const fromPrecomputed = solidAABBsFromRow(
+      { y, gaps, solidColumnCentersX },
+      CONTAINER,
+      BLOCK,
+      hitboxScale
+    );
+
+    expect(fromPrecomputed.length).toBe(fromGaps.length);
+    for (let i = 0; i < fromGaps.length; i++) {
+      expect(fromPrecomputed[i].minX).toBeCloseTo(fromGaps[i].minX, 5);
+      expect(fromPrecomputed[i].maxX).toBeCloseTo(fromGaps[i].maxX, 5);
+      expect(fromPrecomputed[i].minY).toBeCloseTo(fromGaps[i].minY, 5);
+      expect(fromPrecomputed[i].maxY).toBeCloseTo(fromGaps[i].maxY, 5);
+    }
+  });
+});
+
+describe('selectRowsNearSwimmerFromComponentStore', () => {
+  it('keeps only rows within vertical band', () => {
+    const storeData: Record<number, ObstacleRowComponentData> = {
+      1: {
+        y: 100,
+        gaps: [4],
+        solidColumnCentersX: [0],
+        prevRowEntity: null,
+      },
+      2: {
+        y: 500,
+        gaps: [4],
+        solidColumnCentersX: [0],
+        prevRowEntity: null,
+      },
+      3: {
+        y: 310,
+        gaps: [4],
+        solidColumnCentersX: [0],
+        prevRowEntity: null,
+      },
+    };
+    const rowStore = {
+      get: (entity: number) => storeData[entity],
+    } as ComponentStore<ObstacleRowComponentData>;
+
+    const near = selectRowsNearSwimmerFromComponentStore(
+      [1, 2, 3],
+      rowStore,
+      300,
+      20,
+      40
+    );
+    expect(near.map((r) => r.y)).toEqual([310]);
   });
 });
 

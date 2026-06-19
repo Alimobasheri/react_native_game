@@ -17,7 +17,12 @@ import {
   SwimmerComponentData,
 } from '@/Game/ecs-components/Swimmer';
 import { buildObstacleRowRenderLayers } from '@/Game/render/buildObstacleRowRenderLayers';
-import { getObstacleWidth, LAYOUT_CONSTANTS, FALSE_WALL_MIN_PHASE_ROWS_SINGLE_SEGMENT } from '@/Layout';
+import {
+  getColumnCenterX,
+  getObstacleWidth,
+  LAYOUT_CONSTANTS,
+  FALSE_WALL_MIN_PHASE_ROWS_SINGLE_SEGMENT,
+} from '@/Layout';
 import {
   gapShiftRunwayDupRowsFromTotalRows,
   pathSegmentClimaxFalseWallTotalRows,
@@ -220,9 +225,28 @@ function spawnObstacleRowEntity(args: {
 
   const rowEntity = ecs.createEntity();
 
+  const columnGridWidth = obstacleDimension.width * LAYOUT_CONSTANTS.COLUMNS;
+  const containerCenterX = leftX + columnGridWidth * 0.5;
+  const solidColumnCentersX: number[] = [];
+  for (let col = 0; col < rowLength; col++) {
+    let isGap = false;
+    for (let g = 0; g < gaps.length; g++) {
+      if (gaps[g] === col) {
+        isGap = true;
+        break;
+      }
+    }
+    if (!isGap) {
+      solidColumnCentersX.push(
+        getColumnCenterX(col, containerCenterX, columnGridWidth)
+      );
+    }
+  }
+
   const obstacleRowComp = createObstacleRowComponent({
     y,
     gaps,
+    solidColumnCentersX,
     prevRowEntity,
     ...spawnDiag,
   });
@@ -1116,42 +1140,62 @@ export const ObstacleSystem: System = {
       }
     })
     // Heal broken prevRowEntity links after rows scroll off (removal does not patch pointers).
-    const healRowEntities = ecs.getEntitiesWithComponents([ObstacleRowComponentName]);
-    for (let hi = 0; hi < healRowEntities.length; hi++) {
-      const rowEntity = healRowEntities[hi];
-      const rowData = components[ObstacleRowComponentName].get(rowEntity) as
-        | ObstacleRowComponentData
-        | undefined;
-      if (!rowData?.prevRowEntity) {
-        continue;
+    let needsHeal = false;
+    for (let hi = 0; hi < obstacleRowEntities.length; hi++) {
+      const rowData = components[ObstacleRowComponentName].get(
+        obstacleRowEntities[hi]
+      ) as ObstacleRowComponentData | undefined;
+      if (
+        rowData?.prevRowEntity != null &&
+        !components[ObstacleRowComponentName].get(rowData.prevRowEntity)
+      ) {
+        needsHeal = true;
+        break;
       }
-      const prevLive = components[ObstacleRowComponentName].get(rowData.prevRowEntity) as
-        | ObstacleRowComponentData
-        | undefined;
-      if (prevLive) {
-        continue;
-      }
-      let bestEnt: Entity | null = null;
-      let bestDy = Number.POSITIVE_INFINITY;
-      const y0 = rowData.y;
-      for (let hj = 0; hj < healRowEntities.length; hj++) {
-        const other = healRowEntities[hj];
-        if (other === rowEntity) {
+    }
+    if (needsHeal) {
+      for (let hi = 0; hi < obstacleRowEntities.length; hi++) {
+        const rowEntity = obstacleRowEntities[hi];
+        const rowData = components[ObstacleRowComponentName].get(rowEntity) as
+          | ObstacleRowComponentData
+          | undefined;
+        if (!rowData?.prevRowEntity) {
           continue;
         }
-        const od = components[ObstacleRowComponentName].get(other) as ObstacleRowComponentData | undefined;
-        if (!od) {
+        const prevLive = components[ObstacleRowComponentName].get(
+          rowData.prevRowEntity
+        ) as ObstacleRowComponentData | undefined;
+        if (prevLive) {
           continue;
         }
-        const dy = od.y - y0;
-        if (dy > 0 && dy < bestDy) {
-          bestDy = dy;
-          bestEnt = other;
+        let bestEnt: Entity | null = null;
+        let bestDy = Number.POSITIVE_INFINITY;
+        const y0 = rowData.y;
+        for (let hj = 0; hj < obstacleRowEntities.length; hj++) {
+          const other = obstacleRowEntities[hj];
+          if (other === rowEntity) {
+            continue;
+          }
+          const od = components[ObstacleRowComponentName].get(other) as
+            | ObstacleRowComponentData
+            | undefined;
+          if (!od) {
+            continue;
+          }
+          const dy = od.y - y0;
+          if (dy > 0 && dy < bestDy) {
+            bestDy = dy;
+            bestEnt = other;
+          }
         }
+        ecs.updateComponent<ObstacleRowComponentData>(
+          rowEntity,
+          ObstacleRowComponentName,
+          (r) => {
+            r.prevRowEntity = bestEnt;
+          }
+        );
       }
-      ecs.updateComponent<ObstacleRowComponentData>(rowEntity, ObstacleRowComponentName, (r) => {
-        r.prevRowEntity = bestEnt;
-      });
     }
     const candidateCenterRowEntity = nearestOverlapRowEntity ?? nearestRowEntity;
     let centerRowEntity = candidateCenterRowEntity;
