@@ -20,6 +20,7 @@ export type ECS = {
   ) => void;
   componentExists: (componentName: string) => boolean;
   getEntitiesWithComponents: (requiredComponentNames: string[]) => Entity[];
+  getEntitiesWithComponent: (componentName: string) => Entity[];
   registerSystem: (system: System) => number;
   removeSystem: (systemId: number) => void;
   runSystems: (args: RunSystemsArgs) => void;
@@ -34,8 +35,9 @@ export const createECS = (): ECS => {
   const components: Record<string, ComponentStore<any>> = {};
   const recycledEntities: Entity[] = [];
   let systems: (System | undefined)[] = [];
+  const nextEntityIdRef = { current: nextEntityId };
   const createEntity = createEntityManager(
-    nextEntityId,
+    nextEntityIdRef,
     signatures,
     recycledEntities
   );
@@ -99,6 +101,13 @@ export const createECS = (): ECS => {
     return components[componentName] != undefined;
   };
 
+  const getEntitiesWithComponent = (componentName: string): Entity[] => {
+    const componentBit = bitManager.getComponentBit(componentName);
+    return Object.keys(signatures)
+      .filter((id) => (signatures[Number(id)] & componentBit) !== 0)
+      .map(Number);
+  };
+
   const getEntitiesWithComponents = (requiredComponentNames: string[]) => {
     const requiredBits = requiredComponentNames.reduce(
       (acc, name) => acc | bitManager.getComponentBit(name),
@@ -123,6 +132,7 @@ export const createECS = (): ECS => {
     updateComponent,
     componentExists,
     getEntitiesWithComponents,
+    getEntitiesWithComponent,
     registerSystem: systemManager.registerSystem,
     removeSystem: systemManager.removeSystem,
     runSystems: systemManager.runSystems,

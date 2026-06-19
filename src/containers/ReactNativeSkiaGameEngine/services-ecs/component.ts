@@ -6,6 +6,9 @@ export type ComponentStore<T> = {
   add: (entity: Entity, component: T) => void;
   remove: (entity: Entity) => void;
   update: (entity: Entity, data: T) => void;
+  count: () => number;
+  forEach: (fn: (entity: Entity, data: T) => void) => void;
+  forEachEntity: (fn: (entity: Entity) => void) => void;
 };
 
 const MAX_PAGE_SIZE = 64;
@@ -76,10 +79,32 @@ export const createComponentStore = <T>(): ComponentStore<T> => {
     }
   };
 
+  const count = () => {
+    'worklet';
+    return size;
+  };
+
+  const forEach = (fn: (entity: Entity, data: T) => void) => {
+    'worklet';
+    for (let i = 0; i < size; i++) {
+      fn(entities[i], dense[i]);
+    }
+  };
+
+  const forEachEntity = (fn: (entity: Entity) => void) => {
+    'worklet';
+    for (let i = 0; i < size; i++) {
+      fn(entities[i]);
+    }
+  };
+
   return {
     get,
     add,
     remove,
     update,
+    count,
+    forEach,
+    forEachEntity,
   };
 };
