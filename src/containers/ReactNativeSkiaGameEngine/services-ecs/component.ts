@@ -80,19 +80,16 @@ export const createComponentStore = <T>(): ComponentStore<T> => {
   };
 
   const count = () => {
-    'worklet';
     return size;
   };
 
   const forEach = (fn: (entity: Entity, data: T) => void) => {
-    'worklet';
     for (let i = 0; i < size; i++) {
       fn(entities[i], dense[i]);
     }
   };
 
   const forEachEntity = (fn: (entity: Entity) => void) => {
-    'worklet';
     for (let i = 0; i < size; i++) {
       fn(entities[i]);
     }

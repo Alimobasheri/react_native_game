@@ -1,4 +1,7 @@
 import { System } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/system';
+import {
+  firstDataFromStore,
+} from '@/containers/ReactNativeSkiaGameEngine/services-ecs/query';
 import { Entity } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/entity';
 import {
   RenderComponentData,
@@ -82,14 +85,7 @@ export const CaveParallaxBackgroundSystem: System = {
       return;
     }
 
-    const waterEntities = ecs.getEntitiesWithComponents([WaterComponentName]);
-
-    if (waterEntities.length === 0) {
-      return;
-    }
-
-    const waterEntity = waterEntities[0];
-    const waterData = components[WaterComponentName]?.get(waterEntity) as
+    const waterData = firstDataFromStore(components[WaterComponentName]) as
       | WaterComponentData
       | undefined;
 
@@ -97,15 +93,10 @@ export const CaveParallaxBackgroundSystem: System = {
       return;
     }
 
-    const swimmerEntities = ecs.getEntitiesWithComponents([SwimmerComponentName]);
-
-    const isInInitialPhase =
-      swimmerEntities.length > 0 &&
-      (
-        components[SwimmerComponentName]?.get(swimmerEntities[0]) as
-        | SwimmerComponentData
-        | undefined
-      )?.isInInitialPhase === true;
+    const firstSwimmer = firstDataFromStore(components[SwimmerComponentName]) as
+      | SwimmerComponentData
+      | undefined;
+    const isInInitialPhase = firstSwimmer?.isInInitialPhase === true;
 
     const deltaSeconds = deltaTime / 1000;
 
@@ -166,9 +157,7 @@ export const CaveParallaxBackgroundSystem: System = {
       }
     }
 
-    const liveSegments = ecs.getEntitiesWithComponents([
-      CaveBackgroundSegmentComponentName,
-    ]);
+    const liveSegments = entities;
 
     if (liveSegments.length === 0) {
       return;

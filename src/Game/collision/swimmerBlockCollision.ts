@@ -204,7 +204,6 @@ export function selectRowsNearSwimmer(
 }
 
 export function selectRowsNearSwimmerFromComponentStore(
-  entities: readonly Entity[],
   rowStore: ComponentStore<ObstacleRowComponentData>,
   swimmerY: number,
   swimmerHalfHeight: number,
@@ -213,20 +212,16 @@ export function selectRowsNearSwimmerFromComponentStore(
   'worklet';
   const band = rowHeight + swimmerHalfHeight + rowHeight;
   const out: CollisionRow[] = [];
-  for (let i = 0; i < entities.length; i++) {
-    const rowData = rowStore.get(entities[i]);
-    if (!rowData) {
-      continue;
-    }
+  rowStore.forEach((_entity, rowData) => {
     if (Math.abs(rowData.y - swimmerY) >= band) {
-      continue;
+      return;
     }
     out.push({
       y: rowData.y,
       gaps: rowData.gaps,
       solidColumnCentersX: rowData.solidColumnCentersX,
     });
-  }
+  });
   return out;
 }
 

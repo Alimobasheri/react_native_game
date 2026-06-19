@@ -19,17 +19,8 @@ import { waterShaderRuntimeTuning } from '@/config/swimmerTuning';
  */
 export const WaterShaderSystem: System = {
   requiredComponents: [WaterComponentName, RenderComponentName],
-  process: ({ entities, components, deltaTime, ecs, dimensions }) => {
+  process: ({ entities, components, deltaTime, ecs }) => {
     'worklet';
-
-    // Get container entities
-    const containerEntities = ecs.getEntitiesWithComponents([
-      ContainerComponentName,
-    ]);
-
-    if (containerEntities.length === 0) {
-      return; // No container, nothing to do
-    }
 
     entities.forEach((waterEntity) => {
       const waterComponent = components[WaterComponentName]?.get(waterEntity);
@@ -39,24 +30,13 @@ export const WaterShaderSystem: System = {
         return;
       }
 
-      // Find the container this water belongs to
-      const containerEntity = containerEntities.find(
-        (id) => id === waterComponent.containerEntityId
-      );
-
-      if (!containerEntity) {
-        return;
-      }
-
       const containerData = components[ContainerComponentName]?.get(
-        containerEntity
+        waterComponent.containerEntityId
       ) as ContainerComponentData | undefined;
 
       if (!containerData) {
         return;
       }
-
-      // Use container's waterSurfaceY to calculate water level
 
       // Update shader uniforms only - don't change entity position
       ecs.updateComponent<RenderComponentData>(

@@ -1,5 +1,10 @@
 import { System } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/system';
 import {
+  firstDataFromStore,
+  firstEntityFromStore,
+  findSceneEntityByKey,
+} from '@/containers/ReactNativeSkiaGameEngine/services-ecs/query';
+import {
   ShapeTypes,
   createRenderComponent,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
@@ -1009,16 +1014,13 @@ export const ObstacleSystem: System = {
     const lockedTemplateName = managerData.lockedTemplateName;
     const lock = resolveLockedTemplateName(lockedTemplateName);
 
-    // Get container entity
-    const containerEntities = ecs.getEntitiesWithComponents([
-      ContainerComponentName,
-    ]);
-
-    if (containerEntities.length === 0) {
-      return; // No container, nothing to do
+    const containerEntity = firstEntityFromStore(
+      components[ContainerComponentName]
+    );
+    if (containerEntity === undefined) {
+      return;
     }
 
-    const containerEntity = containerEntities[0];
     const containerData = components[ContainerComponentName]?.get(
       containerEntity
     ) as ContainerComponentData | undefined;
@@ -1027,16 +1029,11 @@ export const ObstacleSystem: System = {
       return;
     }
 
-    // Get water entity and data (for movement speed)
-    const waterEntities = ecs.getEntitiesWithComponents([
-      WaterComponentName,
-    ]);
-
-    if (waterEntities.length === 0) {
-      return; // No water, nothing to do
+    const waterEntity = firstEntityFromStore(components[WaterComponentName]);
+    if (waterEntity === undefined) {
+      return;
     }
 
-    const waterEntity = waterEntities[0];
     const waterData = components[WaterComponentName]?.get(waterEntity) as
       | WaterComponentData
       | undefined;
@@ -1049,28 +1046,12 @@ export const ObstacleSystem: System = {
     const containerTop = containerData.centerY - containerData.height / 2;
     const containerBottom = containerData.centerY + containerData.height / 2;
 
-    // Determine if we're in initial phase (water rising)
-    const swimmerEntities = ecs.getEntitiesWithComponents([
-      SwimmerComponentName,
-    ]);
-    const isInInitialPhase =
-      swimmerEntities.length > 0 &&
-      (
-        components[SwimmerComponentName]?.get(swimmerEntities[0]) as
-        | SwimmerComponentData
-        | undefined
-      )?.isInInitialPhase === true;
+    const firstSwimmer = firstDataFromStore(components[SwimmerComponentName]) as
+      | SwimmerComponentData
+      | undefined;
+    const isInInitialPhase = firstSwimmer?.isInInitialPhase === true;
 
-    // Locate the scene entity for this manager
-    const sceneEntities = ecs.getEntitiesWithComponents([
-      SceneComponentName,
-    ]);
-    const sceneEntity = sceneEntities.find((e: number) => {
-      const data = components[SceneComponentName]?.get(e) as
-        | SceneComponentData
-        | undefined;
-      return data?.sceneKey === managerData.sceneKey;
-    });
+    const sceneEntity = findSceneEntityByKey(components, managerData.sceneKey);
 
     const deltaY = waterData.raisingSpeed * deltaSeconds;
 
@@ -1081,7 +1062,10 @@ export const ObstacleSystem: System = {
     const leftX = containerData.centerX -
       containerData.width / 2
     const columnWidth = getObstacleWidth(containerData.width);
-    const obstacleRowEntities = ecs.getEntitiesWithComponents([ObstacleRowComponentName])
+    const rowStore = components[ObstacleRowComponentName];
+    if (!rowStore) {
+      return;
+    }
     const waterSurfaceY = containerData.waterSurfaceY;
     const currentCenterRowEntity = waterData.centerRowEntity;
     // Lock slightly ahead of the visible surface so the water can start reacting
@@ -1094,10 +1078,7 @@ export const ObstacleSystem: System = {
     let nearestOverlapRowEntity: number | undefined;
     let nearestOverlapDistance = Number.POSITIVE_INFINITY;
     let currentRowDistance = Number.POSITIVE_INFINITY;
-    obstacleRowEntities.forEach((obstacleRowEntity) => {
-      const rowData = components[ObstacleRowComponentName].get(obstacleRowEntity) as ObstacleRowComponentData | undefined
-      if (!rowData) return
-
+    rowStore.forEach((obstacleRowEntity, rowData) => {
       let newY = rowData.y + deltaY
 
       if (newY > containerBottom + LAYOUT_CONSTANTS.REMOVAL_THRESHOLD_OFFSET) {
@@ -1107,87 +1088,75 @@ export const ObstacleSystem: System = {
         };
         eventQueue.addEvent(removeRequest);
         return;
-      } else {
-        ecs.updateComponent<ObstacleRowComponentData>(obstacleRowEntity, ObstacleRowComponentName, (rowData) => {
-          rowData.y = newY
-        })
-        ecs.updateComponent<RenderComponentData>(
-          obstacleRowEntity,
-          RenderComponentName,
-          (render) => {
-            render.position = {
-              x: containerData.centerX,
-              y: newY,
-            };
-          }
-        );
-        const rowTop = newY - columnWidth / 2;
-        const rowBottom = newY + columnWidth / 2;
-        const rowCenterDistance = Math.abs(newY - transitionTargetY);
-        const overlapsTransitionBand =
-          transitionTargetY >= rowTop && transitionTargetY <= rowBottom + columnWidth * 0.42;
-        if (overlapsTransitionBand && rowCenterDistance < nearestOverlapDistance) {
-          nearestOverlapDistance = rowCenterDistance;
-          nearestOverlapRowEntity = obstacleRowEntity;
+      }
+
+      ecs.updateComponent<ObstacleRowComponentData>(obstacleRowEntity, ObstacleRowComponentName, (row) => {
+        row.y = newY
+      })
+      ecs.updateComponent<RenderComponentData>(
+        obstacleRowEntity,
+        RenderComponentName,
+        (render) => {
+          render.position = {
+            x: containerData.centerX,
+            y: newY,
+          };
         }
-        if (rowCenterDistance < nearestRowDistance) {
-          nearestRowDistance = rowCenterDistance;
-          nearestRowEntity = obstacleRowEntity;
-        }
-        if (obstacleRowEntity === currentCenterRowEntity) {
-          currentRowDistance = rowCenterDistance;
-        }
+      );
+      const rowTop = newY - columnWidth / 2;
+      const rowBottom = newY + columnWidth / 2;
+      const rowCenterDistance = Math.abs(newY - transitionTargetY);
+      const overlapsTransitionBand =
+        transitionTargetY >= rowTop && transitionTargetY <= rowBottom + columnWidth * 0.42;
+      if (overlapsTransitionBand && rowCenterDistance < nearestOverlapDistance) {
+        nearestOverlapDistance = rowCenterDistance;
+        nearestOverlapRowEntity = obstacleRowEntity;
+      }
+      if (rowCenterDistance < nearestRowDistance) {
+        nearestRowDistance = rowCenterDistance;
+        nearestRowEntity = obstacleRowEntity;
+      }
+      if (obstacleRowEntity === currentCenterRowEntity) {
+        currentRowDistance = rowCenterDistance;
       }
     })
     // Heal broken prevRowEntity links after rows scroll off (removal does not patch pointers).
     let needsHeal = false;
-    for (let hi = 0; hi < obstacleRowEntities.length; hi++) {
-      const rowData = components[ObstacleRowComponentName].get(
-        obstacleRowEntities[hi]
-      ) as ObstacleRowComponentData | undefined;
+    rowStore.forEach((_rowEntity, rowData) => {
+      if (needsHeal) {
+        return;
+      }
       if (
-        rowData?.prevRowEntity != null &&
-        !components[ObstacleRowComponentName].get(rowData.prevRowEntity)
+        rowData.prevRowEntity != null &&
+        !rowStore.get(rowData.prevRowEntity)
       ) {
         needsHeal = true;
-        break;
       }
-    }
+    });
     if (needsHeal) {
-      for (let hi = 0; hi < obstacleRowEntities.length; hi++) {
-        const rowEntity = obstacleRowEntities[hi];
-        const rowData = components[ObstacleRowComponentName].get(rowEntity) as
+      rowStore.forEach((rowEntity, rowData) => {
+        if (!rowData.prevRowEntity) {
+          return;
+        }
+        const prevLive = rowStore.get(rowData.prevRowEntity) as
           | ObstacleRowComponentData
           | undefined;
-        if (!rowData?.prevRowEntity) {
-          continue;
-        }
-        const prevLive = components[ObstacleRowComponentName].get(
-          rowData.prevRowEntity
-        ) as ObstacleRowComponentData | undefined;
         if (prevLive) {
-          continue;
+          return;
         }
         let bestEnt: Entity | null = null;
         let bestDy = Number.POSITIVE_INFINITY;
         const y0 = rowData.y;
-        for (let hj = 0; hj < obstacleRowEntities.length; hj++) {
-          const other = obstacleRowEntities[hj];
+        rowStore.forEach((other, od) => {
           if (other === rowEntity) {
-            continue;
-          }
-          const od = components[ObstacleRowComponentName].get(other) as
-            | ObstacleRowComponentData
-            | undefined;
-          if (!od) {
-            continue;
+            return;
           }
           const dy = od.y - y0;
           if (dy > 0 && dy < bestDy) {
             bestDy = dy;
             bestEnt = other;
           }
-        }
+        });
         ecs.updateComponent<ObstacleRowComponentData>(
           rowEntity,
           ObstacleRowComponentName,
@@ -1195,7 +1164,7 @@ export const ObstacleSystem: System = {
             r.prevRowEntity = bestEnt;
           }
         );
-      }
+      });
     }
     const candidateCenterRowEntity = nearestOverlapRowEntity ?? nearestRowEntity;
     let centerRowEntity = candidateCenterRowEntity;
@@ -1236,7 +1205,7 @@ export const ObstacleSystem: System = {
     maybeLogPlayerActiveObstacleRowTemplate(ecs, components, managerEntity, centerForPlayerDiag);
 
     // Seed initial obstacles when none exist (either during initial phase or when starting with water at center)
-    const shouldSeedInitialObstacles = obstacleRowEntities.length === 0;
+    const shouldSeedInitialObstacles = rowStore.count() === 0;
 
     if (shouldSeedInitialObstacles) {
       let lastRowEntity: Entity | null = null

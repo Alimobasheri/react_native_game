@@ -1,5 +1,9 @@
 import { System } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/system';
 import {
+  firstDataFromStore,
+  firstEntityFromStore,
+} from '@/containers/ReactNativeSkiaGameEngine/services-ecs/query';
+import {
   SwimmerComponentName,
   SwimmerComponentData,
 } from '@/Game/ecs-components/Swimmer';
@@ -33,7 +37,6 @@ import {
 } from '@/containers/ReactNativeSkiaGameEngine/components-rntge/Scene/events';
 import {
   ScoreComponentName,
-  ScoreComponentData,
 } from '@/Game/ecs-components/Score';
 import {
   getOrCreateRunResultEntity,
@@ -68,32 +71,25 @@ export const SwimmerPhysicsSystem: System = {
   process: ({ entities, components, deltaTime, ecs, dimensions, eventQueue }) => {
     'worklet';
 
-    // Get container entity
-    const containerEntities = ecs.getEntitiesWithComponents([
-      ContainerComponentName,
-    ]);
+    const containerEntity = firstEntityFromStore(
+      components[ContainerComponentName]
+    );
 
-    if (containerEntities.length === 0) {
-      return; // No container, nothing to do
+    if (containerEntity === undefined) {
+      return;
     }
 
-    const containerEntity = containerEntities[0];
     const containerData = components[ContainerComponentName].get(containerEntity);
 
     if (!containerData) {
       return;
     }
 
-    // Get water entity and data
-    const waterEntities = ecs.getEntitiesWithComponents([
-      WaterComponentName,
-    ]);
-
-    if (waterEntities.length === 0) {
-      return; // No water, nothing to do
+    const waterEntity = firstEntityFromStore(components[WaterComponentName]);
+    if (waterEntity === undefined) {
+      return;
     }
 
-    const waterEntity = waterEntities[0];
     const waterData = components[WaterComponentName].get(waterEntity) as WaterComponentData | undefined;
     const waterRenderData = components[RenderComponentName]?.get(
       waterEntity
@@ -200,9 +196,6 @@ export const SwimmerPhysicsSystem: System = {
     const rowsForLayout = rawRowsForLayout > 0 ? rawRowsForLayout : 1;
     const rowHeight = containerData.height / rowsForLayout;
 
-    const obstacleRowEntities = ecs.getEntitiesWithComponents([
-      ObstacleRowComponentName,
-    ]);
     const obstacleRowStore = components[ObstacleRowComponentName];
 
     entities.forEach((swimmerEntity) => {
@@ -256,7 +249,7 @@ export const SwimmerPhysicsSystem: System = {
 
       const swimmerHeightForBuoyancy = Math.min(
         obstacleWidth * swimmerPhysicsTuning.SWIMMER_WIDTH_COLUMN_RATIO *
-          swimmerPhysicsTuning.SWIMMER_HEIGHT_TO_WIDTH_RATIO,
+        swimmerPhysicsTuning.SWIMMER_HEIGHT_TO_WIDTH_RATIO,
         rowHeight * 0.9
       );
 
@@ -445,16 +438,16 @@ export const SwimmerPhysicsSystem: System = {
         swimmerVelocityX *= swimmerPhysicsTuning.PINNED_VELOCITY_DAMPING;
       }
 
-      const shouldLogTapPhysics =
-        swimmerComponent.useColumnControl &&
-        (currentInputX !== 0 ||
-          pendingMultAtFrameStart > 1.001 ||
-          (Math.abs(vxFrameStart) > 40 && Math.abs(swimmerVelocityX) < 20));
-      if (shouldLogTapPhysics) {
-        runOnJS(logSwimmerTapDebug)(
-          `[SwimmerPhys] input=${currentInputX} pendingMultStart=${pendingMultAtFrameStart.toFixed(2)} multRaw=${tapMultiplierRaw.toFixed(2)} multCap=${tapMultiplierCapped.toFixed(2)} impulse=${tapImpulseApplied.toFixed(1)} vx=${vxFrameStart.toFixed(1)}->${swimmerVelocityX.toFixed(1)} drag=${dragFactorApplied.toFixed(3)} waterTarget=${waterCurrentVelocityX.toFixed(1)} waterStep=${(swimmerVelocityX - vxBeforeWaterCurrent).toFixed(1)} pinned=${wasPinnedFromAbove} streak=${swimmerComponent.rapidTapStreak ?? 0} dtMs=${Math.round(deltaSeconds * 1000)}`
-        );
-      }
+      // const shouldLogTapPhysics =
+      //   swimmerComponent.useColumnControl &&
+      //   (currentInputX !== 0 ||
+      //     pendingMultAtFrameStart > 1.001 ||
+      //     (Math.abs(vxFrameStart) > 40 && Math.abs(swimmerVelocityX) < 20));
+      // if (shouldLogTapPhysics) {
+      //   runOnJS(logSwimmerTapDebug)(
+      //     `[SwimmerPhys] input=${currentInputX} pendingMultStart=${pendingMultAtFrameStart.toFixed(2)} multRaw=${tapMultiplierRaw.toFixed(2)} multCap=${tapMultiplierCapped.toFixed(2)} impulse=${tapImpulseApplied.toFixed(1)} vx=${vxFrameStart.toFixed(1)}->${swimmerVelocityX.toFixed(1)} drag=${dragFactorApplied.toFixed(3)} waterTarget=${waterCurrentVelocityX.toFixed(1)} waterStep=${(swimmerVelocityX - vxBeforeWaterCurrent).toFixed(1)} pinned=${wasPinnedFromAbove} streak=${swimmerComponent.rapidTapStreak ?? 0} dtMs=${Math.round(deltaSeconds * 1000)}`
+      //   );
+      // }
 
       const proposedDeltaX = swimmerVelocityX * deltaSeconds;
       const containerUVX = clamp01(
@@ -608,7 +601,6 @@ export const SwimmerPhysicsSystem: System = {
         swimmerComponent.containerWidth / 2 -
         collisionHalfWidth;
       const nearbyRows = selectRowsNearSwimmerFromComponentStore(
-        obstacleRowEntities,
         obstacleRowStore,
         swimmerCenterY,
         collisionHalfHeight,
@@ -650,16 +642,10 @@ export const SwimmerPhysicsSystem: System = {
         !swimmerComponent.gameOverDispatched
       ) {
         shouldDispatchGameOver = true;
-        const scoreEntities = ecs.getEntitiesWithComponents([ScoreComponentName]);
         let finalScore = 0;
-        for (let s = 0; s < scoreEntities.length; s++) {
-          const scoreData = components[ScoreComponentName].get(
-            scoreEntities[s]
-          ) as ScoreComponentData | undefined;
-          if (scoreData) {
-            finalScore = Math.max(finalScore, Math.floor(scoreData.score));
-          }
-        }
+        components[ScoreComponentName]?.forEach((_entity, scoreData) => {
+          finalScore = Math.max(finalScore, Math.floor(scoreData.score));
+        });
 
         const runResultEntity = getOrCreateRunResultEntity(ecs);
         ecs.updateComponent<RunResultComponentData>(

@@ -138,10 +138,14 @@ describe('selectRowsNearSwimmerFromComponentStore', () => {
     };
     const rowStore = {
       get: (entity: number) => storeData[entity],
+      forEach: (fn: (entity: number, data: ObstacleRowComponentData) => void) => {
+        fn(1, storeData[1]);
+        fn(2, storeData[2]);
+        fn(3, storeData[3]);
+      },
     } as ComponentStore<ObstacleRowComponentData>;
 
     const near = selectRowsNearSwimmerFromComponentStore(
-      [1, 2, 3],
       rowStore,
       300,
       20,

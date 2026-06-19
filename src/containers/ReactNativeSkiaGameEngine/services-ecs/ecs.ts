@@ -102,21 +102,57 @@ export const createECS = (): ECS => {
   };
 
   const getEntitiesWithComponent = (componentName: string): Entity[] => {
-    const componentBit = bitManager.getComponentBit(componentName);
-    return Object.keys(signatures)
-      .filter((id) => (signatures[Number(id)] & componentBit) !== 0)
-      .map(Number);
+    const store = components[componentName];
+    if (!store) {
+      return [];
+    }
+    const out: Entity[] = [];
+    store.forEachEntity((entity) => {
+      out.push(entity);
+    });
+    return out;
   };
 
   const getEntitiesWithComponents = (requiredComponentNames: string[]) => {
+    if (requiredComponentNames.length === 0) {
+      return [];
+    }
+
+    if (requiredComponentNames.length === 1) {
+      return getEntitiesWithComponent(requiredComponentNames[0]);
+    }
+
     const requiredBits = requiredComponentNames.reduce(
       (acc, name) => acc | bitManager.getComponentBit(name),
       0
     );
 
-    return Object.keys(signatures)
-      .filter((id) => hasComponents(Number(id), requiredBits))
-      .map(Number);
+    let smallestStore: ComponentStore<any> | undefined;
+    let smallestCount = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < requiredComponentNames.length; i++) {
+      const name = requiredComponentNames[i];
+      const store = components[name];
+      if (!store) {
+        return [];
+      }
+      const count = store.count();
+      if (count < smallestCount) {
+        smallestCount = count;
+        smallestStore = store;
+      }
+    }
+
+    if (!smallestStore || smallestCount === 0) {
+      return [];
+    }
+
+    const out: Entity[] = [];
+    smallestStore.forEachEntity((entity) => {
+      if (hasComponents(entity, requiredBits)) {
+        out.push(entity);
+      }
+    });
+    return out;
   };
 
   const getAllEntities = () => {

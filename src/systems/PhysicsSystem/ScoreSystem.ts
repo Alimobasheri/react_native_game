@@ -1,4 +1,5 @@
 import { System } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/system';
+import { firstDataFromStore } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/query';
 import {
   ScoreComponentName,
   ScoreComponentData,
@@ -23,22 +24,13 @@ export const ScoreSystem: System = {
   process: ({ entities, components, deltaTime, ecs }) => {
     'worklet';
 
-    const waterEntities = ecs.getEntitiesWithComponents([WaterComponentName]);
-    if (waterEntities.length === 0) return;
-
-    const waterData = components[WaterComponentName].get(waterEntities[0]);
+    const waterData = firstDataFromStore(components[WaterComponentName]);
     if (!waterData) return;
 
-    const swimmerEntities = ecs.getEntitiesWithComponents([SwimmerComponentName]);
-    let isInInitialPhase = true;
-    if (swimmerEntities.length > 0) {
-      const swimmerData = components[SwimmerComponentName].get(swimmerEntities[0]) as
-        | SwimmerComponentData
-        | undefined;
-      if (swimmerData) {
-        isInInitialPhase = swimmerData.isInInitialPhase ?? true;
-      }
-    }
+    const swimmerData = firstDataFromStore(components[SwimmerComponentName]) as
+      | SwimmerComponentData
+      | undefined;
+    const isInInitialPhase = swimmerData?.isInInitialPhase ?? true;
 
     if (isInInitialPhase) return;
 

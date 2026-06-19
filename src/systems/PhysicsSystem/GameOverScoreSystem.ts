@@ -1,4 +1,5 @@
 import { System } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/system';
+import { firstDataFromStore } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/query';
 import {
   GameOverScoreComponentName,
 } from '@/Game/ecs-components/GameOverScore';
@@ -23,13 +24,8 @@ export const GameOverScoreSystem: System = {
   process: ({ entities, components, ecs }) => {
     'worklet';
 
-    const runResultEntities = ecs.getEntitiesWithComponents([
-      RunResultComponentName,
-    ]);
-    if (runResultEntities.length === 0) return;
-
-    const runResultData = components[RunResultComponentName].get(
-      runResultEntities[0]
+    const runResultData = firstDataFromStore(
+      components[RunResultComponentName]
     ) as RunResultComponentData | undefined;
     if (!runResultData) return;
 

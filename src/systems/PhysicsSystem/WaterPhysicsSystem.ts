@@ -1,8 +1,9 @@
 import {
   System,
 } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/system';
-import type { ECS } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/ecs';
+import type { ComponentStore } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/component';
 import type { Entity } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/entity';
+import { firstDataFromStore } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/query';
 import {
   WaterComponentName,
   WaterComponentData,
@@ -32,43 +33,34 @@ import { waterPhysicsTuning } from '@/config/swimmerTuning';
  * smallest positive (y_prev - y_active).
  */
 function resolvePrevObstacleRowForWater(
-  ecs: ECS,
-  components: Record<string, { get: (e: Entity) => unknown }>,
+  rowStore: ComponentStore<ObstacleRowComponentData> | undefined,
   centerRowEntity: Entity | undefined,
   activeRow: ObstacleRowComponentData | undefined
 ): ObstacleRowComponentData | undefined {
   'worklet';
-  if (!activeRow) {
+  if (!activeRow || !rowStore) {
     return undefined;
   }
   const linkedId = activeRow.prevRowEntity;
   if (typeof linkedId === 'number') {
-    const linked = components[ObstacleRowComponentName]?.get(linkedId) as
-      | ObstacleRowComponentData
-      | undefined;
+    const linked = rowStore.get(linkedId);
     if (linked) {
       return linked;
     }
   }
-  const rowEntities = ecs.getEntitiesWithComponents([ObstacleRowComponentName]);
   let best: ObstacleRowComponentData | undefined;
   let bestDy = Number.POSITIVE_INFINITY;
   const y0 = activeRow.y;
-  for (let i = 0; i < rowEntities.length; i++) {
-    const e = rowEntities[i];
-    if (e === centerRowEntity) {
-      continue;
+  rowStore.forEach((entity, rowData) => {
+    if (entity === centerRowEntity) {
+      return;
     }
-    const d = components[ObstacleRowComponentName]?.get(e) as ObstacleRowComponentData | undefined;
-    if (!d) {
-      continue;
-    }
-    const dy = d.y - y0;
+    const dy = rowData.y - y0;
     if (dy > 0 && dy < bestDy) {
       bestDy = dy;
-      best = d;
+      best = rowData;
     }
-  }
+  });
   return best;
 }
 
@@ -94,34 +86,17 @@ export const WaterPhysicsSystem: System = {
 
     const deltaSeconds = deltaTime / 1000;
 
-    // Determine game phase based on first swimmer (they should all be in sync).
-    // We only start ramping difficulty after the initial water rising phase.
-    const swimmerEntities = ecs.getEntitiesWithComponents([
-      SwimmerComponentName,
-    ]);
-
-    let isInInitialPhase = true;
-    if (swimmerEntities.length > 0) {
-      const firstSwimmer = components[SwimmerComponentName]?.get(
-        swimmerEntities[0]
-      ) as SwimmerComponentData | undefined;
-      if (firstSwimmer) {
-        isInInitialPhase = firstSwimmer.isInInitialPhase;
-      }
-    }
+    const firstSwimmer = firstDataFromStore(components[SwimmerComponentName]) as
+      | SwimmerComponentData
+      | undefined;
+    const isInInitialPhase = firstSwimmer?.isInInitialPhase ?? true;
 
     if (isInInitialPhase) {
       return;
     }
 
-    const containerEntities = ecs.getEntitiesWithComponents([
-      ContainerComponentName,
-    ]);
-    if (containerEntities.length === 0) {
-      return;
-    }
-    const containerData = components[ContainerComponentName]?.get(
-      containerEntities[0]
+    const containerData = firstDataFromStore(
+      components[ContainerComponentName]
     ) as ContainerComponentData | undefined;
     if (!containerData || containerData.height <= 0) {
       return;
@@ -176,7 +151,11 @@ export const WaterPhysicsSystem: System = {
         typeof centerEnt === 'number'
           ? (components[ObstacleRowComponentName].get(centerEnt) as ObstacleRowComponentData | undefined)
           : undefined;
-      const prevRow = resolvePrevObstacleRowForWater(ecs, components, centerEnt, activeRow);
+      const prevRow = resolvePrevObstacleRowForWater(
+        components[ObstacleRowComponentName],
+        centerEnt,
+        activeRow
+      );
 
       // --- Multi-gap derived state (max 4 ranges) ---
       const currRangesCol = groupGapsToRanges(activeRow?.gaps, LAYOUT_CONSTANTS.COLUMNS);

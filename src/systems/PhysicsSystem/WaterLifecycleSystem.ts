@@ -18,6 +18,7 @@ import {
   SceneComponentName,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/scene';
 import { System } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/system';
+import { findSceneEntityByKey } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/query';
 
 const DEFAULT_GAP_START = 1 / 6;
 const DEFAULT_GAP_END = 5 / 6;
@@ -36,13 +37,7 @@ export const createWaterLifecycleSystem = (params: {
     process: ({ ecs, components, dimensions }) => {
       'worklet';
 
-      const sceneEntities = ecs.getEntitiesWithComponents([SceneComponentName]);
-      const sceneEntity = sceneEntities.find((entityId) => {
-        const sceneData = components[SceneComponentName]?.get(entityId) as
-          | SceneComponentData
-          | undefined;
-        return sceneData?.sceneKey === sceneKey;
-      });
+      const sceneEntity = findSceneEntityByKey(components, sceneKey);
 
       if (typeof sceneEntity !== 'number') return;
 
