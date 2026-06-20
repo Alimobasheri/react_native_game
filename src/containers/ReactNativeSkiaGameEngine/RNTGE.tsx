@@ -132,6 +132,7 @@ export const ReactNativeTurboGameEngine: FC<
   const onFrame = useCallback(
     (frameInfo: FrameInfo) => {
       'worklet';
+      if (global.gc) global.gc();
       if (
         global._RNTGE_?.eventQueue &&
         global._RNTGE_.eventQueue.nextExternalEvents.length > 0

@@ -49,7 +49,7 @@ export const ScoreView: FC<{}> = () => {
           x: centerX - SCORE_BOX_WIDTH / 2,
           y: SCORE_TOP_OFFSET,
         },
-        visible: true,
+        visible: false,
         zIndex: SCORE_Z_INDEX,
       }),
     ];

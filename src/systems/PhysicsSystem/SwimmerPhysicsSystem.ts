@@ -46,6 +46,17 @@ import {
 import { swimmerPhysicsTuning } from '@/config/swimmerTuning';
 import { runOnJS } from 'react-native-reanimated';
 import { logSwimmerTapDebug } from '@/Game/debug/swimmerTapDebug';
+import {
+  GameSessionComponentData,
+  GameSessionComponentName,
+} from '@/Game/ecs-components/GameSession';
+import {
+  getGameSession,
+  getGameSessionEntity,
+  isStartReady,
+} from '@/Game/session/gameSessionQuery';
+import { markGameSessionGameOver } from '@/Game/session/beginGameplay';
+import { saveBestScoreIfHigher } from '@/Game/persistence/bestScoreStorage';
 
 /**
  * SwimmerPhysicsSystem - Handles swimmer movement and game mechanics
@@ -65,6 +76,10 @@ import { logSwimmerTapDebug } from '@/Game/debug/swimmerTapDebug';
  */
 const GAME_SCENE_KEY = 'game';
 const GAME_OVER_SCENE_KEY = 'gameOver';
+
+const persistBestScoreAsync = (score: number) => {
+  saveBestScoreIfHigher(score).catch(() => undefined);
+};
 
 export const SwimmerPhysicsSystem: System = {
   requiredComponents: [SwimmerComponentName],
@@ -155,8 +170,11 @@ export const SwimmerPhysicsSystem: System = {
       }
     }
 
-    // PHASE 1: Initial water rising phase
-    if (isInInitialPhase) {
+    const session = getGameSession(components);
+    const startReady = isStartReady(session);
+
+    // PHASE 1: Initial water rising phase (skipped during start overlay)
+    if (isInInitialPhase && !startReady) {
       // Update water level — rise (Y decreases) until surface reaches configured rest line
       const newWaterSurfaceY = containerData.waterSurfaceY - waterData.raisingSpeed * deltaSeconds;
       const constrainedWaterY = Math.max(newWaterSurfaceY, waterSurfaceRestY);
@@ -204,6 +222,39 @@ export const SwimmerPhysicsSystem: System = {
         | undefined;
 
       if (!swimmerComponent) {
+        return;
+      }
+
+      if (startReady) {
+        const idleFrequency = 1.1;
+        let bobbingPhase = swimmerComponent.bobbingPhase ?? 0;
+        bobbingPhase += 2 * Math.PI * idleFrequency * deltaSeconds;
+        if (bobbingPhase > Math.PI * 2) {
+          bobbingPhase -= Math.PI * 2;
+        }
+        const amplitude = 6;
+        const bobbingOffsetY = Math.sin(bobbingPhase) * amplitude;
+        const idleAngle = (Math.sin(bobbingPhase * 0.85) * 2 * Math.PI) / 180;
+        const finalX = swimmerComponent.x;
+        const finalY = swimmerComponent.y + bobbingOffsetY;
+
+        ecs.updateComponent<RenderComponentData>(
+          swimmerEntity,
+          RenderComponentName,
+          (render) => {
+            render.position = { x: finalX, y: finalY };
+            render.angle = idleAngle;
+          }
+        );
+        ecs.updateComponent<SwimmerComponentData>(
+          swimmerEntity,
+          SwimmerComponentName,
+          (swimmer) => {
+            swimmer.bobbingPhase = bobbingPhase;
+            swimmer.inputX = 0;
+            swimmer.pendingTapMultiplier = 1;
+          }
+        );
         return;
       }
 
@@ -655,6 +706,21 @@ export const SwimmerPhysicsSystem: System = {
             runResult.finalScore = finalScore;
           }
         );
+
+        const sessionEntity = getGameSessionEntity(components);
+        if (typeof sessionEntity === 'number') {
+          markGameSessionGameOver(ecs, sessionEntity);
+          ecs.updateComponent<GameSessionComponentData>(
+            sessionEntity,
+            GameSessionComponentName,
+            (s) => {
+              if (finalScore > s.bestScore) {
+                s.bestScore = finalScore;
+              }
+            }
+          );
+          runOnJS(saveBestScoreIfHigher)(finalScore);
+        }
 
         eventQueue.addEvent({
           type: LoadSceneRequestType,

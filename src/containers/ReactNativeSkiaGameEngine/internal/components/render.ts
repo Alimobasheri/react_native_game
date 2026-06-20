@@ -43,6 +43,17 @@ export interface SpriteInfo {
   lastFrameTime?: number; // Last time frame was updated (managed by system)
 }
 
+/** Alpha-following drop shadow / outer glow for image draws (Skia ImageFilter). */
+export type ImageShadowData = {
+  dx?: number;
+  dy?: number;
+  /** Gaussian sigma passed to Skia drop-shadow (typical range 2–8). */
+  blur: number;
+  color: string;
+  /** When true (default), shadow is drawn in a pass behind the image. */
+  shadowOnly?: boolean;
+};
+
 /** One child draw inside a grouped RenderComponent (local space). Flat only in v1. */
 export type RenderLayerData = {
   /** Offset from parent group center, in pixels. Default {0,0}. */
@@ -58,6 +69,7 @@ export type RenderLayerData = {
   image?: string;
   sprite?: SpriteInfo;
   blendMode?: BlendMode;
+  imageShadow?: ImageShadowData;
 };
 
 // The new RenderComponentData using the discriminated union for shapes
@@ -73,6 +85,7 @@ export interface RenderComponentData {
   opacity?: number;
   image?: string;
   sprite?: SpriteInfo; // Sprite animation data
+  imageShadow?: ImageShadowData;
   /**
    * Per-entity rendering order within a scene.
    * - Lower values are rendered first (further back).

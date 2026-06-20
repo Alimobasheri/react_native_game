@@ -15,6 +15,7 @@ import {
   RenderShapeCircle,
   RenderShapePolygon,
   RenderShapeRectangle,
+  ImageShadowData,
 } from '../components/render';
 import { ComponentStore } from '../../services-ecs';
 import { MatterBodyComponentName } from '../components/matterBody';
@@ -39,6 +40,61 @@ type DrawableRenderData = {
   image?: string;
   sprite?: RenderComponentData['sprite'];
   blendMode?: BlendMode;
+  imageShadow?: ImageShadowData;
+};
+
+const drawImageRectWithShadow = (
+  canvas: SkCanvas,
+  image: any,
+  sourceRect: ReturnType<typeof Skia.XYWHRect>,
+  destRect: ReturnType<typeof Skia.XYWHRect>,
+  paint: ReturnType<typeof Skia.Paint>,
+  opacity: number | undefined,
+  blendMode: BlendMode,
+  shadow?: ImageShadowData
+): void => {
+  'worklet';
+  if (!shadow) {
+    canvas.drawImageRect(image, sourceRect, destRect, paint);
+    return;
+  }
+
+  const dx = shadow.dx ?? 0;
+  const dy = shadow.dy ?? 0;
+  const sigma = shadow.blur;
+  const shadowColor = Skia.Color(shadow.color);
+  const shadowOnly = shadow.shadowOnly !== false;
+
+  const shadowPaint = Skia.Paint();
+  shadowPaint.setAntiAlias(true);
+  shadowPaint.setBlendMode(blendMode);
+  if (typeof opacity === 'number') {
+    shadowPaint.setAlphaf(opacity);
+  }
+
+  const filter = shadowOnly
+    ? Skia.ImageFilter.MakeDropShadowOnly(
+        dx,
+        dy,
+        sigma,
+        sigma,
+        shadowColor,
+        null
+      )
+    : Skia.ImageFilter.MakeDropShadow(
+        dx,
+        dy,
+        sigma,
+        sigma,
+        shadowColor,
+        null
+      );
+  shadowPaint.setImageFilter(filter);
+  canvas.drawImageRect(image, sourceRect, destRect, shadowPaint);
+
+  if (shadowOnly) {
+    canvas.drawImageRect(image, sourceRect, destRect, paint);
+  }
 };
 
 const createPathFromShapeData = (shape: RenderShape): SkPath | null => {
@@ -178,12 +234,22 @@ const drawDrawableContent = (
       const destRect = Skia.XYWHRect(-width / 2, -height / 2, width, height);
       const paint = Skia.Paint();
       paint.setAntiAlias(true);
-      paint.setBlendMode(drawData.blendMode || BlendMode.SrcOver);
+      const blendMode = drawData.blendMode || BlendMode.SrcOver;
+      paint.setBlendMode(blendMode);
       if (drawData.opacity) {
         paint.setAlphaf(drawData.opacity);
       }
 
-      canvas.drawImageRect(image, sourceRect, destRect, paint);
+      drawImageRectWithShadow(
+        canvas,
+        image,
+        sourceRect,
+        destRect,
+        paint,
+        drawData.opacity,
+        blendMode,
+        drawData.imageShadow
+      );
     } else {
       const errorPaint = Skia.Paint();
       errorPaint.setColor(Skia.Color('magenta'));

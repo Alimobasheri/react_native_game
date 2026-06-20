@@ -12,6 +12,8 @@ import {
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import { createTextComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/text';
 import { createTapComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/touch';
+import { resetGameSessionToStartReady } from '@/Game/session/beginGameplay';
+import { getGameSessionEntity } from '@/Game/session/gameSessionQuery';
 import { Skia, TextAlign } from '@shopify/react-native-skia';
 import { FC, useMemo } from 'react';
 
@@ -36,7 +38,11 @@ export const RestartGameButton: FC<{}> = () => {
         },
         onTap: ({ systemArgs }) => {
           'worklet';
-          const { eventQueue } = systemArgs;
+          const { eventQueue, ecs } = systemArgs;
+          const sessionEntity = getGameSessionEntity(ecs.components);
+          if (typeof sessionEntity === 'number') {
+            resetGameSessionToStartReady(ecs, sessionEntity);
+          }
           eventQueue.addEvent({
             type: UnLoadSceneRequestType,
             payload: { sceneKey: 'gameOver' },
@@ -56,7 +62,7 @@ export const RestartGameButton: FC<{}> = () => {
         visible: true,
       }),
     ];
-  }, []);
+  }, [dimensions.height, dimensions.width]);
 
   useAddEntity({ components });
 

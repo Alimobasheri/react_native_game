@@ -1,0 +1,126 @@
+{
+  "tolerance": 32,
+  "assets": [
+    {
+      "name": "icon_crown_gold",
+      "source": "icon_crown_gold.webp",
+      "output": "transparent/icon_crown_gold.webp",
+      "bg_rgb": [
+        43,
+        15,
+        84
+      ],
+      "width": 1254,
+      "height": 1254,
+      "content_x": 183,
+      "content_y": 249,
+      "content_width": 882,
+      "content_height": 698,
+      "content_aspect": 1.2636103151862463
+    },
+    {
+      "name": "icon_shop_cart",
+      "source": "icon_shop_cart.webp",
+      "output": "transparent/icon_shop_cart.webp",
+      "bg_rgb": [
+        37,
+        19,
+        72
+      ],
+      "width": 1254,
+      "height": 1254,
+      "content_x": 222,
+      "content_y": 231,
+      "content_width": 813,
+      "content_height": 725,
+      "content_aspect": 1.1213793103448275
+    },
+    {
+      "name": "title_flood_rush",
+      "source": "title-flood-rush.webp",
+      "output": "transparent/title-flood-rush.webp",
+      "bg_rgb": [
+        37,
+        178,
+        37
+      ],
+      "width": 1398,
+      "height": 707,
+      "content_x": 0,
+      "content_y": 0,
+      "content_width": 1398,
+      "content_height": 707,
+      "content_aspect": 1.9773691654879775
+    },
+    {
+      "name": "tutorial_tap_arrows",
+      "source": "tutorial_tap_arrows.webp",
+      "output": "transparent/tutorial_tap_arrows.webp",
+      "bg_rgb": [
+        35,
+        18,
+        78
+      ],
+      "width": 2172,
+      "height": 724,
+      "content_x": 446,
+      "content_y": 134,
+      "content_width": 1291,
+      "content_height": 495,
+      "content_aspect": 2.608080808080808
+    },
+    {
+      "name": "ui_btn_start_green",
+      "source": "ui_btn_start_green.webp",
+      "output": "transparent/ui_btn_start_green.webp",
+      "bg_rgb": [
+        46,
+        29,
+        77
+      ],
+      "width": 2172,
+      "height": 724,
+      "content_x": 129,
+      "content_y": 119,
+      "content_width": 1911,
+      "content_height": 491,
+      "content_aspect": 3.8920570264765786
+    },
+    {
+      "name": "ui_chip_panel",
+      "source": "ui_chip_panel.webp",
+      "output": "transparent/ui_chip_panel.webp",
+      "bg_rgb": [
+        67,
+        217,
+        251
+      ],
+      "width": 1254,
+      "height": 1254,
+      "content_x": 103,
+      "content_y": 79,
+      "content_width": 1048,
+      "content_height": 1096,
+      "content_aspect": 0.9562043795620438
+    }
+  ],
+  "sprites": [
+    {
+      "name": "tap_cursor_sprite",
+      "source": "tap-cursor-sprite.webp",
+      "output": "transparent/tap-cursor-sprite.webp",
+      "bg_rgb": [
+        250,
+        20,
+        242
+      ],
+      "sheet_width": 1200,
+      "sheet_height": 896,
+      "cols": 4,
+      "rows": 3,
+      "frame_width": 300,
+      "frame_height": 298,
+      "total_frames": 12
+    }
+  ]
+}

@@ -21,6 +21,7 @@ import {
   SwimmerComponentName,
   SwimmerComponentData,
 } from '@/Game/ecs-components/Swimmer';
+import { getGameSession, isStartReady } from '@/Game/session/gameSessionQuery';
 import { buildObstacleRowRenderLayers } from '@/Game/render/buildObstacleRowRenderLayers';
 import {
   getColumnCenterX,
@@ -1050,10 +1051,12 @@ export const ObstacleSystem: System = {
       | SwimmerComponentData
       | undefined;
     const isInInitialPhase = firstSwimmer?.isInInitialPhase === true;
+    const session = getGameSession(components);
+    const isStartReadyPhase = isStartReady(session);
 
     const sceneEntity = findSceneEntityByKey(components, managerData.sceneKey);
 
-    const deltaY = waterData.raisingSpeed * deltaSeconds;
+    const deltaY = isStartReadyPhase ? 0 : waterData.raisingSpeed * deltaSeconds;
 
     if (typeof sceneEntity !== 'number') return;
 
@@ -1338,7 +1341,7 @@ export const ObstacleSystem: System = {
           }
         }
       );
-    } else if (!isInInitialPhase) {
+    } else if (!isInInitialPhase && !isStartReadyPhase) {
       // Post-initial phase: Time-based spawning based on obstacle movement distance
       const obstacleWidth = getObstacleWidth(containerData.width);
       const rowHeight = obstacleWidth; // Assuming square obstacles, row height equals obstacle width

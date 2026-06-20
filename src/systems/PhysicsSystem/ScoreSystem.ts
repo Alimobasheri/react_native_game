@@ -8,6 +8,7 @@ import { WaterComponentName } from '@/Game/ecs-components/Water';
 import { SwimmerComponentName, SwimmerComponentData } from '@/Game/ecs-components/Swimmer';
 import { TextComponentName, TextComponentData } from '@/containers/ReactNativeSkiaGameEngine/internal/components/text';
 import { RenderComponentData, RenderComponentName } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
+import { getGameSession, isStartReady } from '@/Game/session/gameSessionQuery';
 
 /** Score tick interval in ms. */
 const SCORE_TICK_MS = 30;
@@ -31,8 +32,9 @@ export const ScoreSystem: System = {
       | SwimmerComponentData
       | undefined;
     const isInInitialPhase = swimmerData?.isInInitialPhase ?? true;
+    const session = getGameSession(components);
 
-    if (isInInitialPhase) return;
+    if (isInInitialPhase || isStartReady(session)) return;
 
     const raisingSpeed = waterData.raisingSpeed ?? 0;
 

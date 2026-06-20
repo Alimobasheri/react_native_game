@@ -1,5 +1,6 @@
 import { FC, memo } from 'react';
 import { useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ReactNativeTurboGameEngine } from './RNTGE';
 import { Preload } from './components-rntge/Scene/Preload';
 import { Asset } from './components-rntge/Scene/Asset';
@@ -28,8 +29,11 @@ import { ScoreView } from '@/components/ScoreView/ScoreView-rntge';
 import { ObstacleRowComponentName } from '@/Game/ecs-components/ObstacleRowComponent';
 import { CaveBackgroundSegmentComponentName } from '@/Game/ecs-components/CaveBackgroundSegment';
 import { TemplateContextComponentName } from '@/Game/ecs-components/TemplateContextComponent';
+import { GameSessionComponentName } from '@/Game/ecs-components/GameSession';
+import { StartOverlayTagComponentName } from '@/Game/ecs-components/StartOverlayTag';
 import { GameOverScene } from '../Scenes/GameOverScene/index-rntge';
-import { WATER_SURFACE_FROM_CONTAINER_BOTTOM_FRACTION } from '@/Layout';
+import { StartScene } from '../Scenes/StartScene/index-rntge';
+import { WATER_SURFACE_FROM_CONTAINER_BOTTOM_FRACTION, getWaterSurfaceRestY } from '@/Layout';
 import type { StoryLockedProceduralSegment } from '@/Game/ecs-systems/obstacleSystem';
 
 /** Same geometry as `getWaterSurfaceRestY` but uses story arg `fraction` for experiments. */
@@ -98,6 +102,7 @@ const PROC_SEGMENT_OPTIONS: ('' | StoryLockedProceduralSegment)[] = [
 export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
   (args) => {
     const windowDimensions = useWindowDimensions();
+    const insets = useSafeAreaInsets();
     const { width: windowWidth, height: windowHeight } = windowDimensions;
     // Container setup - rectangular container extending full screen height for endless look
     const containerWidth = windowWidth * 0.8; // Use most of screen width
@@ -105,12 +110,10 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
     const containerCenterX = windowWidth / 2;
     const containerCenterY = windowHeight / 2; // Center of screen
 
-    const initialWaterSurfaceY = waterSurfaceYFromBottomFraction(
+    const initialWaterSurfaceY = getWaterSurfaceRestY(
       containerCenterY,
-      containerHeight,
-      args.waterSurfaceFromBottomFraction
+      containerHeight
     );
-    // Swimmer starts with roughly 1/3 of its body below the water surface
     const swimmerStartY = initialWaterSurfaceY - 10;
 
     // Obstacles will be generated dynamically by the ObstacleSystem
@@ -130,6 +133,8 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
               ScoreComponentName,
               RunResultComponentName,
               GameOverScoreComponentName,
+              GameSessionComponentName,
+              StartOverlayTagComponentName,
             ]}
           >
             <Preload>
@@ -203,6 +208,17 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                   <ScoreView />
                 </Content>
               </Scene>
+              <StartScene
+                gameTitle="FLOOD RUSH"
+                shopEnabled={false}
+                gameplayRaisingSpeed={args.raisingSpeed}
+                safeAreaInsets={{
+                  top: insets.top,
+                  bottom: insets.bottom,
+                  left: insets.left,
+                  right: insets.right,
+                }}
+              />
               <GameOverScene backgroundColor="#2B0A3D" />
             </Content>
           </ReactNativeTurboGameEngine>
