@@ -225,7 +225,9 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                   {/* Cave background - full screen image */}
                   <CaveBackground />
                   {/* Side rock walls — parallax faster than blocks */}
-                  <SideWalls containerOverlapPx={args.sideWallContainerOverlapPx} />
+                  <SideWalls
+                    containerOverlapPx={args.sideWallContainerOverlapPx}
+                  />
                   {/* Container - rectangular with boundaries */}
                   <ContainerView
                     x={containerCenterX}
