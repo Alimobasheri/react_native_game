@@ -29,12 +29,10 @@ import {
   computeRaisingSpeedForSession,
   computeSpeedRampMultiplier,
   computeTutorialOpacity,
-  easeInOutSine,
   isSessionSpeedRampActive,
 } from '@/Game/session/beginGameplay';
 import { getGameSessionEntity } from '@/Game/session/gameSessionQuery';
 
-const TITLE_PULSE_PERIOD = 2.5;
 const CTA_BREATHE_PERIOD = 1.5;
 const TAP_FRAME_COUNT = TAP_CURSOR_SPRITE.totalFrames;
 const TAP_FRAME_DURATION_SEC = TAP_CURSOR_SPRITE.frameDurationMs / 1000;
@@ -83,11 +81,10 @@ const getTapCursorBeat = (animTimeSec: number): TapCursorBeat => {
   return { show: false, onRight: false, frameIndex: 0 };
 };
 
+/** Smooth oscillation between 1 ± amount (no discontinuity at cycle wrap). */
 const pulseScale = (timeSec: number, period: number, amount: number): number => {
   'worklet';
-  const phase = (timeSec % period) / period;
-  const wave = easeInOutSine(phase);
-  return 1 + amount * (wave * 2 - 1);
+  return 1 + amount * Math.sin((2 * Math.PI * timeSec) / period);
 };
 
 export const StartScreenSystem: System = {
@@ -172,7 +169,6 @@ export const StartScreenSystem: System = {
     const tagStore = components[StartOverlayTagComponentName];
     if (!tagStore) return;
 
-    const titleScale = pulseScale(animTimeSec, TITLE_PULSE_PERIOD, 0.025);
     const ctaScale = pulseScale(animTimeSec, CTA_BREATHE_PERIOD, 0.035);
     let ctaPressScale = 1;
     if (session.ctaPressStartMs > 0) {
@@ -213,9 +209,6 @@ export const StartScreenSystem: System = {
 
       if (session.phase === 'start_ready' && visible) {
         switch (overlayTag.role) {
-          case 'titleLogo':
-            scale = titleScale;
-            break;
           case 'cta':
           case 'ctaLabel':
             scale = ctaScale * ctaPressScale;
