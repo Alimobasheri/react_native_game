@@ -1,6 +1,7 @@
 import { useAddEntity } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useAddEntity/useAddEntity';
 import {
-  createRenderComponent,
+  createWorldYSortedRenderComponent,
+  RenderSortOrigin,
   ShapeTypes,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import { createPanComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/touch';
@@ -11,6 +12,7 @@ import { LAYOUT_CONSTANTS } from '@/Layout';
 import { getObstacleBlockHeight } from '@/assets/swimmerBlocks';
 import { swimmerPhysicsTuning } from '@/config/swimmerTuning';
 import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
+import { SwimmerRenderLayer } from '@/Game/render/swimmerRenderLayers';
 import { FC, useMemo } from 'react';
 
 const centerColumn = Math.floor(LAYOUT_CONSTANTS.COLUMNS / 2);
@@ -110,7 +112,7 @@ export const SwimmerView: FC<{
         gameOverDispatched: false,
         disableGameOver,
       }),
-      createRenderComponent({
+      createWorldYSortedRenderComponent({
         shape: {
           type: ShapeTypes.Rectangle,
           width: swimmerWidth,
@@ -119,7 +121,8 @@ export const SwimmerView: FC<{
         position: { x, y },
         fillColor: '#006f06',
         visible: true,
-        zIndex: 1,
+        renderLayer: SwimmerRenderLayer.Swimmer,
+        origin: RenderSortOrigin.Bottom,
       }),
     ];
     const panComponent = createPanComponent({

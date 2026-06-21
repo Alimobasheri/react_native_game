@@ -35,7 +35,7 @@ export const gameSessionTuning = {
 
 export const waterPhysicsTuning = {
   /** Pixels/s² added to baseSpeed once the session ramp hands off to WaterPhysicsSystem. */
-  WATER_SPEED_ACCELERATION_PER_SECOND: 3,
+  WATER_SPEED_ACCELERATION_PER_SECOND: 2.2,
   WATER_SPEED_MAX: 400,
   FLOW_ACCEL_PER_SECOND: 6.8,
   FLOW_IMPULSE_ON_ROW_CHANGE: 3.2,
@@ -65,6 +65,8 @@ export const tapInputTuning = {
 /** Water shader uniform animation step: `iTime += deltaTime / iTimeDeltaDivisor`. */
 export const waterShaderRuntimeTuning = {
   iTimeDeltaDivisor: 100,
+  /** Slightly transparent so the swimmer reads through the fill. */
+  DEFAULT_RENDER_OPACITY: 0.82,
 } as const;
 
 export const sideWallTuning = {

@@ -30,6 +30,7 @@ import { SwimmerRenderLayer } from '@/Game/render/swimmerRenderLayers';
 import {
   SWIMMER_CAVE_BG_PARALLAX_FACTOR,
 } from '@/assets/swimmerCaveBg';
+import { CAVE_PARALLAX_TEXTURE_OPACITY } from '@/config/swimmerCaveLightingTuning';
 
 const REMOVAL_BUFFER = 100;
 
@@ -90,7 +91,8 @@ const createCaveSegmentComponents = (
       position: { x: centerX, y: centerY },
       image: 'cave_bg',
       visible: true,
-      renderLayer: SwimmerRenderLayer.Cave,
+      opacity: CAVE_PARALLAX_TEXTURE_OPACITY,
+      renderLayer: SwimmerRenderLayer.CaveParallax,
     }),
     createCaveBackgroundSegmentComponent(),
   ];

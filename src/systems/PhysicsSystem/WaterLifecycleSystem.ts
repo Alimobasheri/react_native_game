@@ -10,7 +10,6 @@ import {
 import { createPositionComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/position';
 import {
   createRenderComponent,
-  RenderComponentData,
   ShapeTypes,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import {
@@ -19,14 +18,19 @@ import {
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/scene';
 import { System } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/system';
 import { findSceneEntityByKey } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/query';
+import { SwimmerRenderLayer } from '@/Game/render/swimmerRenderLayers';
+import { waterShaderRuntimeTuning } from '@/config/swimmerTuning';
 
 const DEFAULT_GAP_START = 1 / 6;
 const DEFAULT_GAP_END = 5 / 6;
 
+/** Style bible aqua — Water Base #10C8E8 */
+const WATER_COLOR_RGB: [number, number, number] = [16 / 255, 200 / 255, 232 / 255];
+
 export const createWaterLifecycleSystem = (params: {
   sceneKey: string;
   raisingSpeed: number;
-  /** When set, multiplied with shader fragment alpha via paint (see renderSystem shader path). */
+  /** Multiplies water shader paint alpha. Lower = clearer swimmer beneath. */
   shaderOpacity?: number;
 }): System => {
   const { sceneKey, raisingSpeed, shaderOpacity } = params;
@@ -69,6 +73,10 @@ export const createWaterLifecycleSystem = (params: {
       const initialWaterLevel = 0.5;
       const canvasWidth = dimensions.value.width || 0;
       const canvasHeight = dimensions.value.height || 0;
+      const waterOpacity =
+        typeof shaderOpacity === 'number'
+          ? shaderOpacity
+          : waterShaderRuntimeTuning.DEFAULT_RENDER_OPACITY;
 
       const waterEntity = ecs.createEntity();
       ecs.addComponent(
@@ -96,10 +104,8 @@ export const createWaterLifecycleSystem = (params: {
           },
           position: { x: containerData.centerX, y: containerData.centerY },
           visible: true,
-          zIndex: 1,
-          ...(typeof shaderOpacity === 'number'
-            ? { opacity: shaderOpacity }
-            : {}),
+          renderLayer: SwimmerRenderLayer.Water,
+          opacity: waterOpacity,
           shader: {
             key: 'water',
             uniforms: {
@@ -114,14 +120,13 @@ export const createWaterLifecycleSystem = (params: {
               dynamicWave: [0, 0, 0, 0],
               heightOffsetFreq: 0.5,
               heightOffsetAmp: 0.0,
-              waterColor: [28, 163, 236].map((c) => c / 255),
+              waterColor: WATER_COLOR_RGB,
               canvasSize: [canvasWidth, canvasHeight],
               containerCenter: [containerData.centerX, containerData.centerY],
               containerWidth: containerData.width,
               containerHeight: containerData.height,
               uGapCurrent: [DEFAULT_GAP_START, DEFAULT_GAP_END],
               uGapPrev: [DEFAULT_GAP_START, DEFAULT_GAP_END],
-              // Multi-gap packed ranges (max 4). Default to one central channel in slot 0.
               uGapCurr01: [DEFAULT_GAP_START, DEFAULT_GAP_END, 0, 0],
               uGapCurr23: [0, 0, 0, 0],
               uGapPrev01: [DEFAULT_GAP_START, DEFAULT_GAP_END, 0, 0],
@@ -156,6 +161,7 @@ export const createWaterLifecycleSystem = (params: {
         sceneEntity,
         SceneComponentName,
         (scene) => {
+          'worklet';
           if (!scene.objects.entities.includes(waterEntity)) {
             scene.objects.entities.push(waterEntity);
           }

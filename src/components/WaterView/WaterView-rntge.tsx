@@ -8,8 +8,7 @@ import { FC, useMemo } from 'react';
 export const WaterView: FC<{
   raisingSpeed: number;
   /**
-   * Multiplies water shader output alpha (0–1). Lower = clearer view of swimmer/obstacles under water.
-   * Omit for full strength (production default).
+   * Multiplies water shader paint alpha. Lower = clearer swimmer beneath the water.
    */
   shaderOpacity?: number;
 }> = ({ raisingSpeed, shaderOpacity }) => {
@@ -25,7 +24,6 @@ export const WaterView: FC<{
     [sceneKey, raisingSpeed, shaderOpacity]
   );
 
-  // Register water-related systems
   useAddSystem({ system: waterLifecycleSystem });
   useAddSystem({ system: WaterShaderSystem });
   useAddSystem({ system: WaterPhysicsSystem });

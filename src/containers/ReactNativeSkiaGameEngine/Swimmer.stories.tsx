@@ -17,6 +17,8 @@ import {
   swimmerSideWallRight,
 } from '@/assets/swimmerSideWalls';
 import { sourceCode as waterShaderSourceCode } from '@/Shaders/WaterShader/waterShader';
+import { sourceCode as screenAtmosphereGradientSourceCode } from '@/containers/ReactNativeSkiaGameEngine/Shaders/screenAtmosphereGradient';
+import { sourceCode as screenEdgeVignetteSourceCode } from '@/containers/ReactNativeSkiaGameEngine/Shaders/screenEdgeVignette';
 import { CaveBackground } from '@/components/CaveBackground/CaveBackground-rntge';
 import { SideWalls } from '@/components/SideWalls/SideWalls-rntge';
 import { sideWallTuning } from '@/config/swimmerTuning';
@@ -37,6 +39,7 @@ import { GameOverScoreComponentName } from '@/Game/ecs-components/GameOverScore'
 import { ScoreView } from '@/components/ScoreView/ScoreView-rntge';
 import { ObstacleRowComponentName } from '@/Game/ecs-components/ObstacleRowComponent';
 import { CaveBackgroundSegmentComponentName } from '@/Game/ecs-components/CaveBackgroundSegment';
+import { CaveAtmosphereComponentName } from '@/Game/ecs-components/CaveAtmosphere';
 import { SideWallSegmentComponentName } from '@/Game/ecs-components/SideWallSegment';
 import { TemplateContextComponentName } from '@/Game/ecs-components/TemplateContextComponent';
 import { GameSessionComponentName } from '@/Game/ecs-components/GameSession';
@@ -147,6 +150,7 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
               ObstaclesManagerComponentName,
               TemplateContextComponentName,
               CaveBackgroundSegmentComponentName,
+              CaveAtmosphereComponentName,
               SideWallSegmentComponentName,
               ScoreComponentName,
               RunResultComponentName,
@@ -205,6 +209,16 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                     type="shader"
                     name="water"
                     source={waterShaderSourceCode}
+                  />
+                  <Asset
+                    type="shader"
+                    name="screenAtmosphereGradient"
+                    source={screenAtmosphereGradientSourceCode}
+                  />
+                  <Asset
+                    type="shader"
+                    name="screenEdgeVignette"
+                    source={screenEdgeVignetteSourceCode}
                   />
                 </Preload>
                 <Content>
