@@ -14,7 +14,7 @@ export const SwimmerRenderLayer = {
   Water: RenderLayer.World - 1,
   /** Blocks — Y-sorted above water. */
   Obstacles: RenderLayer.World,
-  /** Foreground cave rocks — parallax faster than obstacles, in front of blocks. */
+  /** Foreground cave rocks — slightly faster parallax than blocks (layer in front). */
   SideWalls: 150,
   Hud: RenderLayer.Hud,
 } as const;

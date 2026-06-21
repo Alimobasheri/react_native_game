@@ -126,9 +126,9 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
     const { width: windowWidth, height: windowHeight } = windowDimensions;
     // Container setup - rectangular container extending full screen height for endless look
     const containerWidth = windowWidth * 0.8; // Use most of screen width
-    const containerHeight = windowHeight; // Full screen height for endless appearance
+    const containerHeight = windowHeight + insets.bottom + insets.top; // Full screen height for endless appearance
     const containerCenterX = windowWidth / 2;
-    const containerCenterY = windowHeight / 2; // Center of screen
+    const containerCenterY = containerHeight / 2; // Center of screen
 
     const initialWaterSurfaceY = getWaterSurfaceRestY(
       containerCenterY,
@@ -224,7 +224,7 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                 <Content>
                   {/* Cave background - full screen image */}
                   <CaveBackground />
-                  {/* Side rock walls — parallax faster than blocks */}
+                  {/* Side rock walls — foreground parallax, just ahead of block speed */}
                   <SideWalls
                     containerOverlapPx={args.sideWallContainerOverlapPx}
                   />

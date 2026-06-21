@@ -11,7 +11,7 @@ export type SideWallsProps = SideWallParallaxSystemParams;
 /**
  * SideWalls — purple cave rock strips flanking the play channel.
  * Registers SideWallParallaxSystem for vertically looping parallax
- * (faster than obstacle blocks, in front of them).
+ * (slightly faster than blocks — foreground layer in front of obstacles).
  */
 export const SideWalls: FC<SideWallsProps> = ({
   containerOverlapPx = sideWallTuning.CONTAINER_OVERLAP_PX,

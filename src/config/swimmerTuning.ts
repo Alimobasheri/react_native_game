@@ -72,11 +72,15 @@ export const waterShaderRuntimeTuning = {
 export const sideWallTuning = {
   /** How far (px) each side wall extends inward over the play channel (blocks, water, swimmer). */
   CONTAINER_OVERLAP_PX: 14,
-  /** Parallax speed as a multiple of water `raisingSpeed` (blocks use 1.0). */
-  PARALLAX_SPEED_FACTOR: 1.2,
   /**
-   * Alpha-following outline shadow (Skia drop shadow — same technique as title logo).
-   * Use dx/dy ≈ 0 so the glow follows the sprite silhouette, not a straight offset band.
+   * Parallax speed as a multiple of water `raisingSpeed` (blocks = 1.0).
+   * Side walls draw *in front* of blocks — they must scroll at or above gameplay
+   * speed or foreground lags and reads as moving backward. Keep only slightly
+   * above 1.0; values like 1.2 feel dizzy in peripheral vision.
+   */
+  PARALLAX_SPEED_FACTOR: 1.08,
+  /**
+   * Alpha-following inner-edge shadow on the wall sprites (Skia drop shadow).
    */
   INNER_SHADOW_DX: 0,
   INNER_SHADOW_DY: 2,

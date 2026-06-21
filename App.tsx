@@ -1,3 +1,4 @@
+import React from 'react';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LogBox, StyleSheet } from 'react-native';
@@ -6,6 +7,8 @@ import { View } from 'react-native';
 import Constants from 'expo-constants';
 import { SwimmerGameComp } from './src/containers/ReactNativeSkiaGameEngine/Swimmer.stories';
 // import { Game } from '@/containers/Game/index-rnsge';
+import { WATER_SURFACE_FROM_CONTAINER_BOTTOM_FRACTION } from './src/Layout'
+import { sideWallTuning } from './src/config/swimmerTuning'
 LogBox.ignoreAllLogs();
 
 function App() {
@@ -13,7 +16,14 @@ function App() {
     <SafeAreaProvider style={{ flex: 1 }}>
       <View style={[styles.container]}>
         <StatusBar hidden />
-        <SwimmerGameComp />
+        <SwimmerGameComp waterSurfaceFromBottomFraction={
+          WATER_SURFACE_FROM_CONTAINER_BOTTOM_FRACTION}
+          waterRiseSpeed={50}
+          raisingSpeed={200}
+          waterShaderOpacity={0.52}
+          sideWallContainerOverlapPx={sideWallTuning.CONTAINER_OVERLAP_PX}
+          lockedTemplateName={""}
+          storyLockedProceduralSegment={""} />
       </View>
     </SafeAreaProvider>
   );
