@@ -429,11 +429,9 @@ const drawDrawableContent = (
   const skPath = createPathFromShapeData(drawData.shape);
 
   if (skPath) {
-    const blendMode = drawData.blendMode ?? BlendMode.SrcOver;
     const fillPaint = Skia.Paint();
     fillPaint.setAntiAlias(true);
     fillPaint.setStyle(PaintStyle.Fill);
-    fillPaint.setBlendMode(blendMode);
     fillPaint.setColor(Skia.Color(drawData.fillColor || '#0099ff'));
     if (drawData.opacity) {
       fillPaint.setAlphaf(drawData.opacity);
@@ -444,7 +442,6 @@ const drawDrawableContent = (
       const strokePaint = Skia.Paint();
       strokePaint.setStyle(PaintStyle.Stroke);
       strokePaint.setStrokeWidth(drawData.lineWidth || 1);
-      strokePaint.setBlendMode(blendMode);
       strokePaint.setColor(Skia.Color(drawData.strokeColor || '#2E3440'));
       if (drawData.opacity) {
         strokePaint.setAlphaf(drawData.opacity);

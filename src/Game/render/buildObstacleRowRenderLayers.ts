@@ -1,17 +1,16 @@
 import {
   RenderLayerData,
+  ShapeTypes,
+  computeGridExteriorBorderRadius,
+  createRectLayerBacking,
   gapSetFromColumns,
   isSolidColumn,
+  withRenderLayerBacking,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import {
   SWIMMER_BLOCK_CELL_BACKING_COLOR,
   SWIMMER_BLOCK_CELL_BACKING_CORNER_RADIUS_RATIO,
 } from '@/assets/swimmerBlocks';
-import {
-  buildObstacleBlockCellLayers,
-  computeGridExteriorBorderRadius,
-  deriveBlockCellNeighborMask,
-} from '@/Game/render/obstacleBlockCellLighting';
 
 export type ObstacleRowRenderLayerArgs = {
   gaps: readonly number[];
@@ -79,27 +78,26 @@ export function buildObstacleRowRenderLayers(
       isSolidInRowAbove,
     });
 
-    const neighbors = deriveBlockCellNeighborMask({
-      col,
-      rowLength: args.rowLength,
-      isSolidInRow,
-      isSolidInRowBelow,
-      isSolidInRowAbove,
-    });
-
-    const cellLayers = buildObstacleBlockCellLayers({
-      localX,
-      blockWidth: visualWidth,
-      blockHeight: visualHeight,
-      imageKey: args.pickImage(blockWorldX, args.rowY),
-      neighbors,
-      borderRadius,
-      cellBackingColor,
-    });
-
-    for (let i = 0; i < cellLayers.length; i++) {
-      layers.push(cellLayers[i]);
-    }
+    layers.push(
+      withRenderLayerBacking(
+        {
+          position: { x: localX, y: 0 },
+          shape: {
+            type: ShapeTypes.Rectangle,
+            width: visualWidth,
+            height: visualHeight,
+          },
+          image: args.pickImage(blockWorldX, args.rowY),
+          visible: true,
+        },
+        createRectLayerBacking(
+          cellBackingColor,
+          visualWidth,
+          visualHeight,
+          { borderRadius }
+        )
+      )
+    );
   }
 
   return layers;
