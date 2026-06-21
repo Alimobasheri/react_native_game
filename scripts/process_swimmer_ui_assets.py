@@ -8,7 +8,9 @@ import os
 from collections import deque
 from dataclasses import dataclass
 
+import numpy as np
 from PIL import Image
+from scipy import ndimage
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC_DIR = os.path.join(ROOT, 'assets', 'swimmer')
@@ -104,6 +106,50 @@ def is_magenta_chroma(
     if g < rb_avg * 0.82 and b > 75 and r > 75 and (r + b) > g * 2.5:
         return True
     return False
+
+
+def is_green_chroma_bg(bg: tuple[int, int, int]) -> bool:
+    """Detect export backgrounds keyed on pure/chroma green."""
+    r, g, b = bg
+    return g > 120 and g > r + 40 and g > b + 40
+
+
+def despill_green_chroma(rgba: Image.Image) -> Image.Image:
+    """Remove green-screen spill without touching blue/orange art pixels."""
+    px = rgba.load()
+    w, h = rgba.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a == 0:
+                continue
+            cap = max(r, b)
+            if g > cap:
+                px[x, y] = (r, cap, b, a)
+    return rgba
+
+
+def remove_light_edge_fringe(rgba: Image.Image, passes: int = 12) -> Image.Image:
+    """Strip desaturated keying halos from the outer 1-2 px of the silhouette."""
+    arr = np.array(rgba)
+    for _ in range(passes):
+        alpha = arr[..., 3] > 0
+        if not alpha.any():
+            break
+        dist = ndimage.distance_transform_edt(alpha)
+        rgb = arr[..., :3].astype(float)
+        lum = 0.2126 * rgb[..., 0] + 0.7152 * rgb[..., 1] + 0.0722 * rgb[..., 2]
+        sat = rgb.max(axis=2) - rgb.min(axis=2)
+        kill = alpha & (dist <= 2) & (
+            ((sat < 75) & (lum > 45))
+            | ((dist <= 1) & (lum > 80))
+            | ((dist <= 1) & (sat < 95) & (lum > 65))
+            | ((dist <= 2) & (sat < 45) & (lum > 40))
+        )
+        if not kill.any():
+            break
+        arr[kill] = (0, 0, 0, 0)
+    return Image.fromarray(arr)
 
 
 def global_remove_background(
@@ -274,6 +320,9 @@ def process_file(filename: str) -> AssetMeta:
     rgba = image.convert('RGBA')
     bg = sample_background(rgba)
     keyed = flood_remove_background(rgba.copy(), bg)
+    if is_green_chroma_bg(bg):
+        keyed = despill_green_chroma(keyed)
+        keyed = remove_light_edge_fringe(keyed)
     bbox = alpha_bbox(keyed)
     if bbox is None:
         raise RuntimeError(f'No visible content after keying: {filename}')
