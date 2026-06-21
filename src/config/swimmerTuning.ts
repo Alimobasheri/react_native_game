@@ -9,7 +9,7 @@ export const swimmerPhysicsTuning = {
   SWIMMER_HEIGHT_TO_WIDTH_RATIO: 1.8,
 
   MAX_HORIZONTAL_SPEED: 520,
-  PINNED_VELOCITY_DAMPING: 0.7,
+  PINNED_VELOCITY_DAMPING: 0.8,
   TAP_IMPULSE_MULTIPLIER_MIN: 1,
   TAP_IMPULSE_MULTIPLIER_MAX: 3.5,
   MAX_WATER_CURRENT_SPEED: 200,
@@ -30,6 +30,9 @@ export const gameSessionTuning = {
   VISUAL_RAISING_SPEED_RATIO: 0.45,
   /** Ms to ease from visual → gameplay speed after the first tap. */
   SPEED_RAMP_MS: 400,
+  /** Ms for title/CTA slide-in and slide-out (no opacity fade). */
+  OVERLAY_SLIDE_MS: 380,
+  /** Ms to fade the in-game tap-left/right tutorial after first steer. */
   OVERLAY_FADE_MS: 240,
 } as const;
 

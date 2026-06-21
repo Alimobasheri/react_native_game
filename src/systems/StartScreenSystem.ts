@@ -25,15 +25,27 @@ import {
 import { WaterComponentData, WaterComponentName } from '@/Game/ecs-components/Water';
 import { ScoreComponentName } from '@/Game/ecs-components/Score';
 import {
+  computeOverlayDismissT,
   computeOverlayOpacity,
   computeRaisingSpeedForSession,
   computeSpeedRampMultiplier,
   computeTutorialOpacity,
+  easeInOutSine,
+  easeInQuart,
+  easeOutBack,
+  easeOutCubic,
   isSessionSpeedRampActive,
 } from '@/Game/session/beginGameplay';
 import { getGameSessionEntity } from '@/Game/session/gameSessionQuery';
+import { gameSessionTuning } from '@/config/swimmerTuning';
+import type { StartOverlayRole } from '@/Game/ecs-components/StartOverlayTag';
 
+const { OVERLAY_SLIDE_MS } = gameSessionTuning;
 const CTA_BREATHE_PERIOD = 1.5;
+const CTA_PRESS_DOWN_MS = 90;
+const CTA_PRESS_RELEASE_MS = 110;
+const CTA_PRESS_SCALE_MIN = 0.88;
+const CTA_INTRO_DELAY_MS = 80;
 const TAP_FRAME_COUNT = TAP_CURSOR_SPRITE.totalFrames;
 const TAP_FRAME_DURATION_SEC = TAP_CURSOR_SPRITE.frameDurationMs / 1000;
 const TAP_SEQUENCE_SEC = TAP_FRAME_COUNT * TAP_FRAME_DURATION_SEC;
@@ -85,6 +97,63 @@ const getTapCursorBeat = (animTimeSec: number): TapCursorBeat => {
 const pulseScale = (timeSec: number, period: number, amount: number): number => {
   'worklet';
   return 1 + amount * Math.sin((2 * Math.PI * timeSec) / period);
+};
+
+const computeCtaPressScale = (ctaPressStartMs: number, nowMs: number): number => {
+  'worklet';
+  if (ctaPressStartMs <= 0) return 1;
+  const elapsed = nowMs - ctaPressStartMs;
+  const delta = 1 - CTA_PRESS_SCALE_MIN;
+  if (elapsed < CTA_PRESS_DOWN_MS) {
+    return 1 - delta * easeOutCubic(elapsed / CTA_PRESS_DOWN_MS);
+  }
+  if (elapsed < CTA_PRESS_DOWN_MS + CTA_PRESS_RELEASE_MS) {
+    const t = (elapsed - CTA_PRESS_DOWN_MS) / CTA_PRESS_RELEASE_MS;
+    return CTA_PRESS_SCALE_MIN + delta * easeInOutSine(t);
+  }
+  return 1;
+};
+
+const computeIntroSlideT = (
+  role: StartOverlayRole,
+  session: GameSessionComponentData,
+  nowMs: number
+): number => {
+  'worklet';
+  if (session.overlayIntroStartMs <= 0) return 1;
+  let delayMs = 0;
+  if (role === 'cta' || role === 'ctaLabel') {
+    delayMs = CTA_INTRO_DELAY_MS;
+  }
+  const elapsed = nowMs - session.overlayIntroStartMs - delayMs;
+  if (elapsed <= 0) return 0;
+  return Math.min(1, elapsed / OVERLAY_SLIDE_MS);
+};
+
+const computeRoleSlideY = (
+  role: StartOverlayRole,
+  introT: number,
+  dismissT: number,
+  screenH: number
+): number => {
+  'worklet';
+  const slidePx = screenH * 0.12;
+  const isTitle = role === 'titleLogo';
+  const isCta = role === 'cta' || role === 'ctaLabel';
+  if (!isTitle && !isCta) return 0;
+
+  const introEased = easeOutBack(introT);
+  const dismissEased = easeInQuart(dismissT);
+
+  let y = 0;
+  if (isTitle) {
+    y += -slidePx * (1 - introEased);
+    y += -slidePx * dismissEased;
+  } else if (isCta) {
+    y += slidePx * (1 - introEased);
+    y += slidePx * dismissEased;
+  }
+  return y;
 };
 
 export const StartScreenSystem: System = {
@@ -170,12 +239,12 @@ export const StartScreenSystem: System = {
     if (!tagStore) return;
 
     const ctaScale = pulseScale(animTimeSec, CTA_BREATHE_PERIOD, 0.035);
-    let ctaPressScale = 1;
+    const ctaPressScale = computeCtaPressScale(session.ctaPressStartMs, nowMs);
+    const dismissT = computeOverlayDismissT(session, nowMs);
+
     if (session.ctaPressStartMs > 0) {
-      const pressT = (nowMs - session.ctaPressStartMs) / 200;
-      if (pressT < 0.4) {
-        ctaPressScale = pressT < 0.4 ? 0.96 + pressT * 0.225 : 1.05;
-      } else {
+      const pressElapsed = nowMs - session.ctaPressStartMs;
+      if (pressElapsed >= CTA_PRESS_DOWN_MS + CTA_PRESS_RELEASE_MS) {
         ecs.updateComponent<GameSessionComponentData>(
           sessionEntity,
           GameSessionComponentName,
@@ -207,14 +276,14 @@ export const StartScreenSystem: System = {
       const visible = elementOpacity > 0.01;
       let scale = 1;
 
-      if (session.phase === 'start_ready' && visible) {
-        switch (overlayTag.role) {
-          case 'cta':
-          case 'ctaLabel':
-            scale = ctaScale * ctaPressScale;
-            break;
-          default:
-            break;
+      if (
+        (overlayTag.role === 'cta' || overlayTag.role === 'ctaLabel') &&
+        elementOpacity > 0.01
+      ) {
+        if (session.phase === 'start_ready' && visible) {
+          scale = ctaScale * ctaPressScale;
+        } else if (session.phase === 'playing' && session.ctaPressStartMs > 0) {
+          scale = ctaPressScale;
         }
       }
 
@@ -227,6 +296,8 @@ export const StartScreenSystem: System = {
 
       let posX = useRectCenter ? boxX + w / 2 : boxX;
       let posY = useRectCenter ? boxY + h / 2 : boxY;
+      const introT = computeIntroSlideT(overlayTag.role, session, nowMs);
+      posY += computeRoleSlideY(overlayTag.role, introT, dismissT, screenH);
       let showRender = visible;
 
       if (overlayTag.role === 'tapCursor') {
@@ -294,7 +365,7 @@ export const StartScreenSystem: System = {
         | RenderComponentData
         | undefined;
       if (!scoreRender) continue;
-      const showScore = session.phase === 'playing' && overlayOpacity < 0.2;
+      const showScore = session.phase === 'playing' && overlayOpacity <= 0;
       if (scoreRender.visible !== showScore) {
         ecs.updateComponent<RenderComponentData>(
           scoreEntity,

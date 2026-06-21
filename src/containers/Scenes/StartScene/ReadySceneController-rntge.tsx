@@ -26,6 +26,8 @@ const GameSessionEntity: FC<
   const visualRaisingSpeed =
     gameplayRaisingSpeed * gameSessionTuning.VISUAL_RAISING_SPEED_RATIO;
 
+  const overlayIntroStartMs = useMemo(() => Date.now(), []);
+
   const components = useMemo(
     () => [
       createGameSessionComponent({
@@ -36,6 +38,7 @@ const GameSessionEntity: FC<
         bestScore,
         phase: 'start_ready',
         overlayOpacity: 1,
+        overlayIntroStartMs,
       }),
     ],
     [
@@ -44,6 +47,7 @@ const GameSessionEntity: FC<
       gameplayRaisingSpeed,
       visualRaisingSpeed,
       bestScore,
+      overlayIntroStartMs,
     ]
   );
 

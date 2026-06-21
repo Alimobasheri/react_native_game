@@ -6,7 +6,7 @@ import {
 } from '@/Game/ecs-components/GameSession';
 import { gameSessionTuning } from '@/config/swimmerTuning';
 
-const { OVERLAY_FADE_MS, SPEED_RAMP_MS } = gameSessionTuning;
+const { OVERLAY_FADE_MS, OVERLAY_SLIDE_MS, SPEED_RAMP_MS } = gameSessionTuning;
 
 /** Single entry to transition from start_ready → playing. */
 export const beginGameplay = (
@@ -48,6 +48,7 @@ export const resetGameSessionToStartReady = (
       s.phase = 'start_ready';
       s.overlayOpacity = 1;
       s.overlayFadeStartMs = 0;
+      s.overlayIntroStartMs = Date.now();
       s.speedRampStartMs = 0;
       s.ctaPressStartMs = 0;
       s.animTimeSec = 0;
@@ -104,18 +105,39 @@ export const easeInOutSine = (t: number): number => {
   return -(Math.cos(Math.PI * t) - 1) / 2;
 };
 
+/** Hyper-casual overshoot — decelerates into place with a small bounce. */
+export const easeOutBack = (t: number, overshoot = 1.75): number => {
+  'worklet';
+  const c = Math.max(0, Math.min(1, t));
+  const c1 = overshoot + 1;
+  return 1 + c1 * Math.pow(c - 1, 3) + overshoot * Math.pow(c - 1, 2);
+};
+
+/** Accelerating exit — starts slow then rushes off screen. */
+export const easeInQuart = (t: number): number => {
+  'worklet';
+  const c = Math.max(0, Math.min(1, t));
+  return c * c * c * c;
+};
+
+export const computeOverlayDismissT = (
+  session: GameSessionComponentData,
+  nowMs: number
+): number => {
+  'worklet';
+  if (session.overlayFadeStartMs <= 0) return 0;
+  return Math.min(1, (nowMs - session.overlayFadeStartMs) / OVERLAY_SLIDE_MS);
+};
+
 export const computeOverlayOpacity = (
   session: GameSessionComponentData,
   nowMs: number
 ): number => {
   'worklet';
   if (session.phase === 'game_over') return 0;
-  if (session.phase === 'start_ready' && session.overlayFadeStartMs <= 0) {
-    return 1;
-  }
+  if (session.phase === 'start_ready') return 1;
   if (session.overlayFadeStartMs <= 0) return session.overlayOpacity;
-  const t = Math.min(1, (nowMs - session.overlayFadeStartMs) / OVERLAY_FADE_MS);
-  return Math.max(0, 1 - easeInOutSine(t));
+  return computeOverlayDismissT(session, nowMs) >= 1 ? 0 : 1;
 };
 
 export const computeTutorialOpacity = (
