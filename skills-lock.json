@@ -31,6 +31,12 @@
       "skillPath": "skills/mobile-game-dev/SKILL.md",
       "computedHash": "0d6692e93b62406b5a91fad10512451bfdd4677314fb085fcab3ac6528e57882"
     },
+    "pixel-art-sprites": {
+      "source": "omer-metin/skills-for-antigravity",
+      "sourceType": "github",
+      "skillPath": "skills/pixel-art-sprites/SKILL.md",
+      "computedHash": "6d7f3d45af2fa94e0fe9abe08575e859aa0f24297305ee8b89ac64a7534c9825"
+    },
     "react-native-skia": {
       "source": "tristanmanchester/agent-skills",
       "sourceType": "github",

@@ -18,6 +18,12 @@ import {
   ImageShadowData,
 } from '../components/render';
 import {
+  borderRadiusHasAny,
+  clampBorderRadii,
+  getRectangleBorderRadius,
+  normalizeBorderRadius,
+} from '../render/renderShapes';
+import {
   boundsFromShape,
   compareRenderQueue,
   computeDepthKey,
@@ -104,13 +110,77 @@ const drawImageRectWithShadow = (
   }
 };
 
+const addRoundedRectToPath = (
+  skPath: SkPath,
+  width: number,
+  height: number,
+  borderRadius: ReturnType<typeof normalizeBorderRadius>
+): void => {
+  'worklet';
+  const radii = clampBorderRadii(width, height, borderRadius);
+  const left = -width / 2;
+  const top = -height / 2;
+  const right = width / 2;
+  const bottom = height / 2;
+  const { tl, tr, br, bl } = radii;
+
+  skPath.moveTo(left + tl, top);
+  skPath.lineTo(right - tr, top);
+  if (tr > 0) {
+    skPath.arcToOval(
+      Skia.XYWHRect(right - 2 * tr, top, 2 * tr, 2 * tr),
+      270,
+      90,
+      false
+    );
+  }
+  skPath.lineTo(right, bottom - br);
+  if (br > 0) {
+    skPath.arcToOval(
+      Skia.XYWHRect(right - 2 * br, bottom - 2 * br, 2 * br, 2 * br),
+      0,
+      90,
+      false
+    );
+  }
+  skPath.lineTo(left + bl, bottom);
+  if (bl > 0) {
+    skPath.arcToOval(
+      Skia.XYWHRect(left, bottom - 2 * bl, 2 * bl, 2 * bl),
+      90,
+      90,
+      false
+    );
+  }
+  skPath.lineTo(left, top + tl);
+  if (tl > 0) {
+    skPath.arcToOval(
+      Skia.XYWHRect(left, top, 2 * tl, 2 * tl),
+      180,
+      90,
+      false
+    );
+  }
+  skPath.close();
+};
+
 const createPathFromShapeData = (shape: RenderShape): SkPath | null => {
   'worklet';
   const skPath = Skia.Path.Make();
   switch (shape.type) {
     case 'rectangle': {
       const { width, height } = shape;
-      skPath.addRect(Skia.XYWHRect(-width / 2, -height / 2, width, height));
+      const borderRadius = getRectangleBorderRadius(shape);
+      if (borderRadiusHasAny(borderRadius)) {
+        addRoundedRectToPath(
+          skPath,
+          width,
+          height,
+          normalizeBorderRadius(borderRadius)
+        );
+      } else {
+        skPath.addRect(Skia.XYWHRect(-width / 2, -height / 2, width, height));
+      }
       break;
     }
     case 'circle': {
@@ -301,6 +371,20 @@ const drawDrawableContent = (
   }
 };
 
+const drawLayerBacking = (canvas: SkCanvas, layer: RenderLayerData): void => {
+  'worklet';
+  const backing = layer.backing;
+  if (!backing) {
+    return;
+  }
+
+  drawDrawableContent(canvas, {
+    shape: backing.shape ?? layer.shape,
+    fillColor: backing.fillColor,
+    opacity: backing.opacity,
+  });
+};
+
 const layerHasSpriteAnimation = (layer: RenderLayerData): boolean => {
   'worklet';
   return !!layer.sprite;
@@ -342,6 +426,9 @@ const createAndCacheGroupPicture = (
     const layerAngle = layer.angle ?? 0;
     if (layerAngle !== 0) {
       canvas.rotate((layerAngle * 180) / Math.PI, 0, 0);
+    }
+    if (layer.backing) {
+      drawLayerBacking(canvas, layer);
     }
     drawDrawableContent(canvas, layer);
     canvas.restore();

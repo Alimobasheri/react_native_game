@@ -1,9 +1,18 @@
 import {
   RenderLayerData,
   ShapeTypes,
+  computeGridExteriorBorderRadius,
+  createRectLayerBacking,
+  gapSetFromColumns,
+  isSolidColumn,
+  withRenderLayerBacking,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
+import {
+  SWIMMER_BLOCK_CELL_BACKING_COLOR,
+  SWIMMER_BLOCK_CELL_BACKING_CORNER_RADIUS_RATIO,
+} from '@/assets/swimmerBlocks';
 
-export function buildObstacleRowRenderLayers(args: {
+export type ObstacleRowRenderLayerArgs = {
   gaps: readonly number[];
   rowLength: number;
   leftX: number;
@@ -12,16 +21,46 @@ export function buildObstacleRowRenderLayers(args: {
   rowCenterX: number;
   rowY: number;
   pickImage: (worldX: number, worldY: number) => string;
-}): RenderLayerData[] {
+  /** Gap columns of the row below (higher Y). */
+  rowBelowGaps?: readonly number[] | null;
+  /** Gap columns of the row above (lower Y). */
+  rowAboveGaps?: readonly number[] | null;
+  /** Backing fill; defaults to swimmer clay underside. */
+  cellBackingColor?: string;
+  /** Exterior corner radius as fraction of min(block width, height). */
+  backingCornerRadiusRatio?: number;
+};
+
+export function buildObstacleRowRenderLayers(
+  args: ObstacleRowRenderLayerArgs
+): RenderLayerData[] {
   'worklet';
-  const gapSet = new Set<number>();
-  for (let g = 0; g < args.gaps.length; g++) {
-    gapSet.add(args.gaps[g]);
-  }
+  const gapSet = gapSetFromColumns(args.gaps);
+  const belowGapSet = args.rowBelowGaps
+    ? gapSetFromColumns(args.rowBelowGaps)
+    : null;
+  const aboveGapSet = args.rowAboveGaps
+    ? gapSetFromColumns(args.rowAboveGaps)
+    : null;
 
   const visualWidth = args.blockWidth;
   const visualHeight = args.blockHeight;
+  const cellBackingColor =
+    args.cellBackingColor ?? SWIMMER_BLOCK_CELL_BACKING_COLOR;
+  const cornerRadiusRatio =
+    args.backingCornerRadiusRatio ?? SWIMMER_BLOCK_CELL_BACKING_CORNER_RADIUS_RATIO;
+  const exteriorRadius =
+    Math.min(visualWidth, visualHeight) * cornerRadiusRatio;
   const layers: RenderLayerData[] = [];
+
+  const isSolidInRow = (col: number) =>
+    isSolidColumn(gapSet, col, args.rowLength);
+  const isSolidInRowBelow = belowGapSet
+    ? (col: number) => isSolidColumn(belowGapSet, col, args.rowLength)
+    : undefined;
+  const isSolidInRowAbove = aboveGapSet
+    ? (col: number) => isSolidColumn(aboveGapSet, col, args.rowLength)
+    : undefined;
 
   for (let col = 0; col < args.rowLength; col++) {
     if (gapSet.has(col)) continue;
@@ -30,16 +69,35 @@ export function buildObstacleRowRenderLayers(args: {
       args.leftX + (col + 1) * args.blockWidth - args.blockWidth / 2;
     const localX = blockWorldX - args.rowCenterX;
 
-    layers.push({
-      position: { x: localX, y: 0 },
-      shape: {
-        type: ShapeTypes.Rectangle,
-        width: visualWidth,
-        height: visualHeight,
-      },
-      image: args.pickImage(blockWorldX, args.rowY),
-      visible: true,
+    const borderRadius = computeGridExteriorBorderRadius({
+      col,
+      columnCount: args.rowLength,
+      exteriorRadius,
+      isSolidInRow,
+      isSolidInRowBelow,
+      isSolidInRowAbove,
     });
+
+    layers.push(
+      withRenderLayerBacking(
+        {
+          position: { x: localX, y: 0 },
+          shape: {
+            type: ShapeTypes.Rectangle,
+            width: visualWidth,
+            height: visualHeight,
+          },
+          image: args.pickImage(blockWorldX, args.rowY),
+          visible: true,
+        },
+        createRectLayerBacking(
+          cellBackingColor,
+          visualWidth,
+          visualHeight,
+          { borderRadius }
+        )
+      )
+    );
   }
 
   return layers;

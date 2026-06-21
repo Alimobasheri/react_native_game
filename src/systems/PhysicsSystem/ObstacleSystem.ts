@@ -226,15 +226,33 @@ function spawnObstacleRowEntity(args: {
   const containerWidth = rowLength * obstacleDimension.width;
   const rowCenterX = leftX + containerWidth / 2;
 
-  const renderLayers = buildObstacleRowRenderLayers({
-    gaps,
+  const prevRowData = prevRowEntity
+    ? (ecs.components[ObstacleRowComponentName].get(prevRowEntity) as
+        | ObstacleRowComponentData
+        | undefined)
+    : undefined;
+  const prevBelowGaps =
+    prevRowData?.prevRowEntity != null
+      ? (ecs.components[ObstacleRowComponentName].get(
+          prevRowData.prevRowEntity
+        ) as ObstacleRowComponentData | undefined)?.gaps ?? null
+      : null;
+
+  const layerArgs = {
     rowLength,
     leftX,
     blockWidth: obstacleDimension.width,
     blockHeight: obstacleDimension.height,
     rowCenterX,
-    rowY: y,
     pickImage: pickSwimmerBlockImageStable,
+  };
+
+  const renderLayers = buildObstacleRowRenderLayers({
+    ...layerArgs,
+    gaps,
+    rowY: y,
+    rowBelowGaps: prevRowData?.gaps ?? null,
+    rowAboveGaps: null,
   });
 
   const rowEntity = ecs.createEntity();
@@ -280,6 +298,24 @@ function spawnObstacleRowEntity(args: {
 
   ecs.addComponent(rowEntity, obstacleRowComp);
   ecs.addComponent(rowEntity, renderComponent);
+
+  if (prevRowEntity && prevRowData) {
+    const refreshedPrevLayers = buildObstacleRowRenderLayers({
+      ...layerArgs,
+      gaps: prevRowData.gaps,
+      rowY: prevRowData.y,
+      rowBelowGaps: prevBelowGaps,
+      rowAboveGaps: gaps,
+    });
+    ecs.updateComponent<RenderComponentData>(
+      prevRowEntity,
+      RenderComponentName,
+      (render) => {
+        render.renderLayers = refreshedPrevLayers;
+        render.isDirty = true;
+      }
+    );
+  }
 
   ecs.updateComponent(
     sceneEntity,

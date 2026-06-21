@@ -15,6 +15,12 @@ export const SWIMMER_BLOCK_IMAGE_KEYS = [
   'block_var_3',
 ] as const;
 
+/** Opaque cell underlay — darkest clay ramp, blocks water through rounded sprite corners. */
+export const SWIMMER_BLOCK_CELL_BACKING_COLOR = '#9A4518';
+
+/** Exterior backing corner radius as fraction of min(cell width, height). */
+export const SWIMMER_BLOCK_CELL_BACKING_CORNER_RADIUS_RATIO = 0.14;
+
 /**
  * Spawn weight per variant (percent, sums to 100). Order matches `SWIMMER_BLOCK_IMAGE_KEYS`.
  * block_var_0: 58%, block_var_1: 6%, block_var_2: 12%, block_var_3: 24%

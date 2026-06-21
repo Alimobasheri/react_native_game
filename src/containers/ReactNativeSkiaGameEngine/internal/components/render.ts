@@ -7,6 +7,8 @@ import {
   RenderSortOrigin,
   RenderSortTieBreaker,
 } from '../render/renderSort';
+import type { RenderLayerBackingData } from '../render/renderLayerBacking';
+import type { RectangleBorderRadius } from '../render/renderShapes';
 
 export { RenderLayer } from '../render/renderLayers';
 export {
@@ -15,6 +17,21 @@ export {
   RenderSortTieBreaker,
   type RenderSortData,
 } from '../render/renderSort';
+export {
+  createRectLayerBacking,
+  withRenderLayerBacking,
+  computeGridExteriorBorderRadius,
+  gapSetFromColumns,
+  isSolidColumn,
+  type RenderLayerBackingData,
+} from '../render/renderLayerBacking';
+export {
+  borderRadiusHasAny,
+  clampBorderRadii,
+  normalizeBorderRadius,
+  type RectangleBorderRadius,
+  type NormalizedBorderRadii,
+} from '../render/renderShapes';
 
 export const RenderComponentName = 'render';
 
@@ -30,6 +47,8 @@ export type RenderShapeRectangle = {
   type: ShapeTypes.Rectangle;
   width: number;
   height: number;
+  /** Per-corner radius in pixels (local space). Omitted corners are square. */
+  borderRadius?: RectangleBorderRadius | number;
 };
 
 export type RenderShapeCircle = {
@@ -85,6 +104,12 @@ export type RenderLayerData = {
   sprite?: SpriteInfo;
   blendMode?: BlendMode;
   imageShadow?: ImageShadowData;
+  /**
+   * Opaque underlay drawn before this layer's image/fill/stroke.
+   * Blocks content behind the layer (e.g. water) from showing through
+   * transparent sprite corners without changing shaders.
+   */
+  backing?: RenderLayerBackingData;
 };
 
 // The new RenderComponentData using the discriminated union for shapes
