@@ -43,7 +43,7 @@ export type ResolveSwimmerInput = {
   rows: readonly CollisionRow[];
   container: ContainerLayout;
   blockSize: BlockSize;
-  /** Matches Matter hitbox inflation in ObstacleSystem (default 1.05). */
+  /** Block hitbox scale relative to grid cell (default 1.0). */
   hitboxScale?: number;
   minX: number;
   maxX: number;
@@ -62,7 +62,7 @@ export type ResolveSwimmerResult = {
   isColliding: boolean;
 };
 
-const DEFAULT_HITBOX_SCALE = 1.05;
+const DEFAULT_HITBOX_SCALE = 1.0;
 const SKIN_EPSILON = 0.5;
 
 export function aabbFromCenter(

@@ -5,10 +5,13 @@ import { ReactNativeTurboGameEngine } from './RNTGE';
 import { Preload } from './components-rntge/Scene/Preload';
 import { Asset } from './components-rntge/Scene/Asset';
 import { Scene } from './components-rntge/Scene/Scene';
-import { block } from '@/assets/images';
-import { block2 } from '@/assets/images';
-import { block3 } from '@/assets/images';
 import { caveBg } from '@/assets/images';
+import {
+  swimmerBlockVar0,
+  swimmerBlockVar1,
+  swimmerBlockVar2,
+  swimmerBlockVar3,
+} from '@/assets/swimmerBlocks';
 import { sourceCode as waterShaderSourceCode } from '@/Shaders/WaterShader/waterShader';
 import { CaveBackground } from '@/components/CaveBackground/CaveBackground-rntge';
 import { ContainerView } from '@/components/ContainerView/ContainerView-rntge';
@@ -148,9 +151,10 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
             <Content>
               <Scene name="game">
                 <Preload>
-                  <Asset type="image" name="block" uriOrBase64={block} />
-                  <Asset type="image" name="block2" uriOrBase64={block2} />
-                  <Asset type="image" name="block3" uriOrBase64={block3} />
+                  <Asset type="image" name="block_var_0" uriOrBase64={swimmerBlockVar0} />
+                  <Asset type="image" name="block_var_1" uriOrBase64={swimmerBlockVar1} />
+                  <Asset type="image" name="block_var_2" uriOrBase64={swimmerBlockVar2} />
+                  <Asset type="image" name="block_var_3" uriOrBase64={swimmerBlockVar3} />
                   <Asset type="image" name="cave_bg" uriOrBase64={caveBg} />
                   <Asset
                     type="shader"

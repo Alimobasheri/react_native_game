@@ -19,9 +19,12 @@ import { ObstacleRowComponentName } from '@/Game/ecs-components/ObstacleRowCompo
 import {
   LAYOUT_CONSTANTS,
   getObstacleWidth,
-  getRows,
   getWaterSurfaceRestY,
 } from '@/Layout';
+import {
+  getObstacleBlockDimensions,
+  getObstacleBlockHeight,
+} from '@/assets/swimmerBlocks';
 import {
   RenderComponentData,
   RenderComponentName,
@@ -210,9 +213,9 @@ export const SwimmerPhysicsSystem: System = {
     }
 
     const obstacleWidth = getObstacleWidth(containerData.width);
-    const rawRowsForLayout = getRows(containerData.height, obstacleWidth);
-    const rowsForLayout = rawRowsForLayout > 0 ? rawRowsForLayout : 1;
-    const rowHeight = containerData.height / rowsForLayout;
+    const blockDimensions = getObstacleBlockDimensions(containerData.width);
+    const blockHeight = getObstacleBlockHeight(containerData.width);
+    const rowHeight = blockHeight;
 
     const obstacleRowStore = components[ObstacleRowComponentName];
 
@@ -672,8 +675,8 @@ export const SwimmerPhysicsSystem: System = {
           width: containerData.width,
         },
         blockSize: {
-          width: obstacleWidth,
-          height: obstacleWidth,
+          width: blockDimensions.width,
+          height: blockDimensions.height,
         },
         minX,
         maxX,

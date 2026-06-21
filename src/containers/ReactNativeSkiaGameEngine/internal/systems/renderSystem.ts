@@ -17,6 +17,13 @@ import {
   RenderShapeRectangle,
   ImageShadowData,
 } from '../components/render';
+import {
+  boundsFromShape,
+  compareRenderQueue,
+  computeDepthKey,
+  resolveRenderLayer,
+  type RenderQueueEntry,
+} from '../render/renderSort';
 import { ComponentStore } from '../../services-ecs';
 import { MatterBodyComponentName } from '../components/matterBody';
 import { IBodyDefinition } from 'matter-js';
@@ -438,11 +445,7 @@ export const renderSystem: System = {
       const sceneData = activeScenes[s].data;
       const sceneEntityIds = sceneData.objects.entities;
 
-      const renderQueue: {
-        entity: Entity;
-        zIndex: number;
-        renderData: RenderComponentData;
-      }[] = [];
+      const renderQueue: RenderQueueEntry[] = [];
 
       for (let i = 0; i < sceneEntityIds.length; i++) {
         const entity = sceneEntityIds[i];
@@ -452,19 +455,32 @@ export const renderSystem: System = {
 
         if (!renderData || renderData.visible === false) continue;
 
-        const zIndex = renderData.zIndex ?? 0;
-        renderQueue.push({ entity, zIndex, renderData });
+        const body: IBodyDefinition | undefined =
+          components[MatterBodyComponentName]?.get(entity);
+        const position = body?.position ||
+          renderData.position || { x: 0, y: 0 };
+
+        const bounds = boundsFromShape(renderData.shape);
+        const transform = {
+          x: position.x,
+          y: position.y,
+          angle: body?.angle ?? renderData.angle,
+        };
+
+        renderQueue.push({
+          entity,
+          renderLayer: resolveRenderLayer(renderData),
+          depthKey: computeDepthKey(transform, bounds, renderData.sort),
+          worldX: position.x,
+          renderData,
+        });
       }
 
-      renderQueue.sort((a, b) => {
-        if (a.zIndex !== b.zIndex) {
-          return a.zIndex - b.zIndex;
-        }
-        return a.entity - b.entity;
-      });
+      renderQueue.sort(compareRenderQueue);
 
       for (let i = 0; i < renderQueue.length; i++) {
-        const { entity, renderData } = renderQueue[i];
+        const entity = renderQueue[i].entity;
+        const renderData = renderQueue[i].renderData as RenderComponentData;
 
         const body: IBodyDefinition | undefined =
           components[MatterBodyComponentName]?.get(entity);

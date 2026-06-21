@@ -7,7 +7,8 @@ import { createPanComponent } from '@/containers/ReactNativeSkiaGameEngine/inter
 import { createSwimmerComponent } from '@/Game/ecs-components/Swimmer';
 import { useAddSystem } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useAddSystem/useAddSystem';
 import { SwimmerPhysicsSystem } from '@/systems/PhysicsSystem/SwimmerPhysicsSystem';
-import { LAYOUT_CONSTANTS, getObstacleWidth, getRows } from '@/Layout';
+import { LAYOUT_CONSTANTS } from '@/Layout';
+import { getObstacleBlockHeight } from '@/assets/swimmerBlocks';
 import { swimmerPhysicsTuning } from '@/config/swimmerTuning';
 import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
 import { FC, useMemo } from 'react';
@@ -73,10 +74,8 @@ export const SwimmerView: FC<{
     const columnWidth = containerWidth / LAYOUT_CONSTANTS.COLUMNS;
     const width = columnWidth * swimmerPhysicsTuning.SWIMMER_WIDTH_COLUMN_RATIO;
 
-    const obstacleWidth = getObstacleWidth(containerWidth);
-    const rawRows = getRows(containerHeight, obstacleWidth);
-    const rows = rawRows > 0 ? rawRows : 1;
-    const rowHeight = containerHeight / rows;
+    const blockHeight = getObstacleBlockHeight(containerWidth);
+    const rowHeight = blockHeight;
 
     const height = Math.min(
       swimmerPhysicsTuning.SWIMMER_HEIGHT_TO_WIDTH_RATIO * width,

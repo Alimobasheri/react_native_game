@@ -79,14 +79,14 @@ describe('selectRowsNearSwimmer', () => {
 
 describe('solidAABBsFromRow', () => {
   it('skips gap columns', () => {
-    const solids = solidAABBsFromRow(rowAt(200, [4]), CONTAINER, BLOCK, 1.05);
+    const solids = solidAABBsFromRow(rowAt(200, [4]), CONTAINER, BLOCK, 1.0);
     expect(solids.length).toBe(8);
   });
 
   it('fast path with solidColumnCentersX matches gaps path bounds', () => {
     const gaps = [4];
     const y = 200;
-    const hitboxScale = 1.05;
+    const hitboxScale = 1.0;
     const gapRow = rowAt(y, gaps);
     const fromGaps = solidAABBsFromRow(gapRow, CONTAINER, BLOCK, hitboxScale);
 
@@ -177,7 +177,7 @@ describe('resolveSwimmerAgainstRows', () => {
   it('pins under a ceiling block and carries down with rowDeltaY', () => {
     // Block centered at y=250; swimmer below with top touching block bottom.
     const rows = [rowAt(250, [0, 1, 2, 3, 5, 6, 7, 8])]; // solid col 4
-    const blockBottom = 250 + (BLOCK.height * 1.05) / 2;
+    const blockBottom = 250 + (BLOCK.height * 1.0) / 2;
     const halfH = 23;
     const startY = blockBottom + halfH - 1;
 
@@ -234,7 +234,7 @@ describe('resolveSwimmerAgainstRows', () => {
     });
 
     const swimmerTop = result.y - halfH;
-    const blockBottom = 200 + (BLOCK.height * 1.05) / 2;
+    const blockBottom = 200 + (BLOCK.height * 1.0) / 2;
     expect(swimmerTop).toBeGreaterThanOrEqual(blockBottom - 1);
     expect(result.isColliding).toBe(true);
   });
@@ -268,7 +268,7 @@ describe('resolveSwimmerAgainstRows', () => {
 
   it('pinned swimmer can move horizontally under ceiling block', () => {
     const rows = [rowAt(250, [0, 1, 2, 3, 5, 6, 7, 8])];
-    const blockBottom = 250 + (BLOCK.height * 1.05) / 2;
+    const blockBottom = 250 + (BLOCK.height * 1.0) / 2;
     const halfH = 23;
     const startY = blockBottom + halfH - 1;
 

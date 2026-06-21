@@ -14,7 +14,13 @@ import { ObstacleView } from '@/components/ObstacleView/ObstacleView-rntge';
 import { ScoreView } from '@/components/ScoreView/ScoreView-rntge';
 import { Meta, StoryObj } from '@storybook/react';
 
-import { block2, block3, caveBg } from '@/assets/images';
+import { caveBg } from '@/assets/images';
+import {
+  swimmerBlockVar0,
+  swimmerBlockVar1,
+  swimmerBlockVar2,
+  swimmerBlockVar3,
+} from '@/assets/swimmerBlocks';
 import { sourceCode as waterShaderSourceCode } from '@/Shaders/WaterShader/waterShader';
 
 
@@ -75,8 +81,10 @@ export const ObstacleTemplateGameComp: FC<ObstacleTemplateStoryProps> = memo(
             <Content>
               <Scene name="game">
                 <Preload>
-                  <Asset type="image" name="block2" uriOrBase64={block2} />
-                  <Asset type="image" name="block3" uriOrBase64={block3} />
+                  <Asset type="image" name="block_var_0" uriOrBase64={swimmerBlockVar0} />
+                  <Asset type="image" name="block_var_1" uriOrBase64={swimmerBlockVar1} />
+                  <Asset type="image" name="block_var_2" uriOrBase64={swimmerBlockVar2} />
+                  <Asset type="image" name="block_var_3" uriOrBase64={swimmerBlockVar3} />
                   <Asset type="image" name="cave_bg" uriOrBase64={caveBg} />
                   <Asset
                     type="shader"

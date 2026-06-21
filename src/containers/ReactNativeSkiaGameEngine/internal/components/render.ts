@@ -1,5 +1,20 @@
 import { PositionComponentData } from './position';
 import { BlendMode } from '@shopify/react-native-skia';
+import { RenderLayer } from '../render/renderLayers';
+import {
+  RenderSortData,
+  RenderSortMode,
+  RenderSortOrigin,
+  RenderSortTieBreaker,
+} from '../render/renderSort';
+
+export { RenderLayer } from '../render/renderLayers';
+export {
+  RenderSortMode,
+  RenderSortOrigin,
+  RenderSortTieBreaker,
+  type RenderSortData,
+} from '../render/renderSort';
 
 export const RenderComponentName = 'render';
 
@@ -87,14 +102,24 @@ export interface RenderComponentData {
   sprite?: SpriteInfo; // Sprite animation data
   imageShadow?: ImageShadowData;
   /**
-   * Per-entity rendering order within a scene.
+   * Coarse render pass. Lower layers draw first.
+   * When set, takes precedence over `zIndex` for layer sorting.
+   */
+  renderLayer?: number;
+  /**
+   * Per-entity rendering order within a scene (legacy alias for `renderLayer`).
    * - Lower values are rendered first (further back).
    * - Higher values are rendered later (in front).
-   * - If omitted, zIndex defaults to 0.
+   * - If omitted, layer defaults to 0.
    *
    * Scenes themselves are still ordered by SceneComponentData.zIndex.
    */
   zIndex?: number;
+  /**
+   * Depth sort policy within a render layer. Computed each frame by renderSystem.
+   * Omit for Fixed/manual ordering (entity id tie-break only).
+   */
+  sort?: RenderSortData;
   isDirty?: boolean;
   shader?: ShaderInfo;
   blendMode?: BlendMode;
@@ -121,4 +146,34 @@ export const createRenderComponent = (
       isDirty: true, // Always start as dirty to force initial render
     },
   };
+};
+
+/** Preset: world-Y depth sort (higher Y draws in front). */
+export const createWorldYSortedRenderComponent = (
+  options: Omit<RenderComponentData, 'sort' | 'isDirty'> & {
+    origin?: RenderSortOrigin;
+    originOffset?: number;
+    renderLayer?: number;
+    tieBreaker?: RenderSortTieBreaker;
+  }
+) => {
+  'worklet';
+  const {
+    origin = RenderSortOrigin.Bottom,
+    originOffset,
+    renderLayer = RenderLayer.World,
+    tieBreaker,
+    ...rest
+  } = options;
+
+  return createRenderComponent({
+    ...rest,
+    renderLayer,
+    sort: {
+      mode: RenderSortMode.WorldY,
+      origin,
+      originOffset,
+      tieBreaker,
+    },
+  });
 };

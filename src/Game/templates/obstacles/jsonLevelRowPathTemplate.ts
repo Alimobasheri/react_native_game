@@ -4,6 +4,7 @@ import { ECS } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/ecs';
 import { RowPathTemplate, TemplateCtx } from '@/Game/ecs-systems/obstacleSystem';
 import { buildSpawnDiagSnapshot } from '@/Game/path/obstacleRowGenDiag';
 import type { MacroPhase } from '@/Game/path/macroPacing';
+import { getNextObstacleRowY } from '@/assets/swimmerBlocks';
 
 export type JsonLevelRow = {
   /** Blocked columns (stone blocks). */
@@ -92,7 +93,9 @@ export function createJsonLevelRowPathTemplate(args: {
       const columns = level?.columns ?? rowLength;
       const rowDef = level?.rows?.[rowIndex];
 
-      const y = !prevRow ? initialY : prevRow.y - obstacleDimension.height;
+      const y = !prevRow
+        ? initialY
+        : getNextObstacleRowY(prevRow.y, obstacleDimension.height);
 
       const blocks = normalizeUniqueInts(
         rowDef?.blocks ?? [],

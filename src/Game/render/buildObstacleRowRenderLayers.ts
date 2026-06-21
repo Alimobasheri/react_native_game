@@ -3,9 +3,6 @@ import {
   ShapeTypes,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 
-/** Matches visual inflation in legacy per-block spawn (ObstacleSystem). */
-const BLOCK_VISUAL_SCALE = 1.05;
-
 export function buildObstacleRowRenderLayers(args: {
   gaps: readonly number[];
   rowLength: number;
@@ -22,8 +19,8 @@ export function buildObstacleRowRenderLayers(args: {
     gapSet.add(args.gaps[g]);
   }
 
-  const visualWidth = args.blockWidth * BLOCK_VISUAL_SCALE;
-  const visualHeight = args.blockHeight * BLOCK_VISUAL_SCALE;
+  const visualWidth = args.blockWidth;
+  const visualHeight = args.blockHeight;
   const layers: RenderLayerData[] = [];
 
   for (let col = 0; col < args.rowLength; col++) {

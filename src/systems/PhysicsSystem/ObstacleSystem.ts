@@ -6,8 +6,10 @@ import {
 } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/query';
 import {
   ShapeTypes,
-  createRenderComponent,
+  RenderSortTieBreaker,
+  createWorldYSortedRenderComponent,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
+import { SwimmerRenderLayer } from '@/Game/render/swimmerRenderLayers';
 import { ObstacleRowComponentData, ObstacleRowComponentName, createObstacleRowComponent } from '@/Game/ecs-components/ObstacleRowComponent';
 import {
   ContainerComponentName,
@@ -23,6 +25,13 @@ import {
 } from '@/Game/ecs-components/Swimmer';
 import { getGameSession, isStartReady } from '@/Game/session/gameSessionQuery';
 import { buildObstacleRowRenderLayers } from '@/Game/render/buildObstacleRowRenderLayers';
+import {
+  getNextObstacleRowY,
+  getObstacleRowPitch,
+  pickSwimmerBlockImageStable,
+  obstacleBlockDimensionsFromColumnWidth,
+  type ObstacleBlockDimensions,
+} from '@/assets/swimmerBlocks';
 import {
   getColumnCenterX,
   getObstacleWidth,
@@ -121,8 +130,6 @@ import { kittyLevelJson } from '@/Game/templates/obstacles/kitty';
 import { deadpoolLevelJson } from '@/Game/templates/obstacles/deadpool';
 import { megamanLevelJson } from '@/Game/templates/obstacles/megaman';
 
-const OBSTACLE_BLOCK_IMAGES = ['block2', 'block3'] as const;
-
 function readStoryLockedProceduralSegment(
   components: Record<string, any>,
   managerEntity: Entity
@@ -178,15 +185,16 @@ function rowSpawnDiagFromParams(
   return buildSpawnDiagSnapshot(name, macro, ctx as Record<string, unknown>, params.rowIndex);
 }
 
-function pickBlockImageStable(x: number, y: number): string {
+function spawnObstacleRowY(
+  prevRow: ObstacleRowComponentData | null,
+  initialY: number,
+  blockHeight: number
+): number {
   'worklet';
-  const idx = intMod(
-    mixU32(Math.round(x * 1000), Math.round(y * 1000), 713),
-    OBSTACLE_BLOCK_IMAGES.length
-  );
-  return OBSTACLE_BLOCK_IMAGES[idx];
+  return !prevRow
+    ? initialY
+    : getNextObstacleRowY(prevRow.y, blockHeight);
 }
-
 
 function spawnObstacleRowEntity(args: {
   ecs: ECS;
@@ -226,7 +234,7 @@ function spawnObstacleRowEntity(args: {
     blockHeight: obstacleDimension.height,
     rowCenterX,
     rowY: y,
-    pickImage: pickBlockImageStable,
+    pickImage: pickSwimmerBlockImageStable,
   });
 
   const rowEntity = ecs.createEntity();
@@ -257,7 +265,7 @@ function spawnObstacleRowEntity(args: {
     ...spawnDiag,
   });
 
-  const renderComponent = createRenderComponent({
+  const renderComponent = createWorldYSortedRenderComponent({
     shape: {
       type: ShapeTypes.Rectangle,
       width: containerWidth,
@@ -266,7 +274,8 @@ function spawnObstacleRowEntity(args: {
     position: { x: rowCenterX, y },
     renderLayers,
     visible: true,
-    zIndex: 2,
+    renderLayer: SwimmerRenderLayer.Obstacles,
+    tieBreaker: RenderSortTieBreaker.WorldXAsc,
   });
 
   ecs.addComponent(rowEntity, obstacleRowComp);
@@ -382,7 +391,7 @@ function appendGapShiftRunwayRows(args: {
   templateCtx: TemplateCtx;
   leftX: number;
   rowLength: number;
-  columnWidth: number;
+  obstacleDimension: ObstacleBlockDimensions;
   /** Same basis as `proceduralStreamSalt` for this spawn — rows generated before the new band row. */
   runwayDupRowsBasisRows: number;
 }): Entity {
@@ -397,16 +406,13 @@ function appendGapShiftRunwayRows(args: {
     return args.newRowEntity;
   }
 
-  const obstacleDimension = {
-    width: args.columnWidth,
-    height: args.columnWidth,
-  };
+  const { obstacleDimension } = args;
   const gapsToRepeat = args.newRowData.gaps.slice();
   let lastEntity = args.newRowEntity;
   let lastY = args.newRowData.y;
 
   for (let d = 0; d < dupCount; d++) {
-    const y = lastY - obstacleDimension.height;
+    const y = getNextObstacleRowY(lastY, obstacleDimension.height);
     const rowEntity = spawnObstacleRowEntity({
       ecs: args.ecs,
       sceneEntity: args.sceneEntity,
@@ -505,7 +511,7 @@ const createObstacleRow: RowPathTemplate['getRow'] = (_ctx, params) => {
     }
   }
   gaps = finalizeGapsForObstacleRow(prevRow?.gaps, gaps, rowLength);
-  const y = !prevRow ? initialY : prevRow.y - obstacleDimension.height;
+  const y = spawnObstacleRowY(prevRow, initialY, obstacleDimension.height);
   return spawnObstacleRowEntity({
     ecs,
     sceneEntity,
@@ -786,7 +792,7 @@ const baseMultiPathGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
     );
   }
   gaps = finalizeGapsForObstacleRow(prevRow?.gaps, gaps, rowLength);
-  const y = !prevRow ? initialY : prevRow.y - obstacleDimension.height;
+  const y = spawnObstacleRowY(prevRow, initialY, obstacleDimension.height);
   return spawnObstacleRowEntity({
     ecs,
     sceneEntity,
@@ -830,7 +836,7 @@ const restGetRowCount: RowPathTemplate['getRowCount'] = (ctx) => {
 const restGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
   'worklet';
   const { ecs, prevRow, initialY, obstacleDimension, prevRowEntity, rowLength, sceneEntity, leftX } = params;
-  const y = !prevRow ? initialY : prevRow.y - obstacleDimension.height;
+  const y = spawnObstacleRowY(prevRow, initialY, obstacleDimension.height);
   const interior: number[] = [];
   for (let c = 1; c < rowLength - 1; c++) {
     interior.push(c);
@@ -1065,6 +1071,8 @@ export const ObstacleSystem: System = {
     const leftX = containerData.centerX -
       containerData.width / 2
     const columnWidth = getObstacleWidth(containerData.width);
+    const obstacleDimension = obstacleBlockDimensionsFromColumnWidth(columnWidth);
+    const blockHeight = obstacleDimension.height;
     const rowStore = components[ObstacleRowComponentName];
     if (!rowStore) {
       return;
@@ -1073,9 +1081,9 @@ export const ObstacleSystem: System = {
     const currentCenterRowEntity = waterData.centerRowEntity;
     // Lock slightly ahead of the visible surface so the water can start reacting
     // as a row enters the flow band, not after it is already centered.
-    const lockAheadY = waterSurfaceY - columnWidth * 0.42;
+    const lockAheadY = waterSurfaceY - blockHeight * 0.42;
     // Transition target is even higher to begin cross-row shaping before center alignment.
-    const transitionTargetY = lockAheadY - columnWidth * 0.42;
+    const transitionTargetY = lockAheadY - blockHeight * 0.42;
     let nearestRowEntity: number | undefined;
     let nearestRowDistance = Number.POSITIVE_INFINITY;
     let nearestOverlapRowEntity: number | undefined;
@@ -1106,11 +1114,11 @@ export const ObstacleSystem: System = {
           };
         }
       );
-      const rowTop = newY - columnWidth / 2;
-      const rowBottom = newY + columnWidth / 2;
+      const rowTop = newY - blockHeight / 2;
+      const rowBottom = newY + blockHeight / 2;
       const rowCenterDistance = Math.abs(newY - transitionTargetY);
       const overlapsTransitionBand =
-        transitionTargetY >= rowTop && transitionTargetY <= rowBottom + columnWidth * 0.42;
+        transitionTargetY >= rowTop && transitionTargetY <= rowBottom + blockHeight * 0.42;
       if (overlapsTransitionBand && rowCenterDistance < nearestOverlapDistance) {
         nearestOverlapDistance = rowCenterDistance;
         nearestOverlapRowEntity = obstacleRowEntity;
@@ -1175,8 +1183,8 @@ export const ObstacleSystem: System = {
       typeof currentCenterRowEntity === 'number' &&
       Number.isFinite(currentRowDistance)
     ) {
-      const holdDistance = columnWidth * 0.62;
-      const switchAdvantage = columnWidth * 0.18;
+      const holdDistance = blockHeight * 0.62;
+      const switchAdvantage = blockHeight * 0.18;
       const candidateDistance =
         typeof candidateCenterRowEntity === 'number'
           ? (candidateCenterRowEntity === nearestOverlapRowEntity
@@ -1217,10 +1225,7 @@ export const ObstacleSystem: System = {
         sceneEntity,
         rowLength: LAYOUT_CONSTANTS.COLUMNS,
         leftX,
-        obstacleDimension: {
-          width: columnWidth,
-          height: columnWidth,
-        },
+        obstacleDimension,
         initialY: maxY,
       };
 
@@ -1243,7 +1248,7 @@ export const ObstacleSystem: System = {
       let activeCtxEntity = selected.ctxEntity;
       let activeRowIndex = 0; // next row index within current template
 
-      const rowsInDisplay = Math.ceil((maxY - columnWidth) / columnWidth) + 1
+      const rowsInDisplay = Math.ceil((maxY - blockHeight) / blockHeight) + 1
 
       for (let i = 0; i < rowsInDisplay; i++) {
         const prevRow = lastRowEntity ? ecs.components[ObstacleRowComponentName].get(lastRowEntity) as ObstacleRowComponentData : null
@@ -1283,10 +1288,7 @@ export const ObstacleSystem: System = {
           initialY: maxY,
           rowLength: LAYOUT_CONSTANTS.COLUMNS,
           leftX,
-          obstacleDimension: {
-            width: columnWidth,
-            height: columnWidth,
-          },
+          obstacleDimension,
           pacingMacroPhase: macroForRow,
           spawnDiagTemplateName: activeTemplateName,
           proceduralStreamSalt,
@@ -1311,7 +1313,7 @@ export const ObstacleSystem: System = {
           templateCtx: activeCtx,
           leftX,
           rowLength: LAYOUT_CONSTANTS.COLUMNS,
-          columnWidth,
+          obstacleDimension,
           runwayDupRowsBasisRows: proceduralStreamSalt,
         });
         bumpTotalRowsGenerated(ecs, managerEntity);
@@ -1343,11 +1345,8 @@ export const ObstacleSystem: System = {
       );
     } else if (!isInInitialPhase && !isStartReadyPhase) {
       // Post-initial phase: Time-based spawning based on obstacle movement distance
-      const obstacleWidth = getObstacleWidth(containerData.width);
-      const rowHeight = obstacleWidth; // Assuming square obstacles, row height equals obstacle width
-
-      // Calculate how far obstacles should move in one "row interval"
-      const distancePerRow = rowHeight;
+      const rowHeight = blockHeight;
+      const distancePerRow = getObstacleRowPitch(rowHeight);
       const timePerRow = distancePerRow / waterData.raisingSpeed; // Time to move one row at current speed
 
       ecs.updateComponent<ObstaclesManagerComponentData>(
@@ -1365,7 +1364,7 @@ export const ObstacleSystem: System = {
       let lastRowEnt = updatedManager?.templateInfo?.lastRowEntity
       const lastRowData = lastRowEnt ? components[ObstacleRowComponentName].get(lastRowEnt) as ObstacleRowComponentData : null
 
-      if (lastRowData && lastRowData.y > (- columnWidth) && updatedManager?.templateInfo) {
+      if (lastRowData && lastRowData.y > (- blockHeight) && updatedManager?.templateInfo) {
         ecs.updateComponent<ObstaclesManagerComponentData>(
           managerEntity,
           ObstaclesManagerComponentName,
@@ -1402,10 +1401,7 @@ export const ObstacleSystem: System = {
             sceneEntity,
             rowLength: LAYOUT_CONSTANTS.COLUMNS,
             leftX,
-            obstacleDimension: {
-              width: columnWidth,
-              height: columnWidth,
-            },
+            obstacleDimension,
             initialY: maxY,
           };
 
@@ -1432,10 +1428,7 @@ export const ObstacleSystem: System = {
             initialY: maxY,
             rowLength: LAYOUT_CONSTANTS.COLUMNS,
             leftX,
-            obstacleDimension: {
-              width: columnWidth,
-              height: columnWidth,
-            },
+            obstacleDimension,
             pacingMacroPhase: macroForRow,
             spawnDiagTemplateName: newTemplateName,
             proceduralStreamSalt,
@@ -1460,7 +1453,7 @@ export const ObstacleSystem: System = {
             templateCtx: selected.ctx,
             leftX,
             rowLength: LAYOUT_CONSTANTS.COLUMNS,
-            columnWidth,
+            obstacleDimension,
             runwayDupRowsBasisRows: proceduralStreamSalt,
           });
           bumpTotalRowsGenerated(ecs, managerEntity);
@@ -1499,10 +1492,7 @@ export const ObstacleSystem: System = {
             initialY: maxY,
             rowLength: LAYOUT_CONSTANTS.COLUMNS,
             leftX,
-            obstacleDimension: {
-              width: columnWidth,
-              height: columnWidth,
-            },
+            obstacleDimension,
             pacingMacroPhase: macroForRow,
             spawnDiagTemplateName: templateInfo.currentTemplateName,
             proceduralStreamSalt,
@@ -1527,7 +1517,7 @@ export const ObstacleSystem: System = {
             templateCtx: ctx,
             leftX,
             rowLength: LAYOUT_CONSTANTS.COLUMNS,
-            columnWidth,
+            obstacleDimension,
             runwayDupRowsBasisRows: proceduralStreamSalt,
           });
 

@@ -59,10 +59,10 @@ export const getObstacleWidth = (containerWidth: number): number => {
   return containerWidth / LAYOUT_CONSTANTS.COLUMNS;
 }
 
-// Get number of rows based on container height and obstacle width
-export const getRows = (containerHeight: number, obstacleWidth: number): number => {
+// Get number of visible rows from container height and block row height (not column width).
+export const getRows = (containerHeight: number, blockHeight: number): number => {
   'worklet';
-  return Math.floor(containerHeight / obstacleWidth);
+  return Math.floor(containerHeight / blockHeight);
 }
 
 // Get center X of a column (for swimmer or any grid-aligned entity)
@@ -83,18 +83,19 @@ export const getGridPosition = (
   containerCenterX: number,
   containerCenterY: number,
   containerWidth: number,
-  containerHeight: number
+  containerHeight: number,
+  blockHeight?: number
 ): { x: number; y: number } => {
   'worklet';
   const obstacleWidth = getObstacleWidth(containerWidth);
-  const rows = getRows(containerHeight, obstacleWidth);
+  const rowHeight = blockHeight ?? obstacleWidth;
+  const rows = getRows(containerHeight, rowHeight);
 
   // Calculate x position (centered in column)
   const columnWidth = containerWidth / LAYOUT_CONSTANTS.COLUMNS;
   const x = containerCenterX - containerWidth / 2 + columnWidth * column + columnWidth / 2;
 
   // Calculate y position (centered in row)
-  const rowHeight = containerHeight / rows;
   const y = containerCenterY - containerHeight / 2 + rowHeight * row + rowHeight / 2;
 
   return { x, y };
