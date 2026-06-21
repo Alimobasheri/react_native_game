@@ -1,6 +1,7 @@
 import { useAddEntity, useAddSystem } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs';
 import { createGameSessionComponent } from '@/Game/ecs-components/GameSession';
 import { loadBestScore } from '@/Game/persistence/bestScoreStorage';
+import { gameSessionTuning } from '@/config/swimmerTuning';
 import { StartScreenSystem } from '@/systems/StartScreenSystem';
 import type { SafeAreaInsets } from '@/Game/ui/refLayout';
 import { FC, ReactNode, useEffect, useMemo, useState } from 'react';
@@ -22,7 +23,8 @@ const GameSessionEntity: FC<
   bestScore,
   children,
 }) => {
-  const visualRaisingSpeed = gameplayRaisingSpeed * 0.2;
+  const visualRaisingSpeed =
+    gameplayRaisingSpeed * gameSessionTuning.VISUAL_RAISING_SPEED_RATIO;
 
   const components = useMemo(
     () => [

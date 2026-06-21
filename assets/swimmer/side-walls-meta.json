@@ -1,0 +1,49 @@
+{
+  "source": "side-walls.webp",
+  "left_crop": [
+    58,
+    0,
+    244,
+    1672
+  ],
+  "right_crop": [
+    696,
+    0,
+    883,
+    1672
+  ],
+  "bg_rgb": [
+    11,
+    249,
+    5
+  ],
+  "tolerance": 30,
+  "walls": [
+    {
+      "name": "side_wall_left",
+      "output": "walls/side_wall_left.webp",
+      "width": 178,
+      "height": 1592,
+      "aspect": 0.11180904522613065,
+      "source_crop": [
+        58,
+        0,
+        244,
+        1672
+      ]
+    },
+    {
+      "name": "side_wall_right",
+      "output": "walls/side_wall_right.webp",
+      "width": 183,
+      "height": 1594,
+      "aspect": 0.11480552070263488,
+      "source_crop": [
+        696,
+        0,
+        883,
+        1672
+      ]
+    }
+  ]
+}

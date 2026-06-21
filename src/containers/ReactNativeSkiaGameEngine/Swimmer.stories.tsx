@@ -5,15 +5,21 @@ import { ReactNativeTurboGameEngine } from './RNTGE';
 import { Preload } from './components-rntge/Scene/Preload';
 import { Asset } from './components-rntge/Scene/Asset';
 import { Scene } from './components-rntge/Scene/Scene';
-import { caveBg } from '@/assets/images';
+import { swimmerCaveBg } from '@/assets/swimmerCaveBg';
 import {
   swimmerBlockVar0,
   swimmerBlockVar1,
   swimmerBlockVar2,
   swimmerBlockVar3,
 } from '@/assets/swimmerBlocks';
+import {
+  swimmerSideWallLeft,
+  swimmerSideWallRight,
+} from '@/assets/swimmerSideWalls';
 import { sourceCode as waterShaderSourceCode } from '@/Shaders/WaterShader/waterShader';
 import { CaveBackground } from '@/components/CaveBackground/CaveBackground-rntge';
+import { SideWalls } from '@/components/SideWalls/SideWalls-rntge';
+import { sideWallTuning } from '@/config/swimmerTuning';
 import { ContainerView } from '@/components/ContainerView/ContainerView-rntge';
 import { WaterView } from '@/components/WaterView/WaterView-rntge';
 import { SwimmerView } from '@/components/SwimmerView/SwimmerView-rntge';
@@ -31,12 +37,16 @@ import { GameOverScoreComponentName } from '@/Game/ecs-components/GameOverScore'
 import { ScoreView } from '@/components/ScoreView/ScoreView-rntge';
 import { ObstacleRowComponentName } from '@/Game/ecs-components/ObstacleRowComponent';
 import { CaveBackgroundSegmentComponentName } from '@/Game/ecs-components/CaveBackgroundSegment';
+import { SideWallSegmentComponentName } from '@/Game/ecs-components/SideWallSegment';
 import { TemplateContextComponentName } from '@/Game/ecs-components/TemplateContextComponent';
 import { GameSessionComponentName } from '@/Game/ecs-components/GameSession';
 import { StartOverlayTagComponentName } from '@/Game/ecs-components/StartOverlayTag';
 import { GameOverScene } from '../Scenes/GameOverScene/index-rntge';
 import { StartScene } from '../Scenes/StartScene/index-rntge';
-import { WATER_SURFACE_FROM_CONTAINER_BOTTOM_FRACTION, getWaterSurfaceRestY } from '@/Layout';
+import {
+  WATER_SURFACE_FROM_CONTAINER_BOTTOM_FRACTION,
+  getWaterSurfaceRestY,
+} from '@/Layout';
 import type { StoryLockedProceduralSegment } from '@/Game/ecs-systems/obstacleSystem';
 
 /** Same geometry as `getWaterSurfaceRestY` but uses story arg `fraction` for experiments. */
@@ -68,6 +78,10 @@ export type SwimmerStoryArgs = {
    * 1 = full shader opacity; try ~0.45–0.65.
    */
   waterShaderOpacity: number;
+  /**
+   * How far (px) each side wall overlaps inward over the play channel (blocks, water).
+   */
+  sideWallContainerOverlapPx: number;
   /**
    * When set with `directed` or `baseMulti`, repeats one deterministic procedural branch
    * (funnel, pinball, …) instead of cycling macro pacing shapes.
@@ -133,6 +147,7 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
               ObstaclesManagerComponentName,
               TemplateContextComponentName,
               CaveBackgroundSegmentComponentName,
+              SideWallSegmentComponentName,
               ScoreComponentName,
               RunResultComponentName,
               GameOverScoreComponentName,
@@ -151,11 +166,41 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
             <Content>
               <Scene name="game">
                 <Preload>
-                  <Asset type="image" name="block_var_0" uriOrBase64={swimmerBlockVar0} />
-                  <Asset type="image" name="block_var_1" uriOrBase64={swimmerBlockVar1} />
-                  <Asset type="image" name="block_var_2" uriOrBase64={swimmerBlockVar2} />
-                  <Asset type="image" name="block_var_3" uriOrBase64={swimmerBlockVar3} />
-                  <Asset type="image" name="cave_bg" uriOrBase64={caveBg} />
+                  <Asset
+                    type="image"
+                    name="block_var_0"
+                    uriOrBase64={swimmerBlockVar0}
+                  />
+                  <Asset
+                    type="image"
+                    name="block_var_1"
+                    uriOrBase64={swimmerBlockVar1}
+                  />
+                  <Asset
+                    type="image"
+                    name="block_var_2"
+                    uriOrBase64={swimmerBlockVar2}
+                  />
+                  <Asset
+                    type="image"
+                    name="block_var_3"
+                    uriOrBase64={swimmerBlockVar3}
+                  />
+                  <Asset
+                    type="image"
+                    name="cave_bg"
+                    uriOrBase64={swimmerCaveBg}
+                  />
+                  <Asset
+                    type="image"
+                    name="side_wall_left"
+                    uriOrBase64={swimmerSideWallLeft}
+                  />
+                  <Asset
+                    type="image"
+                    name="side_wall_right"
+                    uriOrBase64={swimmerSideWallRight}
+                  />
                   <Asset
                     type="shader"
                     name="water"
@@ -165,6 +210,8 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                 <Content>
                   {/* Cave background - full screen image */}
                   <CaveBackground />
+                  {/* Side rock walls — parallax faster than blocks */}
+                  <SideWalls containerOverlapPx={args.sideWallContainerOverlapPx} />
                   {/* Container - rectangular with boundaries */}
                   <ContainerView
                     x={containerCenterX}
@@ -245,6 +292,7 @@ const meta = {
     waterRiseSpeed: 50,
     raisingSpeed: 200,
     waterShaderOpacity: 0.52,
+    sideWallContainerOverlapPx: sideWallTuning.CONTAINER_OVERLAP_PX,
     lockedTemplateName: '',
     storyLockedProceduralSegment: '',
   },
@@ -258,6 +306,11 @@ const meta = {
       control: { type: 'range', min: 0.15, max: 1, step: 0.01 },
       description:
         'Lower = more transparent water (swimmer easier to see). Multiplies shader/paint alpha.',
+    },
+    sideWallContainerOverlapPx: {
+      control: { type: 'range', min: 0, max: 48, step: 1 },
+      description:
+        'Pixels each side wall extends inward over blocks/water. Outer edge stays on screen bezel.',
     },
     lockedTemplateName: {
       control: 'select',

@@ -6,7 +6,7 @@ import {
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import { createTapComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/touch';
 import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
-import { beginGameplay } from '@/Game/session/beginGameplay';
+import { beginGameplay, dismissTutorial } from '@/Game/session/beginGameplay';
 import {
   getGameSession,
   getGameSessionEntity,
@@ -18,6 +18,7 @@ import { tapInputTuning } from '@/config/swimmerTuning';
  * When the player taps the left half of the screen, the swimmer steers left.
  * When the player taps the right half, the swimmer steers right.
  * First tap while the start overlay is visible also begins gameplay.
+ * The tap-left/right tutorial appears once play starts and fades after the first steer tap.
  */
 export const TapSwimmer: FC<{
   screenWidth: number;
@@ -107,6 +108,15 @@ export const TapSwimmer: FC<{
               }
             );
           });
+
+          const sessionAfterSteer = getGameSession(ecs.components);
+          if (
+            sessionAfterSteer?.phase === 'playing' &&
+            sessionAfterSteer.tutorialFadeStartMs <= 0 &&
+            typeof sessionEntity === 'number'
+          ) {
+            dismissTutorial(ecs, sessionEntity);
+          }
         },
       }),
     ],

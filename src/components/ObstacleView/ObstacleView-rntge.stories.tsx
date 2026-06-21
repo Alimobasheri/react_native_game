@@ -14,7 +14,7 @@ import { ObstacleView } from '@/components/ObstacleView/ObstacleView-rntge';
 import { ScoreView } from '@/components/ScoreView/ScoreView-rntge';
 import { Meta, StoryObj } from '@storybook/react';
 
-import { caveBg } from '@/assets/images';
+import { swimmerCaveBg } from '@/assets/swimmerCaveBg';
 import {
   swimmerBlockVar0,
   swimmerBlockVar1,
@@ -85,7 +85,7 @@ export const ObstacleTemplateGameComp: FC<ObstacleTemplateStoryProps> = memo(
                   <Asset type="image" name="block_var_1" uriOrBase64={swimmerBlockVar1} />
                   <Asset type="image" name="block_var_2" uriOrBase64={swimmerBlockVar2} />
                   <Asset type="image" name="block_var_3" uriOrBase64={swimmerBlockVar3} />
-                  <Asset type="image" name="cave_bg" uriOrBase64={caveBg} />
+                  <Asset type="image" name="cave_bg" uriOrBase64={swimmerCaveBg} />
                   <Asset
                     type="shader"
                     name="water"

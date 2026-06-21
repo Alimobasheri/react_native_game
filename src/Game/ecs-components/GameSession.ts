@@ -21,6 +21,8 @@ export type GameSessionComponentData = {
   speedRampStartMs: number;
   /** CTA press squash animation start; 0 = idle. */
   ctaPressStartMs: number;
+  /** Epoch ms when tutorial fade began; 0 = tutorial still visible during play. */
+  tutorialFadeStartMs: number;
 };
 
 export const createGameSessionComponent = (
@@ -44,6 +46,7 @@ export const createGameSessionComponent = (
       overlayFadeStartMs: data.overlayFadeStartMs ?? 0,
       speedRampStartMs: data.speedRampStartMs ?? 0,
       ctaPressStartMs: data.ctaPressStartMs ?? 0,
+      tutorialFadeStartMs: data.tutorialFadeStartMs ?? 0,
     },
   };
 };

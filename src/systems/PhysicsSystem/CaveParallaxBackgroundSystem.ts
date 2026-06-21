@@ -1,7 +1,5 @@
 import { System } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/system';
-import {
-  firstDataFromStore,
-} from '@/containers/ReactNativeSkiaGameEngine/services-ecs/query';
+import { firstDataFromStore } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/query';
 import { Entity } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/entity';
 import {
   RenderComponentData,
@@ -28,17 +26,24 @@ import {
   RemoveEntityRequestType,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/events/entity';
 import { getGameSession, isStartReady } from '@/Game/session/gameSessionQuery';
+import { SwimmerRenderLayer } from '@/Game/render/swimmerRenderLayers';
+import {
+  SWIMMER_CAVE_BG_PARALLAX_FACTOR,
+} from '@/assets/swimmerCaveBg';
 
-/**
- * CaveParallaxBackgroundSystem
- *
- * Manages a vertically repeating cave background that:
- * - Moves downward more slowly than the water/obstacles to create parallax
- * - Tiles seamlessly by attaching new segments to the top as older ones move off-screen
- * - Removes background segments that move well below the screen
- */
-const PARALLAX_SPEED_FACTOR = 1; // Background moves at 35% of water speed
-const REMOVAL_BUFFER = 100; // Extra pixels below screen before removing a segment
+const REMOVAL_BUFFER = 100;
+
+const resolveCaveSegmentLayout = (
+  screenWidth: number,
+  screenHeight: number
+) => {
+  'worklet';
+  // Full-screen tiles — edge-to-edge width (including under side-wall gutters).
+  return {
+    segmentWidth: screenWidth,
+    segmentHeight: screenHeight,
+  };
+};
 
 const segmentCenterY = (
   components: Record<string, { get: (entity: Entity) => unknown }>,
@@ -52,29 +57,52 @@ const segmentCenterY = (
   return renderData?.position?.y ?? fallbackY;
 };
 
+const segmentHalfHeight = (
+  components: Record<string, { get: (entity: Entity) => unknown }>,
+  entityId: Entity,
+  fallback: number
+): number => {
+  'worklet';
+  const renderData = components[RenderComponentName]?.get(entityId) as
+    | RenderComponentData
+    | undefined;
+  const h =
+    renderData?.shape?.type === ShapeTypes.Rectangle
+      ? renderData.shape.height
+      : undefined;
+  return (h ?? fallback) / 2;
+};
+
 const createCaveSegmentComponents = (
   centerX: number,
   centerY: number,
-  screenWidth: number,
-  screenHeight: number
+  segmentWidth: number,
+  segmentHeight: number
 ) => {
   'worklet';
   return [
     createRenderComponent({
       shape: {
         type: ShapeTypes.Rectangle,
-        width: screenWidth,
-        height: screenHeight,
+        width: segmentWidth,
+        height: segmentHeight,
       },
       position: { x: centerX, y: centerY },
       image: 'cave_bg',
       visible: true,
-      zIndex: 0,
+      renderLayer: SwimmerRenderLayer.Cave,
     }),
     createCaveBackgroundSegmentComponent(),
   ];
 };
 
+/**
+ * CaveParallaxBackgroundSystem
+ *
+ * Vertically repeating far cave background (`cave-bg.webp`):
+ * - Slow parallax vs gameplay (see SWIMMER_CAVE_BG_PARALLAX_FACTOR)
+ * - Aspect-correct tiles, looped like side walls
+ */
 export const CaveParallaxBackgroundSystem: System = {
   name: 'caveBackground',
   requiredComponents: [CaveBackgroundSegmentComponentName],
@@ -94,6 +122,11 @@ export const CaveParallaxBackgroundSystem: System = {
       return;
     }
 
+    const { segmentWidth, segmentHeight } = resolveCaveSegmentLayout(
+      screenWidth,
+      screenHeight
+    );
+
     const firstSwimmer = firstDataFromStore(components[SwimmerComponentName]) as
       | SwimmerComponentData
       | undefined;
@@ -102,13 +135,12 @@ export const CaveParallaxBackgroundSystem: System = {
     const frozenForStart = isStartReady(session);
 
     const deltaSeconds = deltaTime / 1000;
-
     const caveBackgroundEntities = entities;
 
     if (caveBackgroundEntities.length === 0) {
       const centerX = screenWidth / 2;
       const baseCenterY = screenHeight / 2;
-      const segmentCenters = [baseCenterY, baseCenterY - screenHeight];
+      const segmentCenters = [baseCenterY, baseCenterY - segmentHeight];
 
       for (let i = 0; i < segmentCenters.length; i++) {
         const createRequest: CreateEntityRequest = {
@@ -117,8 +149,8 @@ export const CaveParallaxBackgroundSystem: System = {
             components: createCaveSegmentComponents(
               centerX,
               segmentCenters[i],
-              screenWidth,
-              screenHeight
+              segmentWidth,
+              segmentHeight
             ),
             sceneKey: 'game',
           },
@@ -130,7 +162,8 @@ export const CaveParallaxBackgroundSystem: System = {
     }
 
     if (!isInInitialPhase && !frozenForStart) {
-      const parallaxSpeed = waterData.raisingSpeed * PARALLAX_SPEED_FACTOR;
+      const parallaxSpeed =
+        waterData.raisingSpeed * SWIMMER_CAVE_BG_PARALLAX_FACTOR;
 
       for (let i = 0; i < caveBackgroundEntities.length; i++) {
         const entityId = caveBackgroundEntities[i];
@@ -155,6 +188,7 @@ export const CaveParallaxBackgroundSystem: System = {
             } else {
               render.position.y = newY;
             }
+            render.isDirty = true;
           }
         );
       }
@@ -166,21 +200,20 @@ export const CaveParallaxBackgroundSystem: System = {
       return;
     }
 
-    const segments: { entityId: Entity; y: number }[] = [];
+    const segments: { entityId: Entity; y: number; halfH: number }[] = [];
     for (let i = 0; i < liveSegments.length; i++) {
       const entityId = liveSegments[i];
       segments.push({
         entityId,
         y: segmentCenterY(components, entityId, screenHeight / 2),
+        halfH: segmentHalfHeight(components, entityId, segmentHeight),
       });
     }
     segments.sort((a, b) => a.y - b.y);
 
-    const halfHeight = screenHeight / 2;
-
     for (let i = 0; i < segments.length; i++) {
-      const { entityId, y } = segments[i];
-      const top = y - halfHeight;
+      const { entityId, y, halfH } = segments[i];
+      const top = y - halfH;
       if (top > screenHeight + REMOVAL_BUFFER) {
         const removeRequest: RemoveEntityRequest = {
           type: RemoveEntityRequestType,
@@ -192,13 +225,14 @@ export const CaveParallaxBackgroundSystem: System = {
       }
     }
 
-    const remainingSegments: { entityId: Entity; y: number }[] = [];
+    const remainingSegments: { entityId: Entity; y: number; halfH: number }[] = [];
     for (let i = 0; i < liveSegments.length; i++) {
       const entityId = liveSegments[i];
       const y = segmentCenterY(components, entityId, screenHeight / 2);
-      const top = y - halfHeight;
+      const halfH = segmentHalfHeight(components, entityId, segmentHeight);
+      const top = y - halfH;
       if (top <= screenHeight + REMOVAL_BUFFER) {
-        remainingSegments.push({ entityId, y });
+        remainingSegments.push({ entityId, y, halfH });
       }
     }
     remainingSegments.sort((a, b) => a.y - b.y);
@@ -208,11 +242,11 @@ export const CaveParallaxBackgroundSystem: System = {
     }
 
     const topMost = remainingSegments[0];
-    const topMostTop = topMost.y - halfHeight;
+    const topMostTop = topMost.y - topMost.halfH;
 
     if (topMostTop > 0) {
       const centerX = screenWidth / 2;
-      const newCenterY = topMost.y - screenHeight;
+      const newCenterY = topMost.y - segmentHeight;
 
       const createRequest: CreateEntityRequest = {
         type: CreateEntityRequestType,
@@ -220,8 +254,8 @@ export const CaveParallaxBackgroundSystem: System = {
           components: createCaveSegmentComponents(
             centerX,
             newCenterY,
-            screenWidth,
-            screenHeight
+            segmentWidth,
+            segmentHeight
           ),
           sceneKey: 'game',
         },

@@ -27,7 +27,10 @@ import { ScoreComponentName } from '@/Game/ecs-components/Score';
 import {
   computeOverlayOpacity,
   computeRaisingSpeedForSession,
+  computeSpeedRampMultiplier,
+  computeTutorialOpacity,
   easeInOutSine,
+  isSessionSpeedRampActive,
 } from '@/Game/session/beginGameplay';
 import { getGameSessionEntity } from '@/Game/session/gameSessionQuery';
 
@@ -105,16 +108,20 @@ export const StartScreenSystem: System = {
     const screenH = dimensions.value.height || 1;
 
     let animTimeSec = session.animTimeSec + deltaSeconds;
-    if (session.phase !== 'start_ready' || session.overlayOpacity > 0.05) {
-      // keep anim clock running during fade-out
-    } else {
+
+    const overlayOpacity = computeOverlayOpacity(session, nowMs);
+    const tutorialOpacity = computeTutorialOpacity(session, nowMs);
+
+    if (overlayOpacity <= 0.05 && tutorialOpacity <= 0.05) {
       animTimeSec = session.animTimeSec;
     }
 
-    const overlayOpacity = computeOverlayOpacity(session, nowMs);
     const raisingSpeed = computeRaisingSpeedForSession(session, nowMs);
+    const sessionDrivesWaterSpeed =
+      session.phase === 'start_ready' ||
+      isSessionSpeedRampActive(session, nowMs);
     const tapBeat =
-      session.phase === 'start_ready'
+      tutorialOpacity > 0.01
         ? getTapCursorBeat(animTimeSec)
         : { show: false, onRight: true, frameIndex: 0 };
 
@@ -130,13 +137,36 @@ export const StartScreenSystem: System = {
     const waterEntity = ecs
       .getEntitiesWithComponents([WaterComponentName])[0];
     if (typeof waterEntity === 'number') {
-      ecs.updateComponent<WaterComponentData>(
-        waterEntity,
-        WaterComponentName,
-        (w) => {
-          w.raisingSpeed = raisingSpeed;
-        }
-      );
+      if (sessionDrivesWaterSpeed) {
+        ecs.updateComponent<WaterComponentData>(
+          waterEntity,
+          WaterComponentName,
+          (w) => {
+            w.raisingSpeed = raisingSpeed;
+          }
+        );
+      } else if (
+        session.phase === 'playing' &&
+        session.speedRampStartMs > 0 &&
+        computeSpeedRampMultiplier(session, nowMs) >= 1
+      ) {
+        const gameplaySpeed = session.gameplayRaisingSpeed;
+        ecs.updateComponent<GameSessionComponentData>(
+          sessionEntity,
+          GameSessionComponentName,
+          (s) => {
+            s.speedRampStartMs = 0;
+          }
+        );
+        ecs.updateComponent<WaterComponentData>(
+          waterEntity,
+          WaterComponentName,
+          (w) => {
+            w.baseSpeed = gameplaySpeed;
+            w.raisingSpeed = gameplaySpeed;
+          }
+        );
+      }
     }
 
     const tagStore = components[StartOverlayTagComponentName];
@@ -175,7 +205,10 @@ export const StartScreenSystem: System = {
         | undefined;
       if (!renderData) return;
 
-      const visible = overlayOpacity > 0.01;
+      const isTutorialRole =
+        overlayTag.role === 'tutorialLabel' || overlayTag.role === 'tapCursor';
+      const elementOpacity = isTutorialRole ? tutorialOpacity : overlayOpacity;
+      const visible = elementOpacity > 0.01;
       let scale = 1;
 
       if (session.phase === 'start_ready' && visible) {
@@ -231,7 +264,7 @@ export const StartScreenSystem: System = {
         RenderComponentName,
         (r) => {
           r.visible = showRender;
-          r.opacity = overlayOpacity;
+          r.opacity = elementOpacity;
           r.position = { x: posX, y: posY };
           if (r.shape.type === ShapeTypes.Rectangle) {
             r.shape = { type: ShapeTypes.Rectangle, width: w, height: h };
@@ -245,7 +278,7 @@ export const StartScreenSystem: System = {
           entityId,
           TextComponentName,
           (t) => {
-            t.opacity = overlayOpacity;
+            t.opacity = elementOpacity;
             if (overlayTag.role === 'bestScoreValue') {
               const sessionNow = components[GameSessionComponentName].get(
                 sessionEntity

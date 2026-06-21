@@ -24,8 +24,18 @@ export const swimmerPhysicsTuning = {
   FULL_TILT_SPEED_FRACTION: 0.25,
 } as const;
 
+/** Start-screen idle water vs post-tap ramp (see beginGameplay + StartScreenSystem). */
+export const gameSessionTuning = {
+  /** Title-screen water speed as a fraction of gameplay speed. */
+  VISUAL_RAISING_SPEED_RATIO: 0.45,
+  /** Ms to ease from visual → gameplay speed after the first tap. */
+  SPEED_RAMP_MS: 400,
+  OVERLAY_FADE_MS: 240,
+} as const;
+
 export const waterPhysicsTuning = {
-  WATER_SPEED_ACCELERATION_PER_SECOND: 2,
+  /** Pixels/s² added to baseSpeed once the session ramp hands off to WaterPhysicsSystem. */
+  WATER_SPEED_ACCELERATION_PER_SECOND: 3,
   WATER_SPEED_MAX: 400,
   FLOW_ACCEL_PER_SECOND: 6.8,
   FLOW_IMPULSE_ON_ROW_CHANGE: 3.2,
@@ -55,4 +65,19 @@ export const tapInputTuning = {
 /** Water shader uniform animation step: `iTime += deltaTime / iTimeDeltaDivisor`. */
 export const waterShaderRuntimeTuning = {
   iTimeDeltaDivisor: 100,
+} as const;
+
+export const sideWallTuning = {
+  /** How far (px) each side wall extends inward over the play channel (blocks, water, swimmer). */
+  CONTAINER_OVERLAP_PX: 14,
+  /** Parallax speed as a multiple of water `raisingSpeed` (blocks use 1.0). */
+  PARALLAX_SPEED_FACTOR: 1.2,
+  /**
+   * Alpha-following outline shadow (Skia drop shadow — same technique as title logo).
+   * Use dx/dy ≈ 0 so the glow follows the sprite silhouette, not a straight offset band.
+   */
+  INNER_SHADOW_DX: 0,
+  INNER_SHADOW_DY: 2,
+  INNER_SHADOW_BLUR: 14,
+  INNER_SHADOW_COLOR: '#120B22',
 } as const;

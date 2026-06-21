@@ -11,8 +11,8 @@ import { ShipView } from '@/components/ShipView/ShipView-rntge';
 import { SurferView } from '@/components/SurferView/SurferView-rntge';
 import { SkyBackground } from '@/components/SkyBackground/SkyBackground-rntge';
 import { StarsView } from '@/components/StarsView/StarsView-rntge/StarsView-rntge';
+import { swimmerCaveBg } from '@/assets/swimmerCaveBg';
 import {
-  caveBg,
   ship,
   star,
   surfer,
@@ -364,7 +364,7 @@ const SwimmerGameComp: FC<{}> = memo(
                   <Asset type="image" name="block_var_1" uriOrBase64={swimmerBlockVar1} />
                   <Asset type="image" name="block_var_2" uriOrBase64={swimmerBlockVar2} />
                   <Asset type="image" name="block_var_3" uriOrBase64={swimmerBlockVar3} />
-                  <Asset type="image" name="cave_bg" uriOrBase64={caveBg} />
+                  <Asset type="image" name="cave_bg" uriOrBase64={swimmerCaveBg} />
                   <Asset
                     type="shader"
                     name="water"

@@ -24,7 +24,7 @@ import {
   rangesColToNorm,
   rangeWidth,
 } from '@/Game/water/gapRanges';
-import { waterPhysicsTuning } from '@/config/swimmerTuning';
+import { gameSessionTuning, waterPhysicsTuning } from '@/config/swimmerTuning';
 import { getGameSession, isStartReady } from '@/Game/session/gameSessionQuery';
 
 /**
@@ -97,11 +97,12 @@ export const WaterPhysicsSystem: System = {
       return;
     }
 
-    if (session && session.speedRampStartMs > 0) {
-      const rampT = Math.min(1, (Date.now() - session.speedRampStartMs) / 600);
-      if (rampT < 1) {
-        return;
-      }
+    if (
+      session &&
+      session.speedRampStartMs > 0 &&
+      Date.now() - session.speedRampStartMs < gameSessionTuning.SPEED_RAMP_MS
+    ) {
+      return;
     }
 
     const containerData = firstDataFromStore(

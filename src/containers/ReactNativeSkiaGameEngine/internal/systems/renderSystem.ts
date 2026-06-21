@@ -56,6 +56,27 @@ type DrawableRenderData = {
   imageShadow?: ImageShadowData;
 };
 
+const imageShadowBleedPadding = (shadow?: ImageShadowData): number => {
+  'worklet';
+  if (!shadow) {
+    return 0;
+  }
+  return (
+    shadow.blur * 3 +
+    Math.abs(shadow.dx ?? 0) +
+    Math.abs(shadow.dy ?? 0)
+  );
+};
+
+const maxLayerShadowPadding = (layers: RenderLayerData[]): number => {
+  'worklet';
+  let pad = 0;
+  for (let i = 0; i < layers.length; i++) {
+    pad = Math.max(pad, imageShadowBleedPadding(layers[i].imageShadow));
+  }
+  return pad;
+};
+
 const drawImageRectWithShadow = (
   canvas: SkCanvas,
   image: any,
@@ -410,9 +431,15 @@ const createAndCacheGroupPicture = (
   if (renderData.shape.type !== 'rectangle') return null;
 
   const { width, height } = renderData.shape;
+  const shadowPad = maxLayerShadowPadding(layers);
   const recorder = Skia.PictureRecorder();
   const canvas = recorder.beginRecording(
-    Skia.XYWHRect(-width / 2, -height / 2, width, height)
+    Skia.XYWHRect(
+      -width / 2 - shadowPad,
+      -height / 2 - shadowPad,
+      width + shadowPad * 2,
+      height + shadowPad * 2
+    )
   );
 
   for (let i = 0; i < layers.length; i++) {
