@@ -180,7 +180,7 @@ export const CaveParallaxBackgroundSystem: System = {
         const currentY = renderData.position?.y ?? screenHeight / 2;
         const newY = currentY + parallaxSpeed * deltaSeconds;
 
-        ecs.updateComponent<RenderComponentData>(
+          ecs.updateComponent<RenderComponentData>(
           entityId,
           RenderComponentName,
           (render) => {
@@ -190,7 +190,6 @@ export const CaveParallaxBackgroundSystem: System = {
             } else {
               render.position.y = newY;
             }
-            render.isDirty = true;
           }
         );
       }

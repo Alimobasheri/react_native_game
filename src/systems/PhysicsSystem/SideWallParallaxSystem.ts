@@ -307,7 +307,6 @@ export const createSideWallParallaxSystem = (
               } else {
                 render.position.y = newY;
               }
-              render.isDirty = true;
             }
           );
         }

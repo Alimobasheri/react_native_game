@@ -149,6 +149,12 @@ export interface RenderComponentData {
   shader?: ShaderInfo;
   blendMode?: BlendMode;
   /**
+   * When true, the shader fill is recorded into a cached SkPicture and replayed
+   * until `isDirty`. Use for screen overlays whose uniforms only change on layout
+   * or resize. Animated / per-frame shaders (e.g. water) must leave this unset.
+   */
+  shaderCacheStatic?: boolean;
+  /**
    * When set, entity renders as a composed group (Skia Group analogue):
    * all layers are recorded once into one SkPicture in parent-local space.
    * Parent `shape` (rectangle) defines recording bounds (width × height).

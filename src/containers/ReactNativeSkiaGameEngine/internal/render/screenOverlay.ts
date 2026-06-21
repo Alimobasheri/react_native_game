@@ -17,6 +17,11 @@ export type ScreenShaderOverlayOptions = {
   opacity?: number;
   blendMode?: BlendMode;
   visible?: boolean;
+  /**
+   * Cache shader output in a SkPicture until `isDirty` (default true).
+   * Set false only if uniforms animate every frame.
+   */
+  shaderCacheStatic?: boolean;
 };
 
 /**
@@ -38,6 +43,7 @@ export const createScreenShaderOverlayComponent = (
     opacity,
     blendMode,
     visible = true,
+    shaderCacheStatic = true,
   } = options;
 
   const renderOptions: Omit<RenderComponentData, 'isDirty'> = {
@@ -49,6 +55,7 @@ export const createScreenShaderOverlayComponent = (
     position: { x: centerX, y: centerY },
     visible,
     renderLayer,
+    shaderCacheStatic,
     shader: {
       key: shaderKey,
       uniforms,

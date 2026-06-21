@@ -232,6 +232,65 @@ const createPathFromShape = (
   return createPathFromShapeData(renderData.shape);
 };
 
+const collectShaderUniformValues = (
+  uniforms: Record<string, number | number[]>
+): number[] => {
+  'worklet';
+  const uniformValues: number[] = [];
+  const uniformSources = Object.values(uniforms);
+
+  for (const source of uniformSources) {
+    const value = source;
+    if (typeof value === 'number') {
+      uniformValues.push(value > 1 ? value * 1.0 : value);
+    } else {
+      uniformValues.push(...value);
+    }
+  }
+
+  return uniformValues;
+};
+
+const drawShaderPath = (
+  canvas: SkCanvas,
+  renderData: RenderComponentData,
+  effect: ReturnType<typeof Skia.RuntimeEffect.Make>,
+  path: SkPath
+): void => {
+  'worklet';
+  const shaderPaint = Skia.Paint();
+  shaderPaint.setAntiAlias(true);
+  const uniformValues = collectShaderUniformValues(renderData.shader!.uniforms);
+  const shader: SkShader = effect!.makeShader(uniformValues);
+  shaderPaint.setStyle(PaintStyle.Fill);
+  shaderPaint.setBlendMode(renderData.blendMode || BlendMode.SrcOver);
+  shaderPaint.setShader(shader);
+  if (typeof renderData.opacity === 'number') {
+    shaderPaint.setAlphaf(renderData.opacity);
+  }
+  canvas.drawPath(path, shaderPaint);
+  shaderPaint.dispose();
+};
+
+const createAndCacheStaticShaderPicture = (
+  renderData: RenderComponentData,
+  effect: ReturnType<typeof Skia.RuntimeEffect.Make>
+): SkPicture | null => {
+  'worklet';
+  const path = createPathFromShape(renderData);
+  if (!path || renderData.shape.type !== 'rectangle') {
+    return null;
+  }
+
+  const { width, height } = renderData.shape;
+  const recorder = Skia.PictureRecorder();
+  const canvas = recorder.beginRecording(
+    Skia.XYWHRect(-width / 2, -height / 2, width, height)
+  );
+  drawShaderPath(canvas, renderData, effect, path);
+  return recorder.finishRecordingAsPicture();
+};
+
 const getSpriteFrameInfo = (
   renderData: Pick<DrawableRenderData, 'sprite'>,
   spriteComponent?: any
@@ -615,41 +674,32 @@ export const renderSystem: System = {
         canvas.concat(matrix);
 
         if (renderData.shader && !renderData.renderLayers?.length) {
-          const shaderPaint = Skia.Paint();
-          shaderPaint.setAntiAlias(true);
           const effect = shaderEffects[renderData.shader.key];
           if (effect) {
-            let path = pictureCache[entity] as SkPath;
-            if (!path || renderData.isDirty) {
-              path = createPathFromShape(renderData) as SkPath;
-              pictureCache[entity] = path;
-            }
-            if (path) {
-              const uniformValues: number[] = [];
-              const uniformSources = Object.values(
-                renderData.shader.uniforms
-              );
-
-              for (const source of uniformSources) {
-                const value = source;
-                if (typeof value === 'number') {
-                  uniformValues.push(value > 1 ? value * 1.0 : value);
-                } else {
-                  uniformValues.push(...value);
+            if (renderData.shaderCacheStatic) {
+              let entityPicture = pictureCache[entity] as SkPicture;
+              if (renderData.isDirty || !entityPicture) {
+                const newEntityPicture = createAndCacheStaticShaderPicture(
+                  renderData,
+                  effect
+                );
+                if (newEntityPicture) {
+                  pictureCache[entity] = newEntityPicture;
+                  entityPicture = newEntityPicture;
                 }
               }
-              const shader: SkShader = effect.makeShader(uniformValues);
-              shaderPaint.setStyle(PaintStyle.Fill);
-              shaderPaint.setBlendMode(
-                renderData.blendMode || BlendMode.SrcOver
-              );
-              shaderPaint.setShader(shader);
-              shaderPaint.setAntiAlias(true);
-              if (typeof renderData.opacity === 'number') {
-                shaderPaint.setAlphaf(renderData.opacity);
+              if (entityPicture) {
+                canvas.drawPicture(entityPicture);
               }
-              canvas.drawPath(path, shaderPaint);
-              shaderPaint.dispose();
+            } else {
+              let path = pictureCache[entity] as SkPath;
+              if (!path || renderData.isDirty) {
+                path = createPathFromShape(renderData) as SkPath;
+                pictureCache[entity] = path;
+              }
+              if (path) {
+                drawShaderPath(canvas, renderData, effect, path);
+              }
             }
           }
         } else {
