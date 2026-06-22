@@ -161,10 +161,10 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
           >
             <Preload>
               <Asset
-                id="Montserrat"
+                id="Fredoka"
                 type="font"
-                family="Montserrat"
-                resource={require('../../../assets/fonts/Montserrat-SemiBold.ttf')}
+                family="Fredoka"
+                resource={require('../../../assets/fonts/Fredoka-Bold.ttf')}
               />
             </Preload>
             <Content>

@@ -14,10 +14,10 @@ import { ScoreSystem } from '@/systems/PhysicsSystem/ScoreSystem';
 import { Skia, TextAlign } from '@shopify/react-native-skia';
 import { FC, useMemo } from 'react';
 
-const SCORE_BOX_WIDTH = 200;
-const SCORE_BOX_HEIGHT = 56;
+const SCORE_BOX_WIDTH = 260;
+const SCORE_BOX_HEIGHT = 72;
 const SCORE_TOP_OFFSET = 56;
-const SCORE_FONT_SIZE = 42;
+const SCORE_FONT_SIZE = 54;
 
 export const ScoreView: FC<{}> = () => {
   const dimensions = useCanvasDimensions();
@@ -32,7 +32,7 @@ export const ScoreView: FC<{}> = () => {
       }),
       createTextComponent({
         text: '0',
-        fontAssetId: 'Montserrat',
+        fontAssetId: 'Fredoka',
         fontSize: SCORE_FONT_SIZE,
         color: Skia.Color('white'),
         align: TextAlign.Center,

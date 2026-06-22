@@ -4,6 +4,7 @@ import {
   SWIMMER_UI_REF,
   TAP_CURSOR_SPRITE,
 } from '@/assets/swimmerUi';
+import { sideWallTuning } from '@/config/swimmerTuning';
 import { refSize, type SafeAreaInsets } from '@/Game/ui/refLayout';
 import { getTapCursorChannelPositions } from '@/Game/ui/tapCursorChannelPositions';
 
@@ -45,6 +46,17 @@ function box(x: number, y: number, width: number, height: number): LayoutBox {
   };
 }
 
+/** Inner play-channel edges after side-wall overlap (matches SideWallParallaxSystem). */
+function channelInnerHorizontalBounds(screenW: number, containerOverlapPx: number) {
+  const channelLeft = (screenW * (1 - GAMEPLAY_CHANNEL_WIDTH_FRACTION)) / 2;
+  const channelRight = screenW - channelLeft;
+  const overlap = Math.max(0, containerOverlapPx);
+  return {
+    innerLeft: channelLeft + overlap,
+    innerRight: channelRight - overlap,
+  };
+}
+
 function refSquareChip(
   refSizePx: number,
   refX: number,
@@ -52,13 +64,19 @@ function refSquareChip(
   screenW: number,
   screenH: number,
   insets: SafeAreaInsets,
-  alignRight = false
+  alignRight = false,
+  containerOverlapPx = sideWallTuning.CONTAINER_OVERLAP_PX
 ): LayoutBox {
   const width = refSize(refSizePx, screenW, screenH);
   const height = width / SWIMMER_UI_ASPECT.uiChipPanel;
+  const inset = refSize(refX, screenW, screenH);
+  const { innerLeft, innerRight } = channelInnerHorizontalBounds(
+    screenW,
+    containerOverlapPx
+  );
   const x = alignRight
-    ? screenW - insets.right - refSize(refX, screenW, screenH) - width
-    : insets.left + refSize(refX, screenW, screenH);
+    ? innerRight - inset - width
+    : innerLeft + inset;
   const y = insets.top + refSize(refY, screenW, screenH);
   return box(x, y, width, height);
 }
@@ -156,7 +174,7 @@ export function layoutStartOverlay(
     crownHeight
   );
 
-  const bestLabelHeight = refSize(22, screenW, screenH);
+  const bestLabelHeight = refSize(28, screenW, screenH);
   const bestLabel = box(
     best.x,
     best.y + best.height * 0.38,
@@ -164,7 +182,7 @@ export function layoutStartOverlay(
     bestLabelHeight
   );
 
-  const bestScoreHeight = refSize(36, screenW, screenH);
+  const bestScoreHeight = refSize(46, screenW, screenH);
   const bestScore = box(
     best.x,
     best.y + best.height * 0.58,
@@ -181,7 +199,7 @@ export function layoutStartOverlay(
     shopIconHeight
   );
 
-  const ctaLabelHeight = refSize(34, screenW, screenH);
+  const ctaLabelHeight = refSize(44, screenW, screenH);
   const ctaLabel = box(
     cta.x,
     cta.y + (cta.height - ctaLabelHeight) / 2,

@@ -96,7 +96,7 @@ export const PrimaryCTAButton: FC<{ insets: SafeAreaInsets }> = ({
     );
     const btn = layout.cta;
     const label = layout.ctaLabel;
-    const fontSize = refSize(30, dimensions.width, dimensions.height);
+    const fontSize = refSize(38, dimensions.width, dimensions.height);
     return [
       createStartOverlayTagComponent({
         role: 'ctaLabel',
@@ -107,7 +107,7 @@ export const PrimaryCTAButton: FC<{ insets: SafeAreaInsets }> = ({
       }),
       createTextComponent({
         text: 'TAP TO START',
-        fontAssetId: 'Montserrat',
+        fontAssetId: 'Fredoka',
         fontSize,
         color: Skia.Color(COLOR_TEXT_WHITE),
         strokeColor: COLOR_CAVE_DEEP,

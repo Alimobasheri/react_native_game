@@ -24,17 +24,17 @@ export const RestartGameButton: FC<{}> = () => {
     return [
       createTextComponent({
         text: 'Restart Game',
-        fontAssetId: 'Montserrat',
-        fontSize: 24,
+        fontAssetId: 'Fredoka',
+        fontSize: 30,
         color: Skia.Color('white'),
         align: TextAlign.Left,
-        maxWidth: 200,
+        maxWidth: 240,
       }),
       createTapComponent({
         shape: {
           type: ShapeTypes.Rectangle,
-          width: 200,
-          height: 100,
+          width: 240,
+          height: 120,
         },
         onTap: ({ systemArgs }) => {
           'worklet';
@@ -54,10 +54,10 @@ export const RestartGameButton: FC<{}> = () => {
         },
       }),
       createRenderComponent({
-        shape: { type: ShapeTypes.Rectangle, width: 200, height: 100 },
+        shape: { type: ShapeTypes.Rectangle, width: 240, height: 120 },
         position: {
-          x: dimensions.width / 2 - 100,
-          y: dimensions.height - 50,
+          x: dimensions.width / 2 - 120,
+          y: dimensions.height - 60,
         },
         visible: true,
       }),

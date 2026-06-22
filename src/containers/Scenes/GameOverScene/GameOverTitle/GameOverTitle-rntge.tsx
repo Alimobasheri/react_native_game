@@ -17,17 +17,17 @@ export const GameOverTitle: FC<{}> = () => {
     return [
       createTextComponent({
         text: 'Game Over',
-        fontAssetId: 'Montserrat',
-        fontSize: 66,
+        fontAssetId: 'Fredoka',
+        fontSize: 84,
         color: Skia.Color('white'),
         align: TextAlign.Center,
-        maxWidth: 400,
+        maxWidth: 480,
       }),
       createRenderComponent({
-        shape: { type: ShapeTypes.Rectangle, width: 400, height: 100 },
+        shape: { type: ShapeTypes.Rectangle, width: 480, height: 128 },
         position: {
-          x: dimensions.width / 2 - 200,
-          y: dimensions.height / 2 - 50,
+          x: dimensions.width / 2 - 240,
+          y: dimensions.height / 2 - 64,
         },
         visible: true,
       }),

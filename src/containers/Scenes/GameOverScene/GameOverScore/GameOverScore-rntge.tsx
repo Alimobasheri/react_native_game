@@ -13,11 +13,11 @@ import { GameOverScoreSystem } from '@/systems/PhysicsSystem/GameOverScoreSystem
 import { Skia, TextAlign } from '@shopify/react-native-skia';
 import { FC, useMemo } from 'react';
 
-const SCORE_BOX_WIDTH = 240;
-const SCORE_BOX_HEIGHT = 56;
+const SCORE_BOX_WIDTH = 280;
+const SCORE_BOX_HEIGHT = 72;
 /** Placed just below the centered "Game Over" title block. */
-const SCORE_BELOW_TITLE_OFFSET = 70;
-const SCORE_FONT_SIZE = 42;
+const SCORE_BELOW_TITLE_OFFSET = 85;
+const SCORE_FONT_SIZE = 54;
 
 export const GameOverScore: FC<{}> = () => {
   const dimensions = useCanvasDimensions();
@@ -29,7 +29,7 @@ export const GameOverScore: FC<{}> = () => {
       createGameOverScoreComponent(),
       createTextComponent({
         text: '0',
-        fontAssetId: 'Montserrat',
+        fontAssetId: 'Fredoka',
         fontSize: SCORE_FONT_SIZE,
         color: Skia.Color('white'),
         align: TextAlign.Center,

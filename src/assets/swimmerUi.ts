@@ -63,7 +63,7 @@ export const SWIMMER_UI_REF = {
   ctaWidth: 872,
   ctaBottom: 52,
   tutorialGapAboveCta: 28,
-  tutorialTextHeight: 40,
+  tutorialTextHeight: 52,
   tapCursorDisplayWidth: 140,
   tapCursorGapBelowText: 12,
   tapCursorChannelMargin: 56,

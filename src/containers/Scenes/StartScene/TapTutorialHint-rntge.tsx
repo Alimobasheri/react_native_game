@@ -44,8 +44,8 @@ export const TapTutorialHint: FC<{ insets: SafeAreaInsets }> = ({ insets }) => {
       }),
       createTextComponent({
         text: 'TAP LEFT OR RIGHT',
-        fontAssetId: 'Montserrat',
-        fontSize: refSize(28, dimensions.width, dimensions.height),
+        fontAssetId: 'Fredoka',
+        fontSize: refSize(36, dimensions.width, dimensions.height),
         color: Skia.Color(COLOR_TEXT_WHITE),
         strokeColor: COLOR_CAVE_DEEP,
         strokeWidth: 3,

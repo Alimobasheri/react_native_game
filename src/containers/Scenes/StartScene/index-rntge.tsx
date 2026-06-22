@@ -59,10 +59,10 @@ export const StartScene: FC<StartSceneProps> = ({
     <Scene name="start" zIndex={10} isActive={true}>
       <Preload>
         <Asset
-          id="Montserrat"
+          id="Fredoka"
           type="font"
-          family="Montserrat"
-          resource={require('../../../../assets/fonts/Montserrat-SemiBold.ttf')}
+          family="Fredoka"
+          resource={require('../../../../assets/fonts/Fredoka-Bold.ttf')}
         />
         <Asset
           type="image"

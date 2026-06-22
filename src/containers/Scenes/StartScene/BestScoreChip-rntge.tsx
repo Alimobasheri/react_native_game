@@ -101,8 +101,8 @@ export const BestScoreChip: FC<{ insets: SafeAreaInsets }> = ({ insets }) => {
       }),
       createTextComponent({
         text: 'BEST',
-        fontAssetId: 'Montserrat',
-        fontSize: refSize(20, dimensions.width, dimensions.height),
+        fontAssetId: 'Fredoka',
+        fontSize: refSize(26, dimensions.width, dimensions.height),
         color: Skia.Color(COLOR_REWARD_YELLOW),
         align: TextAlign.Center,
         maxWidth: label.width,
@@ -138,8 +138,8 @@ export const BestScoreChip: FC<{ insets: SafeAreaInsets }> = ({ insets }) => {
       }),
       createTextComponent({
         text: '0',
-        fontAssetId: 'Montserrat',
-        fontSize: refSize(38, dimensions.width, dimensions.height),
+        fontAssetId: 'Fredoka',
+        fontSize: refSize(48, dimensions.width, dimensions.height),
         color: Skia.Color(COLOR_TEXT_WHITE),
         align: TextAlign.Center,
         maxWidth: score.width,
