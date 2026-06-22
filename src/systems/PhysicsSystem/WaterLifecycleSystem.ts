@@ -87,6 +87,7 @@ export const createWaterLifecycleSystem = (params: {
           containerEntityId: containerEntity,
           raisingSpeed,
           baseSpeed: raisingSpeed,
+          visualIntensity: 1,
         })
       );
       ecs.addComponent(

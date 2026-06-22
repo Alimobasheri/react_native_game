@@ -13,7 +13,7 @@ export function buildWaterLightingShaderUniforms(): Record<
 > {
   const t = swimmerWaterLightingTuning;
   return {
-    uVisualIntensity: 0,
+    uVisualIntensity: 1,
     uWaterColorSurface: WATER_COLOR_BASE_RGB,
     uWaterColorMid: WATER_COLOR_MID_RGB,
     uWaterColorDeep: WATER_COLOR_DEEP_RGB,
