@@ -130,6 +130,9 @@ export const CaveAtmosphereSystem: System = {
               return;
             }
 
+            const targetStrength =
+              atmosphere.vignetteStrength ?? CAVE_VIGNETTE_STRENGTH;
+
             const res = uniforms.uResolution as number[] | undefined;
             if (
               !res ||
@@ -139,8 +142,11 @@ export const CaveAtmosphereSystem: System = {
               uniforms.uResolution = [resolutionW, resolutionH];
               dirty = true;
             }
-            if ((uniforms.uStrength as number) !== CAVE_VIGNETTE_STRENGTH) {
-              uniforms.uStrength = CAVE_VIGNETTE_STRENGTH;
+            if (
+              Math.abs((uniforms.uStrength as number) - targetStrength) >
+              UNIFORM_EPS
+            ) {
+              uniforms.uStrength = targetStrength;
               dirty = true;
             }
             if ((uniforms.uSoftness as number) !== CAVE_VIGNETTE_SOFTNESS) {

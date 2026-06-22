@@ -24,7 +24,10 @@ export const CAVE_COLOR_BOTTOM: [number, number, number] = [
 export const CAVE_MID_STOP = 0.42;
 /** Additive RGB brighten toward gameplay lane center. */
 export const CAVE_LANE_LIFT = 0.09;
-export const CAVE_VIGNETTE_STRENGTH = 0.38;
+/** Baseline / max vignette when the lane is packed with visible blocks. */
+export const CAVE_VIGNETTE_STRENGTH = 0.9;
+/** Minimum vignette when few or no blocks are on screen. */
+export const CAVE_VIGNETTE_STRENGTH_MIN = 0.3;
 export const CAVE_VIGNETTE_SOFTNESS = 0.55;
 /** 0 = circular, 1 = aspect-corrected ellipse. */
 export const CAVE_VIGNETTE_ROUNDNESS = 0.65;
@@ -42,6 +45,7 @@ export const swimmerCaveLightingTuning = {
   MID_STOP: CAVE_MID_STOP,
   LANE_LIFT: CAVE_LANE_LIFT,
   VIGNETTE_STRENGTH: CAVE_VIGNETTE_STRENGTH,
+  VIGNETTE_STRENGTH_MIN: CAVE_VIGNETTE_STRENGTH_MIN,
   VIGNETTE_SOFTNESS: CAVE_VIGNETTE_SOFTNESS,
   VIGNETTE_ROUNDNESS: CAVE_VIGNETTE_ROUNDNESS,
   PARALLAX_TEXTURE_OPACITY: CAVE_PARALLAX_TEXTURE_OPACITY,
