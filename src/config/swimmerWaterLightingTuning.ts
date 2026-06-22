@@ -1,38 +1,38 @@
 /**
  * Water visual tuning — palette and idle surface parameters.
  * Safe for worklet import: plain data only.
- * Base hue: #0D76F6 with lighter surface and darker depth variants.
+ * Palette per swimmer.styles.md §4 — bright aqua/cyan complementary to orange blocks.
  */
 
-/** Primary water blue — #0D76F6 */
-export const WATER_COLOR_MID_RGB: [number, number, number] = [
-  13 / 255,
-  118 / 255,
-  246 / 255,
-];
-
-/** Lighter near-surface body — #7EC4FF */
+/** Near-surface body — Water Base #10C8E8 */
 export const WATER_COLOR_BASE_RGB: [number, number, number] = [
-  126 / 255,
-  196 / 255,
-  255 / 255,
-];
-
-/** Deeper lower body — only the bottom sliver — #0A5FCC */
-export const WATER_COLOR_DEEP_RGB: [number, number, number] = [
-  10 / 255,
-  95 / 255,
-  204 / 255,
-];
-
-/** Glossy surface lip highlight — #C8E6FF */
-export const WATER_COLOR_HIGHLIGHT_RGB: [number, number, number] = [
+  16 / 255,
   200 / 255,
-  230 / 255,
+  232 / 255,
+];
+
+/** Primary water body — Water Mid #17A9E8 */
+export const WATER_COLOR_MID_RGB: [number, number, number] = [
+  23 / 255,
+  169 / 255,
+  232 / 255,
+];
+
+/** Deeper lower body — Water Deep #087CC8 */
+export const WATER_COLOR_DEEP_RGB: [number, number, number] = [
+  8 / 255,
+  124 / 255,
+  200 / 255,
+];
+
+/** Glossy surface lip — Water Highlight #9EF7FF (cyan, not near-white) */
+export const WATER_COLOR_HIGHLIGHT_RGB: [number, number, number] = [
+  158 / 255,
+  247 / 255,
   255 / 255,
 ];
 
-export const WATER_COLOR_HEX = '#0D76F6';
+export const WATER_COLOR_HEX = '#17A9E8';
 
 export const swimmerWaterLightingTuning = {
   /** Normalized surface Y in container UV (0=bottom, 1=top). Runtime follows container. */
