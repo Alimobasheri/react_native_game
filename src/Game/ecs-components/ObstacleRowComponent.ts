@@ -16,6 +16,8 @@ export type ObstacleRowComponentData = {
   spawnDiagTemplateName?: string;
   /** Stable branch key from {@link buildObstacleRowGenerationLogKey} at spawn time. */
   spawnDiagBranchKey?: string;
+  /** ECS entity for gap-edge foam blobs once this row enters the water surface. */
+  foamEntityId?: number;
 };
 
 export const createObstacleRowComponent = (

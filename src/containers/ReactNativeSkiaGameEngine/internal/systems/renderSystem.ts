@@ -393,7 +393,7 @@ const drawDrawableContent = (
       paint.setAntiAlias(true);
       const blendMode = drawData.blendMode || BlendMode.SrcOver;
       paint.setBlendMode(blendMode);
-      if (drawData.opacity) {
+      if (typeof drawData.opacity === 'number') {
         paint.setAlphaf(drawData.opacity);
       }
 
@@ -433,7 +433,7 @@ const drawDrawableContent = (
     fillPaint.setAntiAlias(true);
     fillPaint.setStyle(PaintStyle.Fill);
     fillPaint.setColor(Skia.Color(drawData.fillColor || '#0099ff'));
-    if (drawData.opacity) {
+    if (typeof drawData.opacity === 'number') {
       fillPaint.setAlphaf(drawData.opacity);
     }
     canvas.drawPath(skPath, fillPaint);
@@ -443,7 +443,7 @@ const drawDrawableContent = (
       strokePaint.setStyle(PaintStyle.Stroke);
       strokePaint.setStrokeWidth(drawData.lineWidth || 1);
       strokePaint.setColor(Skia.Color(drawData.strokeColor || '#2E3440'));
-      if (drawData.opacity) {
+      if (typeof drawData.opacity === 'number') {
         strokePaint.setAlphaf(drawData.opacity);
       }
       canvas.drawPath(skPath, strokePaint);
@@ -537,7 +537,7 @@ const createAndCacheEntityPicture = (
     return null;
   }
 
-  if (renderData.renderLayers?.length) {
+  if (renderData.renderLayers != null) {
     return createAndCacheGroupPicture(renderData);
   }
 
@@ -670,7 +670,7 @@ export const renderSystem: System = {
         canvas.save();
         canvas.concat(matrix);
 
-        if (renderData.shader && !renderData.renderLayers?.length) {
+        if (renderData.shader && renderData.renderLayers == null) {
           const effect = shaderEffects[renderData.shader.key];
           if (effect) {
             if (renderData.shaderCacheStatic) {

@@ -16,10 +16,7 @@ import {
   swimmerSideWallLeft,
   swimmerSideWallRight,
 } from '@/assets/swimmerSideWalls';
-import {
-  swimmerIconCrownGold,
-  SWIMMER_UI_IMAGE,
-} from '@/assets/swimmerUi';
+import { swimmerIconCrownGold, SWIMMER_UI_IMAGE } from '@/assets/swimmerUi';
 import { sourceCode as waterShaderSourceCode } from '@/Shaders/WaterShader/waterShader';
 import { sourceCode as screenAtmosphereGradientSourceCode } from '@/containers/ReactNativeSkiaGameEngine/Shaders/screenAtmosphereGradient';
 import { sourceCode as screenEdgeVignetteSourceCode } from '@/containers/ReactNativeSkiaGameEngine/Shaders/screenEdgeVignette';
@@ -43,6 +40,7 @@ import { RunResultComponentName } from '@/Game/ecs-components/RunResult';
 import { GameOverScoreComponentName } from '@/Game/ecs-components/GameOverScore';
 import { ScoreView } from '@/components/ScoreView/ScoreView-rntge';
 import { ObstacleRowComponentName } from '@/Game/ecs-components/ObstacleRowComponent';
+import { BlockFoamComponentName } from '@/Game/ecs-components/BlockFoam';
 import { CaveBackgroundSegmentComponentName } from '@/Game/ecs-components/CaveBackgroundSegment';
 import { CaveAtmosphereComponentName } from '@/Game/ecs-components/CaveAtmosphere';
 import { SideWallSegmentComponentName } from '@/Game/ecs-components/SideWallSegment';
@@ -153,6 +151,7 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
               ContainerComponentName,
               WaterComponentName,
               ObstacleRowComponentName,
+              BlockFoamComponentName,
               ObstaclesManagerComponentName,
               TemplateContextComponentName,
               CaveBackgroundSegmentComponentName,
