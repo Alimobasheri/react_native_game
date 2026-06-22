@@ -2,6 +2,10 @@ import { ICanvasDimensions } from '@/containers/ReactNativeSkiaGameEngine';
 import { Skia, Uniforms } from '@shopify/react-native-skia';
 import { SharedValue, useDerivedValue } from 'react-native-reanimated';
 import { shaderNoiseFuncWithRandom } from '../common';
+import { waterBodyShaderHelpers } from './waterBodyShader';
+import { waterIdleSurfaceHelpers } from './waterIdleSurface.glsl';
+import { waterLightingUniforms } from './waterShaderUniforms';
+import { waterSurfaceShaderHelpers } from './waterSurfaceShader';
 
 export const waveShaderUniforms = `
   float M_PI = 3.1415926535897932384626433832795;
@@ -49,6 +53,7 @@ export const waveShaderUniforms = `
   uniform float uCurveCenter;
   uniform float uCurveAmp;
   uniform float uCurveTilt;
+  ${waterLightingUniforms}
 `;
 
 export const waveShaderFoamIntensityFunc = `
@@ -224,130 +229,52 @@ export const waveShaderMainFunc = `
     float calmRipples = (calmRippleA * 0.65 + calmRippleB * 0.35) * calmRippleAmp;
     float curveInfluence = 0.18 + 0.82 * activeBandMask;
     float edgeBend = (1.0 - softGap) * activeBandMask * (0.003 + 0.01 * (0.4 + pressure * 0.6));
+    float idleOffset = computeIdleSurfaceOffset(containerUV);
+    float gameplayDelta =
+      (centerCurve + directionalTilt) * curveInfluence + calmRipples - edgeBend;
+    float visualIntensity = clamp(uVisualIntensity, 0.0, 1.0);
+    // Keep idle surface waves alive; layer gameplay bulge/tilt on top.
     float finalSurface = clamp(
-      surfaceBase + (centerCurve + directionalTilt) * curveInfluence + calmRipples - edgeBend,
+      surfaceBase + idleOffset + gameplayDelta * visualIntensity,
       0.0,
       1.0
     );
 
     // Check if pixel is below water level (solid water body)
     if (containerUV.y < (bottomY + finalSurface)) {
-      // Solid water body with upward-flowing interior texture
       float surfaceY = bottomY + finalSurface;
-      // Normalize depth within filled region (0 = bottom, 1 = water surface)
-      float depth = clamp(containerUV.y / max(surfaceY, 0.0001), 0.0, 1.0);
-
-      // Upward flow: offset sampling UV over time so the pattern appears to rise
-      vec2 flowUV = uv;
-      flowUV.x += flowVelocity * depth * (0.05 + 0.06 * surgeEnergy);
-      flowUV.y -= iTime * speed * (0.45 + 0.35 * surgeEnergy);
-
-      // Anisotropic scaling to create soft vertical streaks
-      vec2 streakUV = vec2(flowUV.x * 1.5, flowUV.y * 4.0);
-      float flowNoise = noise(streakUV);
-
-      // Base vertical gradient: darker at bottom, lighter near surface
-      vec3 deepColor = waterColor * 0.7;
-      vec3 shallowColor = waterColor * 1.1;
-      vec3 gradColor = mix(deepColor, shallowColor, depth);
-
-      // Modulate brightness with noise to get subtle moving bands
-      float bandIntensity = smoothstep(0.3, 0.9, flowNoise);
-      vec3 flowColor = gradColor + bandIntensity * (0.10 + 0.08 * directionalFlowBoost);
-
-      // Echo the surface curve in a shallow band for a stronger pressure silhouette.
-      float depthBelowSurface = max(0.0, surfaceY - containerUV.y);
-      float subsurfaceBandHeight = 0.07;
-      float nearSurfaceMask = 1.0 - smoothstep(0.0, subsurfaceBandHeight, depthBelowSurface);
-      float centerBand = exp(-centeredNorm * centeredNorm * 3.8);
-      float subsurfaceCurveMask = nearSurfaceMask * centerBand * activeBandMask * softGap;
-      flowColor += subsurfaceCurveMask * (0.045 + 0.06 * surgeEnergy);
-
-      // --- Minimal hyper-casual bubbles (true circles in screen space) -----
-      // Water-space Y (0 = bottom of water, 1 = surface)
-      float waterHeight = max(waterLevel, 0.0001);
-      float localY = clamp((containerUV.y - bottomY) / waterHeight, 0.0, 1.0);
-
-      // Container-local pixel coordinates (0..containerWidth / 0..containerHeight)
-      float containerLeft = containerCenter.x - containerWidth * 0.5;
-      float containerTop = containerCenter.y - containerHeight * 0.5;
-      vec2 containerLocalPx = vec2(
-        fragCoord.x - containerLeft,
-        fragCoord.y - containerTop
+      vec3 flowColor = renderWaterBody(
+        containerUV,
+        uv,
+        fragCoord,
+        surfaceY,
+        finalSurface,
+        centeredNorm,
+        activeBandMask,
+        softGap,
+        surgeEnergy,
+        flowVelocity,
+        directionalFlowBoost
       );
 
-      // Square cells in pixel space so circles stay circular
-      float cols = 6.0;
-      float rows = 14.0;
-      vec2 cellSize = vec2(containerWidth / cols, containerHeight / rows);
-
-      // Scroll pattern upward over time
-      vec2 bubblePosPx = vec2(
-        containerLocalPx.x,
-        containerLocalPx.y + iTime * speed * 0.3 * containerHeight
-      );
-
-      vec2 cellIndex = floor(bubblePosPx / cellSize);
-      vec2 cellUV = fract(bubblePosPx / cellSize);
-
-      // Random center and radius per cell (noise-based random)
-      float rSeed = random(cellIndex * 3.17);
-      float bubbleThreshold = 0.7 - pressure * 0.26 - surgeEnergy * 0.1;
-      float hasBubble = step(bubbleThreshold, rSeed);
-      float r1 = random(cellIndex * 7.31 + 1.23);
-      float r2 = random(cellIndex * 11.71 + 4.56);
-      vec2 bubbleCenter = vec2(0.25 + 0.5 * r1, 0.2 + 0.6 * r2);
-      float rRadius = random(cellIndex * 13.97 + 8.42);
-      // Smaller, tighter circles so they don't get clipped at cell edges
-      float bubbleRadius = 0.12 + 0.08 * rRadius;
-
-      vec2 diff = cellUV - bubbleCenter;
-      float distToCenter = length(diff); // true circle in pixel-mapped cell
-      float bubbleMask = hasBubble * (1.0 - smoothstep(bubbleRadius, bubbleRadius + 0.04, distToCenter));
-
-      // Fade bubbles out near the surface and bottom
-      float verticalFade = smoothstep(0.08, 0.25, localY) * (1.0 - smoothstep(0.7, 0.98, localY));
-      bubbleMask *= verticalFade;
-      bubbleMask *= (0.75 + 0.25 * activeBandMask * activeGapMask + pressure * 0.15);
-
-      // Lighten color inside bubbles slightly
-      vec3 bubbleColor = vec3(1.0);
-      flowColor = mix(flowColor, bubbleColor, bubbleMask * 0.18);
-
-      // In active surface band, only gap span should be visible.
-      float bandGapVisibility = mix(1.0, softGap, activeBandMask);
-      return vec4(flowColor, 0.8 * rectangleMask * bandGapVisibility);
+      float bandGapVisibility = mix(1.0, softGap, activeBandMask * visualIntensity);
+      return vec4(flowColor, 0.88 * rectangleMask * bandGapVisibility);
     }
 
-    // Above water level - render a thin readable surface layer.
+    // Above water level - thin glossy surface lip (foam only during gameplay).
     float surfaceH = bottomY + finalSurface;
-    float calmSurfaceOffset = sin(containerUV.x * frequency * 2.5 + iTime * speed * 0.025) * calmness * 0.0015;
-    float w = WaterMask(
-      uv,
-      surfaceH + calmSurfaceOffset,
-      iTime * speed * (4.0 + 2.0 * abs(flowVelocity)),
-      amplitude * (0.35 + 0.65 * calmness),
-      frequency
-    );
-    vec2 wavePosition = YPosition(
+    return renderSurfaceAboveWater(
+      containerUV,
       uv,
       surfaceH,
-      iTime * speed * 0.16,
-      amplitude * (0.025 + 0.035 * calmness),
-      frequency
+      calmness,
+      flowVelocity,
+      pressure,
+      softGap,
+      activeBandMask,
+      surgeEnergy,
+      rectangleMask
     );
-
-    float foamNoise = noise(wavePosition * (2.0 + 1.0 * pressure) * frequency);
-    float clampedW = clamp(1. - w, 0., 1.);
-    float foam = 1. - foamIntensity(foamNoise, clampedW) * 3.;
-    float clampedFoam = clamp(foam, 0., 1.);
-
-    float whiteCap = 1. / exp(smoothstep(surfaceH, surfaceH + 0.01, wavePosition.y * 1.) * .5);
-    vec3 waterMix = mix(vec3(1.) * clampedFoam, w * waterColor, 0.8);
-    float foamBoost = 0.95 + pressure * 0.32 * softGap * activeBandMask + surgeEnergy * 0.25;
-    // Surface crest also respects gap limits inside the active band.
-    float surfaceVisibility = mix(1.0, softGap, activeBandMask);
-    return vec4(waterMix, w * whiteCap * foamBoost * rectangleMask * surfaceVisibility);
   }
 `;
 
@@ -361,6 +288,9 @@ export const createWaveShader = () => {
     ${waveShaderWaveMaskFunc}
     ${waveShaderWaterMaskFunc}
     ${waveShaderCircleMaskFunc}
+    ${waterIdleSurfaceHelpers}
+    ${waterBodyShaderHelpers}
+    ${waterSurfaceShaderHelpers}
     ${waveShaderMainFunc}
   `)!;
 };
@@ -373,6 +303,9 @@ export const sourceCode = `
     ${waveShaderWaveMaskFunc}
     ${waveShaderWaterMaskFunc}
     ${waveShaderCircleMaskFunc}
+    ${waterIdleSurfaceHelpers}
+    ${waterBodyShaderHelpers}
+    ${waterSurfaceShaderHelpers}
     ${waveShaderMainFunc}
   `;
 export const useWaveShaderUniforms = ({

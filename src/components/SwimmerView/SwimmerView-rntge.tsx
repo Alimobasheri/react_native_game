@@ -119,7 +119,7 @@ export const SwimmerView: FC<{
           height: swimmerHeight,
         },
         position: { x, y },
-        fillColor: '#006f06',
+        fillColor: '#0df68d',
         visible: true,
         renderLayer: SwimmerRenderLayer.Swimmer,
         origin: RenderSortOrigin.Bottom,

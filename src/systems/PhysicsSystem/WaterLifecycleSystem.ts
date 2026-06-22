@@ -20,12 +20,14 @@ import { System } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/syst
 import { findSceneEntityByKey } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/query';
 import { SwimmerRenderLayer } from '@/Game/render/swimmerRenderLayers';
 import { waterShaderRuntimeTuning } from '@/config/swimmerTuning';
+import { buildWaterLightingShaderUniforms } from '@/config/buildWaterLightingShaderUniforms';
+import { swimmerWaterLightingTuning, WATER_COLOR_MID_RGB } from '@/config/swimmerWaterLightingTuning';
 
 const DEFAULT_GAP_START = 1 / 6;
 const DEFAULT_GAP_END = 5 / 6;
 
-/** Style bible aqua — Water Base #10C8E8 */
-const WATER_COLOR_RGB: [number, number, number] = [16 / 255, 200 / 255, 232 / 255];
+const WATER_COLOR_RGB = WATER_COLOR_MID_RGB;
+const lightingUniforms = buildWaterLightingShaderUniforms();
 
 export const createWaterLifecycleSystem = (params: {
   sceneKey: string;
@@ -70,7 +72,7 @@ export const createWaterLifecycleSystem = (params: {
         return;
       }
 
-      const initialWaterLevel = 0.5;
+      const initialWaterLevel = swimmerWaterLightingTuning.waterBaseHeight;
       const canvasWidth = dimensions.value.width || 0;
       const canvasHeight = dimensions.value.height || 0;
       const waterOpacity =
@@ -113,9 +115,9 @@ export const createWaterLifecycleSystem = (params: {
               height: 0.5,
               heightOffset: 0.5,
               waterLevel: initialWaterLevel,
-              frequency: 1,
-              amplitude: 0.1,
-              speed: 0.05,
+              frequency: swimmerWaterLightingTuning.idleWaveSpatialFreq,
+              amplitude: swimmerWaterLightingTuning.idleWaveAmplitude,
+              speed: swimmerWaterLightingTuning.idleWaveSpeed * 0.02,
               dynamicWaveX: containerData.centerX,
               dynamicWave: [0, 0, 0, 0],
               heightOffsetFreq: 0.5,
@@ -139,7 +141,7 @@ export const createWaterLifecycleSystem = (params: {
               uGapCenter: 0.5,
               uGapWidth: 2 / 3,
               uSurfaceBandCenterY: initialWaterLevel,
-              uSurfaceBandHalfHeight: 0.08,
+              uSurfaceBandHalfHeight: swimmerWaterLightingTuning.surfaceBandHeight * 0.5,
               uSurge: 0,
               uPeakHeight: 0.001,
               uPeakSharpness: 1,
@@ -150,8 +152,9 @@ export const createWaterLifecycleSystem = (params: {
               uSurgeEnergy: 0,
               uCalmness: 0.5,
               uCurveCenter: 0.5,
-              uCurveAmp: 0.008,
+              uCurveAmp: 0,
               uCurveTilt: 0,
+              ...lightingUniforms,
             },
           },
         })

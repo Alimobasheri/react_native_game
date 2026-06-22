@@ -115,6 +115,7 @@ export const WaterShaderSystem: System = {
           uniforms.uCurveCenter = waterComponent.surfaceCurveCenterNorm ?? waterComponent.gapCenterNorm ?? 0.5;
           uniforms.uCurveAmp = waterComponent.surfaceCurveAmp ?? 0.008;
           uniforms.uCurveTilt = waterComponent.surfaceCurveTilt ?? 0;
+          uniforms.uVisualIntensity = waterComponent.visualIntensity ?? 0;
         }
       );
     });

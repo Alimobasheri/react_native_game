@@ -19,6 +19,12 @@
       "skillPath": "skills/game-engine/SKILL.md",
       "computedHash": "20057f62cf7a8b2d9f940b3de0b18e5426e8f4bb50e236d36b1033aa0d42c4d8"
     },
+    "glsl": {
+      "source": "martinholovsky/claude-skills-generator",
+      "sourceType": "github",
+      "skillPath": "skills/glsl/SKILL.md",
+      "computedHash": "ac49df8f99d8ed17e57ab31ef1d3332443a67a7ff8b9862b0ca5345923b8e97b"
+    },
     "level-design": {
       "source": "pluginagentmarketplace/custom-plugin-game-developer",
       "sourceType": "github",

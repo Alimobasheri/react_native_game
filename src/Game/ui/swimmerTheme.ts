@@ -1,6 +1,6 @@
 /** Color tokens from swimmer.styles.md §4 */
 
-export const COLOR_WATER_AQUA = '#10C8E8';
+export const COLOR_WATER_AQUA = '#0D76F6';
 export const COLOR_WATER_HIGHLIGHT = '#9EF7FF';
 export const COLOR_FOAM = '#F2FFFF';
 

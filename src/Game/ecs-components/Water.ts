@@ -49,6 +49,8 @@ export type WaterComponentData = {
   surfaceCurveCenterNorm?: number; // smoothed center for surface profile (0..1)
   surfaceCurveAmp?: number; // smoothed center-curve amplitude in UV units
   surfaceCurveTilt?: number; // smoothed directional tilt in UV units
+  /** 0 = idle polish surface, 1 = full gameplay gap/surge surface. */
+  visualIntensity?: number;
 };
 
 export const createWaterComponent = (

@@ -307,7 +307,7 @@ const meta = {
       WATER_SURFACE_FROM_CONTAINER_BOTTOM_FRACTION,
     waterRiseSpeed: 50,
     raisingSpeed: 200,
-    waterShaderOpacity: 0.52,
+    waterShaderOpacity: 0.58,
     sideWallContainerOverlapPx: sideWallTuning.CONTAINER_OVERLAP_PX,
     lockedTemplateName: '',
     storyLockedProceduralSegment: '',
@@ -321,7 +321,7 @@ const meta = {
     waterShaderOpacity: {
       control: { type: 'range', min: 0.15, max: 1, step: 0.01 },
       description:
-        'Lower = more transparent water (swimmer easier to see). Multiplies shader/paint alpha.',
+        'Water fill alpha. ~0.55–0.65 shows layered gradient + glossy surface lip on the cave background.',
     },
     sideWallContainerOverlapPx: {
       control: { type: 'range', min: 0, max: 48, step: 1 },
