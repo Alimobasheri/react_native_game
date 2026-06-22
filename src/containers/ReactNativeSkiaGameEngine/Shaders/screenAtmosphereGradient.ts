@@ -13,7 +13,8 @@ export const screenAtmosphereGradientUniforms = `
 
 export const screenAtmosphereGradientMain = `
   half4 main(float2 fragCoord) {
-    vec2 uv = fragCoord / max(uResolution, vec2(1.0));
+    // fragCoord is local path space centered at (0,0): map to UV 0..1 (top-left → bottom-right).
+    vec2 uv = (fragCoord + uResolution * 0.5) / max(uResolution, vec2(1.0));
     float y = uv.y;
 
     vec3 color;

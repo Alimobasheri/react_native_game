@@ -6,8 +6,8 @@ export const SwimmerRenderLayer = {
   CaveBase: RenderLayer.Background,
   /** Scrolling far cave texture tiles. */
   CaveParallax: 8,
-  /** Fixed edge vignette over parallax. */
-  CaveAtmosphere: 16,
+  /** Full-screen edge vignette over gameplay; kept below HUD for readable score. */
+  CaveAtmosphere: RenderLayer.Hud - 50,
   /** Swimmer — drawn before water so the body reads inside the fill. */
   Swimmer: RenderLayer.World - 2,
   /** Bright aqua water — over swimmer, under blocks. */
