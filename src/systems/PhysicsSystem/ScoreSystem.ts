@@ -6,7 +6,7 @@ import {
 } from '@/Game/ecs-components/Score';
 import { WaterComponentName } from '@/Game/ecs-components/Water';
 import { SwimmerComponentName, SwimmerComponentData } from '@/Game/ecs-components/Swimmer';
-import { getGameSession, isStartReady } from '@/Game/session/gameSessionQuery';
+import { getGameSession, isStartReady, isGameOverPhase } from '@/Game/session/gameSessionQuery';
 
 /** Score tick interval in ms. */
 const SCORE_TICK_MS = 30;
@@ -31,7 +31,7 @@ export const ScoreSystem: System = {
     const isInInitialPhase = swimmerData?.isInInitialPhase ?? true;
     const session = getGameSession(components);
 
-    if (isInInitialPhase || isStartReady(session)) return;
+    if (isInInitialPhase || isStartReady(session) || isGameOverPhase(session)) return;
 
     const raisingSpeed = waterData.raisingSpeed ?? 0;
 

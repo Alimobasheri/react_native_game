@@ -49,6 +49,7 @@ import { SideWallSegmentComponentName } from '@/Game/ecs-components/SideWallSegm
 import { TemplateContextComponentName } from '@/Game/ecs-components/TemplateContextComponent';
 import { GameSessionComponentName } from '@/Game/ecs-components/GameSession';
 import { StartOverlayTagComponentName } from '@/Game/ecs-components/StartOverlayTag';
+import { GameOverOverlayTagComponentName } from '@/Game/ecs-components/GameOverOverlayTag';
 import { GameOverScene } from '../Scenes/GameOverScene/index-rntge';
 import { StartScene } from '../Scenes/StartScene/index-rntge';
 import {
@@ -163,6 +164,7 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
               GameOverScoreComponentName,
               GameSessionComponentName,
               StartOverlayTagComponentName,
+              GameOverOverlayTagComponentName,
             ]}
           >
             <Preload>
@@ -304,7 +306,14 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                   right: insets.right,
                 }}
               />
-              <GameOverScene backgroundColor="#2B0A3D" />
+              <GameOverScene
+                safeAreaInsets={{
+                  top: insets.top,
+                  bottom: insets.bottom,
+                  left: insets.left,
+                  right: insets.right,
+                }}
+              />
             </Content>
           </ReactNativeTurboGameEngine>
         </View>

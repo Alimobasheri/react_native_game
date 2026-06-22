@@ -2,21 +2,29 @@
 
 export const swimmerTitleFloodRush = require('../../assets/swimmer/transparent/title-flood-rush.webp');
 export const swimmerUiBtnStartGreen = require('../../assets/swimmer/transparent/ui_btn_start_green.webp');
+export const swimmerUiBtnBlue = require('../../assets/swimmer/transparent/buttons_blue.webp');
+export const swimmerUiBtnGolden = require('../../assets/swimmer/transparent/buttons_golden.webp');
 export const swimmerUiChipPanel = require('../../assets/swimmer/transparent/ui_chip_panel.webp');
 export const swimmerIconCrownGold = require('../../assets/swimmer/transparent/icon_crown_gold.webp');
 export const swimmerIconShopCart = require('../../assets/swimmer/transparent/icon_shop_cart.webp');
 export const swimmerTutorialTapArrows = require('../../assets/swimmer/transparent/tutorial_tap_arrows.webp');
 export const swimmerTapCursorSprite = require('../../assets/swimmer/transparent/tap-cursor-sprite.webp');
+export const swimmerRetryIcon = require('../../assets/swimmer/transparent/retry_icon.webp');
+export const swimmerPlayVideoIcon = require('../../assets/swimmer/transparent/play-video_icon.webp');
 
 /** Keys registered in RNTGE image cache via `<Asset type="image" name="…" />`. */
 export const SWIMMER_UI_IMAGE = {
   titleFloodRush: 'swimmer_title_flood_rush',
   uiBtnStartGreen: 'swimmer_ui_btn_start_green',
+  uiBtnBlue: 'swimmer_ui_btn_blue',
+  uiBtnGolden: 'swimmer_ui_btn_golden',
   uiChipPanel: 'swimmer_ui_chip_panel',
   iconCrownGold: 'swimmer_icon_crown_gold',
   iconShopCart: 'swimmer_icon_shop_cart',
   tutorialTapArrows: 'swimmer_tutorial_tap_arrows',
   tapCursorSprite: 'swimmer_tap_cursor_sprite',
+  retryIcon: 'swimmer_retry_icon',
+  playVideoIcon: 'swimmer_play_video_icon',
 } as const;
 
 /** Tap-cursor spritesheet (4×3 grid, 1200×896 source). */
@@ -36,10 +44,18 @@ export const SWIMMER_UI_ASPECT = {
   /** Cropped transparent/title-flood-rush.webp (1398×707). */
   titleFloodRush: 1398 / 707,
   uiBtnStartGreen: 3.8920570264765786,
+  /** buttons_blue.webp — 796×309 */
+  uiBtnBlue: 796 / 309,
+  /** buttons_golden.webp — 797×305 */
+  uiBtnGolden: 797 / 305,
   uiChipPanel: 0.9562043795620438,
   iconCrownGold: 1.2636103151862463,
   iconShopCart: 1.1213793103448275,
   tutorialTapArrows: 2.608080808080808,
+  /** retry_icon.webp — 503×519 */
+  retryIcon: 503 / 519,
+  /** play-video_icon.webp — 581×443 */
+  playVideoIcon: 581 / 443,
 } as const;
 
 /** Gameplay channel width as a fraction of screen (matches ContainerView). */

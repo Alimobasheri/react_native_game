@@ -25,6 +25,18 @@ export type GameSessionComponentData = {
   ctaPressStartMs: number;
   /** Epoch ms when tutorial fade began; 0 = tutorial still visible during play. */
   tutorialFadeStartMs: number;
+  /** Epoch ms when game-over dim/panel intro began; 0 = hidden. */
+  gameOverOverlayIntroStartMs: number;
+  /** Epoch ms when game-over overlay fade-out began (retry); 0 = idle. */
+  gameOverOverlayFadeStartMs: number;
+  /** Retry button press squash; 0 = idle. */
+  gameOverRetryPressStartMs: number;
+  /** Score count-up on game-over panel; 0 = idle. */
+  gameOverScoreAnimStartMs: number;
+  /** Final run score shown on the game-over panel. */
+  gameOverFinalScore: number;
+  /** True when the last run beat the stored best score. */
+  gameOverIsNewBest: boolean;
 };
 
 export const createGameSessionComponent = (
@@ -50,6 +62,12 @@ export const createGameSessionComponent = (
       speedRampStartMs: data.speedRampStartMs ?? 0,
       ctaPressStartMs: data.ctaPressStartMs ?? 0,
       tutorialFadeStartMs: data.tutorialFadeStartMs ?? 0,
+      gameOverOverlayIntroStartMs: data.gameOverOverlayIntroStartMs ?? 0,
+      gameOverOverlayFadeStartMs: data.gameOverOverlayFadeStartMs ?? 0,
+      gameOverRetryPressStartMs: data.gameOverRetryPressStartMs ?? 0,
+      gameOverScoreAnimStartMs: data.gameOverScoreAnimStartMs ?? 0,
+      gameOverFinalScore: data.gameOverFinalScore ?? 0,
+      gameOverIsNewBest: data.gameOverIsNewBest ?? false,
     },
   };
 };

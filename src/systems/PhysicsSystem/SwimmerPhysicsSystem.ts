@@ -35,10 +35,6 @@ import {
   tiltedAabbHalfExtents,
 } from '@/Game/collision/swimmerBlockCollision';
 import {
-  LoadSceneRequestType,
-  UnLoadSceneRequestType,
-} from '@/containers/ReactNativeSkiaGameEngine/components-rntge/Scene/events';
-import {
   ScoreComponentName,
 } from '@/Game/ecs-components/Score';
 import {
@@ -50,12 +46,9 @@ import { swimmerPhysicsTuning } from '@/config/swimmerTuning';
 import { runOnJS } from 'react-native-reanimated';
 import { logSwimmerTapDebug } from '@/Game/debug/swimmerTapDebug';
 import {
-  GameSessionComponentData,
-  GameSessionComponentName,
-} from '@/Game/ecs-components/GameSession';
-import {
   getGameSession,
   getGameSessionEntity,
+  isGameOverPhase,
   isStartReady,
 } from '@/Game/session/gameSessionQuery';
 import { markGameSessionGameOver } from '@/Game/session/beginGameplay';
@@ -77,9 +70,6 @@ import { saveBestScoreIfHigher } from '@/Game/persistence/bestScoreStorage';
  * - Handles swimmer collision and falling states
  * - Manages horizontal swimmer movement
  */
-const GAME_SCENE_KEY = 'game';
-const GAME_OVER_SCENE_KEY = 'gameOver';
-
 const persistBestScoreAsync = (score: number) => {
   saveBestScoreIfHigher(score).catch(() => undefined);
 };
@@ -175,6 +165,10 @@ export const SwimmerPhysicsSystem: System = {
 
     const session = getGameSession(components);
     const startReady = isStartReady(session);
+
+    if (isGameOverPhase(session)) {
+      return;
+    }
 
     // PHASE 1: Initial water rising phase (skipped during start overlay)
     if (isInInitialPhase && !startReady) {
@@ -712,27 +706,9 @@ export const SwimmerPhysicsSystem: System = {
 
         const sessionEntity = getGameSessionEntity(components);
         if (typeof sessionEntity === 'number') {
-          markGameSessionGameOver(ecs, sessionEntity);
-          ecs.updateComponent<GameSessionComponentData>(
-            sessionEntity,
-            GameSessionComponentName,
-            (s) => {
-              if (finalScore > s.bestScore) {
-                s.bestScore = finalScore;
-              }
-            }
-          );
+          markGameSessionGameOver(ecs, sessionEntity, finalScore);
           runOnJS(saveBestScoreIfHigher)(finalScore);
         }
-
-        eventQueue.addEvent({
-          type: LoadSceneRequestType,
-          payload: { sceneKey: GAME_OVER_SCENE_KEY },
-        });
-        eventQueue.addEvent({
-          type: UnLoadSceneRequestType,
-          payload: { sceneKey: GAME_SCENE_KEY },
-        });
       }
 
       const swimmerAngle = collisionAngle;

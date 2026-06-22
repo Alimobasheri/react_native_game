@@ -20,7 +20,9 @@ export type ScoreComponentData = {
   hud: ScoreHudAnimState;
 };
 
-export const createDefaultScoreHudAnimState = (): ScoreHudAnimState => ({
+export const createDefaultScoreHudAnimState = (): ScoreHudAnimState => {
+  'worklet';
+  return {
   displayedInteger: 0,
   lastInteger: 0,
   entranceStartMs: 0,
@@ -28,8 +30,9 @@ export const createDefaultScoreHudAnimState = (): ScoreHudAnimState => ({
   milestonePopStartMs: 0,
   newBestStartMs: 0,
   beatBestShown: false,
-  lastMilestone: 0,
-});
+    lastMilestone: 0,
+  };
+};
 
 export const createScoreComponent = (
   data: Omit<ScoreComponentData, 'hud'> & { hud?: Partial<ScoreHudAnimState> }

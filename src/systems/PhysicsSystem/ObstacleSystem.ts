@@ -23,7 +23,7 @@ import {
   SwimmerComponentName,
   SwimmerComponentData,
 } from '@/Game/ecs-components/Swimmer';
-import { getGameSession, isStartReady } from '@/Game/session/gameSessionQuery';
+import { getGameSession, isStartReady, isGameOverPhase } from '@/Game/session/gameSessionQuery';
 import { buildObstacleRowRenderLayers } from '@/Game/render/buildObstacleRowRenderLayers';
 import {
   getNextObstacleRowY,
@@ -1095,10 +1095,12 @@ export const ObstacleSystem: System = {
     const isInInitialPhase = firstSwimmer?.isInInitialPhase === true;
     const session = getGameSession(components);
     const isStartReadyPhase = isStartReady(session);
+    const isGameOver = isGameOverPhase(session);
 
     const sceneEntity = findSceneEntityByKey(components, managerData.sceneKey);
 
-    const deltaY = isStartReadyPhase ? 0 : waterData.raisingSpeed * deltaSeconds;
+    const deltaY =
+      isStartReadyPhase || isGameOver ? 0 : waterData.raisingSpeed * deltaSeconds;
 
     if (typeof sceneEntity !== 'number') return;
 
@@ -1252,7 +1254,8 @@ export const ObstacleSystem: System = {
     maybeLogPlayerActiveObstacleRowTemplate(ecs, components, managerEntity, centerForPlayerDiag);
 
     // Seed initial obstacles when none exist (either during initial phase or when starting with water at center)
-    const shouldSeedInitialObstacles = rowStore.count() === 0;
+    const shouldSeedInitialObstacles =
+      rowStore.count() === 0 && !isGameOver;
 
     if (shouldSeedInitialObstacles) {
       let lastRowEntity: Entity | null = null
@@ -1379,7 +1382,7 @@ export const ObstacleSystem: System = {
           }
         }
       );
-    } else if (!isInInitialPhase && !isStartReadyPhase) {
+    } else if (!isInInitialPhase && !isStartReadyPhase && !isGameOver) {
       // Post-initial phase: Time-based spawning based on obstacle movement distance
       const rowHeight = blockHeight;
       const distancePerRow = getObstacleRowPitch(rowHeight);

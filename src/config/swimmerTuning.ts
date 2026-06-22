@@ -34,6 +34,18 @@ export const gameSessionTuning = {
   OVERLAY_SLIDE_MS: 380,
   /** Ms to fade the in-game tap-left/right tutorial after first steer. */
   OVERLAY_FADE_MS: 240,
+  /** Ms for game-over dim layer fade-in. */
+  GAME_OVER_DIM_FADE_MS: 120,
+  /** Ms for game-over panel scale/slide intro. */
+  GAME_OVER_PANEL_INTRO_MS: 320,
+  /** Ms for game-over score count-up. */
+  GAME_OVER_SCORE_ANIM_MS: 500,
+  /** Ms for game-over overlay fade-out on retry. */
+  GAME_OVER_FADE_OUT_MS: 180,
+  /** Delay before retry button appears during game-over intro. */
+  GAME_OVER_RETRY_INTRO_DELAY_MS: 300,
+  /** Delay before revive button appears during game-over intro. */
+  GAME_OVER_REVIVE_INTRO_DELAY_MS: 520,
 } as const;
 
 export const waterPhysicsTuning = {

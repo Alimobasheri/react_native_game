@@ -25,7 +25,7 @@ import {
   rangeWidth,
 } from '@/Game/water/gapRanges';
 import { gameSessionTuning, waterPhysicsTuning } from '@/config/swimmerTuning';
-import { getGameSession, isStartReady } from '@/Game/session/gameSessionQuery';
+import { getGameSession, isStartReady, isGameOverPhase } from '@/Game/session/gameSessionQuery';
 
 /**
  * Row spawned earlier sits lower on screen (larger `y`). When `prevRowEntity` still
@@ -93,7 +93,7 @@ export const WaterPhysicsSystem: System = {
     const isInInitialPhase = firstSwimmer?.isInInitialPhase ?? true;
     const session = getGameSession(components);
 
-    if (isInInitialPhase || isStartReady(session)) {
+    if (isInInitialPhase || isStartReady(session) || isGameOverPhase(session)) {
       return;
     }
 

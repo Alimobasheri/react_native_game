@@ -6,7 +6,44 @@ import {
 } from '@/Game/ecs-components/GameSession';
 import { gameSessionTuning } from '@/config/swimmerTuning';
 
-const { OVERLAY_FADE_MS, OVERLAY_SLIDE_MS, SPEED_RAMP_MS } = gameSessionTuning;
+const {
+  OVERLAY_FADE_MS,
+  OVERLAY_SLIDE_MS,
+  SPEED_RAMP_MS,
+  GAME_OVER_DIM_FADE_MS,
+  GAME_OVER_PANEL_INTRO_MS,
+  GAME_OVER_FADE_OUT_MS,
+  GAME_OVER_SCORE_ANIM_MS,
+  GAME_OVER_RETRY_INTRO_DELAY_MS,
+  GAME_OVER_REVIVE_INTRO_DELAY_MS,
+} = gameSessionTuning;
+
+export const easeInOutSine = (t: number): number => {
+  'worklet';
+  return -(Math.cos(Math.PI * t) - 1) / 2;
+};
+
+/** Hyper-casual overshoot — decelerates into place with a small bounce. */
+export const easeOutBack = (t: number, overshoot = 1.75): number => {
+  'worklet';
+  const c = Math.max(0, Math.min(1, t));
+  const c1 = overshoot + 1;
+  return 1 + c1 * Math.pow(c - 1, 3) + overshoot * Math.pow(c - 1, 2);
+};
+
+/** Accelerating exit — starts slow then rushes off screen. */
+export const easeInQuart = (t: number): number => {
+  'worklet';
+  const c = Math.max(0, Math.min(1, t));
+  return c * c * c * c;
+};
+
+/** Ease-out so gameplay speed is reached quickly after tap (avoids a long sluggish crawl). */
+export const easeOutCubic = (t: number): number => {
+  'worklet';
+  const c = Math.max(0, Math.min(1, t));
+  return 1 - Math.pow(1 - c, 3);
+};
 
 /** Single entry to transition from start_ready → playing. */
 export const beginGameplay = (
@@ -59,19 +96,141 @@ export const resetGameSessionToStartReady = (
 
 export const markGameSessionGameOver = (
   ecs: ECS,
-  sessionEntity: Entity
+  sessionEntity: Entity,
+  finalScore: number
 ): void => {
   'worklet';
+  const nowMs = Date.now();
   ecs.updateComponent<GameSessionComponentData>(
     sessionEntity,
     GameSessionComponentName,
     (s) => {
+      const floored = Math.floor(finalScore);
+      const isNewBest = floored > s.bestScore;
       s.phase = 'game_over';
       s.overlayOpacity = 0;
       s.overlayFadeStartMs = 0;
       s.tutorialFadeStartMs = 0;
+      s.gameOverFinalScore = floored;
+      s.gameOverIsNewBest = isNewBest;
+      s.gameOverOverlayIntroStartMs = nowMs;
+      s.gameOverOverlayFadeStartMs = 0;
+      s.gameOverRetryPressStartMs = 0;
+      s.gameOverScoreAnimStartMs = nowMs;
+      if (isNewBest) {
+        s.bestScore = floored;
+      }
     }
   );
+};
+
+export const computeGameOverDimOpacity = (
+  session: GameSessionComponentData,
+  nowMs: number
+): number => {
+  'worklet';
+  if (session.phase !== 'game_over') return 0;
+  if (session.gameOverOverlayFadeStartMs > 0) {
+    const t = Math.min(
+      1,
+      (nowMs - session.gameOverOverlayFadeStartMs) / GAME_OVER_FADE_OUT_MS
+    );
+    return Math.max(0, 0.52 * (1 - easeInOutSine(t)));
+  }
+  if (session.gameOverOverlayIntroStartMs <= 0) return 0;
+  const t = Math.min(
+    1,
+    (nowMs - session.gameOverOverlayIntroStartMs) / GAME_OVER_DIM_FADE_MS
+  );
+  return 0.52 * easeInOutSine(t);
+};
+
+export const computeGameOverPanelIntroT = (
+  session: GameSessionComponentData,
+  nowMs: number
+): number => {
+  'worklet';
+  if (session.phase !== 'game_over') return 0;
+  if (session.gameOverOverlayFadeStartMs > 0) {
+    const t = Math.min(
+      1,
+      (nowMs - session.gameOverOverlayFadeStartMs) / GAME_OVER_FADE_OUT_MS
+    );
+    return Math.max(0, 1 - easeInOutSine(t));
+  }
+  if (session.gameOverOverlayIntroStartMs <= 0) return 0;
+  const elapsed = nowMs - session.gameOverOverlayIntroStartMs - 80;
+  if (elapsed <= 0) return 0;
+  return Math.min(1, elapsed / GAME_OVER_PANEL_INTRO_MS);
+};
+
+export const computeGameOverPanelScale = (introT: number): number => {
+  'worklet';
+  if (introT <= 0) return 0.9;
+  const eased = easeOutBack(introT, 1.35);
+  if (eased > 1) {
+    return 1 + (eased - 1) * 0.35;
+  }
+  return 0.9 + (1 - 0.9) * eased;
+};
+
+export const computeGameOverScoreDisplay = (
+  session: GameSessionComponentData,
+  nowMs: number
+): number => {
+  'worklet';
+  if (session.phase !== 'game_over') return 0;
+  const target = session.gameOverFinalScore;
+  if (session.gameOverScoreAnimStartMs <= 0) return target;
+  const t = Math.min(
+    1,
+    (nowMs - session.gameOverScoreAnimStartMs) / GAME_OVER_SCORE_ANIM_MS
+  );
+  return Math.floor(target * easeOutCubic(t));
+};
+
+export const computeGameOverRetryIntroT = (
+  session: GameSessionComponentData,
+  nowMs: number
+): number => {
+  'worklet';
+  if (session.phase !== 'game_over') return 0;
+  if (session.gameOverOverlayFadeStartMs > 0) {
+    const t = Math.min(
+      1,
+      (nowMs - session.gameOverOverlayFadeStartMs) / GAME_OVER_FADE_OUT_MS
+    );
+    return Math.max(0, 1 - easeInOutSine(t));
+  }
+  if (session.gameOverOverlayIntroStartMs <= 0) return 0;
+  const elapsed =
+    nowMs -
+    session.gameOverOverlayIntroStartMs -
+    GAME_OVER_RETRY_INTRO_DELAY_MS;
+  if (elapsed <= 0) return 0;
+  return Math.min(1, elapsed / 220);
+};
+
+export const computeGameOverReviveIntroT = (
+  session: GameSessionComponentData,
+  nowMs: number
+): number => {
+  'worklet';
+  if (session.phase !== 'game_over') return 0;
+  if (session.gameOverOverlayFadeStartMs > 0) {
+    const t = Math.min(
+      1,
+      (nowMs - session.gameOverOverlayFadeStartMs) / GAME_OVER_FADE_OUT_MS
+    );
+    return Math.max(0, 1 - easeInOutSine(t));
+  }
+  if (session.gameOverOverlayIntroStartMs <= 0) return 0;
+  const elapsed =
+    nowMs -
+    session.gameOverOverlayIntroStartMs -
+    GAME_OVER_REVIVE_INTRO_DELAY_MS;
+  if (elapsed <= 0) return 0;
+  return Math.min(1, elapsed / 220);
 };
 
 /** Fade out the tap-left/right tutorial after the player's first steer tap. */
@@ -98,26 +257,6 @@ export const dismissTutorial = (
       s.tutorialFadeStartMs = Date.now();
     }
   );
-};
-
-export const easeInOutSine = (t: number): number => {
-  'worklet';
-  return -(Math.cos(Math.PI * t) - 1) / 2;
-};
-
-/** Hyper-casual overshoot — decelerates into place with a small bounce. */
-export const easeOutBack = (t: number, overshoot = 1.75): number => {
-  'worklet';
-  const c = Math.max(0, Math.min(1, t));
-  const c1 = overshoot + 1;
-  return 1 + c1 * Math.pow(c - 1, 3) + overshoot * Math.pow(c - 1, 2);
-};
-
-/** Accelerating exit — starts slow then rushes off screen. */
-export const easeInQuart = (t: number): number => {
-  'worklet';
-  const c = Math.max(0, Math.min(1, t));
-  return c * c * c * c;
 };
 
 export const computeOverlayDismissT = (
@@ -156,13 +295,6 @@ export const computeTutorialOpacity = (
     return Math.max(0, 1 - easeInOutSine(t));
   }
   return 0;
-};
-
-/** Ease-out so gameplay speed is reached quickly after tap (avoids a long sluggish crawl). */
-export const easeOutCubic = (t: number): number => {
-  'worklet';
-  const c = Math.max(0, Math.min(1, t));
-  return 1 - Math.pow(1 - c, 3);
 };
 
 export const computeSpeedRampMultiplier = (

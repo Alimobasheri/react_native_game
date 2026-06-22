@@ -5,55 +5,58 @@ import {
   Scene,
 } from '@/containers/ReactNativeSkiaGameEngine';
 import {
-  useAddEntity,
-  useCanvasDimensions,
-} from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs';
-import {
-  createRenderComponent,
-  ShapeTypes,
-} from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
-import { FC, useMemo } from 'react';
-import { GameOverTitle } from './GameOverTitle/GameOverTitle-rntge';
-import { GameOverScore } from './GameOverScore/GameOverScore-rntge';
-import { RestartGameButton } from './RestartGameButton/RestartGameButton-rntge';
+  SWIMMER_UI_IMAGE,
+  swimmerPlayVideoIcon,
+  swimmerRetryIcon,
+  swimmerUiBtnBlue,
+  swimmerUiBtnGolden,
+} from '@/assets/swimmerUi';
+import type { SafeAreaInsets } from '@/Game/ui/refLayout';
+import { FC } from 'react';
+import { GameOverDimLayer } from './GameOverDimLayer-rntge';
+import { GameOverOverlayController } from './GameOverOverlayController-rntge';
+import { GameOverPanel } from './GameOverPanel-rntge';
 
-type GameOverSceneProps = {
-  backgroundColor?: string;
+export type GameOverSceneProps = {
+  safeAreaInsets: SafeAreaInsets;
 };
 
-const GameOverBackground: FC<{ color: string }> = ({ color }) => {
-  const dimensions = useCanvasDimensions();
-
-  const components = useMemo(() => {
-    return [
-      createRenderComponent({
-        shape: {
-          type: ShapeTypes.Rectangle,
-          width: dimensions.width,
-          height: dimensions.height,
-        },
-        // Rectangles are centered on `position` in RNTGE.
-        position: { x: dimensions.width / 2, y: dimensions.height / 2 },
-        fillColor: color,
-        visible: true,
-        zIndex: -100,
-      }),
-    ];
-  }, [color, dimensions.height, dimensions.width]);
-
-  useAddEntity({ components });
-
-  return null;
-};
-
-export const GameOverScene: FC<GameOverSceneProps> = ({ backgroundColor }) => {
+export const GameOverScene: FC<GameOverSceneProps> = ({ safeAreaInsets }) => {
   return (
-    <Scene name="gameOver" isActive={false}>
+    <Scene name="gameOver" zIndex={20} isActive={true}>
+      <Preload>
+        <Asset
+          id="Fredoka"
+          type="font"
+          family="Fredoka"
+          resource={require('../../../../assets/fonts/Fredoka-Bold.ttf')}
+        />
+        <Asset
+          type="image"
+          name={SWIMMER_UI_IMAGE.uiBtnBlue}
+          uriOrBase64={swimmerUiBtnBlue}
+        />
+        <Asset
+          type="image"
+          name={SWIMMER_UI_IMAGE.uiBtnGolden}
+          uriOrBase64={swimmerUiBtnGolden}
+        />
+        <Asset
+          type="image"
+          name={SWIMMER_UI_IMAGE.retryIcon}
+          uriOrBase64={swimmerRetryIcon}
+        />
+        <Asset
+          type="image"
+          name={SWIMMER_UI_IMAGE.playVideoIcon}
+          uriOrBase64={swimmerPlayVideoIcon}
+        />
+      </Preload>
       <Content>
-        {backgroundColor ? <GameOverBackground color={backgroundColor} /> : null}
-        <GameOverTitle />
-        <GameOverScore />
-        <RestartGameButton />
+        <GameOverOverlayController safeAreaInsets={safeAreaInsets}>
+          <GameOverDimLayer insets={safeAreaInsets} />
+          <GameOverPanel insets={safeAreaInsets} />
+        </GameOverOverlayController>
       </Content>
     </Scene>
   );

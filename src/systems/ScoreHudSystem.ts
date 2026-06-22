@@ -19,7 +19,7 @@ import {
 } from '@/Game/ecs-components/ScoreHudTag';
 import { SwimmerComponentName, SwimmerComponentData } from '@/Game/ecs-components/Swimmer';
 import { firstDataFromStore } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/query';
-import { getGameSession, isStartReady } from '@/Game/session/gameSessionQuery';
+import { getGameSession, isStartReady, isGameOverPhase } from '@/Game/session/gameSessionQuery';
 import {
   easeOutBack,
   easeOutCubic,
@@ -113,7 +113,8 @@ export const ScoreHudSystem: System = {
       session?.phase === 'playing' &&
       overlayOpacity <= 0.01 &&
       !isInInitialPhase &&
-      !isStartReady(session);
+      !isStartReady(session) &&
+      !isGameOverPhase(session);
 
     const layout = layoutScoreHud(screenW, screenH, ZERO_INSETS);
     const bestScoreLine = `${Math.floor(session?.bestScore ?? 0)}`;

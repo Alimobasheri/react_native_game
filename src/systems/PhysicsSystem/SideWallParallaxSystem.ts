@@ -30,7 +30,7 @@ import {
   RemoveEntityRequest,
   RemoveEntityRequestType,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/events/entity';
-import { getGameSession, isStartReady } from '@/Game/session/gameSessionQuery';
+import { getGameSession, isStartReady, isGameOverPhase } from '@/Game/session/gameSessionQuery';
 import { SwimmerRenderLayer } from '@/Game/render/swimmerRenderLayers';
 import { GAMEPLAY_CHANNEL_WIDTH_FRACTION } from '@/assets/swimmerUi';
 import {
@@ -252,7 +252,7 @@ export const createSideWallParallaxSystem = (
         | undefined;
       const isInInitialPhase = firstSwimmer?.isInInitialPhase === true;
       const session = getGameSession(components);
-      const frozenForStart = isStartReady(session);
+      const frozenForStart = isStartReady(session) || isGameOverPhase(session);
 
       const deltaSeconds = deltaTime / 1000;
       const sideWallEntities = entities;

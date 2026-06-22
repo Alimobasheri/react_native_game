@@ -25,7 +25,7 @@ import {
   RemoveEntityRequest,
   RemoveEntityRequestType,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/events/entity';
-import { getGameSession, isStartReady } from '@/Game/session/gameSessionQuery';
+import { getGameSession, isStartReady, isGameOverPhase } from '@/Game/session/gameSessionQuery';
 import { SwimmerRenderLayer } from '@/Game/render/swimmerRenderLayers';
 import {
   SWIMMER_CAVE_BG_PARALLAX_FACTOR,
@@ -134,7 +134,7 @@ export const CaveParallaxBackgroundSystem: System = {
       | undefined;
     const isInInitialPhase = firstSwimmer?.isInInitialPhase === true;
     const session = getGameSession(components);
-    const frozenForStart = isStartReady(session);
+    const frozenForStart = isStartReady(session) || isGameOverPhase(session);
 
     const deltaSeconds = deltaTime / 1000;
     const caveBackgroundEntities = entities;
