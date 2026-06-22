@@ -6,8 +6,6 @@ import {
 } from '@/Game/ecs-components/Score';
 import { WaterComponentName } from '@/Game/ecs-components/Water';
 import { SwimmerComponentName, SwimmerComponentData } from '@/Game/ecs-components/Swimmer';
-import { TextComponentName, TextComponentData } from '@/containers/ReactNativeSkiaGameEngine/internal/components/text';
-import { RenderComponentData, RenderComponentName } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import { getGameSession, isStartReady } from '@/Game/session/gameSessionQuery';
 
 /** Score tick interval in ms. */
@@ -16,12 +14,11 @@ const SCORE_TICK_MS = 30;
 const SCORE_DIVISOR = 80;
 
 /**
- * ScoreSystem - Updates score based on water speed and time (distance).
- * Only runs after initial water rising phase. Updates score every 30ms and
- * syncs the entity's Text component to display the current score.
+ * ScoreSystem - Updates internal score based on water speed and time (distance).
+ * Display and HUD animation are handled by ScoreHudSystem.
  */
 export const ScoreSystem: System = {
-  requiredComponents: [ScoreComponentName, TextComponentName],
+  requiredComponents: [ScoreComponentName],
   process: ({ entities, components, deltaTime, ecs }) => {
     'worklet';
 
@@ -43,10 +40,7 @@ export const ScoreSystem: System = {
       const scoreData = components[ScoreComponentName].get(entityId) as
         | ScoreComponentData
         | undefined;
-      const textData = components[TextComponentName].get(entityId) as
-        | TextComponentData
-        | undefined;
-      if (!scoreData || !textData) continue;
+      if (!scoreData) continue;
 
       let accumulated = scoreData.accumulatedTime + deltaTime;
 
@@ -65,26 +59,6 @@ export const ScoreSystem: System = {
           s.accumulatedTime = accumulated;
         }
       );
-
-      const displayScore = Math.floor(scoreData.score);
-      const newText = String(displayScore);
-      if (textData.text !== newText) {
-        ecs.updateComponent<TextComponentData>(
-          entityId,
-          TextComponentName,
-          (t) => {
-            t.text = newText;
-            t.isDirty = true;
-          }
-        );
-        ecs.updateComponent<RenderComponentData>(
-          entityId,
-          RenderComponentName,
-          (r) => {
-            r.isDirty = true;
-          }
-        );
-      }
     }
   },
 };

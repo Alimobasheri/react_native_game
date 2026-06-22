@@ -16,6 +16,10 @@ import {
   swimmerSideWallLeft,
   swimmerSideWallRight,
 } from '@/assets/swimmerSideWalls';
+import {
+  swimmerIconCrownGold,
+  SWIMMER_UI_IMAGE,
+} from '@/assets/swimmerUi';
 import { sourceCode as waterShaderSourceCode } from '@/Shaders/WaterShader/waterShader';
 import { sourceCode as screenAtmosphereGradientSourceCode } from '@/containers/ReactNativeSkiaGameEngine/Shaders/screenAtmosphereGradient';
 import { sourceCode as screenEdgeVignetteSourceCode } from '@/containers/ReactNativeSkiaGameEngine/Shaders/screenEdgeVignette';
@@ -34,6 +38,7 @@ import { WaterComponentName } from '@/Game/ecs-components/Water';
 import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
 import { ObstaclesManagerComponentName } from '@/Game/ecs-components/ObstaclesManager';
 import { ScoreComponentName } from '@/Game/ecs-components/Score';
+import { ScoreHudTagComponentName } from '@/Game/ecs-components/ScoreHudTag';
 import { RunResultComponentName } from '@/Game/ecs-components/RunResult';
 import { GameOverScoreComponentName } from '@/Game/ecs-components/GameOverScore';
 import { ScoreView } from '@/components/ScoreView/ScoreView-rntge';
@@ -153,6 +158,7 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
               CaveAtmosphereComponentName,
               SideWallSegmentComponentName,
               ScoreComponentName,
+              ScoreHudTagComponentName,
               RunResultComponentName,
               GameOverScoreComponentName,
               GameSessionComponentName,
@@ -204,6 +210,11 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                     type="image"
                     name="side_wall_right"
                     uriOrBase64={swimmerSideWallRight}
+                  />
+                  <Asset
+                    type="image"
+                    name={SWIMMER_UI_IMAGE.iconCrownGold}
+                    uriOrBase64={swimmerIconCrownGold}
                   />
                   <Asset
                     type="shader"
@@ -271,8 +282,15 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                     screenHeight={windowHeight}
                   />
 
-                  {/* Score - top center, big and bold */}
-                  <ScoreView />
+                  {/* Score HUD — top-left during gameplay */}
+                  <ScoreView
+                    safeAreaInsets={{
+                      top: insets.top,
+                      bottom: insets.bottom,
+                      left: insets.left,
+                      right: insets.right,
+                    }}
+                  />
                 </Content>
               </Scene>
               <StartScene

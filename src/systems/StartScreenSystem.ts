@@ -23,7 +23,6 @@ import {
   StartOverlayTagComponentName,
 } from '@/Game/ecs-components/StartOverlayTag';
 import { WaterComponentData, WaterComponentName } from '@/Game/ecs-components/Water';
-import { ScoreComponentName } from '@/Game/ecs-components/Score';
 import {
   computeOverlayDismissT,
   computeOverlayOpacity,
@@ -357,26 +356,6 @@ export const StartScreenSystem: System = {
         );
       }
     });
-
-    const scoreEntities = ecs.getEntitiesWithComponents([ScoreComponentName]);
-    for (let i = 0; i < scoreEntities.length; i++) {
-      const scoreEntity = scoreEntities[i];
-      const scoreRender = components[RenderComponentName]?.get(scoreEntity) as
-        | RenderComponentData
-        | undefined;
-      if (!scoreRender) continue;
-      const showScore = session.phase === 'playing' && overlayOpacity <= 0;
-      if (scoreRender.visible !== showScore) {
-        ecs.updateComponent<RenderComponentData>(
-          scoreEntity,
-          RenderComponentName,
-          (r) => {
-            r.visible = showScore;
-            r.isDirty = true;
-          }
-        );
-      }
-    }
   },
 };
 
