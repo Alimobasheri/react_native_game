@@ -74,9 +74,9 @@ export const swimmerWaterLightingTuning = {
   internalShapeOpacity: 0.07,
 
   /** Rising current lines — idle vs gameplay strength (0..1). */
-  riseStreakIdleOpacity: 0.11,
-  riseStreakActiveOpacity: 0.24,
-  riseStreakIdleSpeed: 0.11,
+  riseStreakIdleOpacity: 0.16,
+  riseStreakActiveOpacity: 0.3,
+  riseStreakIdleSpeed: 0.14,
   riseStreakActiveSpeedScale: 1.85,
   riseStreakLongChance: 0.22,
 

@@ -10,14 +10,14 @@ export const blockFoamTuning = {
   rowFadeInSeconds: 0.1,
   /** Target droplets per edge before row variance / skips. */
   blobsPerEdge: 14,
-  minRadiusPx: 3.5,
-  maxRadiusPx: 7.5,
+  minRadiusPx: 2,
+  maxRadiusPx: 5,
   /** Center-to-center spacing as a fraction of diameter (<1 = overlap; ~0.7–0.85 bridges via spine + gooey). */
   dropletSpacingRatio: 0.76,
   /** Thin straight backbone along each wet face; gooey merge welds blobs to this line. */
-  spineWidthPx: 2.8,
-  spineOpacity: 0.94,
-  blobSpawnStaggerSeconds: 0.1,
+  spineWidthPx: 2.5,
+  spineOpacity: 0.6,
+  blobSpawnStaggerSeconds: 0.5,
   minDrawOpacity: 0.02,
   blobGrowSeconds: 0.08,
   blobLifeMinSeconds: 0.48,

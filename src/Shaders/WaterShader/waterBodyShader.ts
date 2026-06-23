@@ -44,6 +44,10 @@ export const waterBodyShaderHelpers = `
     return base + speed * uBubbleRiseFromWaterSpeed * visual;
   }
 
+  float streakShootEaseIn(float t) {
+    return t * t * t;
+  }
+
   float risingStreakLayer(
     vec2 waterUV,
     float depth,
@@ -55,10 +59,25 @@ export const waterBodyShaderHelpers = `
     float speedScale
   ) {
     float cols = 4.0 + layerSeed * 2.2;
-    float rowScale = mix(7.0, 10.5, layerSeed) / max(lengthScale, 0.85);
+    float rowScale = mix(5.4, 7.8, layerSeed) / max(lengthScale, 0.85);
+    float speedMul = speedScale * mix(0.7, 1.15, layerSeed);
+    float linearY = waterUV.y * rowScale - iTime * riseSpeed * speedMul;
+    float rowCell = floor(linearY);
+    float rowFrac = fract(linearY);
+
+    vec2 preCellId = vec2(
+      floor(waterUV.x * cols + sin(layerSeed * 4.7) * 0.15),
+      rowCell
+    );
+    float shootPhase = fract(
+      iTime * riseSpeed * speedMul * 0.34 + random(preCellId + layerSeed * 13.0) * 5.0
+    );
+    float shootEase = streakShootEaseIn(shootPhase);
+    float shootLift = shootEase * mix(0.48, 0.82, layerSeed);
+
     vec2 scrollUV = vec2(
       waterUV.x * cols + sin(layerSeed * 4.7) * 0.15,
-      waterUV.y * rowScale - iTime * riseSpeed * speedScale * mix(0.7, 1.15, layerSeed)
+      rowCell + rowFrac * mix(0.68, 1.0, shootEase) + shootLift
     );
     vec2 cellId = floor(scrollUV);
     vec2 cellUV = fract(scrollUV) - 0.5;
@@ -72,16 +91,17 @@ export const waterBodyShaderHelpers = `
     float hero = step(1.0 - uRiseStreakLongChance, random(cellId + layerSeed * 31.7));
     float width = (mix(0.1, 0.055, layerSeed) + random(cellId + 2.4) * 0.04) * mix(1.0, 0.82, hero);
     float curve = sin(cellUV.y * 3.14159 + random(cellId + 5.1) * 6.28318) * mix(0.04, 0.11, layerSeed);
-    float dashFreq = mix(1.0, 0.62, lengthScale) * mix(1.0, 0.75, hero);
-    float dash = smoothstep(0.08, 0.92, fract(cellUV.y * dashFreq + random(cellId) * 2.0));
+    float dashFreq = mix(0.78, 0.5, lengthScale) * mix(1.0, 0.68, hero);
+    float dashPhase = fract(cellUV.y * dashFreq + random(cellId) * 2.0);
+    float dash = smoothstep(0.08, 0.92, streakShootEaseIn(dashPhase));
     float dist = abs(cellUV.x + curve);
     float core = smoothstep(width, 0.0, dist) * dash;
 
-    float taperTop = mix(0.28, 0.42, lengthScale) * mix(1.0, 1.35, hero);
-    float taper = smoothstep(-0.5 * lengthScale, -0.1, cellUV.y) * (1.0 - smoothstep(taperTop, taperTop + 0.12, cellUV.y));
+    float taperTop = mix(0.44, 0.58, lengthScale) * mix(1.0, 1.22, hero);
+    float taper = smoothstep(-0.5 * lengthScale, -0.08, cellUV.y) * (1.0 - smoothstep(taperTop, taperTop + 0.1, cellUV.y));
     core *= taper;
 
-    float surfaceFade = smoothstep(uSurfaceBandHalfHeight * 2.2, uSurfaceBandHalfHeight * 5.5, depthBelowSurface);
+    float surfaceFade = smoothstep(uSurfaceBandHalfHeight * 0.45, uSurfaceBandHalfHeight * 1.85, depthBelowSurface);
     float bottomFade = smoothstep(0.03, 0.12, depth);
     float centerBias = 1.0 - smoothstep(0.0, 0.38, abs(waterUV.x - 0.5) * mix(1.05, 1.55, layerSeed));
     core *= surfaceFade * bottomFade * mix(0.84, 1.0, centerBias);
@@ -99,17 +119,17 @@ export const waterBodyShaderHelpers = `
       visual
     );
 
-    float back = risingStreakLayer(waterUV, depth, depthBelowSurface, 0.12, riseSpeed, streakOpacity, 1.0, 0.78);
-    float mid = risingStreakLayer(waterUV, depth, depthBelowSurface, 0.48, riseSpeed, streakOpacity * 1.05, 1.35, 1.0);
-    float fore = risingStreakLayer(waterUV, depth, depthBelowSurface, 0.86, riseSpeed, streakOpacity * 0.88, 1.0, 1.28);
-    float longLayer = risingStreakLayer(waterUV, depth, depthBelowSurface, 0.64, riseSpeed, streakOpacity * 0.92, 1.95, 1.15);
+    float back = risingStreakLayer(waterUV, depth, depthBelowSurface, 0.12, riseSpeed, streakOpacity, 1.25, 0.78);
+    float mid = risingStreakLayer(waterUV, depth, depthBelowSurface, 0.48, riseSpeed, streakOpacity * 1.05, 1.65, 1.0);
+    float fore = risingStreakLayer(waterUV, depth, depthBelowSurface, 0.86, riseSpeed, streakOpacity * 0.88, 1.35, 1.28);
+    float longLayer = risingStreakLayer(waterUV, depth, depthBelowSurface, 0.64, riseSpeed, streakOpacity * 0.92, 2.35, 1.15);
 
-    vec3 streakTint = mix(uWaterHighlight, uWaterColorSurface, 0.38);
-    vec3 heroTint = mix(streakTint, vec3(0.74, 0.94, 1.0), 0.42);
-    color += streakTint * back * 0.52;
-    color += streakTint * mid * 0.88;
-    color += heroTint * fore * 1.08;
-    color += heroTint * longLayer * 0.95;
+    vec3 streakTint = mix(uWaterHighlight, vec3(0.9, 0.97, 1.0), 0.62);
+    vec3 heroTint = mix(streakTint, vec3(0.94, 0.99, 1.0), 0.72);
+    color += streakTint * back * 0.72;
+    color += streakTint * mid * 1.12;
+    color += heroTint * fore * 1.38;
+    color += heroTint * longLayer * 1.18;
     return color;
   }
 

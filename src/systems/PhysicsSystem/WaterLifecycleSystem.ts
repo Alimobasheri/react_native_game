@@ -22,6 +22,7 @@ import { SwimmerRenderLayer } from '@/Game/render/swimmerRenderLayers';
 import { waterShaderRuntimeTuning } from '@/config/swimmerTuning';
 import { buildWaterLightingShaderUniforms } from '@/config/buildWaterLightingShaderUniforms';
 import { swimmerWaterLightingTuning, WATER_COLOR_MID_RGB } from '@/config/swimmerWaterLightingTuning';
+import { BlendMode } from '@shopify/react-native-skia';
 
 const DEFAULT_GAP_START = 1 / 6;
 const DEFAULT_GAP_END = 5 / 6;
@@ -109,6 +110,7 @@ export const createWaterLifecycleSystem = (params: {
           visible: true,
           renderLayer: SwimmerRenderLayer.Water,
           opacity: waterOpacity,
+          blendMode: BlendMode.Screen,
           shader: {
             key: 'water',
             uniforms: {
