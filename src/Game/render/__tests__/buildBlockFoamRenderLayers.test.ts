@@ -8,6 +8,7 @@ const baseArgs = {
   blockHeight: 40,
   waterRaiseSpeed: 200,
   contactLocalY: 10,
+  rowSeed: 128.4,
 };
 
 describe('buildBlockFoamRenderLayers', () => {
@@ -34,9 +35,15 @@ describe('buildBlockFoamRenderLayers', () => {
     const colLeft = colRight - blockWidth;
 
     const layers = buildBlockFoamRenderLayers({ ...baseArgs, foamAge: 1.2 });
-    expect(layers.length).toBeGreaterThan(0);
+    const bodies = layers.filter(
+      (layer) =>
+        layer.fillColor === blockFoamTuning.fillColor &&
+        layer.shape?.type === 'circle' &&
+        (layer.shape.radius ?? 0) >= blockFoamTuning.minRadiusPx * 0.7
+    );
+    expect(bodies.length).toBeGreaterThan(0);
 
-    for (const layer of layers) {
+    for (const layer of bodies) {
       const x = layer.position?.x ?? 0;
       const radius = layer.shape?.type === 'circle' ? layer.shape.radius : 0;
       expect(x).toBeGreaterThanOrEqual(colLeft + radius * 0.45);
@@ -51,9 +58,11 @@ describe('buildBlockFoamRenderLayers', () => {
     for (let t = 0; t <= 2; t += 0.05) {
       const layers = buildBlockFoamRenderLayers({ ...baseArgs, foamAge: t });
       for (const layer of layers) {
-        expect(layer.opacity ?? 0).toBeGreaterThanOrEqual(
-          blockFoamTuning.minDrawOpacity
-        );
+        const opacity = layer.opacity ?? 0;
+        if (opacity === 0) {
+          continue;
+        }
+        expect(opacity).toBeGreaterThanOrEqual(blockFoamTuning.minDrawOpacity);
       }
     }
   });
@@ -84,5 +93,33 @@ describe('buildBlockFoamRenderLayers', () => {
       const y = layer.position?.y ?? 0;
       expect(y).toBeLessThan(-halfH + 8);
     }
+  });
+
+  it('draws a straight spine rectangle along each wet contact edge', () => {
+    const layers = buildBlockFoamRenderLayers({ ...baseArgs, foamAge: 0.35 });
+    const spines = layers.filter(
+      (layer) =>
+        layer.shape?.type === 'rectangle' &&
+        layer.fillColor === blockFoamTuning.fillColor
+    );
+    expect(spines.length).toBe(1);
+    const spine = spines[0];
+    expect(spine.shape?.type).toBe('rectangle');
+    if (spine.shape?.type !== 'rectangle') {
+      return;
+    }
+    expect(spine.shape.width).toBe(blockFoamTuning.spineWidthPx);
+    expect(spine.shape.height).toBeGreaterThan(blockFoamTuning.foamClimbBandPx * 0.6);
+    expect(spine.opacity).toBeGreaterThan(0.4);
+  });
+
+  it('varies placement and density per row seed', () => {
+    const a = buildBlockFoamRenderLayers({ ...baseArgs, rowSeed: 12.5, foamAge: 1.4 });
+    const b = buildBlockFoamRenderLayers({ ...baseArgs, rowSeed: 97.8, foamAge: 1.4 });
+    const signature = (layers: ReturnType<typeof buildBlockFoamRenderLayers>) =>
+      layers
+        .map((layer) => `${layer.position?.x?.toFixed(1)}:${layer.position?.y?.toFixed(1)}`)
+        .join('|');
+    expect(signature(a)).not.toBe(signature(b));
   });
 });

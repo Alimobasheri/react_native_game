@@ -17,6 +17,8 @@ export type BlockFoamComponentData = {
    * Bubbles grow upward from this line for the row's lifetime.
    */
   contactLocalY: number;
+  /** Stable per-row seed for density, timing, and placement noise. */
+  rowSeed: number;
 };
 
 export const createBlockFoamComponent = (

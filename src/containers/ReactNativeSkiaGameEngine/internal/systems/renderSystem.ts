@@ -7,6 +7,7 @@ import {
   PaintStyle,
   SkShader,
   BlendMode,
+  TileMode,
 } from '@shopify/react-native-skia';
 import {
   RenderComponentData,
@@ -16,6 +17,7 @@ import {
   RenderShapePolygon,
   RenderShapeRectangle,
   ImageShadowData,
+  GooeyMergeFilterData,
 } from '../components/render';
 import {
   borderRadiusHasAny,
@@ -66,6 +68,23 @@ const imageShadowBleedPadding = (shadow?: ImageShadowData): number => {
     Math.abs(shadow.dx ?? 0) +
     Math.abs(shadow.dy ?? 0)
   );
+};
+
+const createGooeyImageFilter = (config: GooeyMergeFilterData) => {
+  'worklet';
+  const blur = Skia.ImageFilter.MakeBlur(
+    config.blurSigma,
+    config.blurSigma,
+    TileMode.Decal,
+    null
+  );
+  const colorFilter = Skia.ColorFilter.MakeMatrix([
+    1, 0, 0, 0, 0,
+    0, 1, 0, 0, 0,
+    0, 0, 1, 0, 0,
+    0, 0, 0, config.alphaMultiplier, -config.alphaThreshold,
+  ]);
+  return Skia.ImageFilter.MakeColorFilter(colorFilter, blur);
 };
 
 const maxLayerShadowPadding = (layers: RenderLayerData[]): number => {
@@ -490,16 +509,23 @@ const createAndCacheGroupPicture = (
   if (renderData.shape.type !== 'rectangle') return null;
 
   const { width, height } = renderData.shape;
-  const shadowPad = maxLayerShadowPadding(layers);
-  const recorder = Skia.PictureRecorder();
-  const canvas = recorder.beginRecording(
-    Skia.XYWHRect(
-      -width / 2 - shadowPad,
-      -height / 2 - shadowPad,
-      width + shadowPad * 2,
-      height + shadowPad * 2
-    )
+  const gooey = renderData.gooeyMerge;
+  const gooeyPad = gooey ? Math.ceil(gooey.blurSigma * 3.5) : 0;
+  const shadowPad = Math.max(maxLayerShadowPadding(layers), gooeyPad);
+  const bounds = Skia.XYWHRect(
+    -width / 2 - shadowPad,
+    -height / 2 - shadowPad,
+    width + shadowPad * 2,
+    height + shadowPad * 2
   );
+  const recorder = Skia.PictureRecorder();
+  const canvas = recorder.beginRecording(bounds);
+
+  if (gooey) {
+    const layerPaint = Skia.Paint();
+    layerPaint.setImageFilter(createGooeyImageFilter(gooey));
+    canvas.saveLayer(layerPaint, bounds);
+  }
 
   for (let i = 0; i < layers.length; i++) {
     const layer = layers[i];
@@ -517,6 +543,10 @@ const createAndCacheGroupPicture = (
       drawLayerBacking(canvas, layer);
     }
     drawDrawableContent(canvas, layer);
+    canvas.restore();
+  }
+
+  if (gooey) {
     canvas.restore();
   }
 

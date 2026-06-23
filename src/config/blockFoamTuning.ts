@@ -1,54 +1,54 @@
-/** Gap-edge block foam — sticky white blobs that cling at the water/block lip. */
+/** Gap-edge block foam — gooey merged droplets along water/block contacts. */
+
+export const blockFoamGooeyMerge = {
+  blurSigma: 6,
+  alphaMultiplier: 55,
+  alphaThreshold: 15,
+} as const;
 
 export const blockFoamTuning = {
-  /** Row-level ramp when water first touches the row. */
-  rowFadeInSeconds: 0.2,
-  /** Vertical slots along each gap-facing block edge (on clay only). */
-  blobsPerEdge: 9,
-  minRadiusPx: 5,
-  maxRadiusPx: 11,
-  /** Delay between each bubble appearing along an edge (builds up gradually). */
-  blobSpawnStaggerSeconds: 0.2,
-  /** Skip drawing below this combined opacity (avoids fully-transparent layers). */
+  rowFadeInSeconds: 0.1,
+  /** Target droplets per edge before row variance / skips. */
+  blobsPerEdge: 14,
+  minRadiusPx: 3.5,
+  maxRadiusPx: 7.5,
+  /** Center-to-center spacing as a fraction of diameter (<1 = overlap; ~0.7–0.85 bridges via spine + gooey). */
+  dropletSpacingRatio: 0.76,
+  /** Thin straight backbone along each wet face; gooey merge welds blobs to this line. */
+  spineWidthPx: 2.8,
+  spineOpacity: 0.94,
+  blobSpawnStaggerSeconds: 0.1,
   minDrawOpacity: 0.02,
-  /** How long each blob swells onto the block (seconds). */
-  blobGrowSeconds: 0.45,
-  /** Full swell → hold → fade loop duration at base water speed (seconds). */
-  blobLifeMinSeconds: 2.4,
-  blobLifeMaxSeconds: 4.1,
-  /** Fraction of each cycle spent holding before the slow fade. */
-  blobFadeStartFraction: 0.64,
-  /** Opacity at peak hold (before slow fade). */
-  settledOpacity: 0.9,
-  /** Very subtle brightness wobble during hold only. */
-  settledBreatheAmplitude: 0.02,
-  /** Scales grow/creep/cycle with water raise speed. */
+  blobGrowSeconds: 0.08,
+  blobLifeMinSeconds: 0.48,
+  blobLifeMaxSeconds: 0.85,
+  blobPopGrowEndFraction: 0.18,
+  blobPopHoldEndFraction: 0.52,
+  blobScaleStart: 0.4,
+  blobScaleOvershoot: 1.12,
+  blobScaleSettle: 0.9,
+  blobScalePop: 1.28,
+  settledOpacity: 0.96,
+  settledBreatheAmplitude: 0.01,
   speedReference: 200,
-  /** Gentle cling along the face during grow/hold (px / second). */
-  creepSpeedPxPerSec: 1.1,
-  /** Max drift per cycle from the spawn anchor. */
-  maxCreepPx: 4.5,
-  /**
-   * Anchor bubbles this far inward from the water-facing block face (fraction of block width).
-   */
+  edgeDriftPxPerSec: 12,
+  maxEdgeDriftPx: 8,
+  edgeBobPx: 1.6,
   edgeAnchorInsetFraction: 0.06,
-  /** Outward bulge at the lip once foam has landed on the block. */
-  spillBulgeFraction: 0.14,
-  /** Bulge strength after settle (0–1). */
-  settledSpillStrength: 0.72,
-  /**
-   * Circle center must stay this fraction of the radius inward from the water face
-   * (the rest of the circle overlaps water for a spill look).
-   */
+  spillBulgeFraction: 0.1,
+  settledSpillStrength: 0.62,
   minOnBlockRadiusFraction: 0.22,
-  /** Starting scale at spawn — avoids tiny smoke puffs. */
-  minSettledScale: 0.82,
-  /** Tiny idle wobble so foam feels alive without drifting like smoke. */
   shimmerPx: 0.35,
-  maxBlobOpacity: 0.88,
-  fillColor: '#FFFFFF',
-  /** Push spawn band slightly below the flat water surface (screen Y+, into the water). */
+  maxBlobOpacity: 0.94,
+  fillColor: '#F7FFFF',
   belowSurfaceOffsetPx: 0,
-  /** How far bubbles climb upward along the block from the contact line. */
-  foamClimbBandPx: 52,
+  foamClimbBandPx: 50,
+  rowClimbBandVariance: [0.85, 1.22] as const,
+  rowBlobCountVariance: [0.7, 1.15] as const,
+  rowFadeVariance: [0.75, 1.35] as const,
+  /** Jitter along the contact edge (more = farther apart blobs along the spine). */
+  rowAnchorJitterAlongPx: 2.2,
+  /** Jitter perpendicular to edge — keep low for a straight surf line. */
+  rowAnchorJitterAcrossPx: 0.75,
+  rowBlobSkipChance: 0.12,
 } as const;

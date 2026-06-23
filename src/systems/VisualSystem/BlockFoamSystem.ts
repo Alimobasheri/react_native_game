@@ -37,12 +37,12 @@ import {
 } from '@/Game/ecs-components/BlockFoam';
 import { SwimmerRenderLayer } from '@/Game/render/swimmerRenderLayers';
 import { collectBlockFoamContacts } from '@/Game/visual/blockFoamContacts';
-import { buildBlockFoamRenderLayers } from '@/Game/render/buildBlockFoamRenderLayers';
+import { buildBlockFoamRenderLayers, computeRowFoamSeed } from '@/Game/render/buildBlockFoamRenderLayers';
 import {
   computeFoamContactLocalY,
   getFlatWaterBodyTopY,
 } from '@/Game/water/flatWaterSurface';
-import { blockFoamTuning } from '@/config/blockFoamTuning';
+import { blockFoamTuning, blockFoamGooeyMerge } from '@/config/blockFoamTuning';
 import { getGameSession, isGameOverPhase, isStartReady } from '@/Game/session/gameSessionQuery';
 import { LAYOUT_CONSTANTS } from '@/Layout';
 import type { ComponentStore } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/component';
@@ -196,6 +196,7 @@ export const BlockFoamSystem: System = {
           rowY,
           blockFoamTuning.belowSurfaceOffsetPx
         );
+        const rowSeed = computeRowFoamSeed(rowEntity, rowData.gaps, rowY);
         ecs.addComponent(
           foamEntityId,
           createBlockFoamComponent({
@@ -207,6 +208,7 @@ export const BlockFoamSystem: System = {
             blockHeight: blockH,
             rowCenterX,
             contactLocalY,
+            rowSeed,
           })
         );
         const initialLayers = buildBlockFoamRenderLayers({
@@ -217,6 +219,7 @@ export const BlockFoamSystem: System = {
           foamAge: 0,
           waterRaiseSpeed,
           contactLocalY,
+          rowSeed,
         });
         ecs.addComponent(
           foamEntityId,
@@ -229,6 +232,7 @@ export const BlockFoamSystem: System = {
             position: { x: rowCenterX, y: rowY },
             renderLayers: initialLayers,
             visible: initialLayers.length > 0,
+            gooeyMerge: blockFoamGooeyMerge,
             renderLayer: SwimmerRenderLayer.Obstacles + 1,
             tieBreaker: RenderSortTieBreaker.WorldXAsc,
           })
@@ -265,6 +269,9 @@ export const BlockFoamSystem: System = {
         foamAge: nextAge,
         waterRaiseSpeed,
         contactLocalY: existingFoam.contactLocalY,
+        rowSeed:
+          existingFoam.rowSeed ??
+          computeRowFoamSeed(rowEntity, rowData.gaps, rowY),
       });
       ecs.updateComponent<RenderComponentData>(
         activeFoamId,

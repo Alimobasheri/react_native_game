@@ -77,6 +77,13 @@ export interface SpriteInfo {
   lastFrameTime?: number; // Last time frame was updated (managed by system)
 }
 
+/** Gooey metaball merge (blur + alpha threshold) for grouped render layers. */
+export type GooeyMergeFilterData = {
+  blurSigma: number;
+  alphaMultiplier: number;
+  alphaThreshold: number;
+};
+
 /** Alpha-following drop shadow / outer glow for image draws (Skia ImageFilter). */
 export type ImageShadowData = {
   dx?: number;
@@ -163,6 +170,11 @@ export interface RenderComponentData {
    * v1: flat layers only; animated layer sprites rebuild the whole group picture.
    */
   renderLayers?: RenderLayerData[];
+  /**
+   * When set with renderLayers, records the group through a gooey merge filter
+   * so overlapping circles blend into a continuous foam-like mass.
+   */
+  gooeyMerge?: GooeyMergeFilterData;
 }
 
 // Update the creation utility function
