@@ -110,7 +110,7 @@ export const createWaterLifecycleSystem = (params: {
           visible: true,
           renderLayer: SwimmerRenderLayer.Water,
           opacity: waterOpacity,
-          blendMode: BlendMode.Screen,
+          blendMode: BlendMode.SrcOver,
           shader: {
             key: 'water',
             uniforms: {
