@@ -4,6 +4,7 @@ import { WaterPhysicsSystem } from '@/systems/PhysicsSystem/WaterPhysicsSystem';
 import { createWaterLifecycleSystem } from '@/systems/PhysicsSystem/WaterLifecycleSystem';
 import { IdleWaterVisualSystem } from '@/systems/PhysicsSystem/IdleWaterVisualSystem';
 import { BlockFoamSystem } from '@/systems/VisualSystem/BlockFoamSystem';
+import { WaterSurfaceFoamSystem } from '@/systems/VisualSystem/WaterSurfaceFoamSystem';
 import { useSceneContextUnsafe } from '@/containers/ReactNativeSkiaGameEngine/components-rntge/Scene/hooks';
 import { FC, useMemo } from 'react';
 
@@ -31,6 +32,7 @@ export const WaterView: FC<{
   useAddSystem({ system: WaterShaderSystem });
   useAddSystem({ system: WaterPhysicsSystem });
   useAddSystem({ system: BlockFoamSystem });
+  useAddSystem({ system: WaterSurfaceFoamSystem });
 
   return null;
 };

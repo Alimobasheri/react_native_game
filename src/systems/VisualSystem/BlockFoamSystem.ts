@@ -36,7 +36,7 @@ import {
   createBlockFoamComponent,
 } from '@/Game/ecs-components/BlockFoam';
 import { SwimmerRenderLayer } from '@/Game/render/swimmerRenderLayers';
-import { collectBlockFoamContacts } from '@/Game/visual/blockFoamContacts';
+import { collectBlockFoamContacts, pickSparseBlockFoamContacts } from '@/Game/visual/blockFoamContacts';
 import { buildBlockFoamRenderLayers, computeRowFoamSeed } from '@/Game/render/buildBlockFoamRenderLayers';
 import {
   computeFoamContactLocalY,
@@ -179,11 +179,15 @@ export const BlockFoamSystem: System = {
           rowData.prevRowEntity != null
             ? (rowStore.get(rowData.prevRowEntity)?.gaps ?? null)
             : null;
-        const contacts = collectBlockFoamContacts(
-          rowData.gaps,
-          rowAboveGaps,
-          rowBelowGaps,
-          LAYOUT_CONSTANTS.COLUMNS
+        const rowSeed = computeRowFoamSeed(rowEntity, rowData.gaps, rowY);
+        const contacts = pickSparseBlockFoamContacts(
+          collectBlockFoamContacts(
+            rowData.gaps,
+            rowAboveGaps,
+            rowBelowGaps,
+            LAYOUT_CONSTANTS.COLUMNS
+          ),
+          rowSeed
         );
         if (contacts.length === 0) {
           return;
@@ -196,7 +200,6 @@ export const BlockFoamSystem: System = {
           rowY,
           blockFoamTuning.belowSurfaceOffsetPx
         );
-        const rowSeed = computeRowFoamSeed(rowEntity, rowData.gaps, rowY);
         ecs.addComponent(
           foamEntityId,
           createBlockFoamComponent({

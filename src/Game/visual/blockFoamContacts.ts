@@ -1,4 +1,5 @@
 import { groupGapsToRanges } from '@/Game/water/gapRanges';
+import { blockFoamTuning } from '@/config/blockFoamTuning';
 
 export type BlockFoamContactSide = 'left' | 'right' | 'top' | 'bottom';
 
@@ -102,4 +103,47 @@ export function collectBlockFoamContacts(
     rowLength
   );
   return vertical.concat(horizontal);
+}
+
+const hash01 = (seed: number): number => {
+  'worklet';
+  const x = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
+  return x - Math.floor(x);
+};
+
+const contactSideSalt = (side: BlockFoamContactSide): number => {
+  'worklet';
+  if (side === 'left') {
+    return 3.1;
+  }
+  if (side === 'right') {
+    return 7.4;
+  }
+  if (side === 'top') {
+    return 11.8;
+  }
+  return 15.6;
+};
+
+/** Stable subset — not every eligible edge gets foam for a row's lifetime. */
+export function pickSparseBlockFoamContacts(
+  contacts: readonly BlockFoamContact[],
+  rowSeed: number
+): BlockFoamContact[] {
+  'worklet';
+  const picked: BlockFoamContact[] = [];
+  for (let i = 0; i < contacts.length; i++) {
+    const contact = contacts[i];
+    const horizontal = contact.side === 'top' || contact.side === 'bottom';
+    const sideMul = horizontal ? blockFoamTuning.horizontalEdgeFoamChanceMul : 1;
+    const variance = 0.85 + hash01(rowSeed + contact.col * 9.7 + contactSideSalt(contact.side)) * 0.3;
+    const chance = blockFoamTuning.edgeFoamChance * sideMul * variance;
+    const roll = hash01(
+      rowSeed * 0.31 + contact.col * 17.3 + contactSideSalt(contact.side) * 2.1
+    );
+    if (roll < chance) {
+      picked.push(contact);
+    }
+  }
+  return picked;
 }

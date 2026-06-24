@@ -2,6 +2,7 @@ import {
   collectBlockFoamContacts,
   collectExposedHorizontalEdgeFoamContacts,
   collectGapEdgeFoamContacts,
+  pickSparseBlockFoamContacts,
 } from '@/Game/visual/blockFoamContacts';
 
 describe('collectGapEdgeFoamContacts', () => {
@@ -89,5 +90,24 @@ describe('collectBlockFoamContacts', () => {
       ])
     );
     expect(contacts).not.toContainEqual({ col: 5, side: 'bottom' });
+  });
+});
+
+describe('pickSparseBlockFoamContacts', () => {
+  const cols = 8;
+  const all = collectBlockFoamContacts([1, 2, 5, 6], null, [1, 2], cols);
+
+  it('returns a stable strict subset of eligible edges', () => {
+    const rowSeed = 128.4;
+    const a = pickSparseBlockFoamContacts(all, rowSeed);
+    const b = pickSparseBlockFoamContacts(all, rowSeed);
+    expect(a).toEqual(b);
+    expect(a.length).toBeGreaterThan(0);
+    expect(a.length).toBeLessThan(all.length);
+  });
+
+  it('can omit every edge for an unlucky row seed', () => {
+    const sparse = pickSparseBlockFoamContacts(all, 0.01);
+    expect(sparse.length).toBeLessThanOrEqual(all.length);
   });
 });

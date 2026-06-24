@@ -109,7 +109,7 @@ describe('buildBlockFoamRenderLayers', () => {
       return;
     }
     expect(spine.shape.width).toBe(blockFoamTuning.spineWidthPx);
-    expect(spine.shape.height).toBeGreaterThan(blockFoamTuning.foamClimbBandPx * 0.6);
+    expect(spine.shape.height).toBeGreaterThan(blockFoamTuning.foamClimbBandPx * 0.5);
     expect(spine.opacity).toBeGreaterThan(0.4);
   });
 

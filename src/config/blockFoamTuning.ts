@@ -9,13 +9,13 @@ export const blockFoamGooeyMerge = {
 export const blockFoamTuning = {
   rowFadeInSeconds: 0.1,
   /** Target droplets per edge before row variance / skips. */
-  blobsPerEdge: 14,
+  blobsPerEdge: 12,
   minRadiusPx: 2,
   maxRadiusPx: 5,
   /** Center-to-center spacing as a fraction of diameter (<1 = overlap; ~0.7–0.85 bridges via spine + gooey). */
   dropletSpacingRatio: 0.76,
   /** Thin straight backbone along each wet face; gooey merge welds blobs to this line. */
-  spineWidthPx: 2.5,
+  spineWidthPx: 2.4,
   spineOpacity: 0.6,
   blobSpawnStaggerSeconds: 0.5,
   minDrawOpacity: 0.02,
@@ -51,4 +51,8 @@ export const blockFoamTuning = {
   /** Jitter perpendicular to edge — keep low for a straight surf line. */
   rowAnchorJitterAcrossPx: 0.75,
   rowBlobSkipChance: 0.12,
+  /** Fraction of eligible wet edges that receive foam (stable per row + edge). */
+  edgeFoamChance: 0.36,
+  /** Top/bottom lip foam is sparser than gap-facing vertical edges. */
+  horizontalEdgeFoamChanceMul: 0.68,
 } as const;

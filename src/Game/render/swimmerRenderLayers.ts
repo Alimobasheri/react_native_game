@@ -12,6 +12,8 @@ export const SwimmerRenderLayer = {
   Swimmer: RenderLayer.World - 2,
   /** Bright aqua water — over swimmer, under blocks. */
   Water: RenderLayer.World - 1,
+  /** Open-water foam — same layer as water; Y-sorted above the shader quad, under blocks. */
+  WaterSurfaceFoam: RenderLayer.World - 1,
   /** Blocks — Y-sorted above water. */
   Obstacles: RenderLayer.World,
   /** Foreground cave rocks — slightly faster parallax than blocks (layer in front). */
