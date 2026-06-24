@@ -17,6 +17,11 @@ import {
   swimmerSideWallRight,
 } from '@/assets/swimmerSideWalls';
 import { swimmerIconCrownGold, SWIMMER_UI_IMAGE } from '@/assets/swimmerUi';
+import {
+  floaterGoggledBody,
+  floaterGoggledGoggles,
+  SWIMMER_CHARACTER_IMAGE,
+} from '@/assets/swimmerCharacters';
 import { sourceCode as waterShaderSourceCode } from '@/Shaders/WaterShader/waterShader';
 import { sourceCode as screenAtmosphereGradientSourceCode } from '@/containers/ReactNativeSkiaGameEngine/Shaders/screenAtmosphereGradient';
 import { sourceCode as screenEdgeVignetteSourceCode } from '@/containers/ReactNativeSkiaGameEngine/Shaders/screenEdgeVignette';
@@ -218,6 +223,16 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                     type="image"
                     name={SWIMMER_UI_IMAGE.iconCrownGold}
                     uriOrBase64={swimmerIconCrownGold}
+                  />
+                  <Asset
+                    type="image"
+                    name={SWIMMER_CHARACTER_IMAGE.floaterGoggledBody}
+                    uriOrBase64={floaterGoggledBody}
+                  />
+                  <Asset
+                    type="image"
+                    name={SWIMMER_CHARACTER_IMAGE.floaterGoggledGoggles}
+                    uriOrBase64={floaterGoggledGoggles}
                   />
                   <Asset
                     type="shader"

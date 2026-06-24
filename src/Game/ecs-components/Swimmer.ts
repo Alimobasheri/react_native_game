@@ -1,43 +1,66 @@
 import { Component } from '@/containers/ReactNativeSkiaGameEngine/services-ecs';
+import { MovementState } from '@/Game/characters/characterMovementStates';
+import type { SecondaryItemPersistedState } from '@/Game/characters/secondaryItemTypes';
 
 export const SwimmerComponentName = 'Swimmer';
+
+export const SWIMMER_ACCESSORY_LAYER_INDEX = 1;
+
+export type SpeedTier = 1 | 2 | 3;
+
+export type SwimmerLocomotionData = {
+  profileId: string;
+  movementState: MovementState;
+  currentTier: SpeedTier;
+  /** Seconds remaining in the combo tap window. */
+  comboTimer: number;
+  currentAngleDeg: number;
+  targetAngleDeg: number;
+  facingDirection: 1 | -1;
+  /** Seconds remaining in pivot input lockout. */
+  pivotLockoutTimer: number;
+  /** Queued facing direction for post-brake tier-1 strike. */
+  pivotTargetDirection?: -1 | 1 | 0;
+  /** One-shot tap direction consumed by physics each frame. */
+  pendingTapDirection?: -1 | 1 | 0;
+  /** Current procedural mesh scale X (volume-conserved with meshScaleY). */
+  meshScaleX?: number;
+  /** Current procedural mesh scale Y (volume-conserved with meshScaleX). */
+  meshScaleY?: number;
+  /** Prior frame movement state for pivot edge detection. */
+  previousMovementState?: MovementState;
+  /** Persisted secondary attachment simulation state. */
+  accessoryState?: SecondaryItemPersistedState;
+};
 
 export type SwimmerComponentData = {
   /** World-space center X (pixels). */
   x: number;
   /** World-space center Y (pixels). */
   y: number;
-  velocityX: number; // Horizontal velocity for left/right movement
-  /** Normalized horizontal input from controls (-1..1). Used for tap-based hyper-casual movement. */
-  inputX?: number;
-  /** Epoch ms timestamp of the most recent tap used for rapid-tap boosting. */
-  lastTapTimeMs?: number;
-  /** Direction of the most recent tap (-1 left, 1 right). */
-  lastTapDirection?: -1 | 1;
-  /** Count of consecutive rapid taps in the same direction within threshold. */
-  rapidTapStreak?: number;
-  /** One-shot multiplier consumed by physics when applying tap impulse. */
-  pendingTapMultiplier?: number;
-  waterSurfaceY: number; // Current water surface Y position
-  containerWidth: number; // Width of the container
-  containerCenterX: number; // Center X of container
-  containerCenterY: number; // Center Y of container
-  isInInitialPhase: boolean; // Whether we're in the initial water rising phase
-  isCollidingWithObstacle: boolean; // Whether swimmer is currently colliding with an obstacle
-  /** Pinned under a ceiling block (used for velocity damping, distinct from side graze). */
+  velocityX: number;
+  /** Profile-driven locomotion state for tap tiers and tilt targets. */
+  locomotion: SwimmerLocomotionData;
+  waterSurfaceY: number;
+  containerWidth: number;
+  containerCenterX: number;
+  containerCenterY: number;
+  isInInitialPhase: boolean;
+  isCollidingWithObstacle: boolean;
   isPinnedFromAbove?: boolean;
-  fallingVelocityY: number; // Vertical velocity when falling after collision
-  /** When true, swimmer X is driven by column (tap-to-move); when false, by velocityX (pan) */
+  fallingVelocityY: number;
   useColumnControl?: boolean;
-  /** Current grid column index (0..COLUMNS-1); used when useColumnControl is true */
   column?: number;
-  /** Internal phase accumulator for gentle bobbing on the water surface */
   bobbingPhase?: number;
-  /** Visual tilt angle in radians, derived from horizontal velocity. */
+  /** Visual tilt angle in radians (kinematics-driven for column control). */
   angle?: number;
-  /** Prevents dispatching game-over scene events more than once. */
+  /** Unscaled render mesh width for procedural deformation. */
+  meshBaseWidth?: number;
+  /** Unscaled render mesh height for procedural deformation. */
+  meshBaseHeight?: number;
+  /** Visual skin id (body + accessory art). */
+  skinId?: string;
   gameOverDispatched?: boolean;
-  /** When true, the physics system will never dispatch game-over events. */
   disableGameOver?: boolean;
 };
 

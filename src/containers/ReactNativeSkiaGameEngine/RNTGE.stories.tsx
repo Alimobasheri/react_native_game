@@ -24,6 +24,11 @@ import {
   swimmerBlockVar3,
 } from '@/assets/swimmerBlocks';
 import {
+  floaterGoggledBody,
+  floaterGoggledGoggles,
+  SWIMMER_CHARACTER_IMAGE,
+} from '@/assets/swimmerCharacters';
+import {
   sourceCode,
   waveShaderFoamIntensityFunc,
   waveShaderGetDecayFunc,
@@ -367,6 +372,16 @@ const SwimmerGameComp: FC<{}> = memo(
                   <Asset type="image" name="block_var_2" uriOrBase64={swimmerBlockVar2} />
                   <Asset type="image" name="block_var_3" uriOrBase64={swimmerBlockVar3} />
                   <Asset type="image" name="cave_bg" uriOrBase64={swimmerCaveBg} />
+                  <Asset
+                    type="image"
+                    name={SWIMMER_CHARACTER_IMAGE.floaterGoggledBody}
+                    uriOrBase64={floaterGoggledBody}
+                  />
+                  <Asset
+                    type="image"
+                    name={SWIMMER_CHARACTER_IMAGE.floaterGoggledGoggles}
+                    uriOrBase64={floaterGoggledGoggles}
+                  />
                   <Asset
                     type="shader"
                     name="water"

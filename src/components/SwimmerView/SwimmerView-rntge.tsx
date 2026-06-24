@@ -8,11 +8,23 @@ import { createPanComponent } from '@/containers/ReactNativeSkiaGameEngine/inter
 import { createSwimmerComponent } from '@/Game/ecs-components/Swimmer';
 import { useAddSystem } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useAddSystem/useAddSystem';
 import { SwimmerPhysicsSystem } from '@/systems/PhysicsSystem/SwimmerPhysicsSystem';
+import { SwimmerEntityVisualSystem } from '@/systems/VisualSystem/SwimmerEntityVisualSystem';
 import { LAYOUT_CONSTANTS } from '@/Layout';
 import { getObstacleBlockHeight } from '@/assets/swimmerBlocks';
 import { swimmerPhysicsTuning } from '@/config/swimmerTuning';
-import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
+import {
+  SwimmerComponentName,
+  SwimmerComponentData,
+} from '@/Game/ecs-components/Swimmer';
 import { SwimmerRenderLayer } from '@/Game/render/swimmerRenderLayers';
+import { createDefaultSwimmerLocomotion } from '@/Game/characters/swimmerLocomotionDefaults';
+import {
+  buildSwimmerSkinRenderLayers,
+  DEFAULT_SWIMMER_SKIN_ID,
+  getSwimmerSkin,
+  type SwimmerSkinId,
+} from '@/Game/characters/swimmerSkins';
+import '@/Game/characters/characterProfiles';
 import { FC, useMemo } from 'react';
 
 const centerColumn = Math.floor(LAYOUT_CONSTANTS.COLUMNS / 2);
@@ -44,6 +56,8 @@ export const SwimmerView: FC<{
   useColumnControl?: boolean;
   /** When true, disables dispatching any game-over events (storybook/debug use). */
   disableGameOver?: boolean;
+  /** Visual skin id (defaults to goggled). */
+  skinId?: SwimmerSkinId;
 }> = ({
   x: xProp,
   y,
@@ -54,7 +68,10 @@ export const SwimmerView: FC<{
   initialColumn = centerColumn,
   useColumnControl = false,
   disableGameOver = false,
+  skinId = DEFAULT_SWIMMER_SKIN_ID,
 }) => {
+  const skin = useMemo(() => getSwimmerSkin(skinId), [skinId]);
+
   const x = useMemo(() => {
     if (useColumnControl || initialColumn !== undefined) {
       return getColumnCenterXJS(
@@ -79,25 +96,23 @@ export const SwimmerView: FC<{
     const blockHeight = getObstacleBlockHeight(containerWidth);
     const rowHeight = blockHeight;
 
-    const height = Math.min(
-      swimmerPhysicsTuning.SWIMMER_HEIGHT_TO_WIDTH_RATIO * width,
-      1.5 * rowHeight * 0.9
-    );
+    const height = swimmerPhysicsTuning.SWIMMER_HEIGHT_TO_WIDTH_RATIO * width;
 
     return { swimmerWidth: width, swimmerHeight: height };
   }, [containerWidth, containerHeight]);
 
   const components = useMemo(() => {
+    const locomotion = {
+      ...createDefaultSwimmerLocomotion(),
+      profileId: skin.profileId,
+    };
+
     const base = [
       createSwimmerComponent({
         x,
         y,
         velocityX: 0,
-        inputX: 0,
-        lastTapTimeMs: undefined,
-        lastTapDirection: undefined,
-        rapidTapStreak: 0,
-        pendingTapMultiplier: 1,
+        locomotion,
         waterSurfaceY: y,
         containerWidth,
         containerCenterX,
@@ -111,6 +126,9 @@ export const SwimmerView: FC<{
         angle: 0,
         gameOverDispatched: false,
         disableGameOver,
+        meshBaseWidth: swimmerWidth,
+        meshBaseHeight: swimmerHeight,
+        skinId: skin.id,
       }),
       createWorldYSortedRenderComponent({
         shape: {
@@ -119,10 +137,14 @@ export const SwimmerView: FC<{
           height: swimmerHeight,
         },
         position: { x, y },
-        fillColor: '#0df68d',
         visible: true,
         renderLayer: SwimmerRenderLayer.Swimmer,
         origin: RenderSortOrigin.Bottom,
+        renderLayers: buildSwimmerSkinRenderLayers(
+          skin,
+          swimmerWidth,
+          swimmerHeight
+        ),
       }),
     ];
     const panComponent = createPanComponent({
@@ -138,7 +160,7 @@ export const SwimmerView: FC<{
           ecs.updateComponent(
             entityId,
             SwimmerComponentName,
-            (swimmer: any) => {
+            (swimmer: SwimmerComponentData) => {
               swimmer.velocityX = velocityX;
             }
           );
@@ -154,7 +176,7 @@ export const SwimmerView: FC<{
           ecs.updateComponent(
             entityId,
             SwimmerComponentName,
-            (swimmer: any) => {
+            (swimmer: SwimmerComponentData) => {
               swimmer.velocityX = 0;
             }
           );
@@ -174,12 +196,13 @@ export const SwimmerView: FC<{
     disableGameOver,
     swimmerWidth,
     swimmerHeight,
+    skin,
   ]);
 
-  const { entityId } = useAddEntity({ components });
+  useAddEntity({ components });
 
-  // Register the swimmer physics system
   useAddSystem({ system: SwimmerPhysicsSystem });
+  useAddSystem({ system: SwimmerEntityVisualSystem });
 
   return null;
 };

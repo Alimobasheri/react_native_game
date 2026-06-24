@@ -5,6 +5,7 @@ import { System } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/syst
 import {
   RenderComponentData,
   RenderComponentName,
+  ShapeTypes,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import {
   ContainerComponentData,
@@ -32,6 +33,11 @@ import {
   SwimmerComponentData,
   SwimmerComponentName,
 } from '@/Game/ecs-components/Swimmer';
+import { createDefaultSwimmerLocomotion } from '@/Game/characters/swimmerLocomotionDefaults';
+import {
+  buildSwimmerSkinRenderLayers,
+  getSwimmerSkin,
+} from '@/Game/characters/swimmerSkins';
 import {
   TemplateContextComponentData,
   TemplateContextComponentName,
@@ -157,14 +163,14 @@ const restartGameplay = (
         swimmerEntity,
         SwimmerComponentName,
         (s) => {
+          const skin = getSwimmerSkin(swimmer.skinId);
           s.x = centerX;
           s.y = swimmerStartY;
           s.velocityX = 0;
-          s.inputX = 0;
-          s.lastTapTimeMs = undefined;
-          s.lastTapDirection = undefined;
-          s.rapidTapStreak = 0;
-          s.pendingTapMultiplier = 1;
+          s.locomotion = {
+            ...createDefaultSwimmerLocomotion(),
+            profileId: skin.profileId,
+          };
           s.waterSurfaceY = restY;
           s.isInInitialPhase = false;
           s.isCollidingWithObstacle = false;
@@ -182,6 +188,18 @@ const restartGameplay = (
         (render) => {
           render.position = { x: centerX, y: swimmerStartY };
           render.angle = 0;
+          if (render.shape.type === ShapeTypes.Rectangle) {
+            const skin = getSwimmerSkin(swimmer.skinId);
+            const baseWidth = swimmer.meshBaseWidth ?? render.shape.width;
+            const baseHeight = swimmer.meshBaseHeight ?? render.shape.height;
+            render.shape.width = baseWidth;
+            render.shape.height = baseHeight;
+            render.renderLayers = buildSwimmerSkinRenderLayers(
+              skin,
+              baseWidth,
+              baseHeight
+            );
+          }
           render.isDirty = true;
         }
       );

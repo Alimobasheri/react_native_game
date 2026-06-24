@@ -44,7 +44,14 @@ import {
 } from '@/Game/ecs-components/RunResult';
 import { swimmerPhysicsTuning } from '@/config/swimmerTuning';
 import { runOnJS } from 'react-native-reanimated';
-import { logSwimmerTapDebug } from '@/Game/debug/swimmerTapDebug';
+import {
+  degreesToRadians,
+  getCharacterProfileForSwimmer,
+  swimmerKinematicsOnTap,
+  swimmerKinematicsUpdate,
+} from '@/Game/characters/swimmerKinematicsController';
+import { SwimmerPivotSplashEventType } from '@/Game/characters/swimmerLocomotionEvents';
+import '@/Game/characters/characterProfiles';
 import {
   getGameSession,
   getGameSessionEntity,
@@ -248,8 +255,7 @@ export const SwimmerPhysicsSystem: System = {
           SwimmerComponentName,
           (swimmer) => {
             swimmer.bobbingPhase = bobbingPhase;
-            swimmer.inputX = 0;
-            swimmer.pendingTapMultiplier = 1;
+            swimmer.locomotion.pendingTapDirection = 0;
           }
         );
         return;
@@ -340,10 +346,8 @@ export const SwimmerPhysicsSystem: System = {
       const isGameOverDisabled = swimmerComponent.disableGameOver === true;
       let shouldDispatchGameOver = false;
       let swimmerVelocityX = swimmerComponent.velocityX ?? 0;
-      const vxFrameStart = swimmerVelocityX;
-      const currentInputX = swimmerComponent.inputX ?? 0;
-      const pendingMultAtFrameStart = swimmerComponent.pendingTapMultiplier ?? 1;
-      let nextInputX = currentInputX;
+      let locomotion = swimmerComponent.locomotion;
+      let kinematicsAngleRad = 0;
       const flowVelocityNorm = Math.max(
         -1,
         Math.min(1, waterData.flowVelocity ?? waterData.forceDirection ?? 0)
@@ -400,63 +404,40 @@ export const SwimmerPhysicsSystem: System = {
         swimmerPhysicsTuning.MAX_WATER_CURRENT_SPEED *
         (1 + swimmerPhysicsTuning.WATER_CURRENT_SURGE_BOOST * surgeNorm);
 
-      let tapImpulseApplied = 0;
-      let tapMultiplierRaw = 1;
-      let tapMultiplierCapped = 1;
-      let dragFactorApplied = 1;
-
       // Horizontal control: tap-based hyper-casual (useColumnControl) or pan-based.
       if (swimmerComponent.useColumnControl) {
-        // --- TAP-BASED IMPULSE + EXPONENTIAL DRAG ---
-        // We treat inputX as a one-shot tap impulse that should move the swimmer
-        // about one column width (or less at high water speeds), then decay to zero.
+        const profile = getCharacterProfileForSwimmer(locomotion.profileId);
 
-        if (currentInputX !== 0) {
-          const columnWidth =
-            swimmerComponent.containerWidth / LAYOUT_CONSTANTS.COLUMNS;
-
-          // Stronger drag (less retention) as water gets faster.
-          const minRetainPerSecond = 0.05; // 5% speed left after 1s at max water speed
-          const maxRetainPerSecond = 0.25; // 25% speed left after 1s at low water speed
-          const retainPerSecond =
-            maxRetainPerSecond -
-            (maxRetainPerSecond - minRetainPerSecond) * normalizedSpeed;
-
-          // Continuous-time decay v(t) = v0 * e^(-k t), with k = -ln(retainPerSecond).
-          const k = -Math.log(Math.max(0.0001, retainPerSecond));
-
-          // Base distance we want to travel per tap: about one column at low water,
-          // and less at higher water speeds (harder to move left/right).
-          const distanceScale = 1 - 0.1 * normalizedSpeed; // 1.0 .. 0.6
-          const desiredDistance = (3 * columnWidth) * distanceScale;
-
-          const tapMultiplierRawLocal = swimmerComponent.pendingTapMultiplier ?? 1;
-          tapMultiplierRaw = tapMultiplierRawLocal;
-          const tapMultiplier = Math.max(
-            swimmerPhysicsTuning.TAP_IMPULSE_MULTIPLIER_MIN,
-            Math.min(swimmerPhysicsTuning.TAP_IMPULSE_MULTIPLIER_MAX, tapMultiplierRawLocal)
+        const pendingTapDirection = locomotion.pendingTapDirection ?? 0;
+        if (pendingTapDirection === -1 || pendingTapDirection === 1) {
+          swimmerVelocityX = swimmerKinematicsOnTap(
+            profile,
+            locomotion,
+            swimmerVelocityX,
+            pendingTapDirection,
+            (prefabKey, impactSpeed) => {
+              eventQueue.addEvent({
+                type: SwimmerPivotSplashEventType,
+                payload: {
+                  entityId: swimmerEntity,
+                  prefabKey,
+                  impactSpeed,
+                  x: swimmerCenterX,
+                  y: swimmerCenterY,
+                },
+              });
+            }
           );
-          tapMultiplierCapped = tapMultiplier;
-          const tapImpulse = currentInputX * desiredDistance * k * tapMultiplier; // pixels/second
-          tapImpulseApplied = tapImpulse;
-          swimmerVelocityX += tapImpulse;
-
-          // Consume the tap so it does not continuously accelerate.
-          nextInputX = 0;
+          locomotion.pendingTapDirection = 0;
         }
 
-        // Apply exponential drag over time. More water speed -> more drag.
-        const minRetainPerSecond = 0.05;
-        const maxRetainPerSecond = 0.25;
-        const retainPerSecond =
-          maxRetainPerSecond -
-          (maxRetainPerSecond - minRetainPerSecond) * normalizedSpeed;
-        const dragFactor = Math.pow(
-          Math.max(0.0001, retainPerSecond),
+        swimmerVelocityX = swimmerKinematicsUpdate(
+          profile,
+          locomotion,
+          swimmerVelocityX,
           deltaSeconds
         );
-        dragFactorApplied = dragFactor;
-        swimmerVelocityX *= dragFactor;
+        kinematicsAngleRad = degreesToRadians(locomotion.currentAngleDeg);
       } else {
         // --- PAN-BASED CONTROL ---
         // Apply simple drag that grows with water speed (more water speed -> more drag).
@@ -624,15 +605,20 @@ export const SwimmerPhysicsSystem: System = {
       }
 
       const proposedDeltaY = targetY - swimmerCenterY;
-      const fullTiltSpeed =
-        swimmerPhysicsTuning.MAX_HORIZONTAL_SPEED *
-        swimmerPhysicsTuning.FULL_TILT_SPEED_FRACTION;
-      const tiltNormalized = Math.max(
-        -1,
-        Math.min(1, swimmerVelocityX / fullTiltSpeed)
-      );
-      const collisionAngle =
-        tiltNormalized * swimmerPhysicsTuning.MAX_TILT_RADIANS;
+      let collisionAngle: number;
+      if (swimmerComponent.useColumnControl) {
+        collisionAngle = kinematicsAngleRad;
+      } else {
+        const fullTiltSpeed =
+          swimmerPhysicsTuning.MAX_HORIZONTAL_SPEED *
+          swimmerPhysicsTuning.FULL_TILT_SPEED_FRACTION;
+        const tiltNormalized = Math.max(
+          -1,
+          Math.min(1, swimmerVelocityX / fullTiltSpeed)
+        );
+        collisionAngle =
+          tiltNormalized * swimmerPhysicsTuning.MAX_TILT_RADIANS;
+      }
       const tiltedHalfExtents = tiltedAabbHalfExtents(
         swimmerHalfWidth,
         swimmerHalfHeight,
@@ -738,10 +724,7 @@ export const SwimmerPhysicsSystem: System = {
           swimmer.column = swimmerComponent.column;
           swimmer.useColumnControl = swimmerComponent.useColumnControl;
           swimmer.bobbingPhase = bobbingPhase;
-          swimmer.inputX = nextInputX;
-          if (currentInputX !== 0) {
-            swimmer.pendingTapMultiplier = 1;
-          }
+          swimmer.locomotion = locomotion;
           swimmer.gameOverDispatched =
             swimmerComponent.gameOverDispatched || shouldDispatchGameOver;
           swimmer.angle = swimmerAngle;

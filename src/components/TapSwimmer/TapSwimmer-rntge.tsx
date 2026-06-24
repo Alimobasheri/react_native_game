@@ -5,13 +5,15 @@ import {
   ShapeTypes,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import { createTapComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/touch';
-import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
+import {
+  SwimmerComponentData,
+  SwimmerComponentName,
+} from '@/Game/ecs-components/Swimmer';
 import { beginGameplay, dismissTutorial } from '@/Game/session/beginGameplay';
 import {
   getGameSession,
   getGameSessionEntity,
 } from '@/Game/session/gameSessionQuery';
-import { tapInputTuning } from '@/config/swimmerTuning';
 
 /**
  * TapSwimmer - Full-screen tap overlay that controls swimmer direction for tap-based movement.
@@ -59,7 +61,7 @@ export const TapSwimmer: FC<{
 
           const tapX = data.gesture?.data?.x ?? data.x ?? 0;
           const isLeftHalf = tapX < screenWidth / 2;
-          const inputX = isLeftHalf ? -1 : 1;
+          const tapDirection = isLeftHalf ? -1 : 1;
 
           const swimmerEntities = ecs.getEntitiesWithComponents([
             SwimmerComponentName,
@@ -69,42 +71,9 @@ export const TapSwimmer: FC<{
             ecs.updateComponent(
               entityId,
               SwimmerComponentName,
-              (swimmer: {
-                useColumnControl?: boolean;
-                inputX?: number;
-                lastTapTimeMs?: number;
-                lastTapDirection?: -1 | 1;
-                rapidTapStreak?: number;
-                pendingTapMultiplier?: number;
-              }) => {
+              (swimmer: SwimmerComponentData) => {
                 if (!swimmer.useColumnControl) return;
-                const nowMs = data.timestamp ?? Date.now();
-                const previousTapTimeMs = swimmer.lastTapTimeMs;
-                const previousTapDirection = swimmer.lastTapDirection;
-                const deltaMs =
-                  previousTapTimeMs === undefined
-                    ? Number.POSITIVE_INFINITY
-                    : nowMs - previousTapTimeMs;
-                const isRapidSameDirectionTap =
-                  previousTapDirection === inputX &&
-                  deltaMs >= 0 &&
-                  deltaMs <= tapInputTuning.RAPID_TAP_WINDOW_MS;
-                const streak = isRapidSameDirectionTap
-                  ? (swimmer.rapidTapStreak ?? 0) + 1
-                  : 0;
-                const streakStepMult =
-                  tapInputTuning.RAPID_TAP_STEP_MULT *
-                  (1 + streak * tapInputTuning.RAPID_TAP_STREAK_ACCEL);
-                const tapMultiplier = Math.min(
-                  tapInputTuning.RAPID_TAP_MAX_MULT,
-                  1 + streak * streakStepMult
-                );
-
-                swimmer.inputX = inputX;
-                swimmer.lastTapTimeMs = nowMs;
-                swimmer.lastTapDirection = inputX;
-                swimmer.rapidTapStreak = streak;
-                swimmer.pendingTapMultiplier = tapMultiplier;
+                swimmer.locomotion.pendingTapDirection = tapDirection;
               }
             );
           });

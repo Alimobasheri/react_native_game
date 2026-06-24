@@ -22,7 +22,7 @@ function App() {
           }
           waterRiseSpeed={50}
           raisingSpeed={200}
-          waterShaderOpacity={1}
+          waterShaderOpacity={0.5}
           sideWallContainerOverlapPx={sideWallTuning.CONTAINER_OVERLAP_PX}
           lockedTemplateName={''}
           storyLockedProceduralSegment={''}
