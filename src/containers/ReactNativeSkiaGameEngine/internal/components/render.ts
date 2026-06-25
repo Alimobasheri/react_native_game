@@ -111,6 +111,13 @@ export type RenderLayerData = {
   sprite?: SpriteInfo;
   blendMode?: BlendMode;
   imageShadow?: ImageShadowData;
+  /** Horizontal skew factor (Skia canvas skew sx) applied after translate, before rotate. */
+  skewX?: number;
+  /**
+   * When true, clip this layer to the parent group's rectangle bounds before drawing.
+   * Use for internal overlays that must stay inside the body hitbox.
+   */
+  clipToGroupBounds?: boolean;
   /**
    * Opaque underlay drawn before this layer's image/fill/stroke.
    * Blocks content behind the layer (e.g. water) from showing through

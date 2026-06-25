@@ -28,20 +28,24 @@ const getCrestDamping = (weight: number): number => {
 };
 
 /**
- * Layer-center offset so rotation pivots around the sprite bottom (crest root on head).
- * Spring lag must not translate X — only angle bends the leaves.
+ * Layer-center offset so rotation pivots around a sprite anchor (default bottom-center).
+ * Spring lag must not translate X — only angle/skew bend the leaves.
  */
 export const getCrestRootPinnedPosition = (
   angleRad: number,
-  layerHeight: number
+  layerWidth: number,
+  layerHeight: number,
+  anchorXRatio = 0.5,
+  anchorYRatio = 1
 ): { x: number; y: number } => {
   'worklet';
-  const halfH = layerHeight / 2;
-  const sinA = Math.sin(angleRad);
+  const ax = layerWidth * (anchorXRatio - 0.5);
+  const ay = layerHeight * (anchorYRatio - 0.5);
   const cosA = Math.cos(angleRad);
+  const sinA = Math.sin(angleRad);
   return {
-    x: sinA * halfH,
-    y: (1 - cosA) * halfH,
+    x: ax * (1 - cosA) + ay * sinA,
+    y: ay * (1 - cosA) - ax * sinA,
   };
 };
 
@@ -50,8 +54,11 @@ export const updateLaggingSpringCrest = (
   weight: number,
   velocityX: number,
   dt: number,
+  layerWidth: number,
   layerHeight: number,
-  sink: SecondaryItemLayerSink | null
+  sink: SecondaryItemLayerSink | null,
+  anchorXRatio = 0.5,
+  anchorYRatio = 1
 ): LaggingSpringAccessoryState => {
   'worklet';
   const safeDt = dt > 0 ? dt : 0;
@@ -105,8 +112,11 @@ export const updateLaggingSpringCrest = (
     Math.sin(flutterPhase * 1.31) *
     secondaryItemTuning.CREST_FLUTTER_AMPLITUDE;
 
-  const totalAngle = clamp(
-    stalkBend + windAngle + ambientWind + leafFlutter,
+  const skewBlend = secondaryItemTuning.CREST_STALK_SKEW_BLEND;
+  const stalkSkew =
+    Math.tan(stalkBend * skewBlend) * secondaryItemTuning.CREST_STALK_SKEW_GAIN;
+  const tipAngle = clamp(
+    stalkBend * (1 - skewBlend) + windAngle + ambientWind + leafFlutter,
     -secondaryItemTuning.CREST_BEND_ANGLE_CLAMP,
     secondaryItemTuning.CREST_BEND_ANGLE_CLAMP
   );
@@ -123,8 +133,14 @@ export const updateLaggingSpringCrest = (
 
   const layerSink = sink;
   if (layerSink) {
-    const pinned = getCrestRootPinnedPosition(totalAngle, layerHeight);
-    layerSink.setLocalTransform(pinned.x, pinned.y, totalAngle);
+    const pinned = getCrestRootPinnedPosition(
+      tipAngle,
+      layerWidth,
+      layerHeight,
+      anchorXRatio,
+      anchorYRatio
+    );
+    layerSink.setLocalTransform(pinned.x, pinned.y, tipAngle, stalkSkew);
   }
 
   return nextState;

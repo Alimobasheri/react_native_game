@@ -23,6 +23,9 @@ import {
   aquaSproutHair,
   floaterGoggledBody,
   floaterGoggledGoggles,
+  kelpDrifterBody,
+  kelpDrifterEyes,
+  kelpDrifterHair,
   SWIMMER_CHARACTER_IMAGE,
 } from '@/assets/swimmerCharacters';
 import { sourceCode as waterShaderSourceCode } from '@/Shaders/WaterShader/waterShader';
@@ -33,6 +36,13 @@ import { SideWalls } from '@/components/SideWalls/SideWalls-rntge';
 import { sideWallTuning } from '@/config/swimmerTuning';
 import { ContainerView } from '@/components/ContainerView/ContainerView-rntge';
 import { WaterView } from '@/components/WaterView/WaterView-rntge';
+import {
+  AQUA_SPROUT_SKIN_ID,
+  DEFAULT_SWIMMER_SKIN_ID,
+  GOGGLED_SKIN_ID,
+  KELP_DRIFTER_SKIN_ID,
+  type SwimmerSkinId,
+} from '@/Game/characters/swimmerSkins';
 import { SwimmerView } from '@/components/SwimmerView/SwimmerView-rntge';
 import { TapSwimmer } from '@/components/TapSwimmer/TapSwimmer-rntge';
 import { ObstacleView } from '@/components/ObstacleView/ObstacleView-rntge';
@@ -103,6 +113,8 @@ export type SwimmerStoryArgs = {
    * (funnel, pinball, …) instead of cycling macro pacing shapes.
    */
   storyLockedProceduralSegment: '' | StoryLockedProceduralSegment;
+  /** Playable swimmer visual skin. */
+  swimmerSkinId: SwimmerSkinId;
 };
 
 const TEMPLATE_OPTIONS = [
@@ -253,6 +265,21 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                     uriOrBase64={aquaSproutEyes}
                   />
                   <Asset
+                    type="image"
+                    name={SWIMMER_CHARACTER_IMAGE.kelpDrifterBody}
+                    uriOrBase64={kelpDrifterBody}
+                  />
+                  <Asset
+                    type="image"
+                    name={SWIMMER_CHARACTER_IMAGE.kelpDrifterHair}
+                    uriOrBase64={kelpDrifterHair}
+                  />
+                  <Asset
+                    type="image"
+                    name={SWIMMER_CHARACTER_IMAGE.kelpDrifterEyes}
+                    uriOrBase64={kelpDrifterEyes}
+                  />
+                  <Asset
                     type="shader"
                     name="water"
                     source={waterShaderSourceCode}
@@ -311,6 +338,7 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                     containerCenterX={containerCenterX}
                     containerCenterY={containerCenterY}
                     useColumnControl={true}
+                    skinId={args.swimmerSkinId}
                   />
 
                   <TapSwimmer
@@ -372,6 +400,7 @@ const meta = {
     sideWallContainerOverlapPx: sideWallTuning.CONTAINER_OVERLAP_PX,
     lockedTemplateName: '',
     storyLockedProceduralSegment: '',
+    swimmerSkinId: DEFAULT_SWIMMER_SKIN_ID,
   },
   argTypes: {
     waterSurfaceFromBottomFraction: {
@@ -399,6 +428,10 @@ const meta = {
       description:
         'Requires template `directed` or `baseMulti`. Loops one procedural path for Storybook.',
     },
+    swimmerSkinId: {
+      control: 'select',
+      options: [AQUA_SPROUT_SKIN_ID, KELP_DRIFTER_SKIN_ID, GOGGLED_SKIN_ID],
+    },
   },
 } satisfies Meta<typeof SwimmerGameComp>;
 
@@ -408,6 +441,12 @@ const directedMultipath = {
 };
 export const Basic: StoryObj<typeof meta> = {
   args: {},
+};
+
+export const KelpDrifter: StoryObj<typeof meta> = {
+  args: {
+    swimmerSkinId: KELP_DRIFTER_SKIN_ID,
+  },
 };
 
 /** Repeats the tension funnel width ramp forever (same template as production multipath). */

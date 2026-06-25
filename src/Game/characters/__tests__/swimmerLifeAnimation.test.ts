@@ -7,6 +7,11 @@ import {
   updateInternalRipple,
 } from '../swimmerInternalRipple';
 
+import {
+  createInternalKelpSwayState,
+  updateInternalKelpSway,
+} from '../swimmerInternalKelpSway';
+
 describe('swimmerFeatureBlink', () => {
   it('starts open and eventually blinks closed', () => {
     let state = createFeatureBlinkState(42);
@@ -54,6 +59,18 @@ describe('swimmerInternalRipple', () => {
 
     expect(second.state.phase).toBeGreaterThan(first.state.phase);
     expect(second.offsetY).toBeLessThan(first.offsetY);
+    expect(second.opacity).toBeGreaterThan(0);
+  });
+});
+
+describe('swimmerInternalKelpSway', () => {
+  it('advances kelp sway phase and oscillates horizontally', () => {
+    let state = createInternalKelpSwayState();
+    const first = updateInternalKelpSway(state, 48, 120, 1 / 60);
+    const second = updateInternalKelpSway(first.state, 48, 120, 1 / 60);
+
+    expect(second.state.phase).toBeGreaterThan(first.state.phase);
+    expect(Math.abs(second.offsetX)).toBeGreaterThan(0);
     expect(second.opacity).toBeGreaterThan(0);
   });
 });

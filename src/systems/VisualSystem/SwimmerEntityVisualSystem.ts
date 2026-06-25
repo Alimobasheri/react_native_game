@@ -17,19 +17,26 @@ import type { SecondaryItemLayerSink } from '@/Game/characters/secondaryItemType
 import {
   getAccessoryMeshSize,
   getAccessoryRestOffsetY,
+  getCrestRestPosition,
   getFeatureMeshSize,
   getFeatureRestOffsetY,
   getPinnedCrestRestOffsetY,
+  getPinnedCrestRestPosition,
   getSwimmerAccessoryLayerIndex,
   getSwimmerFeatureLayerIndex,
   getSwimmerInternalLayerIndex,
   getSwimmerSkin,
+  skinUsesCrestAnchorLayout,
 } from '@/Game/characters/swimmerSkins';
 import { updateFeatureBlink } from '@/Game/characters/swimmerFeatureBlink';
 import {
   getInternalRippleBandSize,
   updateInternalRipple,
 } from '@/Game/characters/swimmerInternalRipple';
+import {
+  getInternalKelpSwayBandSize,
+  updateInternalKelpSway,
+} from '@/Game/characters/swimmerInternalKelpSway';
 import {
   SwimmerComponentData,
   SwimmerComponentName,
@@ -45,12 +52,13 @@ const createAccessoryLayerSink = (
 ): SecondaryItemLayerSink => {
   'worklet';
   return {
-    setLocalTransform: (offsetX, offsetY, angleRad) => {
+    setLocalTransform: (offsetX, offsetY, angleRad, skewX = 0) => {
       accessoryLayer.position = {
         x: restOffsetX + offsetX,
         y: restOffsetY + offsetY,
       };
       accessoryLayer.angle = angleRad;
+      accessoryLayer.skewX = skewX;
     },
     setOpacity: (opacity) => {
       accessoryLayer.opacity = opacity;
@@ -165,13 +173,30 @@ export const SwimmerEntityVisualSystem: System = {
         meshScaleY
       );
 
-      const normalRestOffsetY = getAccessoryRestOffsetY(skin, baseHeight, meshScaleY);
+      const normalRest = skinUsesCrestAnchorLayout(skin)
+        ? getCrestRestPosition(
+            skin,
+            baseWidth,
+            baseHeight,
+            accessoryBaseSize.width,
+            accessoryBaseSize.height,
+            1,
+            meshScaleY
+          )
+        : {
+            x: 0,
+            y: getAccessoryRestOffsetY(skin, baseHeight, meshScaleY),
+          };
 
       const visualResult = updateSwimmerEntityVisuals(
         profile,
         deformation,
         locomotion.accessoryState,
-        createAccessoryLayerSink(accessoryLayer, 0, normalRestOffsetY),
+        createAccessoryLayerSink(
+          accessoryLayer,
+          normalRest.x,
+          normalRest.y
+        ),
         deltaSeconds,
         telemetry,
         swimmer.bobbingPhase ?? 0,
@@ -180,7 +205,10 @@ export const SwimmerEntityVisualSystem: System = {
         isPinned,
         {
           crestMode: skin.crestAccessory === true,
+          crestLayerWidth: accessoryBaseSize.width * (locomotion.meshScaleX ?? 1),
           crestLayerHeight: accessoryBaseSize.height * meshScaleY,
+          crestAnchorXRatio: skin.accessoryAnchorXRatio,
+          crestAnchorYRatio: skin.accessoryAnchorYRatio,
         }
       );
 
@@ -194,17 +222,21 @@ export const SwimmerEntityVisualSystem: System = {
         : accessoryBaseSize.height * visualResult.scaleY;
 
       if (isPinned) {
-        const pinnedRestY = getPinnedCrestRestOffsetY(
+        const pinnedRest = getPinnedCrestRestPosition(
+          skin,
+          baseWidth,
           baseHeight,
           visualResult.scaleY,
+          nextAccessoryWidth,
           nextAccessoryHeight
         );
-        const springOffsetX = accessoryLayer.position?.x ?? 0;
+        const springOffsetX =
+          (accessoryLayer.position?.x ?? pinnedRest.x) - normalRest.x;
         const springOffsetY =
-          (accessoryLayer.position?.y ?? pinnedRestY) - normalRestOffsetY;
+          (accessoryLayer.position?.y ?? pinnedRest.y) - normalRest.y;
         accessoryLayer.position = {
-          x: springOffsetX,
-          y: pinnedRestY + springOffsetY,
+          x: pinnedRest.x + springOffsetX,
+          y: pinnedRest.y + springOffsetY,
         };
       }
 
@@ -233,37 +265,76 @@ export const SwimmerEntityVisualSystem: System = {
       }
 
       if (internalLayer && skin.internalMotion && skin.internalMotion !== 'none') {
-        const ripple = updateInternalRipple(
-          locomotion.internalRippleState,
-          baseHeight,
-          deltaSeconds
-        );
-        locomotion.internalRippleState = ripple.state;
-        const bandSize = getInternalRippleBandSize(baseWidth, baseHeight);
-        if (
-          scaleLayerRect(
-            internalLayer,
-            visualResult.scaleX,
-            visualResult.scaleY,
-            bandSize.width,
-            bandSize.height
-          )
-        ) {
-          renderDirty = true;
-        }
-        if (
-          !internalLayer.position ||
-          Math.abs(internalLayer.position.y - ripple.offsetY) > 0.01
-        ) {
-          internalLayer.position = { x: 0, y: ripple.offsetY };
-          renderDirty = true;
-        }
-        if (
-          internalLayer.opacity == null ||
-          Math.abs(internalLayer.opacity - ripple.opacity) > 0.01
-        ) {
-          internalLayer.opacity = ripple.opacity;
-          renderDirty = true;
+        if (skin.internalMotion === 'kelpSway') {
+          const kelp = updateInternalKelpSway(
+            locomotion.internalRippleState,
+            baseWidth,
+            baseHeight,
+            deltaSeconds
+          );
+          locomotion.internalRippleState = kelp.state;
+          const bandSize = getInternalKelpSwayBandSize(baseWidth, baseHeight);
+          if (
+            scaleLayerRect(
+              internalLayer,
+              visualResult.scaleX,
+              visualResult.scaleY,
+              bandSize.width,
+              bandSize.height
+            )
+          ) {
+            renderDirty = true;
+          }
+          const nextPosX = kelp.offsetX;
+          const nextPosY = kelp.offsetY;
+          if (
+            !internalLayer.position ||
+            Math.abs(internalLayer.position.x - nextPosX) > 0.01 ||
+            Math.abs(internalLayer.position.y - nextPosY) > 0.01
+          ) {
+            internalLayer.position = { x: nextPosX, y: nextPosY };
+            renderDirty = true;
+          }
+          if (
+            internalLayer.opacity == null ||
+            Math.abs(internalLayer.opacity - kelp.opacity) > 0.01
+          ) {
+            internalLayer.opacity = kelp.opacity;
+            renderDirty = true;
+          }
+        } else {
+          const ripple = updateInternalRipple(
+            locomotion.internalRippleState,
+            baseHeight,
+            deltaSeconds
+          );
+          locomotion.internalRippleState = ripple.state;
+          const bandSize = getInternalRippleBandSize(baseWidth, baseHeight);
+          if (
+            scaleLayerRect(
+              internalLayer,
+              visualResult.scaleX,
+              visualResult.scaleY,
+              bandSize.width,
+              bandSize.height
+            )
+          ) {
+            renderDirty = true;
+          }
+          if (
+            !internalLayer.position ||
+            Math.abs(internalLayer.position.y - ripple.offsetY) > 0.01
+          ) {
+            internalLayer.position = { x: 0, y: ripple.offsetY };
+            renderDirty = true;
+          }
+          if (
+            internalLayer.opacity == null ||
+            Math.abs(internalLayer.opacity - ripple.opacity) > 0.01
+          ) {
+            internalLayer.opacity = ripple.opacity;
+            renderDirty = true;
+          }
         }
       }
 
@@ -272,11 +343,12 @@ export const SwimmerEntityVisualSystem: System = {
         let featureScaleY = visualResult.scaleY;
         let featureOpacity = featureLayer.opacity ?? 1;
 
-        if (skin.blinkType === 'tinyDotBlink') {
+        if (skin.blinkType === 'tinyDotBlink' || skin.blinkType === 'sleepyBlink') {
           const blink = updateFeatureBlink(
             locomotion.featureBlinkState,
             entityId,
-            deltaSeconds
+            deltaSeconds,
+            skin.blinkType
           );
           locomotion.featureBlinkState = blink.state;
           featureScaleY *= blink.scaleY;
@@ -328,7 +400,8 @@ export const SwimmerEntityVisualSystem: System = {
 
       if (
         (skin.internalMotion && skin.internalMotion !== 'none') ||
-        skin.blinkType === 'tinyDotBlink'
+        skin.blinkType === 'tinyDotBlink' ||
+        skin.blinkType === 'sleepyBlink'
       ) {
         renderDirty = true;
       }

@@ -452,6 +452,7 @@ const drawDrawableContent = (
     fillPaint.setAntiAlias(true);
     fillPaint.setStyle(PaintStyle.Fill);
     fillPaint.setColor(Skia.Color(drawData.fillColor || '#0099ff'));
+    fillPaint.setBlendMode(drawData.blendMode || BlendMode.SrcOver);
     if (typeof drawData.opacity === 'number') {
       fillPaint.setAlphaf(drawData.opacity);
     }
@@ -481,6 +482,7 @@ const drawLayerBacking = (canvas: SkCanvas, layer: RenderLayerData): void => {
     shape: backing.shape ?? layer.shape,
     fillColor: backing.fillColor,
     opacity: backing.opacity,
+    blendMode: layer.blendMode,
   });
 };
 
@@ -532,9 +534,20 @@ const createAndCacheGroupPicture = (
     if (layer.visible === false) continue;
 
     canvas.save();
+    if (layer.clipToGroupBounds === true) {
+      canvas.clipRect(
+        Skia.XYWHRect(-width / 2, -height / 2, width, height),
+        0,
+        true
+      );
+    }
     const lx = layer.position?.x ?? 0;
     const ly = layer.position?.y ?? 0;
     canvas.translate(lx, ly);
+    const layerSkewX = layer.skewX ?? 0;
+    if (layerSkewX !== 0) {
+      canvas.skew(layerSkewX, 0);
+    }
     const layerAngle = layer.angle ?? 0;
     if (layerAngle !== 0) {
       canvas.rotate((layerAngle * 180) / Math.PI, 0, 0);

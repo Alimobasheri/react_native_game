@@ -25,6 +25,7 @@ const crestRootX = (
 };
 
 describe('getCrestRootPinnedPosition', () => {
+  const layerWidth = 80;
   const layerHeight = 80;
   const restCenterY = -160;
 
@@ -32,7 +33,13 @@ describe('getCrestRootPinnedPosition', () => {
     const angles = [0, 0.15, -0.22, 0.4, -0.55];
 
     for (const angle of angles) {
-      const pivot = getCrestRootPinnedPosition(angle, layerHeight);
+      const pivot = getCrestRootPinnedPosition(
+        angle,
+        layerWidth,
+        layerHeight,
+        0.5,
+        1
+      );
       expect(crestRootX(angle, layerHeight, pivot)).toBeCloseTo(0, 5);
       expect(crestBottomY(restCenterY, angle, layerHeight, pivot)).toBeCloseTo(
         restCenterY + layerHeight / 2,
@@ -55,22 +62,25 @@ describe('updateLaggingSpringCrest', () => {
     let state = baseState;
     let lastX = 0;
     let lastAngle = 0;
+    let lastSkew = 0;
 
     for (let i = 0; i < 90; i++) {
-      state = updateLaggingSpringCrest(state, 1, 120, 1 / 60, 80, {
-        setLocalTransform: (x, _y, angleRad) => {
+      state = updateLaggingSpringCrest(state, 1, 120, 1 / 60, 80, 80, {
+        setLocalTransform: (x, _y, angleRad, skewX = 0) => {
           lastX = x;
           lastAngle = angleRad;
+          lastSkew = skewX;
         },
       });
     }
 
     expect(Math.abs(lastAngle)).toBeGreaterThan(0.05);
+    expect(Math.abs(lastSkew)).toBeGreaterThan(0.01);
     expect(lastX).toBeCloseTo(Math.sin(lastAngle) * 40, 4);
   });
 
   it('advances ambient wind and flutter phases while idle', () => {
-    const after = updateLaggingSpringCrest(baseState, 1, 0, 1 / 60, 80, null);
+    const after = updateLaggingSpringCrest(baseState, 1, 0, 1 / 60, 80, 80, null);
 
     expect(after.windPhase).toBeGreaterThan(0);
     expect(after.flutterPhase).toBeGreaterThan(0);

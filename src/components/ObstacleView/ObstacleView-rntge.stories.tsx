@@ -27,6 +27,9 @@ import {
   aquaSproutHair,
   floaterGoggledBody,
   floaterGoggledGoggles,
+  kelpDrifterBody,
+  kelpDrifterEyes,
+  kelpDrifterHair,
   SWIMMER_CHARACTER_IMAGE,
 } from '@/assets/swimmerCharacters';
 import { sourceCode as waterShaderSourceCode } from '@/Shaders/WaterShader/waterShader';
@@ -118,6 +121,21 @@ export const ObstacleTemplateGameComp: FC<ObstacleTemplateStoryProps> = memo(
                     type="image"
                     name={SWIMMER_CHARACTER_IMAGE.aquaSproutEyes}
                     uriOrBase64={aquaSproutEyes}
+                  />
+                  <Asset
+                    type="image"
+                    name={SWIMMER_CHARACTER_IMAGE.kelpDrifterBody}
+                    uriOrBase64={kelpDrifterBody}
+                  />
+                  <Asset
+                    type="image"
+                    name={SWIMMER_CHARACTER_IMAGE.kelpDrifterHair}
+                    uriOrBase64={kelpDrifterHair}
+                  />
+                  <Asset
+                    type="image"
+                    name={SWIMMER_CHARACTER_IMAGE.kelpDrifterEyes}
+                    uriOrBase64={kelpDrifterEyes}
                   />
                   <Asset
                     type="shader"

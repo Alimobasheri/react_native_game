@@ -2,7 +2,8 @@ export type SecondaryItemLayerSink = {
   setLocalTransform: (
     offsetX: number,
     offsetY: number,
-    angleRad: number
+    angleRad: number,
+    skewX?: number
   ) => void;
   setOpacity?: (opacity: number) => void;
 };

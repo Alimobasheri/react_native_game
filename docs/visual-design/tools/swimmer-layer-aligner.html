@@ -1,0 +1,671 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Swimmer Layer Aligner</title>
+    <style>
+      :root {
+        --bg: #0b0614;
+        --panel: #120a1f;
+        --border: rgba(255, 255, 255, 0.12);
+        --text: rgba(255, 255, 255, 0.92);
+        --muted: rgba(255, 255, 255, 0.6);
+        --accent: #5eead4;
+        --attach: #4ade80;
+        --anchor: #f87171;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        display: grid;
+        grid-template-columns: 320px 1fr;
+      }
+
+      aside {
+        padding: 16px;
+        border-right: 1px solid var(--border);
+        background: var(--panel);
+        overflow: auto;
+      }
+
+      h1 {
+        margin: 0 0 4px;
+        font-size: 18px;
+      }
+
+      .sub {
+        margin: 0 0 16px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      label {
+        display: block;
+        font-size: 12px;
+        color: var(--muted);
+        margin: 12px 0 6px;
+      }
+
+      input[type='file'],
+      input[type='range'],
+      input[type='number'],
+      button,
+      textarea {
+        width: 100%;
+        font: inherit;
+      }
+
+      input[type='file'] {
+        font-size: 12px;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      input[type='number'] {
+        padding: 6px 8px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--text);
+      }
+
+      button {
+        margin-top: 8px;
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: rgba(94, 234, 212, 0.12);
+        color: var(--text);
+        cursor: pointer;
+      }
+
+      button:hover {
+        background: rgba(94, 234, 212, 0.2);
+      }
+
+      .legend {
+        margin-top: 14px;
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--muted);
+      }
+
+      .legend span {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 6px;
+        vertical-align: -1px;
+      }
+
+      .legend .attach {
+        background: var(--attach);
+      }
+
+      .legend .anchor {
+        background: var(--anchor);
+      }
+
+      textarea {
+        margin-top: 8px;
+        min-height: 260px;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.25);
+        color: var(--accent);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11px;
+        line-height: 1.45;
+        resize: vertical;
+      }
+
+      main {
+        position: relative;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        cursor: grab;
+      }
+
+      canvas.dragging {
+        cursor: grabbing;
+      }
+
+      .hint {
+        position: absolute;
+        left: 12px;
+        bottom: 12px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.55);
+        border: 1px solid var(--border);
+        font-size: 12px;
+        color: var(--muted);
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <aside>
+      <h1>Swimmer Layer Aligner</h1>
+      <p class="sub">
+        Load body + overlay (hair/eyes). Drag overlay, drag green attach point on
+        body, drag red anchor on overlay. Body uses 1.8:1 H:W (game mesh). Copy
+        the six <code>accessory*</code> lines into <code>swimmerSkins.ts</code>.
+      </p>
+
+      <label for="bodyFile">1. Body image (webp/png)</label>
+      <input id="bodyFile" type="file" accept="image/webp,image/png" />
+
+      <label for="overlayFile">2. Overlay image (hair, eyes, …)</label>
+      <input id="overlayFile" type="file" accept="image/webp,image/png" />
+
+      <label for="overlayScale">Overlay width (% of body width)</label>
+      <input id="overlayScale" type="range" min="10" max="200" value="72" />
+      <div class="row">
+        <span id="overlayScaleLabel">72%</span>
+        <span></span>
+      </div>
+
+      <label for="zoom">Canvas zoom</label>
+      <input id="zoom" type="range" min="25" max="400" value="100" />
+
+      <div class="row">
+        <div>
+          <label for="nudge">Nudge step (px)</label>
+          <input id="nudge" type="number" min="1" max="20" value="1" />
+        </div>
+        <div>
+          <label for="bodyHeightRatio">Body H:W</label>
+          <input id="bodyHeightRatio" type="number" step="0.01" value="1.8" />
+        </div>
+      </div>
+
+      <div class="legend">
+        <div><span class="attach"></span>Attach point on body (green)</div>
+        <div><span class="anchor"></span>Anchor point on overlay (red)</div>
+        <div>Arrow keys nudge overlay · Shift = 10×</div>
+      </div>
+
+      <button id="copyBtn" type="button">Copy output</button>
+      <textarea id="output" readonly></textarea>
+    </aside>
+
+    <main>
+      <canvas id="canvas"></canvas>
+      <div class="hint">Drop images onto canvas · wheel on overlay = scale</div>
+    </main>
+
+    <script>
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+      const bodyFile = document.getElementById('bodyFile');
+      const overlayFile = document.getElementById('overlayFile');
+      const overlayScale = document.getElementById('overlayScale');
+      const overlayScaleLabel = document.getElementById('overlayScaleLabel');
+      const zoom = document.getElementById('zoom');
+      const nudge = document.getElementById('nudge');
+      const bodyHeightRatio = document.getElementById('bodyHeightRatio');
+      const output = document.getElementById('output');
+      const copyBtn = document.getElementById('copyBtn');
+
+      const state = {
+        body: null,
+        overlay: null,
+        bodyNatW: 0,
+        bodyNatH: 0,
+        overlayNatW: 0,
+        overlayNatH: 0,
+        bodyDispW: 0,
+        bodyDispH: 0,
+        overlayDispW: 0,
+        overlayDispH: 0,
+        overlayX: 0,
+        overlayY: 0,
+        attachX: 0,
+        attachY: 0,
+        anchorX: 0,
+        anchorY: 0,
+        zoom: 1,
+        drag: null,
+      };
+
+      function fitCanvas() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = Math.max(1, Math.floor(rect.width * devicePixelRatio));
+        canvas.height = Math.max(1, Math.floor(rect.height * devicePixelRatio));
+        draw();
+      }
+
+      function center() {
+        return { x: canvas.width / 2, y: canvas.height / 2 };
+      }
+
+      function bodyRect() {
+        const c = center();
+        return {
+          x: c.x - state.bodyDispW / 2,
+          y: c.y - state.bodyDispH / 2,
+          w: state.bodyDispW,
+          h: state.bodyDispH,
+        };
+      }
+
+      function overlayRect() {
+        return {
+          x: state.overlayX - state.overlayDispW / 2,
+          y: state.overlayY - state.overlayDispH / 2,
+          w: state.overlayDispW,
+          h: state.overlayDispH,
+        };
+      }
+
+      function updateBodyDisplaySize() {
+        if (!state.bodyNatW) return;
+        const ratio = Math.max(0.1, Number(bodyHeightRatio.value) || 1.8);
+        const base = Math.min(canvas.width, canvas.height) * 0.55;
+        state.bodyDispH = base;
+        state.bodyDispW = base / ratio;
+        applyOverlayWidthFromSlider();
+      }
+
+      function applyOverlayWidthFromSlider() {
+        if (!state.bodyDispW || !state.overlayNatW) return;
+        const o = overlayRect();
+        const anchorXRatio = o.w ? (state.anchorX - o.x) / o.w : 0.5;
+        const anchorYRatio = o.h ? (state.anchorY - o.y) / o.h : 1;
+        const pct = Number(overlayScale.value) / 100;
+        state.overlayDispW = state.bodyDispW * pct;
+        state.overlayDispH =
+          state.overlayDispW / (state.overlayNatW / state.overlayNatH);
+        overlayScaleLabel.textContent = `${overlayScale.value}%`;
+        const n = overlayRect();
+        state.anchorX = n.x + anchorXRatio * n.w;
+        state.anchorY = n.y + anchorYRatio * n.h;
+        clampAnchor();
+        updateOutput();
+        draw();
+      }
+
+      function clampAnchor() {
+        const r = overlayRect();
+        state.anchorX = Math.min(Math.max(state.anchorX, r.x), r.x + r.w);
+        state.anchorY = Math.min(Math.max(state.anchorY, r.y), r.y + r.h);
+      }
+
+      function resetAttachToBodyTopCenter() {
+        const b = bodyRect();
+        state.attachX = b.x + b.w / 2;
+        state.attachY = b.y;
+      }
+
+      function resetAnchorToOverlayBottomCenter() {
+        const o = overlayRect();
+        state.anchorX = o.x + o.w / 2;
+        state.anchorY = o.y + o.h;
+      }
+
+      function loadImage(file, slot) {
+        if (!file) return;
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          if (slot === 'body') {
+            state.body = img;
+            state.bodyNatW = img.naturalWidth;
+            state.bodyNatH = img.naturalHeight;
+            updateBodyDisplaySize();
+            const c = center();
+            state.overlayX = c.x;
+            state.overlayY = c.y - state.bodyDispH * 0.25;
+            resetAttachToBodyTopCenter();
+          } else {
+            state.overlay = img;
+            state.overlayNatW = img.naturalWidth;
+            state.overlayNatH = img.naturalHeight;
+            applyOverlayWidthFromSlider();
+            resetAnchorToOverlayBottomCenter();
+          }
+          updateOutput();
+          draw();
+        };
+        img.src = url;
+      }
+
+      function drawChecker(x, y, w, h, size = 16) {
+        for (let row = 0; row < Math.ceil(h / size); row++) {
+          for (let col = 0; col < Math.ceil(w / size); col++) {
+            const even = (row + col) % 2 === 0;
+            ctx.fillStyle = even ? '#2a2a2a' : '#1a1a1a';
+            ctx.fillRect(
+              x + col * size,
+              y + row * size,
+              Math.min(size, w - col * size),
+              Math.min(size, h - row * size)
+            );
+          }
+        }
+      }
+
+      function drawCrosshair(x, y, color, label) {
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(x, y, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x - 14, y);
+        ctx.lineTo(x + 14, y);
+        ctx.moveTo(x, y - 14);
+        ctx.lineTo(x, y + 14);
+        ctx.stroke();
+        ctx.font = '12px ui-monospace, monospace';
+        ctx.fillText(label, x + 10, y - 10);
+        ctx.restore();
+      }
+
+      function draw() {
+        const z = state.zoom;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#140d22';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.scale(z, z);
+        ctx.translate(-canvas.width / 2, -canvas.height / 2);
+
+        if (state.body) {
+          const b = bodyRect();
+          drawChecker(b.x, b.y, b.w, b.h);
+          ctx.drawImage(state.body, b.x, b.y, b.w, b.h);
+          ctx.strokeStyle = 'rgba(94, 234, 212, 0.5)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(b.x, b.y, b.w, b.h);
+          drawCrosshair(state.attachX, state.attachY, '#4ade80', 'attach');
+        }
+
+        if (state.overlay) {
+          const o = overlayRect();
+          ctx.drawImage(state.overlay, o.x, o.y, o.w, o.h);
+          ctx.strokeStyle = 'rgba(248, 113, 113, 0.85)';
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(o.x, o.y, o.w, o.h);
+          drawCrosshair(state.anchorX, state.anchorY, '#f87171', 'anchor');
+
+          ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+          ctx.setLineDash([3, 3]);
+          ctx.beginPath();
+          ctx.moveTo(state.attachX, state.attachY);
+          ctx.lineTo(state.anchorX, state.anchorY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+
+        ctx.restore();
+      }
+
+      function frac(n, d) {
+        const g = (a, b) => (b ? g(b, a % b) : Math.abs(a));
+        const gcd = g(Math.round(n), Math.round(d));
+        return `${Math.round(n) / gcd} / ${Math.round(d) / gcd}`;
+      }
+
+      function fmt(n, digits = 4) {
+        return Number(n).toFixed(digits);
+      }
+
+      function anchorFrac(px, total) {
+        const rounded = Math.round(px);
+        if (rounded <= 0) return '0';
+        if (rounded >= total) return `${total} / ${total}`;
+        return `${rounded} / ${total}`;
+      }
+
+      function updateOutput() {
+        if (!state.body || !state.overlay) {
+          output.value = 'Load both images to see output.';
+          return;
+        }
+
+        const b = bodyRect();
+        const o = overlayRect();
+        const bodyCenterX = b.x + b.w / 2;
+        const bodyCenterY = b.y + b.h / 2;
+
+        const markerAttachXRatio = (state.attachX - bodyCenterX) / b.w;
+        const markerAttachYRatio = (state.attachY - bodyCenterY) / b.h;
+        const anchorXRatio = (state.anchorX - o.x) / o.w;
+        const anchorYRatio = (state.anchorY - o.y) / o.h;
+        const widthRatio = o.w / b.w;
+        const heightRatio = o.h / b.h;
+
+        const overlayCenterOffsetX = (state.overlayX - bodyCenterX) / b.w;
+        const overlayCenterOffsetY = (state.overlayY - bodyCenterY) / b.h;
+
+        // Values that reproduce the overlay as positioned on canvas (paste these).
+        const attachXRatio =
+          overlayCenterOffsetX + widthRatio * (anchorXRatio - 0.5);
+        const attachYRatio =
+          overlayCenterOffsetY + heightRatio * (anchorYRatio - 0.5);
+
+        const anchorPxX = Math.round(anchorXRatio * state.overlayNatW);
+        const anchorPxY = Math.round(anchorYRatio * state.overlayNatH);
+
+        output.value = [
+          `// body ${state.bodyNatW}×${state.bodyNatH} · overlay ${state.overlayNatW}×${state.overlayNatH}`,
+          `// overlay center offset: ${fmt(overlayCenterOffsetX, 4)}, ${fmt(overlayCenterOffsetY, 4)}`,
+          '',
+          'accessoryWidthRatio: ' + fmt(widthRatio, 4) + ',',
+          `accessoryImageAspect: ${frac(state.overlayNatW, state.overlayNatH)},`,
+          `accessoryAnchorXRatio: ${anchorFrac(anchorPxX, state.overlayNatW)},`,
+          `accessoryAnchorYRatio: ${anchorFrac(anchorPxY, state.overlayNatH)},`,
+          `accessoryAttachXRatio: ${fmt(attachXRatio, 4)},`,
+          `accessoryAttachYRatio: ${fmt(attachYRatio, 4)},`,
+          '',
+          `// anchor px: ${anchorPxX}, ${anchorPxY}`,
+          `// marker attach (green dot): ${fmt(markerAttachXRatio, 4)}, ${fmt(markerAttachYRatio, 4)}`,
+        ].join('\n');
+      }
+
+      function hitAttach(px, py) {
+        return Math.hypot(px - state.attachX, py - state.attachY) < 14;
+      }
+
+      function hitAnchor(px, py) {
+        return Math.hypot(px - state.anchorX, py - state.anchorY) < 14;
+      }
+
+      function hitOverlay(px, py) {
+        const o = overlayRect();
+        return (
+          px >= o.x &&
+          px <= o.x + o.w &&
+          py >= o.y &&
+          py <= o.y + o.h
+        );
+      }
+
+      function screenToWorld(px, py) {
+        const z = state.zoom;
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+        return {
+          x: (px - cx) / z + cx,
+          y: (py - cy) / z + cy,
+        };
+      }
+
+      function pointerPos(evt) {
+        const rect = canvas.getBoundingClientRect();
+        const sx =
+          ((evt.clientX - rect.left) / rect.width) * canvas.width;
+        const sy =
+          ((evt.clientY - rect.top) / rect.height) * canvas.height;
+        return screenToWorld(sx, sy);
+      }
+
+      canvas.addEventListener('pointerdown', (evt) => {
+        const p = pointerPos(evt);
+        if (hitAttach(p.x, p.y)) {
+          state.drag = { kind: 'attach', ox: p.x - state.attachX, oy: p.y - state.attachY };
+        } else if (hitAnchor(p.x, p.y)) {
+          state.drag = { kind: 'anchor', ox: p.x - state.anchorX, oy: p.y - state.anchorY };
+        } else if (hitOverlay(p.x, p.y)) {
+          state.drag = {
+            kind: 'overlay',
+            ox: p.x - state.overlayX,
+            oy: p.y - state.overlayY,
+          };
+        } else {
+          return;
+        }
+        canvas.setPointerCapture(evt.pointerId);
+        canvas.classList.add('dragging');
+      });
+
+      canvas.addEventListener('pointermove', (evt) => {
+        if (!state.drag) return;
+        const p = pointerPos(evt);
+        if (state.drag.kind === 'attach') {
+          state.attachX = p.x - state.drag.ox;
+          state.attachY = p.y - state.drag.oy;
+        } else if (state.drag.kind === 'anchor') {
+          state.anchorX = p.x - state.drag.ox;
+          state.anchorY = p.y - state.drag.oy;
+          clampAnchor();
+        } else if (state.drag.kind === 'overlay') {
+          const prevX = state.overlayX;
+          const prevY = state.overlayY;
+          state.overlayX = p.x - state.drag.ox;
+          state.overlayY = p.y - state.drag.oy;
+          state.anchorX += state.overlayX - prevX;
+          state.anchorY += state.overlayY - prevY;
+          clampAnchor();
+        }
+        updateOutput();
+        draw();
+      });
+
+      function endDrag(evt) {
+        if (!state.drag) return;
+        state.drag = null;
+        canvas.classList.remove('dragging');
+        try {
+          canvas.releasePointerCapture(evt.pointerId);
+        } catch (_) {}
+      }
+
+      canvas.addEventListener('pointerup', endDrag);
+      canvas.addEventListener('pointercancel', endDrag);
+
+      canvas.addEventListener(
+        'wheel',
+        (evt) => {
+          if (!state.overlay || !hitOverlay(...Object.values(pointerPos(evt)))) return;
+          evt.preventDefault();
+          const delta = evt.deltaY > 0 ? -2 : 2;
+          overlayScale.value = String(
+            Math.min(200, Math.max(10, Number(overlayScale.value) + delta))
+          );
+          applyOverlayWidthFromSlider();
+        },
+        { passive: false }
+      );
+
+      window.addEventListener('keydown', (evt) => {
+        if (!state.overlay) return;
+        const step =
+          (Number(nudge.value) || 1) * (evt.shiftKey ? 10 : 1);
+        let moved = false;
+        if (evt.key === 'ArrowLeft') {
+          state.overlayX -= step;
+          moved = true;
+        } else if (evt.key === 'ArrowRight') {
+          state.overlayX += step;
+          moved = true;
+        } else if (evt.key === 'ArrowUp') {
+          state.overlayY -= step;
+          moved = true;
+        } else if (evt.key === 'ArrowDown') {
+          state.overlayY += step;
+          moved = true;
+        }
+        if (moved) {
+          evt.preventDefault();
+          clampAnchor();
+          updateOutput();
+          draw();
+        }
+      });
+
+      bodyFile.addEventListener('change', () => loadImage(bodyFile.files[0], 'body'));
+      overlayFile.addEventListener('change', () =>
+        loadImage(overlayFile.files[0], 'overlay')
+      );
+      overlayScale.addEventListener('input', applyOverlayWidthFromSlider);
+      bodyHeightRatio.addEventListener('input', () => {
+        updateBodyDisplaySize();
+        resetAttachToBodyTopCenter();
+        updateOutput();
+        draw();
+      });
+      zoom.addEventListener('input', () => {
+        state.zoom = Number(zoom.value) / 100;
+        draw();
+      });
+
+      copyBtn.addEventListener('click', async () => {
+        await navigator.clipboard.writeText(output.value);
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => {
+          copyBtn.textContent = 'Copy output';
+        }, 1200);
+      });
+
+      canvas.addEventListener('dragover', (evt) => evt.preventDefault());
+      canvas.addEventListener('drop', (evt) => {
+        evt.preventDefault();
+        const files = [...evt.dataTransfer.files].filter((f) =>
+          f.type.startsWith('image/')
+        );
+        if (!files.length) return;
+        if (!state.body) loadImage(files[0], 'body');
+        else if (!state.overlay) loadImage(files[0], 'overlay');
+        else {
+          loadImage(files[0], 'overlay');
+          if (files[1]) loadImage(files[1], 'body');
+        }
+      });
+
+      window.addEventListener('resize', fitCanvas);
+      fitCanvas();
+      updateOutput();
+    </script>
+  </body>
+</html>

@@ -1,6 +1,8 @@
 import { swimmerLifeTuning } from '@/config/swimmerLifeTuning';
 import { mixU32, unitFloatFromU32 } from '@/Game/path/deterministicMix';
 
+export type FeatureBlinkType = 'tinyDotBlink' | 'sleepyBlink';
+
 export type FeatureBlinkState = {
   cooldownSec: number;
   activeSec: number;
@@ -13,42 +15,77 @@ export type FeatureBlinkVisual = {
   state: FeatureBlinkState;
 };
 
-const pickBlinkInterval = (salt: number): number => {
+function pickBlinkInterval(salt: number, blinkType: FeatureBlinkType): number {
   'worklet';
   const t = unitFloatFromU32(mixU32(salt, 0x0b1a7f3c, 1));
+  if (blinkType === 'sleepyBlink') {
+    return (
+      swimmerLifeTuning.SLEEPY_BLINK_INTERVAL_MIN_SEC +
+      t *
+        (swimmerLifeTuning.SLEEPY_BLINK_INTERVAL_MAX_SEC -
+          swimmerLifeTuning.SLEEPY_BLINK_INTERVAL_MIN_SEC)
+    );
+  }
   return (
     swimmerLifeTuning.BLINK_INTERVAL_MIN_SEC +
     t *
       (swimmerLifeTuning.BLINK_INTERVAL_MAX_SEC -
         swimmerLifeTuning.BLINK_INTERVAL_MIN_SEC)
   );
-};
+}
 
-const pickBlinkDuration = (salt: number): number => {
+function pickBlinkDuration(salt: number, blinkType: FeatureBlinkType): number {
   'worklet';
   const t = unitFloatFromU32(mixU32(salt, 0x0c4e82d1, 2));
+  if (blinkType === 'sleepyBlink') {
+    return (
+      swimmerLifeTuning.SLEEPY_BLINK_DURATION_MIN_SEC +
+      t *
+        (swimmerLifeTuning.SLEEPY_BLINK_DURATION_MAX_SEC -
+          swimmerLifeTuning.SLEEPY_BLINK_DURATION_MIN_SEC)
+    );
+  }
   return (
     swimmerLifeTuning.BLINK_DURATION_MIN_SEC +
     t *
       (swimmerLifeTuning.BLINK_DURATION_MAX_SEC -
         swimmerLifeTuning.BLINK_DURATION_MIN_SEC)
   );
-};
+}
 
-export const createFeatureBlinkState = (entitySalt: number): FeatureBlinkState => {
+function getBlinkClosedVisual(
+  blinkType: FeatureBlinkType,
+  closed: number
+): { opacity: number; scaleY: number } {
+  'worklet';
+  if (blinkType === 'sleepyBlink') {
+    return {
+      opacity:
+        1 - closed * (1 - swimmerLifeTuning.SLEEPY_BLINK_CLOSED_OPACITY),
+      scaleY: 1 - closed * (1 - swimmerLifeTuning.SLEEPY_BLINK_CLOSED_SCALE_Y),
+    };
+  }
+  return {
+    opacity: 1 - closed * (1 - swimmerLifeTuning.BLINK_CLOSED_OPACITY),
+    scaleY: 1 - closed * (1 - swimmerLifeTuning.BLINK_CLOSED_SCALE_Y),
+  };
+}
+
+export function createFeatureBlinkState(entitySalt: number): FeatureBlinkState {
   'worklet';
   return {
-    cooldownSec: pickBlinkInterval(mixU32(entitySalt, 0, 1)),
+    cooldownSec: pickBlinkInterval(mixU32(entitySalt, 0, 1), 'tinyDotBlink'),
     activeSec: 0,
     blinkCount: 0,
   };
-};
+}
 
-export const updateFeatureBlink = (
+export function updateFeatureBlink(
   state: FeatureBlinkState | undefined,
   entitySalt: number,
-  dt: number
-): FeatureBlinkVisual => {
+  dt: number,
+  blinkType: FeatureBlinkType = 'tinyDotBlink'
+): FeatureBlinkVisual {
   'worklet';
   const safeDt = dt > 0 ? dt : 0;
   const next = state ?? createFeatureBlinkState(entitySalt);
@@ -57,15 +94,16 @@ export const updateFeatureBlink = (
 
   if (next.activeSec > 0) {
     const duration = pickBlinkDuration(
-      mixU32(entitySalt, next.blinkCount, 0x0d2e91a4)
+      mixU32(entitySalt, next.blinkCount, 0x0d2e91a4),
+      blinkType
     );
     const remaining = Math.max(0, next.activeSec - safeDt);
     const elapsed = duration - remaining;
     const phase = duration > 0 ? Math.min(1, elapsed / duration) : 1;
     const closed = Math.sin(phase * Math.PI);
-    opacity =
-      1 - closed * (1 - swimmerLifeTuning.BLINK_CLOSED_OPACITY);
-    scaleY = 1 - closed * (1 - swimmerLifeTuning.BLINK_CLOSED_SCALE_Y);
+    const closedVisual = getBlinkClosedVisual(blinkType, closed);
+    opacity = closedVisual.opacity;
+    scaleY = closedVisual.scaleY;
 
     if (remaining <= 0) {
       return {
@@ -73,7 +111,8 @@ export const updateFeatureBlink = (
         scaleY: 1,
         state: {
           cooldownSec: pickBlinkInterval(
-            mixU32(entitySalt, next.blinkCount, 0x0e7c3b19)
+            mixU32(entitySalt, next.blinkCount, 0x0e7c3b19),
+            blinkType
           ),
           activeSec: 0,
           blinkCount: next.blinkCount,
@@ -100,7 +139,8 @@ export const updateFeatureBlink = (
       state: {
         cooldownSec: 0,
         activeSec: pickBlinkDuration(
-          mixU32(entitySalt, blinkCount, 0x0f1ac8e2)
+          mixU32(entitySalt, blinkCount, 0x0f1ac8e2),
+          blinkType
         ),
         blinkCount,
       },
@@ -115,4 +155,4 @@ export const updateFeatureBlink = (
       cooldownSec,
     },
   };
-};
+}

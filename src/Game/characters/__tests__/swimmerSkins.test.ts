@@ -3,14 +3,18 @@ import {
   AQUA_SPROUT_SKIN_ID,
   buildSwimmerSkinRenderLayers,
   getAccessoryMeshSize,
+  getCrestRestPosition,
   getFeatureMeshSize,
   getFeatureRestOffsetY,
   getPinnedCrestRestOffsetY,
+  getPinnedCrestRestPosition,
   getSwimmerAccessoryLayerIndex,
   getSwimmerInternalLayerIndex,
   getSwimmerSkin,
   GOGGLED_SKIN,
   GOGGLED_SKIN_ID,
+  KELP_DRIFTER_SKIN,
+  KELP_DRIFTER_SKIN_ID,
 } from '../swimmerSkins';
 import { SWIMMER_CHARACTER_IMAGE } from '@/assets/swimmerCharacters';
 import { GIGGLE_CRYSTAL_PROFILE_ID } from '../characterProfiles';
@@ -22,6 +26,10 @@ describe('swimmerSkins', () => {
 
   it('resolves the aqua-sprout skin by id', () => {
     expect(getSwimmerSkin(AQUA_SPROUT_SKIN_ID)).toBe(AQUA_SPROUT_SKIN);
+  });
+
+  it('resolves the kelp-drifter skin by id', () => {
+    expect(getSwimmerSkin(KELP_DRIFTER_SKIN_ID)).toBe(KELP_DRIFTER_SKIN);
   });
 
   it('falls back to aqua-sprout for unknown skin ids', () => {
@@ -56,6 +64,7 @@ describe('swimmerSkins', () => {
     expect(layers).toHaveLength(4);
     expect(layers[0].image).toBe(SWIMMER_CHARACTER_IMAGE.aquaSproutBody);
     expect(layers[1].fillColor).toBe('#8fe8f5');
+    expect(layers[1].clipToGroupBounds).toBe(true);
     expect(layers[2].image).toBe(SWIMMER_CHARACTER_IMAGE.aquaSproutEyes);
     expect(layers[3].image).toBe(SWIMMER_CHARACTER_IMAGE.aquaSproutHair);
     expect(layers[0].shape).toMatchObject({ width: 48, height: 120 });
@@ -72,6 +81,40 @@ describe('swimmerSkins', () => {
     expect(layers[3].position?.y).toBeLessThan(layers[2].position!.y!);
     expect(getSwimmerInternalLayerIndex(AQUA_SPROUT_SKIN)).toBe(1);
     expect(getSwimmerAccessoryLayerIndex(AQUA_SPROUT_SKIN)).toBe(3);
+  });
+
+  it('builds body, eyes, and crest layers for kelp-drifter skin', () => {
+    const layers = buildSwimmerSkinRenderLayers(KELP_DRIFTER_SKIN, 48, 120);
+
+    expect(layers).toHaveLength(3);
+    expect(layers[0].image).toBe(SWIMMER_CHARACTER_IMAGE.kelpDrifterBody);
+    expect(layers[1].image).toBe(SWIMMER_CHARACTER_IMAGE.kelpDrifterEyes);
+    expect(layers[2].image).toBe(SWIMMER_CHARACTER_IMAGE.kelpDrifterHair);
+    expect(layers[2].position?.x).toBeGreaterThan(0);
+    expect(getSwimmerInternalLayerIndex(KELP_DRIFTER_SKIN)).toBeNull();
+    expect(getSwimmerAccessoryLayerIndex(KELP_DRIFTER_SKIN)).toBe(2);
+  });
+
+  it('places kelp-drifter hair at aligner-tuned crest rest position', () => {
+    const meshWidth = 48;
+    const meshHeight = meshWidth * 1.8;
+    const accessorySize = getAccessoryMeshSize(
+      KELP_DRIFTER_SKIN,
+      meshWidth,
+      meshHeight
+    );
+    const rest = getCrestRestPosition(
+      KELP_DRIFTER_SKIN,
+      meshWidth,
+      meshHeight,
+      accessorySize.width,
+      accessorySize.height
+    );
+    const overlayCenterOffsetX = rest.x / meshWidth;
+    const overlayCenterOffsetY = rest.y / meshHeight;
+    expect(overlayCenterOffsetX).toBeCloseTo(0.209, 3);
+    expect(overlayCenterOffsetY).toBeCloseTo(-0.3897, 3);
+    expect(accessorySize.width / meshWidth).toBeCloseTo(1.5, 5);
   });
 
   it('aligns pinned crest bottom to squashed body top', () => {

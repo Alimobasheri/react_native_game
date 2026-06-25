@@ -31,6 +31,9 @@ export type SecondaryAccessoryUpdateArgs = {
   dt: number;
   /** When set, crest spring uses bottom-anchored bend instead of face lag. */
   crestLayerHeight?: number;
+  crestLayerWidth?: number;
+  crestAnchorXRatio?: number;
+  crestAnchorYRatio?: number;
 };
 
 export const ensureAccessoryState = (
@@ -59,8 +62,11 @@ export const updateSecondaryAccessory = (
         weight,
         args.velocityX,
         args.dt,
+        args.crestLayerWidth ?? args.crestLayerHeight,
         args.crestLayerHeight,
-        sink
+        sink,
+        args.crestAnchorXRatio,
+        args.crestAnchorYRatio
       );
     }
     return updateLaggingSpringAccessory(

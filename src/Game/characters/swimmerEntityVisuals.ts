@@ -27,7 +27,10 @@ export type SwimmerEntityVisualResult = {
 
 export type SwimmerEntityVisualOptions = {
   crestMode?: boolean;
+  crestLayerWidth?: number;
   crestLayerHeight?: number;
+  crestAnchorXRatio?: number;
+  crestAnchorYRatio?: number;
 };
 
 export const updateSwimmerEntityVisuals = (
@@ -73,6 +76,9 @@ export const updateSwimmerEntityVisuals = (
         : deformationState,
     dt,
     crestLayerHeight: options.crestLayerHeight,
+    crestLayerWidth: options.crestLayerWidth,
+    crestAnchorXRatio: options.crestAnchorXRatio,
+    crestAnchorYRatio: options.crestAnchorYRatio,
   };
 
   nextAccessoryState = updateSecondaryAccessory(

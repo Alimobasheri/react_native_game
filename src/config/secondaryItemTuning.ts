@@ -16,6 +16,10 @@ export const secondaryItemTuning = {
   CREST_BEND_ANGLE_FACTOR: 0.048,
   CREST_BEND_ANGLE_CURVE: 0.0018,
   CREST_BEND_ANGLE_CLAMP: 0.55,
+  /** Portion of stalk bend routed to horizontal skew (rest stays in tip rotation). */
+  CREST_STALK_SKEW_BLEND: 0.55,
+  /** Skew gain applied to stalk bend radians (Skia skew sx ≈ tan(angle)). */
+  CREST_STALK_SKEW_GAIN: 0.85,
   CREST_WIND_LIFT_FACTOR: 0.012,
   CREST_WIND_LIFT_CLAMP: 6,
   /** Converts wind-lift spring displacement into extra tip angle (radians). */
