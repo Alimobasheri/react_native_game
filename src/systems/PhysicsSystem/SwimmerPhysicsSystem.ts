@@ -53,6 +53,7 @@ import { computeFinalSurfaceUv } from '@/Game/water/waterSurfaceProfile';
 import {
   SwimmerAnticipationDentEventType,
   SwimmerDirectionalSplashEventType,
+  SwimmerPinnedSplashEventType,
   SwimmerPivotSplashEventType,
 } from '@/Game/characters/swimmerLocomotionEvents';
 import { sampleHorizontalClearancePx } from '@/Game/characters/swimmerClearance';
@@ -283,7 +284,7 @@ export const SwimmerPhysicsSystem: System = {
       const swimmerVisualWidth =
         swimmerComponent.meshBaseWidth ??
         (containerData.width / LAYOUT_CONSTANTS.COLUMNS) *
-          swimmerVisualTuning.VISUAL_WIDTH_COLUMN_RATIO;
+        swimmerVisualTuning.VISUAL_WIDTH_COLUMN_RATIO;
       const swimmerVisualHeight =
         swimmerComponent.meshBaseHeight ??
         swimmerVisualWidth * swimmerVisualTuning.VISUAL_HEIGHT_TO_WIDTH_RATIO;
@@ -408,6 +409,7 @@ export const SwimmerPhysicsSystem: System = {
                   impactSpeed,
                   x: swimmerCenterX,
                   y: swimmerCenterY,
+                  direction: pendingTapDirection,
                 },
               });
             }
@@ -417,6 +419,15 @@ export const SwimmerPhysicsSystem: System = {
             prevMovementState !== MovementState.PIVOT_BRAKE
           ) {
             eventQueue.addEvent({
+              type: SwimmerAnticipationDentEventType,
+              payload: {
+                entityId: swimmerEntity,
+                x: swimmerCenterX,
+                y: swimmerCenterY,
+                direction: pendingTapDirection,
+              },
+            });
+            eventQueue.addEvent({
               type: SwimmerDirectionalSplashEventType,
               payload: {
                 entityId: swimmerEntity,
@@ -424,18 +435,10 @@ export const SwimmerPhysicsSystem: System = {
                 y: swimmerCenterY,
                 direction: pendingTapDirection,
                 tier: locomotion.currentTier,
-                strength:
-                  Math.abs(swimmerVelocityX) /
-                  swimmerVisualTuning.MAX_VISUAL_SPEED,
-              },
-            });
-            eventQueue.addEvent({
-              type: SwimmerAnticipationDentEventType,
-              payload: {
-                entityId: swimmerEntity,
-                x: swimmerCenterX,
-                y: swimmerCenterY,
-                direction: pendingTapDirection,
+                strength: Math.min(
+                  1.35,
+                  0.75 + locomotion.currentTier * 0.12
+                ),
               },
             });
           }
@@ -704,15 +707,15 @@ export const SwimmerPhysicsSystem: System = {
       const collisionAngleRad = swimmerComponent.useColumnControl
         ? kinematicsAngleRad
         : (() => {
-            const fullTiltSpeed =
-              swimmerPhysicsTuning.MAX_HORIZONTAL_SPEED *
-              swimmerPhysicsTuning.FULL_TILT_SPEED_FRACTION;
-            const tiltNormalized = Math.max(
-              -1,
-              Math.min(1, swimmerVelocityX / fullTiltSpeed)
-            );
-            return tiltNormalized * swimmerPhysicsTuning.MAX_TILT_RADIANS;
-          })();
+          const fullTiltSpeed =
+            swimmerPhysicsTuning.MAX_HORIZONTAL_SPEED *
+            swimmerPhysicsTuning.FULL_TILT_SPEED_FRACTION;
+          const tiltNormalized = Math.max(
+            -1,
+            Math.min(1, swimmerVelocityX / fullTiltSpeed)
+          );
+          return tiltNormalized * swimmerPhysicsTuning.MAX_TILT_RADIANS;
+        })();
       const collisionHalfWidthForBounds = collisionHalfWidth;
       const collisionHalfHeightForBounds = collisionHalfHeight;
       const verticalSweepPx =
@@ -762,6 +765,18 @@ export const SwimmerPhysicsSystem: System = {
       const finalY = collisionResult.y;
       const isBlockedFromAbove = collisionResult.isPinnedFromAbove;
       const isCollidingWithObstacle = collisionResult.isColliding;
+
+      if (!wasPinnedFromAbove && isBlockedFromAbove) {
+        eventQueue.addEvent({
+          type: SwimmerPinnedSplashEventType,
+          payload: {
+            entityId: swimmerEntity,
+            x: finalX,
+            y: finalY,
+            impactSpeed: Math.abs(swimmerVelocityX),
+          },
+        });
+      }
 
       if (
         wasPinnedFromAbove &&

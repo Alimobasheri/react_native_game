@@ -1,6 +1,6 @@
 import type { ECS } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/ecs';
 import type { Entity } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/entity';
-import { firstEntityFromStore } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/query';
+import { firstEntityFromStore, findSceneEntityByKey } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/query';
 import { System } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/system';
 import {
   RenderComponentData,
@@ -48,6 +48,7 @@ import {
 } from '@/Game/ecs-components/Water';
 import { getWaterSurfaceRestY, LAYOUT_CONSTANTS } from '@/Layout';
 import { RestartGameplayRequestType } from '@/Game/session/restartGameplayEvents';
+import { clearSwimmerWaterFx } from '@/Game/water/swimmerWaterFxLifecycle';
 
 const SWIMMER_START_ABOVE_SURFACE_PX = 10;
 const REMOVE_ENTITY_BATCH_REQUEST = 'RemoveEntityBatchRequest';
@@ -80,6 +81,21 @@ const restartGameplay = (
     sessionEntity
   ) as GameSessionComponentData | undefined;
   if (!session) return;
+
+  const sceneEntity = findSceneEntityByKey(components, sceneKey);
+  if (typeof sceneEntity === 'number') {
+    const swimmerEntities = ecs.getEntitiesWithComponents([SwimmerComponentName]);
+    for (let si = 0; si < swimmerEntities.length; si++) {
+      const swimmerData = components[SwimmerComponentName]?.get(
+        swimmerEntities[si]
+      ) as SwimmerComponentData | undefined;
+      clearSwimmerWaterFx(
+        ecs,
+        sceneEntity,
+        swimmerData?.locomotion.foamCollarEntityId
+      );
+    }
+  }
 
   const rowStore = components[ObstacleRowComponentName];
   if (rowStore) {

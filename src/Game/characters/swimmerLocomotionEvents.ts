@@ -1,6 +1,6 @@
 /**
  * Locomotion-side ECS events emitted by SwimmerPhysicsSystem.
- * Consumed by SwimmerWaterContactFxSystem (placeholder sprites/particles).
+ * Consumed by SwimmerWaterContactFxSystem (foam collar, splashes, wakes).
  */
 
 export const SwimmerPivotSplashEventType = 'SwimmerPivotSplashEvent';
@@ -11,6 +11,8 @@ export type SwimmerPivotSplashPayload = {
   impactSpeed: number;
   x: number;
   y: number;
+  /** New stroke direction after the pivot brake. */
+  direction: -1 | 1;
 };
 
 export const SwimmerDirectionalSplashEventType = 'SwimmerDirectionalSplashEvent';
@@ -62,4 +64,44 @@ export type SwimmerWakeTrailEvent = {
 export type SwimmerAnticipationDentEvent = {
   type: typeof SwimmerAnticipationDentEventType;
   payload: SwimmerAnticipationDentPayload;
+};
+
+export const SwimmerPinnedSplashEventType = 'SwimmerPinnedSplashEvent';
+
+export type SwimmerPinnedSplashPayload = {
+  entityId: number;
+  x: number;
+  y: number;
+  impactSpeed: number;
+};
+
+export type SwimmerPinnedSplashEvent = {
+  type: typeof SwimmerPinnedSplashEventType;
+  payload: SwimmerPinnedSplashPayload;
+};
+
+/**
+ * FUTURE TODO — Revive circular splash ring (deferred).
+ *
+ * When ad-revive or restart UX is wired, dispatch this event after the swimmer
+ * Y is snapped to the water surface (see RestartGameplaySystem).
+ *
+ * Handler sketch in SwimmerWaterContactFxSystem:
+ * - Add `reviveRing` preset to buildSwimmerContactFoamLayers
+ * - Expanding ring: radius = 8 + age * 120, 12–18 blobs, maxAge ≈ 0.45s
+ * - Design ref: swimmer.styles.md § Revive Animation
+ *
+ * @see SwimmerReviveSplashEventType
+ */
+export const SwimmerReviveSplashEventType = 'SwimmerReviveSplashEvent';
+
+export type SwimmerReviveSplashPayload = {
+  entityId: number;
+  x: number;
+  y: number;
+};
+
+export type SwimmerReviveSplashEvent = {
+  type: typeof SwimmerReviveSplashEventType;
+  payload: SwimmerReviveSplashPayload;
 };

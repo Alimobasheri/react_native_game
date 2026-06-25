@@ -38,8 +38,22 @@ export type SwimmerLocomotionData = {
   visualStrokeTier?: SpeedTier;
   /** Seconds since last wake streak spawn. */
   wakeSpawnTimer?: number;
+  /** Seconds since leaving water — drives collar global fade-out. */
+  collarDrainAge?: number;
+  /** Ease-in timer after re-entry from pin / drain (before full collar strength). */
+  collarRegrowAge?: number;
+  /** True once regrow ease finished — allows bob-tolerant collar maintenance. */
+  collarRegrowComplete?: boolean;
+  /** After pin / dry exit — regrow only once float depth is reached (prevents flash). */
+  collarAwaitingRegrow?: boolean;
+  /** Latched when center reaches float depth during slide-out from pin. */
+  collarFloatDepthReached?: boolean;
+  /** Frozen collarFoamAge when contact with water is lost (pinned dry). */
+  collarFreezeAge?: number;
   /** Ephemeral foam collar render entity (waterline separation). */
   foamCollarEntityId?: number;
+  /** Seconds elapsed for collar outward-loop animation. */
+  collarFoamAge?: number;
   facingDirection: 1 | -1;
   /** Seconds remaining in pivot input lockout. */
   pivotLockoutTimer: number;

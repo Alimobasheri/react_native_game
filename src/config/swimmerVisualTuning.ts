@@ -48,6 +48,6 @@ export const swimmerVisualTuning = {
   START_READY_BOB_FREQUENCY_HZ: 1.1,
 
   /** Wake trail spawn interval while gliding fast (seconds). */
-  WAKE_SPAWN_INTERVAL_SEC: 0.09,
-  WAKE_MIN_SPEED: 140,
+  WAKE_SPAWN_INTERVAL_SEC: 0.07,
+  WAKE_MIN_SPEED: 80,
 } as const;
