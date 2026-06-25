@@ -1,12 +1,6 @@
 {
   "version": 1,
   "skills": {
-    "expo-react-native-performance": {
-      "source": "pproenca/dot-skills",
-      "sourceType": "github",
-      "skillPath": "skills/.experimental/expo-react-native-performance/SKILL.md",
-      "computedHash": "da6e70dd6c48bd87388d966d8789063041a70928fa824841a3e097e59e924a54"
-    },
     "game-design-document": {
       "source": "ityes22/game-design-document",
       "sourceType": "github",

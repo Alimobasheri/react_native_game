@@ -5,11 +5,25 @@ import {
 import { SWIMMER_CHARACTER_IMAGE } from '@/assets/swimmerCharacters';
 import { GIGGLE_CRYSTAL_PROFILE_ID } from './characterProfiles';
 
+export const AQUA_SPROUT_SKIN_ID = 'aqua-sprout' as const;
 export const GOGGLED_SKIN_ID = 'goggled' as const;
 
-export const DEFAULT_SWIMMER_SKIN_ID = GOGGLED_SKIN_ID;
+export const DEFAULT_SWIMMER_SKIN_ID = AQUA_SPROUT_SKIN_ID;
 
-export type SwimmerSkinId = typeof GOGGLED_SKIN_ID;
+export type SwimmerSkinId = typeof AQUA_SPROUT_SKIN_ID | typeof GOGGLED_SKIN_ID;
+
+export type SwimmerSkinFeatureLayer = {
+  readonly featureImageKey: string;
+  /** Feature draw width as a fraction of the body mesh width. */
+  readonly featureWidthRatio: number;
+  /** Source feature image width / height (for layout). */
+  readonly featureImageAspect: number;
+  /**
+   * Resting feature offset from body center along Y (negative = toward the head).
+   * Expressed as a fraction of body mesh height.
+   */
+  readonly featureRestOffsetYRatio: number;
+};
 
 export type SwimmerSkinDefinition = {
   readonly id: SwimmerSkinId;
@@ -26,6 +40,50 @@ export type SwimmerSkinDefinition = {
    * Expressed as a fraction of body mesh height.
    */
   readonly accessoryRestOffsetYRatio: number;
+  /** Optional tiny feature / eyes layer between body and crest (layer 1). */
+  readonly feature?: SwimmerSkinFeatureLayer;
+  /** When true, crest uses bottom-anchored bend spring instead of face lag. */
+  readonly crestAccessory?: boolean;
+};
+
+export const SWIMMER_BODY_LAYER_INDEX = 0;
+export const SWIMMER_FEATURE_LAYER_INDEX = 1;
+export const SWIMMER_ACCESSORY_LAYER_INDEX_WITHOUT_FEATURE = 1;
+export const SWIMMER_ACCESSORY_LAYER_INDEX_WITH_FEATURE = 2;
+
+export const getSwimmerFeatureLayerIndex = (
+  skin: SwimmerSkinDefinition
+): number | null => {
+  'worklet';
+  return skin.feature ? SWIMMER_FEATURE_LAYER_INDEX : null;
+};
+
+export const getSwimmerAccessoryLayerIndex = (
+  skin: SwimmerSkinDefinition
+): number => {
+  'worklet';
+  return skin.feature
+    ? SWIMMER_ACCESSORY_LAYER_INDEX_WITH_FEATURE
+    : SWIMMER_ACCESSORY_LAYER_INDEX_WITHOUT_FEATURE;
+};
+
+export const AQUA_SPROUT_SKIN: SwimmerSkinDefinition = {
+  id: AQUA_SPROUT_SKIN_ID,
+  profileId: GIGGLE_CRYSTAL_PROFILE_ID,
+  bodyImageKey: SWIMMER_CHARACTER_IMAGE.aquaSproutBody,
+  accessoryImageKey: SWIMMER_CHARACTER_IMAGE.aquaSproutHair,
+  accessoryWidthRatio: 0.72,
+  accessoryImageAspect: 242 / 228,
+  /** Crest base (sprite bottom) aligned to body mesh top — not face-centered like goggles. */
+  accessoryRestOffsetYRatio: -0.68,
+  crestAccessory: true,
+  feature: {
+    featureImageKey: SWIMMER_CHARACTER_IMAGE.aquaSproutEyes,
+    featureWidthRatio: 0.58,
+    featureImageAspect: 250 / 50,
+    /** Upper face band — between body center and crest base. */
+    featureRestOffsetYRatio: -0.28,
+  },
 };
 
 export const GOGGLED_SKIN: SwimmerSkinDefinition = {
@@ -43,7 +101,29 @@ export const getSwimmerSkin = (skinId?: string): SwimmerSkinDefinition => {
   if (skinId === GOGGLED_SKIN_ID) {
     return GOGGLED_SKIN;
   }
-  return GOGGLED_SKIN;
+  if (skinId === AQUA_SPROUT_SKIN_ID) {
+    return AQUA_SPROUT_SKIN;
+  }
+  return AQUA_SPROUT_SKIN;
+};
+
+export const getFeatureMeshSize = (
+  feature: SwimmerSkinFeatureLayer,
+  meshWidth: number
+): { width: number; height: number } => {
+  'worklet';
+  const width = meshWidth * feature.featureWidthRatio;
+  const height = width / feature.featureImageAspect;
+  return { width, height };
+};
+
+export const getFeatureRestOffsetY = (
+  feature: SwimmerSkinFeatureLayer,
+  meshHeight: number,
+  meshScaleY = 1
+): number => {
+  'worklet';
+  return meshHeight * feature.featureRestOffsetYRatio * meshScaleY;
 };
 
 export const getAccessoryMeshSize = (
@@ -73,15 +153,24 @@ export const getAccessoryRestOffsetY = (
   return meshHeight * skin.accessoryRestOffsetYRatio * meshScaleY;
 };
 
+/** Pinned crest: align sprite bottom to squashed body top — prevents ceiling clip. */
+export const getPinnedCrestRestOffsetY = (
+  meshHeight: number,
+  bodyScaleY: number,
+  crestHeight: number
+): number => {
+  'worklet';
+  const bodyTopY = -(meshHeight * bodyScaleY) / 2;
+  return bodyTopY - crestHeight / 2;
+};
+
 export const buildSwimmerSkinRenderLayers = (
   skin: SwimmerSkinDefinition,
   meshWidth: number,
   meshHeight: number
 ): RenderLayerData[] => {
   'worklet';
-  const accessorySize = getAccessoryMeshSize(skin, meshWidth, meshHeight);
-
-  return [
+  const layers: RenderLayerData[] = [
     {
       shape: {
         type: ShapeTypes.Rectangle,
@@ -90,18 +179,39 @@ export const buildSwimmerSkinRenderLayers = (
       },
       image: skin.bodyImageKey,
     },
-    {
+  ];
+
+  if (skin.feature) {
+    const featureSize = getFeatureMeshSize(skin.feature, meshWidth);
+    layers.push({
       shape: {
         type: ShapeTypes.Rectangle,
-        width: accessorySize.width,
-        height: accessorySize.height,
+        width: featureSize.width,
+        height: featureSize.height,
       },
-      image: skin.accessoryImageKey,
+      image: skin.feature.featureImageKey,
       position: {
         x: 0,
-        y: getAccessoryRestOffsetY(skin, meshHeight),
+        y: getFeatureRestOffsetY(skin.feature, meshHeight),
       },
       opacity: 1,
+    });
+  }
+
+  const accessorySize = getAccessoryMeshSize(skin, meshWidth, meshHeight);
+  layers.push({
+    shape: {
+      type: ShapeTypes.Rectangle,
+      width: accessorySize.width,
+      height: accessorySize.height,
     },
-  ];
+    image: skin.accessoryImageKey,
+    position: {
+      x: 0,
+      y: getAccessoryRestOffsetY(skin, meshHeight),
+    },
+    opacity: 1,
+  });
+
+  return layers;
 };

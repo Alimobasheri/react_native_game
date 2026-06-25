@@ -5,7 +5,11 @@ import type { VisualStrokePhase } from '@/Game/characters/visualStrokePhase';
 
 export const SwimmerComponentName = 'Swimmer';
 
+export const SWIMMER_BODY_LAYER_INDEX = 0;
+/** @deprecated Use getSwimmerAccessoryLayerIndex(skin) — index varies when feature layer present. */
 export const SWIMMER_ACCESSORY_LAYER_INDEX = 1;
+export const SWIMMER_FEATURE_LAYER_INDEX = 1;
+export const SWIMMER_ACCESSORY_LAYER_INDEX_WITH_FEATURE = 2;
 
 export type SpeedTier = 1 | 2 | 3;
 

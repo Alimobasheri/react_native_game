@@ -5,6 +5,10 @@ import {
   updateLaggingSpringAccessory,
 } from './accessories/laggingSpringGoggles';
 import {
+  notifyLaggingSpringCrestPivotImpact,
+  updateLaggingSpringCrest,
+} from './accessories/laggingSpringCrest';
+import {
   notifyProceduralChainPivotImpact,
   updateProceduralChainAccessory,
 } from './accessories/proceduralChainAntenna';
@@ -25,6 +29,8 @@ export type SecondaryAccessoryUpdateArgs = {
   scaleY: number;
   movementState: MovementState;
   dt: number;
+  /** When set, crest spring uses bottom-anchored bend instead of face lag. */
+  crestLayerHeight?: number;
 };
 
 export const ensureAccessoryState = (
@@ -47,6 +53,16 @@ export const updateSecondaryAccessory = (
 ): SecondaryItemPersistedState => {
   'worklet';
   if (state.kind === 'LaggingSpring' && type === 'LaggingSpring') {
+    if (args.crestLayerHeight !== undefined) {
+      return updateLaggingSpringCrest(
+        state,
+        weight,
+        args.velocityX,
+        args.dt,
+        args.crestLayerHeight,
+        sink
+      );
+    }
     return updateLaggingSpringAccessory(
       state,
       weight,
@@ -83,10 +99,14 @@ export const updateSecondaryAccessory = (
 export const notifySecondaryAccessoryPivotImpact = (
   type: SecondaryItemType,
   state: SecondaryItemPersistedState,
-  impactForce: number
+  impactForce: number,
+  crestMode = false
 ): SecondaryItemPersistedState => {
   'worklet';
   if (state.kind === 'LaggingSpring' && type === 'LaggingSpring') {
+    if (crestMode) {
+      return notifyLaggingSpringCrestPivotImpact(state, impactForce);
+    }
     return notifyLaggingSpringPivotImpact(state, impactForce);
   }
 

@@ -25,6 +25,11 @@ export type SwimmerEntityVisualResult = {
   accessoryState: SecondaryItemPersistedState | undefined;
 };
 
+export type SwimmerEntityVisualOptions = {
+  crestMode?: boolean;
+  crestLayerHeight?: number;
+};
+
 export const updateSwimmerEntityVisuals = (
   profile: ICharacterProfile,
   deformation: DeformationScale,
@@ -35,7 +40,8 @@ export const updateSwimmerEntityVisuals = (
   idleOscillationPhase: number,
   pivotImpactSpeed: number | null,
   visualPhase: VisualStrokePhase,
-  isPinned: boolean
+  isPinned: boolean,
+  options: SwimmerEntityVisualOptions = {}
 ): SwimmerEntityVisualResult => {
   'worklet';
   const deformationState: DeformationState = visualPhaseToDeformationState(
@@ -56,21 +62,24 @@ export const updateSwimmerEntityVisuals = (
     accessoryState
   );
 
+  const accessoryArgs = {
+    velocityX: telemetry.velocityX,
+    parentAngleDeg: telemetry.currentAngle,
+    scaleX: deformationResult.scaleX,
+    scaleY: deformationResult.scaleY,
+    movementState:
+      deformationState === 'PINNED'
+        ? MovementState.PIVOT_BRAKE
+        : deformationState,
+    dt,
+    crestLayerHeight: options.crestLayerHeight,
+  };
+
   nextAccessoryState = updateSecondaryAccessory(
     profile.secondaryItemType,
     profile.secondaryItemWeight,
     nextAccessoryState,
-    {
-      velocityX: telemetry.velocityX,
-      parentAngleDeg: telemetry.currentAngle,
-      scaleX: deformationResult.scaleX,
-      scaleY: deformationResult.scaleY,
-      movementState:
-        deformationState === 'PINNED'
-          ? MovementState.PIVOT_BRAKE
-          : deformationState,
-      dt,
-    },
+    accessoryArgs,
     accessorySink
   );
 
@@ -78,19 +87,17 @@ export const updateSwimmerEntityVisuals = (
     nextAccessoryState = notifySecondaryAccessoryPivotImpact(
       profile.secondaryItemType,
       nextAccessoryState,
-      pivotImpactSpeed
+      pivotImpactSpeed,
+      options.crestMode === true
     );
     nextAccessoryState = updateSecondaryAccessory(
       profile.secondaryItemType,
       profile.secondaryItemWeight,
       nextAccessoryState,
       {
-        velocityX: telemetry.velocityX,
-        parentAngleDeg: telemetry.currentAngle,
-        scaleX: deformationResult.scaleX,
-        scaleY: deformationResult.scaleY,
-        movementState: MovementState.PIVOT_BRAKE,
+        ...accessoryArgs,
         dt: 0,
+        movementState: MovementState.PIVOT_BRAKE,
       },
       accessorySink
     );

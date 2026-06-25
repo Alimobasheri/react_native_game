@@ -18,6 +18,9 @@ import {
 } from '@/assets/swimmerSideWalls';
 import { swimmerIconCrownGold, SWIMMER_UI_IMAGE } from '@/assets/swimmerUi';
 import {
+  aquaSproutBody,
+  aquaSproutEyes,
+  aquaSproutHair,
   floaterGoggledBody,
   floaterGoggledGoggles,
   SWIMMER_CHARACTER_IMAGE,
@@ -233,6 +236,21 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                     type="image"
                     name={SWIMMER_CHARACTER_IMAGE.floaterGoggledGoggles}
                     uriOrBase64={floaterGoggledGoggles}
+                  />
+                  <Asset
+                    type="image"
+                    name={SWIMMER_CHARACTER_IMAGE.aquaSproutBody}
+                    uriOrBase64={aquaSproutBody}
+                  />
+                  <Asset
+                    type="image"
+                    name={SWIMMER_CHARACTER_IMAGE.aquaSproutHair}
+                    uriOrBase64={aquaSproutHair}
+                  />
+                  <Asset
+                    type="image"
+                    name={SWIMMER_CHARACTER_IMAGE.aquaSproutEyes}
+                    uriOrBase64={aquaSproutEyes}
                   />
                   <Asset
                     type="shader"
