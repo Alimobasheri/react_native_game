@@ -16,7 +16,7 @@ export const buildKinematicTelemetry = (
   'worklet';
   return {
     velocityX,
-    currentAngle: locomotion.currentAngleDeg,
+    currentAngle: locomotion.visualAngleDeg ?? locomotion.currentAngleDeg,
     state: locomotion.movementState,
     currentTier: locomotion.currentTier,
     facingDirection: locomotion.facingDirection,

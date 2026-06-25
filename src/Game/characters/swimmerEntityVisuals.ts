@@ -3,6 +3,7 @@ import type { IKinematicTelemetry } from './kinematicTelemetry';
 import {
   createDeformationScale,
   updateProceduralDeformation,
+  type DeformationState,
 } from './proceduralDeformationEngine';
 import type { DeformationScale } from './proceduralDeformationTypes';
 import {
@@ -14,6 +15,9 @@ import type {
   SecondaryItemLayerSink,
   SecondaryItemPersistedState,
 } from './secondaryItemTypes';
+import type { VisualStrokePhase } from './visualStrokePhase';
+import { visualPhaseToDeformationState } from './swimmerVisualLocomotion';
+import { MovementState } from './characterMovementStates';
 
 export type SwimmerEntityVisualResult = {
   scaleX: number;
@@ -29,14 +33,20 @@ export const updateSwimmerEntityVisuals = (
   dt: number,
   telemetry: IKinematicTelemetry,
   idleOscillationPhase: number,
-  pivotImpactSpeed: number | null
+  pivotImpactSpeed: number | null,
+  visualPhase: VisualStrokePhase,
+  isPinned: boolean
 ): SwimmerEntityVisualResult => {
   'worklet';
+  const deformationState: DeformationState = visualPhaseToDeformationState(
+    visualPhase,
+    telemetry.state,
+    isPinned
+  );
+
   const deformationResult = updateProceduralDeformation(
     deformation,
-    telemetry.state,
-    telemetry.velocityX,
-    telemetry.currentTier,
+    deformationState,
     dt,
     idleOscillationPhase
   );
@@ -55,7 +65,10 @@ export const updateSwimmerEntityVisuals = (
       parentAngleDeg: telemetry.currentAngle,
       scaleX: deformationResult.scaleX,
       scaleY: deformationResult.scaleY,
-      movementState: telemetry.state,
+      movementState:
+        deformationState === 'PINNED'
+          ? MovementState.PIVOT_BRAKE
+          : deformationState,
       dt,
     },
     accessorySink
@@ -76,7 +89,7 @@ export const updateSwimmerEntityVisuals = (
         parentAngleDeg: telemetry.currentAngle,
         scaleX: deformationResult.scaleX,
         scaleY: deformationResult.scaleY,
-        movementState: telemetry.state,
+        movementState: MovementState.PIVOT_BRAKE,
         dt: 0,
       },
       accessorySink

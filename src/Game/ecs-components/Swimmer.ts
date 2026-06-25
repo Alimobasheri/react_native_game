@@ -1,6 +1,7 @@
 import { Component } from '@/containers/ReactNativeSkiaGameEngine/services-ecs';
 import { MovementState } from '@/Game/characters/characterMovementStates';
 import type { SecondaryItemPersistedState } from '@/Game/characters/secondaryItemTypes';
+import type { VisualStrokePhase } from '@/Game/characters/visualStrokePhase';
 
 export const SwimmerComponentName = 'Swimmer';
 
@@ -14,8 +15,31 @@ export type SwimmerLocomotionData = {
   currentTier: SpeedTier;
   /** Seconds remaining in the combo tap window. */
   comboTimer: number;
+  /** Seconds remaining in the pre-strike anticipation phase. */
+  anticipationTimer?: number;
+  /** Seconds remaining in the post-strike drag phase. */
+  dragTimer?: number;
   currentAngleDeg: number;
   targetAngleDeg: number;
+  /** Render-only lean (clearance-clamped); collision core stays upright. */
+  visualAngleDeg?: number;
+  /** Smoothed 0..1 clearance factor for angle tucking. */
+  clearance01?: number;
+  /** Raw sampled horizontal gap width in pixels. */
+  horizontalClearancePx?: number;
+  /** Visual stroke phase — continues after physics enters GLIDE. */
+  visualPhase?: VisualStrokePhase;
+  visualAnticipationTimer?: number;
+  visualStrokeTimer?: number;
+  visualGlideSettleTimer?: number;
+  visualRecoveryTimer?: number;
+  visualPivotTimer?: number;
+  visualStrokeDirection?: -1 | 1;
+  visualStrokeTier?: SpeedTier;
+  /** Seconds since last wake streak spawn. */
+  wakeSpawnTimer?: number;
+  /** Ephemeral foam collar render entity (waterline separation). */
+  foamCollarEntityId?: number;
   facingDirection: 1 | -1;
   /** Seconds remaining in pivot input lockout. */
   pivotLockoutTimer: number;
@@ -48,6 +72,11 @@ export type SwimmerComponentData = {
   isInInitialPhase: boolean;
   isCollidingWithObstacle: boolean;
   isPinnedFromAbove?: boolean;
+  /** Ceiling column bounds while pinned — stable slide-out reference across frames. */
+  pinnedCeilingMinX?: number;
+  pinnedCeilingMaxX?: number;
+  /** True when horizontal motion was blocked by a side solid this frame. */
+  isSideBlocked?: boolean;
   fallingVelocityY: number;
   useColumnControl?: boolean;
   column?: number;

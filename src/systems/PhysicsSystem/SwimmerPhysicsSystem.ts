@@ -32,7 +32,6 @@ import {
 import {
   resolveSwimmerAgainstRows,
   selectRowsNearSwimmerFromComponentStore,
-  tiltedAabbHalfExtents,
 } from '@/Game/collision/swimmerBlockCollision';
 import {
   ScoreComponentName,
@@ -50,7 +49,17 @@ import {
   swimmerKinematicsOnTap,
   swimmerKinematicsUpdate,
 } from '@/Game/characters/swimmerKinematicsController';
-import { SwimmerPivotSplashEventType } from '@/Game/characters/swimmerLocomotionEvents';
+import { computeFinalSurfaceUv } from '@/Game/water/waterSurfaceProfile';
+import {
+  SwimmerAnticipationDentEventType,
+  SwimmerDirectionalSplashEventType,
+  SwimmerPivotSplashEventType,
+} from '@/Game/characters/swimmerLocomotionEvents';
+import { sampleHorizontalClearancePx } from '@/Game/characters/swimmerClearance';
+import { updateSwimmerVisualLocomotion } from '@/Game/characters/swimmerVisualLocomotion';
+import { MovementState } from '@/Game/characters/characterMovementStates';
+import { getSwimmerColliderExtents } from '@/Game/characters/swimmerCollider';
+import { swimmerVisualTuning } from '@/config/swimmerVisualTuning';
 import '@/Game/characters/characterProfiles';
 import {
   getGameSession,
@@ -229,52 +238,22 @@ export const SwimmerPhysicsSystem: System = {
         return;
       }
 
-      if (startReady) {
-        const idleFrequency = 1.1;
-        let bobbingPhase = swimmerComponent.bobbingPhase ?? 0;
-        bobbingPhase += 2 * Math.PI * idleFrequency * deltaSeconds;
-        if (bobbingPhase > Math.PI * 2) {
-          bobbingPhase -= Math.PI * 2;
-        }
-        const amplitude = 6;
-        const bobbingOffsetY = Math.sin(bobbingPhase) * amplitude;
-        const idleAngle = (Math.sin(bobbingPhase * 0.85) * 2 * Math.PI) / 180;
-        const finalX = swimmerComponent.x;
-        const finalY = swimmerComponent.y + bobbingOffsetY;
-
-        ecs.updateComponent<RenderComponentData>(
-          swimmerEntity,
-          RenderComponentName,
-          (render) => {
-            render.position = { x: finalX, y: finalY };
-            render.angle = idleAngle;
-          }
-        );
-        ecs.updateComponent<SwimmerComponentData>(
-          swimmerEntity,
-          SwimmerComponentName,
-          (swimmer) => {
-            swimmer.bobbingPhase = bobbingPhase;
-            swimmer.locomotion.pendingTapDirection = 0;
-          }
-        );
-        return;
-      }
-
       const swimmerCenterX = swimmerComponent.x;
       const swimmerCenterY = swimmerComponent.y;
-      // Gentle, slow bobbing values are still tracked for potential visual use,
-      // but we no longer directly force Y toward the water surface. Vertical
-      // motion is now handled via a buoyancy-style velocity below.
+      const wasPinnedFromAbove = swimmerComponent.isPinnedFromAbove === true;
       const waterSpeed = waterData.raisingSpeed ?? 0;
       const normalizedSpeed = Math.max(0, Math.min(waterSpeed / 120, 1)); // 0..1
 
-      const baseAmplitude = 3; // pixels
-      const extraAmplitude = 3; // at max speed
+      const baseAmplitude = startReady
+        ? swimmerVisualTuning.START_READY_BOB_PX
+        : 3;
+      const extraAmplitude = startReady ? 0 : 3;
       const amplitude = baseAmplitude + extraAmplitude * normalizedSpeed;
 
-      const baseFrequency = 0.25; // Hz (one full cycle in ~4s)
-      const extraFrequency = 0.35; // a bit faster at max speed
+      const baseFrequency = startReady
+        ? swimmerVisualTuning.START_READY_BOB_FREQUENCY_HZ
+        : 0.25;
+      const extraFrequency = startReady ? 0 : 0.35; // a bit faster at max speed
       const frequency = baseFrequency + extraFrequency * normalizedSpeed;
 
       let bobbingPhase = swimmerComponent.bobbingPhase ?? 0;
@@ -285,12 +264,12 @@ export const SwimmerPhysicsSystem: System = {
       }
 
       const raw = Math.sin(bobbingPhase);
-      const downwardMultiplier = 1.3;
-      const upwardMultiplier = 0.5;
+      const downwardMultiplier = startReady ? 1 : 1.3;
+      const upwardMultiplier = startReady ? 1 : 0.5;
       const scaled =
         raw < 0 ? raw * downwardMultiplier : raw * upwardMultiplier;
 
-      const bias = amplitude * 0.3;
+      const bias = startReady ? 0 : amplitude * 0.3;
       const bobbingOffsetY = scaled * amplitude - bias;
 
       // --- Vertical buoyancy: strong upward force when underwater ---
@@ -301,11 +280,22 @@ export const SwimmerPhysicsSystem: System = {
       const depth = swimmerCenterY - containerData.waterSurfaceY; // > 0 => underwater
       let buoyancySpeed = 0; // magnitude in px/s (sign encoded separately)
 
-      const swimmerHeightForBuoyancy = Math.min(
-        obstacleWidth * swimmerPhysicsTuning.SWIMMER_WIDTH_COLUMN_RATIO *
-        swimmerPhysicsTuning.SWIMMER_HEIGHT_TO_WIDTH_RATIO,
-        rowHeight * 0.9
-      );
+      const swimmerVisualWidth =
+        swimmerComponent.meshBaseWidth ??
+        (containerData.width / LAYOUT_CONSTANTS.COLUMNS) *
+          swimmerVisualTuning.VISUAL_WIDTH_COLUMN_RATIO;
+      const swimmerVisualHeight =
+        swimmerComponent.meshBaseHeight ??
+        swimmerVisualWidth * swimmerVisualTuning.VISUAL_HEIGHT_TO_WIDTH_RATIO;
+      const columnWidth = containerData.width / LAYOUT_CONSTANTS.COLUMNS;
+      const navColliderExtents = getSwimmerColliderExtents(columnWidth, false);
+      const pinnedColliderExtents = getSwimmerColliderExtents(columnWidth, true);
+      const colliderExtents = wasPinnedFromAbove
+        ? pinnedColliderExtents
+        : navColliderExtents;
+      const collisionHalfWidth = colliderExtents.halfWidth;
+      const collisionHalfHeight = colliderExtents.halfHeight;
+      const swimmerHeightForBuoyancy = swimmerVisualHeight;
 
       if (depth > 0) {
         // Normalize depth relative to swimmer size, clamp to avoid extremes.
@@ -332,15 +322,6 @@ export const SwimmerPhysicsSystem: System = {
           buoyancySpeed = settleStrength;
         }
       }
-
-      const swimmerWidthForBlockCheck =
-        obstacleWidth * swimmerPhysicsTuning.SWIMMER_WIDTH_COLUMN_RATIO;
-      const swimmerHeightForBlockCheck = Math.min(
-        swimmerWidthForBlockCheck * swimmerPhysicsTuning.SWIMMER_HEIGHT_TO_WIDTH_RATIO,
-        rowHeight * 0.9
-      );
-      const swimmerHalfHeight = swimmerHeightForBlockCheck / 2;
-      const swimmerHalfWidth = swimmerWidthForBlockCheck / 2;
 
       const isUnderWater = depth > 0;
       const isGameOverDisabled = swimmerComponent.disableGameOver === true;
@@ -405,11 +386,14 @@ export const SwimmerPhysicsSystem: System = {
         (1 + swimmerPhysicsTuning.WATER_CURRENT_SURGE_BOOST * surgeNorm);
 
       // Horizontal control: tap-based hyper-casual (useColumnControl) or pan-based.
+      let tapImpulseAppliedThisFrame = false;
       if (swimmerComponent.useColumnControl) {
         const profile = getCharacterProfileForSwimmer(locomotion.profileId);
 
         const pendingTapDirection = locomotion.pendingTapDirection ?? 0;
         if (pendingTapDirection === -1 || pendingTapDirection === 1) {
+          tapImpulseAppliedThisFrame = true;
+          const prevMovementState = locomotion.movementState;
           swimmerVelocityX = swimmerKinematicsOnTap(
             profile,
             locomotion,
@@ -428,6 +412,33 @@ export const SwimmerPhysicsSystem: System = {
               });
             }
           );
+          if (
+            locomotion.movementState === MovementState.ANTICIPATION &&
+            prevMovementState !== MovementState.PIVOT_BRAKE
+          ) {
+            eventQueue.addEvent({
+              type: SwimmerDirectionalSplashEventType,
+              payload: {
+                entityId: swimmerEntity,
+                x: swimmerCenterX,
+                y: swimmerCenterY,
+                direction: pendingTapDirection,
+                tier: locomotion.currentTier,
+                strength:
+                  Math.abs(swimmerVelocityX) /
+                  swimmerVisualTuning.MAX_VISUAL_SPEED,
+              },
+            });
+            eventQueue.addEvent({
+              type: SwimmerAnticipationDentEventType,
+              payload: {
+                entityId: swimmerEntity,
+                x: swimmerCenterX,
+                y: swimmerCenterY,
+                direction: pendingTapDirection,
+              },
+            });
+          }
           locomotion.pendingTapDirection = 0;
         }
 
@@ -437,7 +448,33 @@ export const SwimmerPhysicsSystem: System = {
           swimmerVelocityX,
           deltaSeconds
         );
-        kinematicsAngleRad = degreesToRadians(locomotion.currentAngleDeg);
+
+        const clearanceRows = selectRowsNearSwimmerFromComponentStore(
+          obstacleRowStore,
+          swimmerCenterY,
+          collisionHalfHeight,
+          rowHeight
+        );
+        const clearancePx = sampleHorizontalClearancePx(
+          swimmerCenterX,
+          clearanceRows,
+          {
+            centerX: containerData.centerX,
+            width: containerData.width,
+          },
+          blockDimensions
+        );
+        updateSwimmerVisualLocomotion(
+          profile,
+          locomotion,
+          swimmerVelocityX,
+          clearancePx,
+          deltaSeconds,
+          startReady
+        );
+        kinematicsAngleRad = degreesToRadians(
+          locomotion.visualAngleDeg ?? locomotion.currentAngleDeg
+        );
       } else {
         // --- PAN-BASED CONTROL ---
         // Apply simple drag that grows with water speed (more water speed -> more drag).
@@ -461,9 +498,8 @@ export const SwimmerPhysicsSystem: System = {
         swimmerVelocityX = -swimmerPhysicsTuning.MAX_HORIZONTAL_SPEED;
       }
 
-      // When pinned under a ceiling block, horizontal movement is heavily damped.
-      const wasPinnedFromAbove = swimmerComponent.isPinnedFromAbove === true;
-      if (wasPinnedFromAbove) {
+      // When pinned under a ceiling block, bleed speed — but not on a fresh tap.
+      if (wasPinnedFromAbove && !tapImpulseAppliedThisFrame) {
         swimmerVelocityX *= swimmerPhysicsTuning.PINNED_VELOCITY_DAMPING;
       }
 
@@ -487,13 +523,19 @@ export const SwimmerPhysicsSystem: System = {
       // --- Integrate vertical position manually (arcade-style) ---
       let targetY = swimmerCenterY;
       const dtSeconds = deltaSeconds;
+      const rowDeltaY =
+        startReady || isGameOverPhase(session) ? 0 : waterSpeed * deltaSeconds;
+      const maxVerticalStepPx =
+        blockHeight * swimmerPhysicsTuning.MAX_VERTICAL_STEP_BLOCK_FRACTION;
 
-      if (depth > 0) {
-        const maxRise = buoyancySpeed * dtSeconds;
-        targetY -= maxRise;
-      } else if (depth < 0 && buoyancySpeed > 0) {
-        const maxFall = buoyancySpeed * dtSeconds;
-        targetY += maxFall;
+      if (!startReady && !wasPinnedFromAbove) {
+        if (depth > 0) {
+          const maxRise = Math.min(buoyancySpeed * dtSeconds, maxVerticalStepPx);
+          targetY -= maxRise;
+        } else if (depth < 0 && buoyancySpeed > 0) {
+          const maxFall = Math.min(buoyancySpeed * dtSeconds, maxVerticalStepPx);
+          targetY += maxFall;
+        }
       }
 
       // Follow the same surface-curve equation used by the water shader so swimmer
@@ -503,12 +545,21 @@ export const SwimmerPhysicsSystem: System = {
       const gapPrevStart = waterData.prevGapStartNorm ?? gapCurrentStart;
       const gapPrevEnd = waterData.prevGapEndNorm ?? gapCurrentEnd;
       const gapBlend = smoothstep(0, 1, clamp01(waterData.gapBlend ?? 1));
-      const blendedGapStart = gapPrevStart + (gapCurrentStart - gapPrevStart) * gapBlend;
+      const blendedGapStart =
+        gapPrevStart + (gapCurrentStart - gapPrevStart) * gapBlend;
       const blendedGapEnd = gapPrevEnd + (gapCurrentEnd - gapPrevEnd) * gapBlend;
       const safeGapEnd = Math.max(blendedGapStart + 0.01, blendedGapEnd);
       const blendedGapWidth = Math.max(0.02, safeGapEnd - blendedGapStart);
-      const gapFeather = Math.max(0.02, Math.min(0.09, blendedGapWidth * 0.45));
-      const softGap = softGapInfluence(blendedGapStart, safeGapEnd, containerUVX, gapFeather);
+      const gapFeather = Math.max(
+        0.02,
+        Math.min(0.09, blendedGapWidth * 0.45)
+      );
+      const softGap = softGapInfluence(
+        blendedGapStart,
+        safeGapEnd,
+        containerUVX,
+        gapFeather
+      );
       // Multi-gap weight at the final constrained X (matches shader packing).
       const blendTForGap = smoothstep(0, 1, clamp01(waterData.gapBlend ?? 1));
       const curr01ForGap = waterData.gapRangesCurr01;
@@ -517,138 +568,182 @@ export const SwimmerPhysicsSystem: System = {
       const prev23ForGap = waterData.gapRangesPrev23;
       const r0ForGap: [number, number] = [
         (prev01ForGap?.[0] ?? blendedGapStart) +
-        ((curr01ForGap?.[0] ?? blendedGapStart) - (prev01ForGap?.[0] ?? blendedGapStart)) * blendTForGap,
+        ((curr01ForGap?.[0] ?? blendedGapStart) -
+          (prev01ForGap?.[0] ?? blendedGapStart)) *
+        blendTForGap,
         (prev01ForGap?.[1] ?? safeGapEnd) +
-        ((curr01ForGap?.[1] ?? safeGapEnd) - (prev01ForGap?.[1] ?? safeGapEnd)) * blendTForGap,
+        ((curr01ForGap?.[1] ?? safeGapEnd) -
+          (prev01ForGap?.[1] ?? safeGapEnd)) *
+        blendTForGap,
       ];
       const r1ForGap: [number, number] = [
-        (prev01ForGap?.[2] ?? 0) + ((curr01ForGap?.[2] ?? 0) - (prev01ForGap?.[2] ?? 0)) * blendTForGap,
-        (prev01ForGap?.[3] ?? 0) + ((curr01ForGap?.[3] ?? 0) - (prev01ForGap?.[3] ?? 0)) * blendTForGap,
+        (prev01ForGap?.[2] ?? 0) +
+        ((curr01ForGap?.[2] ?? 0) - (prev01ForGap?.[2] ?? 0)) * blendTForGap,
+        (prev01ForGap?.[3] ?? 0) +
+        ((curr01ForGap?.[3] ?? 0) - (prev01ForGap?.[3] ?? 0)) * blendTForGap,
       ];
       const r2ForGap: [number, number] = [
-        (prev23ForGap?.[0] ?? 0) + ((curr23ForGap?.[0] ?? 0) - (prev23ForGap?.[0] ?? 0)) * blendTForGap,
-        (prev23ForGap?.[1] ?? 0) + ((curr23ForGap?.[1] ?? 0) - (prev23ForGap?.[1] ?? 0)) * blendTForGap,
+        (prev23ForGap?.[0] ?? 0) +
+        ((curr23ForGap?.[0] ?? 0) - (prev23ForGap?.[0] ?? 0)) * blendTForGap,
+        (prev23ForGap?.[1] ?? 0) +
+        ((curr23ForGap?.[1] ?? 0) - (prev23ForGap?.[1] ?? 0)) * blendTForGap,
       ];
       const r3ForGap: [number, number] = [
-        (prev23ForGap?.[2] ?? 0) + ((curr23ForGap?.[2] ?? 0) - (prev23ForGap?.[2] ?? 0)) * blendTForGap,
-        (prev23ForGap?.[3] ?? 0) + ((curr23ForGap?.[3] ?? 0) - (prev23ForGap?.[3] ?? 0)) * blendTForGap,
+        (prev23ForGap?.[2] ?? 0) +
+        ((curr23ForGap?.[2] ?? 0) - (prev23ForGap?.[2] ?? 0)) * blendTForGap,
+        (prev23ForGap?.[3] ?? 0) +
+        ((curr23ForGap?.[3] ?? 0) - (prev23ForGap?.[3] ?? 0)) * blendTForGap,
       ];
       const softGapAny = Math.max(
-        Math.max(softRangeWeight(r0ForGap, containerUVX), softRangeWeight(r1ForGap, containerUVX)),
-        Math.max(softRangeWeight(r2ForGap, containerUVX), softRangeWeight(r3ForGap, containerUVX))
+        Math.max(
+          softRangeWeight(r0ForGap, containerUVX),
+          softRangeWeight(r1ForGap, containerUVX)
+        ),
+        Math.max(
+          softRangeWeight(r2ForGap, containerUVX),
+          softRangeWeight(r3ForGap, containerUVX)
+        )
       );
-      const surfaceBandCenter = clamp01(waterData.surfaceBandCenterY ?? waterLevelNorm);
-      const surfaceBandHalfHeight = Math.max(
-        0.02,
-        Math.min(0.2, waterData.surfaceBandHalfHeight ?? 0.08)
-      );
-      const activeBandMask = bandMask(waterLevelNorm, surfaceBandCenter, surfaceBandHalfHeight);
-      const surgeEnergy = clamp01(
-        Math.max(waterData.surgeEnergy ?? 0, waterData.surgePhase ?? 0)
-      );
-      const calmness = clamp01(waterData.calmness ?? 0.5);
-      const flowDir = waterData.flowDirection ?? 0;
-      const flowVel = waterData.flowVelocity ?? flowDir;
-      const flowVelocity = Math.max(-1, Math.min(1, flowDir * 0.25 + flowVel * 0.75));
-      const pressure = clamp01(
-        (1 - blendedGapWidth) * 0.72 + Math.abs(flowVelocity) * 0.28
-      );
-      const curveMargin = Math.max(0.01, Math.min(0.08, blendedGapWidth * 0.2));
-      const inertiaTravel = Math.max(0.035, blendedGapWidth * (0.16 + 0.2 * surgeEnergy));
-      const unclampedCurveCenter =
-        waterData.surfaceCurveCenterNorm ?? waterData.gapCenterNorm ?? 0.5;
-      const curveCenter = Math.max(
-        blendedGapStart + curveMargin - inertiaTravel,
-        Math.min(safeGapEnd - curveMargin + inertiaTravel, unclampedCurveCenter)
-      );
-      const gapHalf = Math.max(blendedGapWidth * 0.5, 0.02);
-      const centeredNorm = (containerUVX - curveCenter) / gapHalf;
-      const curveAmp = Math.max(0, waterData.surfaceCurveAmp ?? 0.008);
-      const centerCurve = Math.exp(-centeredNorm * centeredNorm * 2.8) * curveAmp;
-      const curveTilt = (waterData.surfaceCurveTilt ?? 0) * Math.max(-1, Math.min(1, centeredNorm));
-      const calmRippleAmp =
-        (0.0005 + calmness * 0.0038) * (1 - surgeEnergy) * softGap * activeBandMask;
-      const calmRippleA = Math.sin(
-        containerUVX * shaderFrequency * 4.5 +
-        shaderITime * shaderSpeed * (0.02 + 0.04 * Math.abs(flowVelocity))
-      );
-      const calmRippleB = Math.sin(
-        containerUVX * shaderFrequency * 2.8 -
-        shaderITime * shaderSpeed * 0.015 +
-        1.2
-      );
-      const calmRipples = (calmRippleA * 0.65 + calmRippleB * 0.35) * calmRippleAmp;
-      const curveInfluence = 0.18 + 0.82 * activeBandMask;
-      const edgeBend =
-        (1 - softGap) * activeBandMask * (0.003 + 0.01 * (0.4 + pressure * 0.6));
-      const finalSurfaceNorm = clamp01(
-        waterLevelNorm +
-        (centerCurve + curveTilt) * curveInfluence +
-        calmRipples -
-        edgeBend
-      );
+      const finalSurfaceNorm = computeFinalSurfaceUv({
+        xNorm: containerUVX,
+        waterLevel: waterLevelNorm,
+        iTime: shaderITime,
+        frequency: shaderFrequency,
+        speed: shaderSpeed,
+        amplitude:
+          (shaderUniforms?.amplitude as number | undefined) ?? 0,
+        visualIntensity: waterData.visualIntensity ?? 0,
+        gapBlend: waterData.gapBlend ?? 1,
+        gapCurrent: [gapCurrentStart, gapCurrentEnd],
+        gapPrev: [gapPrevStart, gapPrevEnd],
+        gapCurr01: waterData.gapRangesCurr01 ?? [
+          gapCurrentStart,
+          gapCurrentEnd,
+          0,
+          0,
+        ],
+        gapCurr23: waterData.gapRangesCurr23 ?? [0, 0, 0, 0],
+        gapPrev01: waterData.gapRangesPrev01 ?? [
+          gapPrevStart,
+          gapPrevEnd,
+          0,
+          0,
+        ],
+        gapPrev23: waterData.gapRangesPrev23 ?? [0, 0, 0, 0],
+        hybridGapMaskStrength:
+          (shaderUniforms?.uHybridGapMaskStrength as number | undefined) ?? 0.9,
+        curveCenter:
+          waterData.surfaceCurveCenterNorm ?? waterData.gapCenterNorm ?? 0.5,
+        curveAmp: waterData.surfaceCurveAmp ?? 0.008,
+        curveTilt: waterData.surfaceCurveTilt ?? 0,
+        calmness: waterData.calmness ?? 0.5,
+        flowVelocity:
+          waterData.flowVelocity ?? waterData.flowDirection ?? 0,
+        surgeEnergy: Math.max(
+          waterData.surgeEnergy ?? 0,
+          waterData.surgePhase ?? 0
+        ),
+        surfaceBandCenterY: waterData.surfaceBandCenterY ?? waterLevelNorm,
+        surfaceBandHalfHeight: waterData.surfaceBandHalfHeight ?? 0.08,
+      });
       const curveSurfaceY =
         containerTop + (1 - finalSurfaceNorm) * containerData.height;
       const targetFloatCenterY =
-        curveSurfaceY + swimmerHalfHeight * swimmerPhysicsTuning.SURFACE_SUBMERGENCE_RATIO + bobbingOffsetY * swimmerPhysicsTuning.SURFACE_BOB_BLEND;
+        curveSurfaceY +
+        swimmerVisualHeight *
+        swimmerPhysicsTuning.SURFACE_SUBMERGENCE_RATIO +
+        bobbingOffsetY * swimmerPhysicsTuning.SURFACE_BOB_BLEND;
       const surfaceDepth = targetY - curveSurfaceY;
       const canFollowCurve =
         !swimmerComponent.isCollidingWithObstacle &&
         !swimmerComponent.isPinnedFromAbove &&
         Math.max(softGap, softGapAny) > 0.15 &&
-        surfaceDepth > -swimmerHeightForBlockCheck &&
-        surfaceDepth < swimmerHeightForBlockCheck * 2.1;
+        surfaceDepth > -swimmerVisualHeight &&
+        surfaceDepth < swimmerVisualHeight * 2.1;
       if (canFollowCurve) {
         const followStep =
-          1 - Math.exp(-swimmerPhysicsTuning.SURFACE_FOLLOW_RESPONSE_PER_SECOND * dtSeconds);
+          startReady
+            ? 1
+            : 1 -
+            Math.exp(
+              -swimmerPhysicsTuning.SURFACE_FOLLOW_RESPONSE_PER_SECOND *
+              dtSeconds
+            );
         targetY += (targetFloatCenterY - targetY) * followStep;
       }
 
-      const proposedDeltaY = targetY - swimmerCenterY;
-      let collisionAngle: number;
-      if (swimmerComponent.useColumnControl) {
-        collisionAngle = kinematicsAngleRad;
-      } else {
-        const fullTiltSpeed =
-          swimmerPhysicsTuning.MAX_HORIZONTAL_SPEED *
-          swimmerPhysicsTuning.FULL_TILT_SPEED_FRACTION;
-        const tiltNormalized = Math.max(
-          -1,
-          Math.min(1, swimmerVelocityX / fullTiltSpeed)
+      if (startReady) {
+        const idleAngle =
+          (Math.sin(bobbingPhase * 0.85) *
+            swimmerVisualTuning.START_READY_ROLL_DEG *
+            Math.PI) /
+          180;
+        ecs.updateComponent<RenderComponentData>(
+          swimmerEntity,
+          RenderComponentName,
+          (render) => {
+            render.position = { x: swimmerCenterX, y: targetY };
+            render.angle = idleAngle;
+          }
         );
-        collisionAngle =
-          tiltNormalized * swimmerPhysicsTuning.MAX_TILT_RADIANS;
+        ecs.updateComponent<SwimmerComponentData>(
+          swimmerEntity,
+          SwimmerComponentName,
+          (swimmer) => {
+            swimmer.y = targetY;
+            swimmer.waterSurfaceY = curveSurfaceY;
+            swimmer.bobbingPhase = bobbingPhase;
+            swimmer.locomotion.pendingTapDirection = 0;
+            swimmer.angle = idleAngle;
+          }
+        );
+        return;
       }
-      const tiltedHalfExtents = tiltedAabbHalfExtents(
-        swimmerHalfWidth,
-        swimmerHalfHeight,
-        collisionAngle
-      );
-      const collisionHalfWidth = tiltedHalfExtents.halfWidth;
-      const collisionHalfHeight = tiltedHalfExtents.halfHeight;
+
+      const proposedDeltaY = targetY - swimmerCenterY;
+      const collisionAngleRad = swimmerComponent.useColumnControl
+        ? kinematicsAngleRad
+        : (() => {
+            const fullTiltSpeed =
+              swimmerPhysicsTuning.MAX_HORIZONTAL_SPEED *
+              swimmerPhysicsTuning.FULL_TILT_SPEED_FRACTION;
+            const tiltNormalized = Math.max(
+              -1,
+              Math.min(1, swimmerVelocityX / fullTiltSpeed)
+            );
+            return tiltNormalized * swimmerPhysicsTuning.MAX_TILT_RADIANS;
+          })();
+      const collisionHalfWidthForBounds = collisionHalfWidth;
+      const collisionHalfHeightForBounds = collisionHalfHeight;
+      const verticalSweepPx =
+        Math.abs(proposedDeltaY) + rowDeltaY + maxVerticalStepPx;
       const minX =
         swimmerComponent.containerCenterX -
         swimmerComponent.containerWidth / 2 +
-        collisionHalfWidth;
+        collisionHalfWidthForBounds;
       const maxX =
         swimmerComponent.containerCenterX +
         swimmerComponent.containerWidth / 2 -
-        collisionHalfWidth;
+        collisionHalfWidthForBounds;
       const nearbyRows = selectRowsNearSwimmerFromComponentStore(
         obstacleRowStore,
         swimmerCenterY,
-        collisionHalfHeight,
-        rowHeight
+        collisionHalfHeightForBounds,
+        rowHeight,
+        verticalSweepPx
       );
       const collisionResult = resolveSwimmerAgainstRows({
         x: swimmerCenterX,
         y: swimmerCenterY,
-        halfWidth: swimmerHalfWidth,
-        halfHeight: swimmerHalfHeight,
-        angle: collisionAngle,
+        halfWidth: collisionHalfWidth,
+        halfHeight: collisionHalfHeight,
+        pinAnchorX: swimmerCenterX,
+        pinnedCeilingMinX: swimmerComponent.pinnedCeilingMinX,
+        pinnedCeilingMaxX: swimmerComponent.pinnedCeilingMaxX,
+        angle: collisionAngleRad,
         deltaX: proposedDeltaX,
         deltaY: proposedDeltaY,
-        rowDeltaY: 0,
+        rowDeltaY,
         rows: nearbyRows,
         container: {
           centerX: containerData.centerX,
@@ -663,16 +758,91 @@ export const SwimmerPhysicsSystem: System = {
         kinematicHorizontal: true,
       });
 
-      const finalX = collisionResult.x;
+      let finalX = collisionResult.x;
       const finalY = collisionResult.y;
       const isBlockedFromAbove = collisionResult.isPinnedFromAbove;
       const isCollidingWithObstacle = collisionResult.isColliding;
 
       if (
+        wasPinnedFromAbove &&
+        tapImpulseAppliedThisFrame &&
+        Math.abs(proposedDeltaX) > 1
+      ) {
+        const minPinnedSlidePx =
+          columnWidth * swimmerPhysicsTuning.PINNED_MIN_TAP_SLIDE_COLUMN_FRACTION;
+        const appliedDxAfterCollision = finalX - swimmerCenterX;
+        if (
+          Math.sign(appliedDxAfterCollision) !== Math.sign(proposedDeltaX) ||
+          Math.abs(appliedDxAfterCollision) < minPinnedSlidePx * 0.35
+        ) {
+          const retryResult = resolveSwimmerAgainstRows({
+            x: swimmerCenterX,
+            y: swimmerCenterY,
+            halfWidth: collisionHalfWidth,
+            halfHeight: collisionHalfHeight,
+            pinAnchorX: swimmerCenterX,
+            pinnedCeilingMinX: swimmerComponent.pinnedCeilingMinX,
+            pinnedCeilingMaxX: swimmerComponent.pinnedCeilingMaxX,
+            angle: collisionAngleRad,
+            deltaX:
+              Math.sign(proposedDeltaX) *
+              Math.max(Math.abs(proposedDeltaX), minPinnedSlidePx),
+            deltaY: 0,
+            rowDeltaY,
+            rows: nearbyRows,
+            container: {
+              centerX: containerData.centerX,
+              width: containerData.width,
+            },
+            blockSize: {
+              width: blockDimensions.width,
+              height: blockDimensions.height,
+            },
+            minX,
+            maxX,
+            kinematicHorizontal: true,
+          });
+          if (
+            Math.abs(retryResult.x - swimmerCenterX) >
+            Math.abs(appliedDxAfterCollision)
+          ) {
+            finalX = retryResult.x;
+          }
+        }
+      }
+
+      const appliedDx = finalX - swimmerCenterX;
+      const escapedOrMovedFreely =
+        Math.abs(proposedDeltaX) > 0.5 &&
+        Math.sign(appliedDx) === Math.sign(proposedDeltaX) &&
+        Math.abs(appliedDx) >= Math.abs(proposedDeltaX) * 0.25;
+
+      if (
+        !tapImpulseAppliedThisFrame &&
+        !escapedOrMovedFreely &&
+        collisionResult.sideBlockedDirection !== 0
+      ) {
+        const blockedDir = collisionResult.sideBlockedDirection;
+        const movementBlocked =
+          Math.sign(proposedDeltaX) === blockedDir &&
+          Math.abs(appliedDx) < Math.abs(proposedDeltaX) * 0.2;
+        if (
+          movementBlocked &&
+          Math.sign(swimmerVelocityX) === blockedDir
+        ) {
+          swimmerVelocityX = 0;
+        }
+      }
+
+      const swimmerBottomY = finalY + navColliderExtents.halfHeight;
+      const pinnedPastContainerBottom =
+        isBlockedFromAbove && swimmerBottomY > containerBottom;
+      const pinnedPastScreenBottom =
+        isBlockedFromAbove && finalY > dimensions.value.height - 8;
+
+      if (
         !isGameOverDisabled &&
-        isBlockedFromAbove &&
-        isUnderWater &&
-        finalY > dimensions.value.height &&
+        (pinnedPastContainerBottom || pinnedPastScreenBottom) &&
         !swimmerComponent.gameOverDispatched
       ) {
         shouldDispatchGameOver = true;
@@ -697,7 +867,7 @@ export const SwimmerPhysicsSystem: System = {
         }
       }
 
-      const swimmerAngle = collisionAngle;
+      const swimmerAngle = collisionAngleRad;
 
       ecs.updateComponent<RenderComponentData>(
         swimmerEntity,
@@ -720,6 +890,13 @@ export const SwimmerPhysicsSystem: System = {
           swimmer.waterSurfaceY = curveSurfaceY;
           swimmer.isCollidingWithObstacle = isCollidingWithObstacle;
           swimmer.isPinnedFromAbove = isBlockedFromAbove;
+          swimmer.pinnedCeilingMinX = isBlockedFromAbove
+            ? collisionResult.pinnedCeilingMinX
+            : undefined;
+          swimmer.pinnedCeilingMaxX = isBlockedFromAbove
+            ? collisionResult.pinnedCeilingMaxX
+            : undefined;
+          swimmer.isSideBlocked = collisionResult.isSideBlocked;
           swimmer.isInInitialPhase = swimmerComponent.isInInitialPhase;
           swimmer.column = swimmerComponent.column;
           swimmer.useColumnControl = swimmerComponent.useColumnControl;

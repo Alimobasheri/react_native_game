@@ -9,9 +9,9 @@ import { createSwimmerComponent } from '@/Game/ecs-components/Swimmer';
 import { useAddSystem } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useAddSystem/useAddSystem';
 import { SwimmerPhysicsSystem } from '@/systems/PhysicsSystem/SwimmerPhysicsSystem';
 import { SwimmerEntityVisualSystem } from '@/systems/VisualSystem/SwimmerEntityVisualSystem';
+import { SwimmerWaterContactFxSystem } from '@/systems/VisualSystem/SwimmerWaterContactFxSystem';
 import { LAYOUT_CONSTANTS } from '@/Layout';
-import { getObstacleBlockHeight } from '@/assets/swimmerBlocks';
-import { swimmerPhysicsTuning } from '@/config/swimmerTuning';
+import { swimmerVisualTuning } from '@/config/swimmerVisualTuning';
 import {
   SwimmerComponentName,
   SwimmerComponentData,
@@ -91,12 +91,11 @@ export const SwimmerView: FC<{
 
   const { swimmerWidth, swimmerHeight } = useMemo(() => {
     const columnWidth = containerWidth / LAYOUT_CONSTANTS.COLUMNS;
-    const width = columnWidth * swimmerPhysicsTuning.SWIMMER_WIDTH_COLUMN_RATIO;
+    const width =
+      columnWidth * swimmerVisualTuning.VISUAL_WIDTH_COLUMN_RATIO;
 
-    const blockHeight = getObstacleBlockHeight(containerWidth);
-    const rowHeight = blockHeight;
-
-    const height = swimmerPhysicsTuning.SWIMMER_HEIGHT_TO_WIDTH_RATIO * width;
+    const height =
+      swimmerVisualTuning.VISUAL_HEIGHT_TO_WIDTH_RATIO * width;
 
     return { swimmerWidth: width, swimmerHeight: height };
   }, [containerWidth, containerHeight]);
@@ -120,6 +119,8 @@ export const SwimmerView: FC<{
         isInInitialPhase: false,
         isCollidingWithObstacle: false,
         isPinnedFromAbove: false,
+        pinnedCeilingMinX: undefined,
+        pinnedCeilingMaxX: undefined,
         fallingVelocityY: 0,
         useColumnControl,
         column: initialColumn,
@@ -203,6 +204,7 @@ export const SwimmerView: FC<{
 
   useAddSystem({ system: SwimmerPhysicsSystem });
   useAddSystem({ system: SwimmerEntityVisualSystem });
+  useAddSystem({ system: SwimmerWaterContactFxSystem });
 
   return null;
 };

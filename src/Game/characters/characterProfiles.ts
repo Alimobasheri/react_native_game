@@ -7,7 +7,8 @@ export const GIGGLE_CRYSTAL_PROFILE = {
   mass: 1.2,
   baseDrag: 0.15,
   baseStrikeForce: 324,
-  targetSwimAngles: [60, 75, 85],
+  /** Legacy profile caps — runtime uses swimmerVisualTuning tier open-water angles. */
+  targetSwimAngles: [42, 55, 66],
   comboForceMultipliers: [1.0, 1.5, 2.2],
   comboWindowMs: 350,
   secondaryItemType: 'LaggingSpring',

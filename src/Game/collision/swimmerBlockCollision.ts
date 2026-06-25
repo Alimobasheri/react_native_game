@@ -1,4 +1,5 @@
 import { getColumnCenterX, LAYOUT_CONSTANTS } from '@/Layout';
+import { swimmerPhysicsTuning } from '@/config/swimmerTuning';
 import { ComponentStore } from '@/containers/ReactNativeSkiaGameEngine/services-ecs';
 import { Entity } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/entity';
 import { ObstacleRowComponentData } from '@/Game/ecs-components/ObstacleRowComponent';
@@ -47,9 +48,17 @@ export type ResolveSwimmerInput = {
   hitboxScale?: number;
   minX: number;
   maxX: number;
+  /** Compact navigation core for pin release after sliding out from under a ceiling. */
+  releaseHalfWidth?: number;
+  releaseHalfHeight?: number;
+  /** Frame-start pin anchor X (world px). */
+  pinAnchorX?: number;
+  /** Persisted ceiling column from prior frame while pinned. */
+  pinnedCeilingMinX?: number;
+  pinnedCeilingMaxX?: number;
   /**
-   * When true, horizontal motion is kinematic (full velocity * dt, wall-clamped) like the
-   * pre-Matter pipeline; only depenetration blocks sides. Swept horizontal blocking is skipped.
+   * Legacy flag from the pre-swept pipeline. Horizontal row solids are always
+   * swept; this field is retained for API compatibility and ignored.
    */
   kinematicHorizontal?: boolean;
 };
@@ -59,7 +68,11 @@ export type ResolveSwimmerResult = {
   y: number;
   isPinnedFromAbove: boolean;
   isSideBlocked: boolean;
+  /** When horizontal motion was stopped: -1 = left, 1 = right. */
+  sideBlockedDirection: -1 | 0 | 1;
   isColliding: boolean;
+  pinnedCeilingMinX?: number;
+  pinnedCeilingMaxX?: number;
 };
 
 const DEFAULT_HITBOX_SCALE = 1.0;
@@ -189,10 +202,12 @@ export function selectRowsNearSwimmer(
   rows: readonly CollisionRow[],
   swimmerY: number,
   swimmerHalfHeight: number,
-  rowHeight: number
+  rowHeight: number,
+  verticalSweepPx = 0
 ): CollisionRow[] {
   'worklet';
-  const band = rowHeight + swimmerHalfHeight + rowHeight;
+  const band =
+    rowHeight + swimmerHalfHeight + rowHeight + Math.abs(verticalSweepPx);
   const out: CollisionRow[] = [];
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -207,10 +222,12 @@ export function selectRowsNearSwimmerFromComponentStore(
   rowStore: ComponentStore<ObstacleRowComponentData>,
   swimmerY: number,
   swimmerHalfHeight: number,
-  rowHeight: number
+  rowHeight: number,
+  verticalSweepPx = 0
 ): CollisionRow[] {
   'worklet';
-  const band = rowHeight + swimmerHalfHeight + rowHeight;
+  const band =
+    rowHeight + swimmerHalfHeight + rowHeight + Math.abs(verticalSweepPx);
   const out: CollisionRow[] = [];
   rowStore.forEach((_entity, rowData) => {
     if (Math.abs(rowData.y - swimmerY) >= band) {
@@ -289,19 +306,49 @@ function collectSolidAABBs(
   return all;
 }
 
+function isSwimmerUnderBlockColumn(swimmerX: number, block: AABB): boolean {
+  'worklet';
+  return (
+    swimmerX >= block.minX - SKIN_EPSILON &&
+    swimmerX <= block.maxX + SKIN_EPSILON
+  );
+}
+
+/** True when a depenetration push opposes this frame's intended horizontal travel. */
+function pushBlocksHorizontalIntent(
+  pushX: number,
+  horizontalDelta: number
+): boolean {
+  'worklet';
+  if (horizontalDelta === 0 || pushX === 0) {
+    return false;
+  }
+  return Math.sign(pushX) !== Math.sign(horizontalDelta);
+}
+
+/**
+ * True only when the swimmer is hanging under a block underside (ceiling pin).
+ * Side pillar scrapes while floating must not count as pinned.
+ */
 function isPinnedUnderBlock(
   swimmerX: number,
   swimmerY: number,
   swimmerHalfWidth: number,
   swimmerHalfHeight: number,
-  block: AABB
+  block: AABB,
+  rowDeltaY = 0
 ): boolean {
   'worklet';
   const swimmerTopY = swimmerY - swimmerHalfHeight;
+  const swimmerBottomY = swimmerY + swimmerHalfHeight;
   const swimmerLeftX = swimmerX - swimmerHalfWidth;
   const swimmerRightX = swimmerX + swimmerHalfWidth;
   const blockBottomY = block.maxY;
   const blockTopY = block.minY;
+
+  if (!isSwimmerUnderBlockColumn(swimmerX, block)) {
+    return false;
+  }
 
   const horizontalOverlap =
     swimmerLeftX < block.maxX + SKIN_EPSILON &&
@@ -310,26 +357,275 @@ function isPinnedUnderBlock(
     return false;
   }
 
-  // Ceiling contact: swimmer top is at/near the block underside (not a deep side overlap).
+  const overlapW =
+    Math.min(swimmerRightX, block.maxX) - Math.max(swimmerLeftX, block.minX);
+  const overlapH =
+    Math.min(swimmerBottomY, block.maxY) - Math.max(swimmerTopY, block.minY);
   const topToBlockBottom = swimmerTopY - blockBottomY;
+  const descendingSlack = Math.max(0, rowDeltaY);
+  const carriedWithDescendingCeiling =
+    descendingSlack > 0 &&
+    topToBlockBottom >= -SKIN_EPSILON &&
+    topToBlockBottom <= descendingSlack + SKIN_EPSILON;
+  const touchingUnderside =
+    carriedWithDescendingCeiling ||
+    Math.abs(topToBlockBottom) <= SKIN_EPSILON + descendingSlack * 0.2;
+  if (overlapW <= 0 || (overlapH <= 0 && !touchingUnderside)) {
+    return false;
+  }
+
+  // Side scrape along a pillar face — tall vertical overlap, narrow horizontal band.
+  if (overlapH > overlapW * 1.2) {
+    return false;
+  }
+
+  // Swimmer top must have reached the block underside (no early pin while rising below).
   if (
-    topToBlockBottom < -swimmerHalfHeight * 0.2 ||
-    topToBlockBottom > swimmerHalfHeight * 0.15
+    topToBlockBottom < -SKIN_EPSILON - descendingSlack * 0.2 ||
+    (!carriedWithDescendingCeiling &&
+      topToBlockBottom > SKIN_EPSILON + descendingSlack)
   ) {
     return false;
   }
 
-  // Swimmer center must be at or below the block underside (hanging under, not beside).
+  // Center hangs below the ceiling plane, not beside it.
   if (swimmerY < blockBottomY - SKIN_EPSILON) {
     return false;
   }
 
-  // Block must extend above the swimmer top (true ceiling, not a floor).
+  // True ceiling: block extends above the swimmer top.
   if (blockTopY > swimmerTopY + SKIN_EPSILON) {
     return false;
   }
 
   return true;
+}
+
+/** Ceiling block at the column where the swimmer was pinned this frame. */
+function isAnchoredPinnedCeiling(
+  pinAnchorX: number,
+  swimmerY: number,
+  swimmerHalfWidth: number,
+  swimmerHalfHeight: number,
+  block: AABB,
+  rowDeltaY = 0
+): boolean {
+  'worklet';
+  if (!isSwimmerUnderBlockColumn(pinAnchorX, block)) {
+    return false;
+  }
+  return isPinnedUnderBlock(
+    pinAnchorX,
+    swimmerY,
+    swimmerHalfWidth,
+    swimmerHalfHeight,
+    block,
+    rowDeltaY
+  );
+}
+
+function isMovingAwayFromSolid(
+  swimmerX: number,
+  solid: AABB,
+  horizontalDelta: number
+): boolean {
+  'worklet';
+  if (horizontalDelta === 0) {
+    return false;
+  }
+  const solidCenterX = (solid.minX + solid.maxX) * 0.5;
+  return Math.sign(horizontalDelta) === Math.sign(swimmerX - solidCenterX);
+}
+
+function flagSideBlockIfNeeded(
+  pushX: number,
+  horizontalDelta: number,
+  swimmerX: number,
+  solid: AABB
+): -1 | 0 | 1 {
+  'worklet';
+  if (!pushBlocksHorizontalIntent(pushX, horizontalDelta)) {
+    return 0;
+  }
+  if (isMovingAwayFromSolid(swimmerX, solid, horizontalDelta)) {
+    return 0;
+  }
+  return horizontalDelta > 0 ? 1 : -1;
+}
+
+function motionAabbForSideContact(
+  cx: number,
+  cy: number,
+  halfW: number,
+  halfH: number,
+  pinnedUnderCeiling: boolean,
+  uprightHalfH: number,
+  horizontalSlide: boolean
+): AABB {
+  'worklet';
+  const contactHalfH =
+    pinnedUnderCeiling && !horizontalSlide
+      ? Math.max(halfH, uprightHalfH)
+      : halfH;
+  return {
+    minX: cx - halfW,
+    maxX: cx + halfW,
+    minY: cy - contactHalfH - SKIN_EPSILON,
+    maxY: cy + contactHalfH + SKIN_EPSILON,
+  };
+}
+
+function isPinnedUnderAnySolid(
+  swimmerX: number,
+  swimmerY: number,
+  swimmerHalfWidth: number,
+  swimmerHalfHeight: number,
+  solids: readonly AABB[],
+  rowDeltaY: number
+): boolean {
+  'worklet';
+  for (let i = 0; i < solids.length; i++) {
+    if (
+      isPinnedUnderBlock(
+        swimmerX,
+        swimmerY,
+        swimmerHalfWidth,
+        swimmerHalfHeight,
+        solids[i],
+        rowDeltaY
+      )
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function findAnchoredCeilingBlock(
+  anchorX: number,
+  swimmerY: number,
+  swimmerHalfWidth: number,
+  swimmerHalfHeight: number,
+  solids: readonly AABB[],
+  rowDeltaY: number
+): AABB | null {
+  'worklet';
+  for (let i = 0; i < solids.length; i++) {
+    if (
+      isAnchoredPinnedCeiling(
+        anchorX,
+        swimmerY,
+        swimmerHalfWidth,
+        swimmerHalfHeight,
+        solids[i],
+        rowDeltaY
+      )
+    ) {
+      return solids[i];
+    }
+  }
+  return null;
+}
+
+/**
+ * Pin acquire: fair upright collider under a ceiling underside.
+ * Pin release: swimmer center leaves the anchored ceiling column (horizontal slide-out).
+ */
+function resolvePinnedState(
+  swimmerX: number,
+  swimmerY: number,
+  pinAnchorX: number,
+  horizontalSlide: boolean,
+  upHalfW: number,
+  upHalfH: number,
+  solids: readonly AABB[],
+  rowDeltaY: number,
+  currentlyPinned: boolean,
+  persistedCeilingMinX?: number,
+  persistedCeilingMaxX?: number
+): { isPinned: boolean; ceilingMinX?: number; ceilingMaxX?: number } {
+  'worklet';
+  const anchored = findAnchoredCeilingBlock(
+    pinAnchorX,
+    swimmerY,
+    upHalfW,
+    upHalfH,
+    solids,
+    rowDeltaY
+  );
+
+  const columnBounds =
+    anchored ??
+    (persistedCeilingMinX !== undefined && persistedCeilingMaxX !== undefined
+      ? {
+          minX: persistedCeilingMinX,
+          maxX: persistedCeilingMaxX,
+          minY: Number.NEGATIVE_INFINITY,
+          maxY: Number.POSITIVE_INFINITY,
+        }
+      : null);
+
+  if (currentlyPinned && columnBounds && horizontalSlide) {
+    if (!isSwimmerUnderBlockColumn(swimmerX, columnBounds)) {
+      return { isPinned: false };
+    }
+  }
+
+  if (currentlyPinned) {
+    const stillPinned = anchored
+      ? isPinnedUnderBlock(
+          swimmerX,
+          swimmerY,
+          upHalfW,
+          upHalfH,
+          anchored,
+          rowDeltaY
+        )
+      : isPinnedUnderAnySolid(
+          swimmerX,
+          swimmerY,
+          upHalfW,
+          upHalfH,
+          solids,
+          rowDeltaY
+        );
+    if (!stillPinned) {
+      return { isPinned: false };
+    }
+    const bounds = anchored ?? columnBounds;
+    return {
+      isPinned: true,
+      ceilingMinX: bounds?.minX,
+      ceilingMaxX: bounds?.maxX,
+    };
+  }
+
+  const acquired = isPinnedUnderAnySolid(
+    swimmerX,
+    swimmerY,
+    upHalfW,
+    upHalfH,
+    solids,
+    rowDeltaY
+  );
+  if (!acquired) {
+    return { isPinned: false };
+  }
+  const found =
+    anchored ??
+    findAnchoredCeilingBlock(
+      swimmerX,
+      swimmerY,
+      upHalfW,
+      upHalfH,
+      solids,
+      rowDeltaY
+    );
+  return {
+    isPinned: true,
+    ceilingMinX: found?.minX,
+    ceilingMaxX: found?.maxX,
+  };
 }
 
 function resolveAxisPenetration(
@@ -359,7 +655,7 @@ function resolveAxisPenetration(
  * Kinematic resolver: swimmer vs row-grid solids with swept vertical/horizontal motion.
  * Blocks are axis-aligned; swimmer hitbox is axis-aligned (visual tilt is render-only).
  */
-export function resolveSwimmerAgainstRows(
+function resolveSwimmerAgainstRowsStep(
   input: ResolveSwimmerInput
 ): ResolveSwimmerResult {
   'worklet';
@@ -372,27 +668,77 @@ export function resolveSwimmerAgainstRows(
     hitboxScale
   );
 
-  const tiltedExtents = tiltedAabbHalfExtents(
+  const uprightHalf = tiltedAabbHalfExtents(
+    input.halfWidth,
+    input.halfHeight,
+    0
+  );
+  const motionHalf = tiltedAabbHalfExtents(
     input.halfWidth,
     input.halfHeight,
     input.angle ?? 0
   );
   let x = input.x;
   let y = input.y;
+  const startX = x;
   let isPinnedFromAbove = false;
   let isSideBlocked = false;
+  let sideBlockedDirection: -1 | 0 | 1 = 0;
   let isColliding = false;
 
-  const halfW = tiltedExtents.halfWidth;
-  const halfH = tiltedExtents.halfHeight;
-  const staticBlockVel = { x: 0, y: input.rowDeltaY };
+  const upHalfW = uprightHalf.halfWidth;
+  const upHalfH = uprightHalf.halfHeight;
+  const motHalfW = motionHalf.halfWidth;
+  const motHalfH = motionHalf.halfHeight;
+  const rowDeltaY = input.rowDeltaY;
+  const staticBlockVel = { x: 0, y: rowDeltaY };
+  const horizontalDelta = input.deltaX;
+  const horizontalSlide = horizontalDelta !== 0;
+  const startedOverlappingSideSolid = (() => {
+    const probe = motionAabbForSideContact(
+      startX,
+      y,
+      motHalfW,
+      motHalfH,
+      false,
+      upHalfH,
+      horizontalSlide
+    );
+    for (let i = 0; i < solids.length; i++) {
+      if (aabbOverlap(probe, solids[i])) {
+        return true;
+      }
+    }
+    return false;
+  })();
 
-  // --- Vertical: buoyancy rise or settle down ---
+  const clearSideBlockIfEscaped = (appliedDx: number, horizontalDelta: number) => {
+    if (horizontalDelta === 0 || appliedDx === 0) {
+      return;
+    }
+    if (Math.sign(appliedDx) !== Math.sign(horizontalDelta)) {
+      return;
+    }
+    if (startedOverlappingSideSolid) {
+      sideBlockedDirection = 0;
+      isSideBlocked = false;
+      return;
+    }
+    if (Math.abs(appliedDx) >= Math.abs(horizontalDelta) * 0.85) {
+      sideBlockedDirection = 0;
+      isSideBlocked = false;
+    }
+  };
+
+  // --- Vertical: buoyancy rise or settle down (upright core; gap-safe) ---
   if (input.deltaY !== 0) {
-    const mover = aabbFromCenter(x, y, halfW, halfH);
+    const mover = aabbFromCenter(x, y, upHalfW, upHalfH);
     let earliest: number | null = null;
 
     for (let i = 0; i < solids.length; i++) {
+      if (!isSwimmerUnderBlockColumn(x, solids[i])) {
+        continue;
+      }
       const toi = sweptAabbTOIRelative(
         mover,
         solids[i],
@@ -411,7 +757,7 @@ export function resolveSwimmerAgainstRows(
       isColliding = true;
       if (input.deltaY < 0) {
         for (let i = 0; i < solids.length; i++) {
-          if (isPinnedUnderBlock(x, y, halfW, halfH, solids[i])) {
+          if (isPinnedUnderBlock(x, y, upHalfW, upHalfH, solids[i], rowDeltaY)) {
             isPinnedFromAbove = true;
             break;
           }
@@ -425,7 +771,7 @@ export function resolveSwimmerAgainstRows(
   // Pin check after vertical move (resting contact under ceiling).
   if (!isPinnedFromAbove) {
     for (let i = 0; i < solids.length; i++) {
-      if (isPinnedUnderBlock(x, y, halfW, halfH, solids[i])) {
+      if (isPinnedUnderBlock(x, y, upHalfW, upHalfH, solids[i], rowDeltaY)) {
         isPinnedFromAbove = true;
         isColliding = true;
         break;
@@ -434,21 +780,47 @@ export function resolveSwimmerAgainstRows(
   }
 
   // Ceiling carry: block descent moves pinned swimmer down with it.
-  if (isPinnedFromAbove && input.rowDeltaY !== 0) {
-    y += input.rowDeltaY;
+  if (isPinnedFromAbove && rowDeltaY !== 0) {
+    y += rowDeltaY;
   }
 
-  // --- Horizontal ---
-  const horizontalDelta = input.deltaX;
+  // --- Horizontal (tilted bounds — lean reaches walls before visual clips) ---
+  const pinAnchorX = x;
+  const pinnedUnderCeiling = isPinnedFromAbove;
   let targetX = Math.max(input.minX, Math.min(input.maxX, x + horizontalDelta));
-  const kinematicHorizontal = input.kinematicHorizontal ?? false;
 
-  if (horizontalDelta !== 0 && !kinematicHorizontal) {
-    const mover = aabbFromCenter(x, y, halfW, halfH);
+  if (horizontalDelta !== 0) {
+    const mover = motionAabbForSideContact(
+      x,
+      y,
+      motHalfW,
+      motHalfH,
+      pinnedUnderCeiling,
+      upHalfH,
+      horizontalSlide
+    );
     let earliest: number | null = null;
+    let blockHitSolid: AABB | null = null;
 
     for (let i = 0; i < solids.length; i++) {
-      if (isPinnedUnderBlock(x, y, halfW, halfH, solids[i])) {
+      if (
+        pinnedUnderCeiling &&
+        isAnchoredPinnedCeiling(
+          pinAnchorX,
+          y,
+          upHalfW,
+          upHalfH,
+          solids[i],
+          rowDeltaY
+        )
+      ) {
+        continue;
+      }
+      const alreadyOverlapping = aabbOverlap(mover, solids[i]);
+      if (
+        alreadyOverlapping &&
+        isMovingAwayFromSolid(x, solids[i], horizontalDelta)
+      ) {
         continue;
       }
       const toi = sweptAabbTOIRelative(
@@ -457,12 +829,18 @@ export function resolveSwimmerAgainstRows(
         { x: horizontalDelta, y: 0 },
         staticBlockVel
       );
-      if (toi !== null && (earliest === null || toi < earliest)) {
+      if (toi !== null && toi < 1 && (earliest === null || toi < earliest)) {
         earliest = toi;
+        blockHitSolid = solids[i];
       }
     }
 
-    if (earliest !== null && earliest < 1) {
+    if (
+      earliest !== null &&
+      earliest < 1 &&
+      blockHitSolid !== null &&
+      !isMovingAwayFromSolid(x, blockHitSolid, horizontalDelta)
+    ) {
       if (earliest > 0.0001) {
         targetX =
           x +
@@ -472,6 +850,7 @@ export function resolveSwimmerAgainstRows(
         targetX = x;
       }
       isSideBlocked = true;
+      sideBlockedDirection = horizontalDelta > 0 ? 1 : -1;
       isColliding = true;
     }
   }
@@ -481,49 +860,144 @@ export function resolveSwimmerAgainstRows(
   // Depenetration passes (resting contact / numeric drift).
   for (let pass = 0; pass < 4; pass++) {
     let moved = false;
-    const mover = aabbFromCenter(x, y, halfW, halfH);
+    const motionMover = motionAabbForSideContact(
+      x,
+      y,
+      motHalfW,
+      motHalfH,
+      pinnedUnderCeiling,
+      upHalfH,
+      horizontalSlide
+    );
+    const uprightMover = aabbFromCenter(x, y, upHalfW, upHalfH);
 
     for (let i = 0; i < solids.length; i++) {
-      if (!aabbOverlap(mover, solids[i])) {
+      if (!aabbOverlap(motionMover, solids[i])) {
+        continue;
+      }
+
+      const underColumn = isSwimmerUnderBlockColumn(x, solids[i]);
+      const { overlapX, overlapY } = overlapDepths(motionMover, solids[i]);
+
+      // Gap skim: center in gap column, only vertical brush on a pillar — no push.
+      if (!underColumn) {
+        if (overlapX <= 0 || overlapY > overlapX * 1.2) {
+          continue;
+        }
+        const pushX = resolveAxisPenetration(motionMover, solids[i], 'x');
+        if (Math.abs(pushX) > 0) {
+          const escaping = isMovingAwayFromSolid(x, solids[i], horizontalDelta);
+          const blockDir = flagSideBlockIfNeeded(
+            pushX,
+            horizontalDelta,
+            x,
+            solids[i]
+          );
+          if (blockDir !== 0) {
+            isSideBlocked = true;
+            sideBlockedDirection = blockDir;
+          }
+          if (
+            !escaping ||
+            horizontalDelta === 0 ||
+            Math.sign(pushX) === Math.sign(horizontalDelta)
+          ) {
+            x += pushX;
+          }
+          isColliding = true;
+          moved = true;
+          motionMover.minX = x - motHalfW;
+          motionMover.maxX = x + motHalfW;
+          uprightMover.minX = x - upHalfW;
+          uprightMover.maxX = x + upHalfW;
+        }
         continue;
       }
 
       isColliding = true;
-      const ceilingContact = isPinnedUnderBlock(x, y, halfW, halfH, solids[i]);
-      const pushX = resolveAxisPenetration(mover, solids[i], 'x');
-      const pushY = resolveAxisPenetration(mover, solids[i], 'y');
-      const { overlapX, overlapY } = overlapDepths(mover, solids[i]);
+      const ceilingContact = pinnedUnderCeiling
+        ? isAnchoredPinnedCeiling(
+            pinAnchorX,
+            y,
+            upHalfW,
+            upHalfH,
+            solids[i],
+            rowDeltaY
+          )
+        : isPinnedUnderBlock(
+            x,
+            y,
+            upHalfW,
+            upHalfH,
+            solids[i],
+            rowDeltaY
+          );
+      const pushX = resolveAxisPenetration(motionMover, solids[i], 'x');
+      const pushY = resolveAxisPenetration(uprightMover, solids[i], 'y');
       const preferSideResolution =
         !ceilingContact &&
         overlapX > 0 &&
         (overlapX <= overlapY || overlapY <= 0);
 
       if (preferSideResolution && Math.abs(pushX) > 0) {
-        x += pushX;
-        isSideBlocked = true;
-        moved = true;
-      } else if (ceilingContact && Math.abs(pushY) > 0) {
-        y += pushY;
-        if (pushY < 0) {
-          isPinnedFromAbove = true;
+        const escaping = isMovingAwayFromSolid(x, solids[i], horizontalDelta);
+        const blockDir = flagSideBlockIfNeeded(
+          pushX,
+          horizontalDelta,
+          x,
+          solids[i]
+        );
+        if (blockDir !== 0) {
+          isSideBlocked = true;
+          sideBlockedDirection = blockDir;
+        }
+        if (
+          !escaping ||
+          horizontalDelta === 0 ||
+          Math.sign(pushX) === Math.sign(horizontalDelta)
+        ) {
+          x += pushX;
         }
         moved = true;
+      } else if (ceilingContact && Math.abs(pushY) > 0) {
+        if (!pinnedUnderCeiling || pushY >= 0) {
+          y += pushY;
+          isPinnedFromAbove = true;
+          moved = true;
+        }
       } else if (Math.abs(pushX) > 0 && Math.abs(pushX) <= Math.abs(pushY)) {
-        x += pushX;
-        isSideBlocked = true;
+        const escaping = isMovingAwayFromSolid(x, solids[i], horizontalDelta);
+        const blockDir = flagSideBlockIfNeeded(
+          pushX,
+          horizontalDelta,
+          x,
+          solids[i]
+        );
+        if (blockDir !== 0) {
+          isSideBlocked = true;
+          sideBlockedDirection = blockDir;
+        }
+        if (
+          !escaping ||
+          horizontalDelta === 0 ||
+          Math.sign(pushX) === Math.sign(horizontalDelta)
+        ) {
+          x += pushX;
+        }
         moved = true;
       } else if (Math.abs(pushY) > 0) {
         y += pushY;
-        if (ceilingContact && pushY < 0) {
-          isPinnedFromAbove = true;
-        }
         moved = true;
       }
 
-      mover.minX = x - halfW;
-      mover.maxX = x + halfW;
-      mover.minY = y - halfH;
-      mover.maxY = y + halfH;
+      motionMover.minX = x - motHalfW;
+      motionMover.maxX = x + motHalfW;
+      motionMover.minY = y - Math.max(motHalfH, pinnedUnderCeiling ? upHalfH : motHalfH) - SKIN_EPSILON;
+      motionMover.maxY = y + Math.max(motHalfH, pinnedUnderCeiling ? upHalfH : motHalfH) + SKIN_EPSILON;
+      uprightMover.minX = x - upHalfW;
+      uprightMover.maxX = x + upHalfW;
+      uprightMover.minY = y - upHalfH;
+      uprightMover.maxY = y + upHalfH;
     }
 
     if (!moved) {
@@ -533,12 +1007,179 @@ export function resolveSwimmerAgainstRows(
 
   x = Math.max(input.minX, Math.min(input.maxX, x));
 
-  if (!isPinnedFromAbove) {
+  const pinState = resolvePinnedState(
+    x,
+    y,
+    pinAnchorX,
+    horizontalSlide,
+    upHalfW,
+    upHalfH,
+    solids,
+    rowDeltaY,
+    isPinnedFromAbove,
+    input.pinnedCeilingMinX,
+    input.pinnedCeilingMaxX
+  );
+  isPinnedFromAbove = pinState.isPinned;
+
+  if (horizontalDelta !== 0) {
+    clearSideBlockIfEscaped(x - startX, horizontalDelta);
+  }
+
+  return {
+    x,
+    y,
+    isPinnedFromAbove,
+    isSideBlocked,
+    sideBlockedDirection,
+    isColliding,
+    pinnedCeilingMinX: pinState.ceilingMinX,
+    pinnedCeilingMaxX: pinState.ceilingMaxX,
+  };
+}
+
+export function resolveSwimmerAgainstRows(
+  input: ResolveSwimmerInput
+): ResolveSwimmerResult {
+  'worklet';
+
+  const blockH = Math.max(1, input.blockSize.height);
+  const blockW = Math.max(1, input.blockSize.width);
+  const maxStep = Math.max(
+    4,
+    blockH * swimmerPhysicsTuning.COLLISION_SUBSTEP_BLOCK_FRACTION
+  );
+  const steps = Math.max(
+    1,
+    Math.ceil(
+      Math.max(
+        Math.abs(input.deltaY) / maxStep,
+        Math.abs(input.deltaX) /
+          Math.max(
+            4,
+            blockW * swimmerPhysicsTuning.MAX_HORIZONTAL_STEP_BLOCK_FRACTION
+          ),
+        Math.abs(input.rowDeltaY) / maxStep
+      )
+    )
+  );
+
+  if (steps <= 1) {
+    return resolveSwimmerAgainstRowsStep(input);
+  }
+
+  let x = input.x;
+  let y = input.y;
+  let isPinnedFromAbove = false;
+  let isSideBlocked = false;
+  let sideBlockedDirection: -1 | 0 | 1 = 0;
+  let isColliding = false;
+  let pinnedCeilingMinX = input.pinnedCeilingMinX;
+  let pinnedCeilingMaxX = input.pinnedCeilingMaxX;
+  const invSteps = 1 / steps;
+
+  for (let step = 0; step < steps; step++) {
+    const stepResult = resolveSwimmerAgainstRowsStep({
+      ...input,
+      x,
+      y,
+      pinAnchorX: input.x,
+      pinnedCeilingMinX,
+      pinnedCeilingMaxX,
+      deltaX: input.deltaX * invSteps,
+      deltaY: input.deltaY * invSteps,
+      rowDeltaY: input.rowDeltaY * invSteps,
+    });
+    x = stepResult.x;
+    y = stepResult.y;
+    isPinnedFromAbove = isPinnedFromAbove || stepResult.isPinnedFromAbove;
+    isSideBlocked = isSideBlocked || stepResult.isSideBlocked;
+    if (stepResult.sideBlockedDirection !== 0) {
+      sideBlockedDirection = stepResult.sideBlockedDirection;
+    }
+    isColliding = isColliding || stepResult.isColliding;
+    if (stepResult.pinnedCeilingMinX !== undefined) {
+      pinnedCeilingMinX = stepResult.pinnedCeilingMinX;
+    }
+    if (stepResult.pinnedCeilingMaxX !== undefined) {
+      pinnedCeilingMaxX = stepResult.pinnedCeilingMaxX;
+    }
+  }
+
+  if (input.deltaX !== 0) {
+    const tilted = tiltedAabbHalfExtents(
+      input.halfWidth,
+      input.halfHeight,
+      input.angle ?? 0
+    );
+    const upright = tiltedAabbHalfExtents(input.halfWidth, input.halfHeight, 0);
+    const probe = motionAabbForSideContact(
+      input.x,
+      input.y,
+      tilted.halfWidth,
+      tilted.halfHeight,
+      false,
+      upright.halfHeight,
+      input.deltaX !== 0
+    );
+    let startedOverlappingSideSolid = false;
+    const solids = collectSolidAABBs(
+      input.rows,
+      input.container,
+      input.blockSize,
+      input.hitboxScale ?? DEFAULT_HITBOX_SCALE
+    );
     for (let i = 0; i < solids.length; i++) {
-      if (isPinnedUnderBlock(x, y, halfW, halfH, solids[i])) {
-        isPinnedFromAbove = true;
+      if (aabbOverlap(probe, solids[i])) {
+        startedOverlappingSideSolid = true;
         break;
       }
+    }
+    const appliedDx = x - input.x;
+    if (
+      startedOverlappingSideSolid &&
+      Math.sign(appliedDx) === Math.sign(input.deltaX) &&
+      appliedDx !== 0
+    ) {
+      sideBlockedDirection = 0;
+      isSideBlocked = false;
+    } else if (
+      Math.sign(appliedDx) === Math.sign(input.deltaX) &&
+      Math.abs(appliedDx) >= Math.abs(input.deltaX) * 0.85
+    ) {
+      sideBlockedDirection = 0;
+      isSideBlocked = false;
+    }
+  }
+
+  if (isPinnedFromAbove || input.deltaX !== 0) {
+    const upright = tiltedAabbHalfExtents(input.halfWidth, input.halfHeight, 0);
+    const solids = collectSolidAABBs(
+      input.rows,
+      input.container,
+      input.blockSize,
+      input.hitboxScale ?? DEFAULT_HITBOX_SCALE
+    );
+    const pinState = resolvePinnedState(
+      x,
+      y,
+      input.x,
+      input.deltaX !== 0,
+      upright.halfWidth,
+      upright.halfHeight,
+      solids,
+      input.rowDeltaY,
+      isPinnedFromAbove,
+      pinnedCeilingMinX,
+      pinnedCeilingMaxX
+    );
+    isPinnedFromAbove = pinState.isPinned;
+    if (pinState.isPinned) {
+      pinnedCeilingMinX = pinState.ceilingMinX;
+      pinnedCeilingMaxX = pinState.ceilingMaxX;
+    } else {
+      pinnedCeilingMinX = undefined;
+      pinnedCeilingMaxX = undefined;
     }
   }
 
@@ -547,6 +1188,9 @@ export function resolveSwimmerAgainstRows(
     y,
     isPinnedFromAbove,
     isSideBlocked,
+    sideBlockedDirection,
     isColliding,
+    pinnedCeilingMinX,
+    pinnedCeilingMaxX,
   };
 }

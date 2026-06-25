@@ -58,8 +58,6 @@ export const SwimmerDeformationSystem: System = {
       const result = updateProceduralDeformation(
         deformation,
         locomotion.movementState,
-        swimmer.velocityX,
-        locomotion.currentTier,
         deltaSeconds,
         idlePhase
       );

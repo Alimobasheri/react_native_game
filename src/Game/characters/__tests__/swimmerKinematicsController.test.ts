@@ -8,6 +8,7 @@ import {
 } from '../swimmerKinematicsController';
 import { createDefaultSwimmerLocomotion } from '../swimmerLocomotionDefaults';
 import { swimmerKinematicsTuning } from '@/config/swimmerKinematicsTuning';
+import { swimmerVisualTuning } from '@/config/swimmerVisualTuning';
 import type { SwimmerLocomotionData } from '@/Game/ecs-components/Swimmer';
 import '../characterProfiles';
 
@@ -47,6 +48,40 @@ const update = (harness: KinematicsHarness, dt: number): void => {
   );
 };
 
+const updateFrames = (
+  harness: KinematicsHarness,
+  frameCount: number,
+  dt = 1 / 60
+): void => {
+  for (let i = 0; i < frameCount; i++) {
+    update(harness, dt);
+  }
+};
+
+const framesForDurationSec = (durationSec: number, dt = 1 / 60): number =>
+  Math.ceil(durationSec / dt) + 1;
+
+const advancePastAnticipation = (
+  harness: KinematicsHarness,
+  dt = 1 / 60
+): void => {
+  updateFrames(
+    harness,
+    framesForDurationSec(swimmerKinematicsTuning.ANTICIPATION_DURATION_SEC, dt),
+    dt
+  );
+};
+
+const advanceToGlide = (harness: KinematicsHarness, dt = 1 / 60): void => {
+  advancePastAnticipation(harness, dt);
+  update(harness, dt);
+  updateFrames(
+    harness,
+    framesForDurationSec(swimmerKinematicsTuning.DRAG_DURATION_SEC, dt),
+    dt
+  );
+};
+
 const buildTierThreeHarness = (): KinematicsHarness => {
   const harness = createHarness();
   onTap(harness, 1);
@@ -65,12 +100,14 @@ describe('swimmerKinematicsController', () => {
 
     onTap(harness, 1);
     expect(harness.locomotion.currentTier).toBe(1);
+    expect(harness.locomotion.movementState).toBe(MovementState.ANTICIPATION);
+    advancePastAnticipation(harness);
     update(harness, 1 / 60);
-    expect(harness.locomotion.movementState).toBe(MovementState.GLIDE);
+    expect(harness.locomotion.movementState).toBe(MovementState.DRAG);
 
     onTap(harness, 1);
     expect(harness.locomotion.currentTier).toBe(2);
-    update(harness, 1 / 60);
+    updateFrames(harness, 5);
 
     onTap(harness, 1);
     expect(harness.locomotion.currentTier).toBe(3);
@@ -80,7 +117,7 @@ describe('swimmerKinematicsController', () => {
     const harness = createHarness();
 
     onTap(harness, 1);
-    update(harness, 1 / 60);
+    updateFrames(harness, 5);
 
     const comboWindowSec = profile.comboWindowMs / 1000;
     let elapsed = 0;
@@ -93,30 +130,52 @@ describe('swimmerKinematicsController', () => {
     expect(harness.locomotion.currentTier).toBe(1);
   });
 
-  it('interrupts GLIDE with an immediate STRIKE on tap', () => {
+  it('interrupts GLIDE with a fresh ANTICIPATION on tap', () => {
     const harness = createHarness();
 
     onTap(harness, 1);
-    update(harness, 1 / 60);
+    advanceToGlide(harness);
     expect(harness.locomotion.movementState).toBe(MovementState.GLIDE);
 
     onTap(harness, 1);
-    expect(harness.locomotion.movementState).toBe(MovementState.STRIKE);
+    expect(harness.locomotion.movementState).toBe(MovementState.ANTICIPATION);
   });
 
-  it('strikes from IDLE on the first left tap (no forward momentum)', () => {
+  it('enters ANTICIPATION from IDLE on the first left tap (no forward momentum)', () => {
     const harness = createHarness();
 
     onTap(harness, -1);
-    expect(harness.locomotion.movementState).toBe(MovementState.STRIKE);
+    expect(harness.locomotion.movementState).toBe(MovementState.ANTICIPATION);
     expect(harness.locomotion.facingDirection).toBe(-1);
+    expect(harness.locomotion.targetAngleDeg).toBe(
+      swimmerKinematicsTuning.ANTICIPATION_OPPOSITE_ANGLE_DEG
+    );
+  });
+
+  it('switches from opposite anticipation lean to strike angle when windup ends', () => {
+    const harness = createHarness();
+
+    onTap(harness, 1);
+    expect(harness.locomotion.targetAngleDeg).toBe(
+      -swimmerKinematicsTuning.ANTICIPATION_OPPOSITE_ANGLE_DEG
+    );
+
+    const anticipationFrames = framesForDurationSec(
+      swimmerKinematicsTuning.ANTICIPATION_DURATION_SEC
+    );
+    updateFrames(harness, anticipationFrames);
+
+    expect(harness.locomotion.movementState).toBe(MovementState.DRAG);
+    expect(harness.locomotion.targetAngleDeg).toBe(
+      swimmerVisualTuning.OPEN_WATER_MAX_ANGLE_TIER[0]
+    );
   });
 
   it('enters PIVOT_BRAKE with shovel angle and tier-1 lockout when reversing forward motion', () => {
     const harness = createHarness();
 
     onTap(harness, 1);
-    update(harness, 1 / 60);
+    updateFrames(harness, 10);
     expect(Math.abs(harness.velocityX)).toBeGreaterThan(
       swimmerKinematicsTuning.PIVOT_FORWARD_MOMENTUM_MIN
     );
@@ -153,7 +212,7 @@ describe('swimmerKinematicsController', () => {
     };
 
     onTap(harness, 1);
-    update(harness, 1 / 60);
+    updateFrames(harness, 10);
     const impactSpeed = Math.abs(harness.velocityX);
 
     onTap(harness, -1);
@@ -167,7 +226,7 @@ describe('swimmerKinematicsController', () => {
     const harness = createHarness();
 
     onTap(harness, 1);
-    update(harness, 1 / 60);
+    updateFrames(harness, 10);
     onTap(harness, -1);
     expect(harness.locomotion.movementState).toBe(MovementState.PIVOT_BRAKE);
 
@@ -182,7 +241,7 @@ describe('swimmerKinematicsController', () => {
     const harness = createHarness();
 
     onTap(harness, 1);
-    update(harness, 1 / 60);
+    updateFrames(harness, 10);
     onTap(harness, -1);
     expect(harness.locomotion.movementState).toBe(MovementState.PIVOT_BRAKE);
 
@@ -199,7 +258,9 @@ describe('swimmerKinematicsController', () => {
     expect(harness.locomotion.facingDirection).toBe(-1);
     expect(harness.locomotion.currentTier).toBe(1);
     expect(harness.velocityX).toBeCloseTo(-tierOneImpulse, 2);
-    expect(harness.locomotion.targetAngleDeg).toBe(-profile.targetSwimAngles[0]);
+    expect(harness.locomotion.targetAngleDeg).toBe(
+      -swimmerVisualTuning.OPEN_WATER_MAX_ANGLE_TIER[0]
+    );
   });
 
   it('decays through GLIDE, DECELERATING, and IDLE', () => {
@@ -219,13 +280,14 @@ describe('swimmerKinematicsController', () => {
 
     onTap(harness, 1);
     expect(harness.velocityX).toBeCloseTo(tierOneImpulse, 4);
+    expect(harness.locomotion.movementState).toBe(MovementState.ANTICIPATION);
   });
 
   it('handles wild delta time without NaN velocity or negative lockout overshoot', () => {
     const harness = createHarness();
 
     onTap(harness, 1);
-    update(harness, 1 / 60);
+    updateFrames(harness, 10);
     onTap(harness, -1);
 
     update(harness, 0.5);
@@ -236,7 +298,7 @@ describe('swimmerKinematicsController', () => {
   it('mutates locomotion in place across tap/update steps', () => {
     const harness = createHarness();
     onTap(harness, 1);
-    update(harness, 1 / 60);
+    updateFrames(harness, 5);
 
     const snapshot = { ...harness.locomotion, velocityX: harness.velocityX };
     const restored = createHarness(snapshot);

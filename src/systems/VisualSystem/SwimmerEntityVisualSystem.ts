@@ -8,6 +8,7 @@ import {
 import { getCharacterProfileForSwimmer } from '@/Game/characters/swimmerKinematicsController';
 import { buildKinematicTelemetry } from '@/Game/characters/kinematicTelemetry';
 import { MovementState } from '@/Game/characters/characterMovementStates';
+import { VisualStrokePhase } from '@/Game/characters/visualStrokePhase';
 import {
   createSwimmerDeformationScale,
   updateSwimmerEntityVisuals,
@@ -115,7 +116,9 @@ export const SwimmerEntityVisualSystem: System = {
         deltaSeconds,
         telemetry,
         swimmer.bobbingPhase ?? 0,
-        pivotImpactSpeed
+        pivotImpactSpeed,
+        locomotion.visualPhase ?? VisualStrokePhase.IDLE,
+        swimmer.isPinnedFromAbove === true && swimmer.isSideBlocked !== true
       );
 
       const nextWidth = baseWidth * visualResult.scaleX;

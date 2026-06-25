@@ -3,6 +3,11 @@ import { getCharacterProfile } from './characterProfileRegistry';
 import type { ICharacterProfile } from './characterProfileTypes';
 import type { IKinematicTelemetry } from './kinematicTelemetry';
 import { swimmerKinematicsTuning } from '@/config/swimmerKinematicsTuning';
+import { swimmerVisualTuning } from '@/config/swimmerVisualTuning';
+import {
+  beginVisualPivot,
+  beginVisualStroke,
+} from './swimmerVisualLocomotion';
 import type {
   SpeedTier,
   SwimmerLocomotionData,
@@ -86,6 +91,22 @@ export const degreesToRadians = (degrees: number): number => {
   return (degrees * Math.PI) / 180;
 };
 
+const getAnticipationTargetAngleDeg = (direction: 1 | -1): number => {
+  'worklet';
+  return (
+    -direction * swimmerKinematicsTuning.ANTICIPATION_OPPOSITE_ANGLE_DEG
+  );
+};
+
+const getStrikeTargetAngleDeg = (
+  _profile: ICharacterProfile,
+  direction: 1 | -1,
+  tier: SpeedTier
+): number => {
+  'worklet';
+  return direction * swimmerVisualTuning.OPEN_WATER_MAX_ANGLE_TIER[tier - 1];
+};
+
 const applyTierStrike = (
   profile: ICharacterProfile,
   locomotion: SwimmerLocomotionData,
@@ -104,15 +125,19 @@ const applyTierStrike = (
   }
 
   locomotion.comboTimer = comboWindowSec;
-  locomotion.movementState = MovementState.STRIKE;
+  locomotion.movementState = MovementState.ANTICIPATION;
+  locomotion.anticipationTimer =
+    swimmerKinematicsTuning.ANTICIPATION_DURATION_SEC;
+  locomotion.dragTimer = 0;
+
+  beginVisualStroke(locomotion, direction, locomotion.currentTier);
 
   const strikeImpulse = getStrikeImpulse(
     profile,
     direction,
     locomotion.currentTier
   );
-  locomotion.targetAngleDeg =
-    direction * profile.targetSwimAngles[locomotion.currentTier - 1];
+  locomotion.targetAngleDeg = getAnticipationTargetAngleDeg(direction);
   return velocityX + strikeImpulse;
 };
 
@@ -129,6 +154,7 @@ const beginPivotBrake = (
 
   locomotion.movementState = MovementState.PIVOT_BRAKE;
   locomotion.targetAngleDeg = -shovelAngle * locomotion.facingDirection;
+  beginVisualPivot(locomotion);
   locomotion.pivotLockoutTimer = getPivotLockoutSec(
     profile,
     locomotion.currentTier
@@ -174,9 +200,15 @@ const tryCompletePivotBrake = (
   locomotion.pivotTargetDirection = 0;
   locomotion.pivotLockoutTimer = 0;
   locomotion.movementState = MovementState.STRIKE;
+  locomotion.anticipationTimer = 0;
+  locomotion.dragTimer = 0;
 
   const strikeImpulse = getStrikeImpulse(profile, targetDirection, 1);
-  locomotion.targetAngleDeg = targetDirection * profile.targetSwimAngles[0];
+  locomotion.targetAngleDeg = getStrikeTargetAngleDeg(
+    profile,
+    targetDirection,
+    1
+  );
   return strikeImpulse;
 };
 
@@ -190,6 +222,13 @@ const updateKinematicsTimers = (
 
   const nextPivotTimer = locomotion.pivotLockoutTimer - dt;
   locomotion.pivotLockoutTimer = nextPivotTimer > 0 ? nextPivotTimer : 0;
+
+  const nextAnticipationTimer = (locomotion.anticipationTimer ?? 0) - dt;
+  locomotion.anticipationTimer =
+    nextAnticipationTimer > 0 ? nextAnticipationTimer : 0;
+
+  const nextDragTimer = (locomotion.dragTimer ?? 0) - dt;
+  locomotion.dragTimer = nextDragTimer > 0 ? nextDragTimer : 0;
 };
 
 const applyPivotBrakePhysics = (
@@ -228,19 +267,6 @@ const applyPhysicsDrag = (
   return nextVelocityX;
 };
 
-const interpolateKinematicsAngle = (
-  profile: ICharacterProfile,
-  locomotion: SwimmerLocomotionData,
-  dt: number
-): void => {
-  'worklet';
-  const baseDrag = profile.baseDrag;
-  const interpScale = swimmerKinematicsTuning.ANGLE_INTERP_DRAG_SCALE;
-  const step = Math.min(1, baseDrag * interpScale * dt);
-  const delta = locomotion.targetAngleDeg - locomotion.currentAngleDeg;
-  locomotion.currentAngleDeg += delta * step;
-};
-
 const processKinematicsStateTransitions = (
   profile: ICharacterProfile,
   locomotion: SwimmerLocomotionData,
@@ -255,8 +281,28 @@ const processKinematicsStateTransitions = (
   const deceleratingIdleThreshold = getDeceleratingIdleThreshold(profile);
   const absVelocityX = Math.abs(velocityX);
 
+  if (locomotion.movementState === MovementState.ANTICIPATION) {
+    if ((locomotion.anticipationTimer ?? 0) <= 0) {
+      locomotion.movementState = MovementState.STRIKE;
+      locomotion.targetAngleDeg = getStrikeTargetAngleDeg(
+        profile,
+        locomotion.facingDirection,
+        locomotion.currentTier
+      );
+    }
+    return velocityX;
+  }
+
   if (locomotion.movementState === MovementState.STRIKE) {
-    locomotion.movementState = MovementState.GLIDE;
+    locomotion.movementState = MovementState.DRAG;
+    locomotion.dragTimer = swimmerKinematicsTuning.DRAG_DURATION_SEC;
+    return velocityX;
+  }
+
+  if (locomotion.movementState === MovementState.DRAG) {
+    if ((locomotion.dragTimer ?? 0) <= 0) {
+      locomotion.movementState = MovementState.GLIDE;
+    }
     return velocityX;
   }
 
@@ -322,7 +368,6 @@ export const swimmerKinematicsUpdate = (
     nextVelocityX = applyPhysicsDrag(profile, nextVelocityX, safeDt);
   }
 
-  interpolateKinematicsAngle(profile, locomotion, safeDt);
   nextVelocityX = tryCompletePivotBrake(profile, locomotion, nextVelocityX);
   nextVelocityX = processKinematicsStateTransitions(
     profile,

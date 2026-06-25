@@ -15,6 +15,7 @@ import type { ComponentStore } from '@/containers/ReactNativeSkiaGameEngine/serv
 
 const CONTAINER = { centerX: 200, width: 360, columnCount: 9 };
 const BLOCK = { width: 40, height: 40 };
+const COL4_CENTER_X = getColumnCenterX(4, CONTAINER.centerX, CONTAINER.width);
 
 function rowAt(y: number, gaps: number[]): CollisionRow {
   return { y, gaps };
@@ -179,10 +180,10 @@ describe('resolveSwimmerAgainstRows', () => {
     const rows = [rowAt(250, [0, 1, 2, 3, 5, 6, 7, 8])]; // solid col 4
     const blockBottom = 250 + (BLOCK.height * 1.0) / 2;
     const halfH = 23;
-    const startY = blockBottom + halfH - 1;
+    const startY = blockBottom + halfH;
 
     const result = resolve({
-      x: 200,
+      x: COL4_CENTER_X,
       y: startY,
       halfHeight: halfH,
       deltaY: -40,
@@ -217,6 +218,7 @@ describe('resolveSwimmerAgainstRows', () => {
       rows,
     });
 
+    expect(result.isPinnedFromAbove).toBe(false);
     expect(result.isColliding).toBe(false);
     expect(result.y).toBe(260);
   });
@@ -226,6 +228,7 @@ describe('resolveSwimmerAgainstRows', () => {
     const halfH = 23;
     const startY = 280;
     const result = resolve({
+      x: COL4_CENTER_X,
       y: startY,
       halfHeight: halfH,
       deltaY: -120,
@@ -236,6 +239,25 @@ describe('resolveSwimmerAgainstRows', () => {
     const swimmerTop = result.y - halfH;
     const blockBottom = 200 + (BLOCK.height * 1.0) / 2;
     expect(swimmerTop).toBeGreaterThanOrEqual(blockBottom - 1);
+    expect(result.isColliding).toBe(true);
+  });
+
+  it('prevents tunneling at extreme upward delta with fast descending rows', () => {
+    const rows = [rowAt(200, [0, 1, 2, 3, 5, 6, 7, 8])];
+    const halfH = 23;
+    const startY = 320;
+    const result = resolve({
+      x: COL4_CENTER_X,
+      y: startY,
+      halfHeight: halfH,
+      deltaY: -200,
+      rowDeltaY: 14,
+      rows,
+    });
+
+    const swimmerTop = result.y - halfH;
+    const blockBottom = 200 + (BLOCK.height * 1.0) / 2;
+    expect(swimmerTop).toBeGreaterThanOrEqual(blockBottom - 2);
     expect(result.isColliding).toBe(true);
   });
 
@@ -258,7 +280,7 @@ describe('resolveSwimmerAgainstRows', () => {
       x: 188,
       y: 320,
       deltaX: -50,
-      angle: ((75 * Math.PI) / 180) * 0.85,
+      angle: 0,
       rows,
     });
 
@@ -266,34 +288,156 @@ describe('resolveSwimmerAgainstRows', () => {
     expect(result.y).toBe(320);
   });
 
+  it('blocks fast kinematic tap into adjacent side solid', () => {
+    const rows = [rowAt(300, [4])];
+    const col3CenterX = getColumnCenterX(3, CONTAINER.centerX, CONTAINER.width);
+    const blockRightX = col3CenterX + BLOCK.width / 2;
+    const startX = blockRightX + 8;
+    const result = resolve({
+      x: startX,
+      y: 320,
+      deltaX: -140,
+      kinematicHorizontal: true,
+      angle: ((62 * Math.PI) / 180) * 0.9,
+      rows,
+    });
+
+    expect(result.isPinnedFromAbove).toBe(false);
+    expect(result.isSideBlocked).toBe(true);
+    expect(result.x).toBeGreaterThan(col3CenterX - BLOCK.width / 2 - 1);
+  });
+
   it('pinned swimmer can move horizontally under ceiling block', () => {
     const rows = [rowAt(250, [0, 1, 2, 3, 5, 6, 7, 8])];
     const blockBottom = 250 + (BLOCK.height * 1.0) / 2;
     const halfH = 23;
-    const startY = blockBottom + halfH - 1;
+    const startY = blockBottom + halfH;
 
     const leftTry = resolve({
-      x: 200,
+      x: COL4_CENTER_X,
       y: startY,
       halfHeight: halfH,
-      deltaX: -60,
+      deltaX: -15,
       deltaY: 0,
       rowDeltaY: 0,
       rows,
     });
     expect(leftTry.isPinnedFromAbove).toBe(true);
-    expect(leftTry.x).toBeLessThan(200);
+    expect(leftTry.x).toBeLessThan(COL4_CENTER_X);
 
     const rightTry = resolve({
-      x: 200,
+      x: COL4_CENTER_X,
       y: startY,
       halfHeight: halfH,
-      deltaX: 60,
+      deltaX: 15,
       deltaY: 0,
       rowDeltaY: 0,
       rows,
     });
     expect(rightTry.isPinnedFromAbove).toBe(true);
-    expect(rightTry.x).toBeGreaterThan(200);
+    expect(rightTry.x).toBeGreaterThan(COL4_CENTER_X);
+  });
+
+  it('unpins when sliding horizontally out from under ceiling', () => {
+    const rows = [rowAt(250, [0, 1, 2, 3, 5, 6, 7, 8])];
+    const blockBottom = 250 + (BLOCK.height * 1.0) / 2;
+    const pinnedHalfH = 23;
+    const startY = blockBottom + pinnedHalfH;
+
+    const slideOut = resolve({
+      x: COL4_CENTER_X,
+      y: startY,
+      halfHeight: pinnedHalfH,
+      deltaX: 55,
+      rows,
+    });
+
+    expect(slideOut.x).toBeGreaterThan(COL4_CENTER_X + 20);
+    expect(slideOut.isPinnedFromAbove).toBe(false);
+  });
+
+  it('pinned swimmer slides away from a one-sided side block', () => {
+    const rows = [rowAt(250, [0, 1, 2, 5, 6, 7, 8])]; // solids at col 3 and 4
+    const blockBottom = 250 + (BLOCK.height * 1.0) / 2;
+    const halfH = 23;
+    const startY = blockBottom + halfH;
+    const col3CenterX = getColumnCenterX(3, CONTAINER.centerX, CONTAINER.width);
+    const col4CenterX = getColumnCenterX(4, CONTAINER.centerX, CONTAINER.width);
+
+    const intoSide = resolve({
+      x: col4CenterX,
+      y: startY,
+      halfHeight: halfH,
+      deltaX: -50,
+      rows,
+    });
+    expect(intoSide.isPinnedFromAbove).toBe(true);
+    expect(intoSide.x).toBeGreaterThan(col3CenterX + BLOCK.width / 2 - 2);
+    expect(intoSide.x).toBeLessThan(col4CenterX);
+
+    const awayFromSide = resolve({
+      x: col4CenterX,
+      y: startY,
+      halfHeight: halfH,
+      deltaX: 55,
+      rows,
+    });
+    expect(awayFromSide.x).toBeGreaterThan(col4CenterX + 20);
+    expect(awayFromSide.isPinnedFromAbove).toBe(false);
+  });
+
+  it('stays pinned when sliding within ceiling column beside a side block', () => {
+    const rows = [rowAt(250, [0, 1, 2, 5, 6, 7, 8])];
+    const blockBottom = 250 + (BLOCK.height * 1.0) / 2;
+    const halfH = 23;
+    const startY = blockBottom + halfH;
+    const col4CenterX = getColumnCenterX(4, CONTAINER.centerX, CONTAINER.width);
+
+    const tapAwayFromSideBlock = resolve({
+      x: col4CenterX,
+      y: startY,
+      halfHeight: halfH,
+      deltaX: 15,
+      rows,
+    });
+    expect(tapAwayFromSideBlock.isPinnedFromAbove).toBe(true);
+    expect(tapAwayFromSideBlock.x).toBeGreaterThan(col4CenterX);
+    expect(tapAwayFromSideBlock.sideBlockedDirection).toBe(0);
+  });
+
+  it('does not rise through ceiling while still pinned in column', () => {
+    const rows = [
+      rowAt(200, [0, 1, 2, 3, 5, 6, 7, 8]),
+      rowAt(250, [0, 1, 2, 3, 5, 6, 7, 8]),
+    ];
+    const halfH = 23;
+    const blockBottom = 250 + (BLOCK.height * 1.0) / 2;
+    const startY = blockBottom + halfH;
+    const rise = resolve({
+      x: COL4_CENTER_X,
+      y: startY,
+      halfHeight: halfH,
+      deltaY: -140,
+      rows,
+    });
+    const upperBlockBottom = 200 + (BLOCK.height * 1.0) / 2;
+    expect(rise.isPinnedFromAbove).toBe(true);
+    expect(rise.y - halfH).toBeGreaterThanOrEqual(upperBlockBottom - 2);
+  });
+
+  it('escapes side overlap with one tap away from the block', () => {
+    const rows = [rowAt(300, [4])];
+    const col3CenterX = getColumnCenterX(3, CONTAINER.centerX, CONTAINER.width);
+    const blockRightX = col3CenterX + BLOCK.width / 2;
+    const embeddedX = blockRightX - 6;
+    const result = resolve({
+      x: embeddedX,
+      y: 320,
+      deltaX: 90,
+      rows,
+    });
+
+    expect(result.sideBlockedDirection).toBe(0);
+    expect(result.x).toBeGreaterThan(embeddedX + 40);
   });
 });

@@ -7,54 +7,68 @@ import { swimmerDeformationTuning } from '@/config/swimmerDeformationTuning';
 
 const convergeToTarget = (
   scale: ReturnType<typeof createDeformationScale>,
-  state: MovementState,
-  velocityX: number,
-  tier: 1 | 2 | 3,
+  state: MovementState | 'PINNED',
   idlePhase = 0
 ) => {
   for (let i = 0; i < 120; i++) {
-    updateProceduralDeformation(scale, state, velocityX, tier, 1 / 30, idlePhase);
+    updateProceduralDeformation(scale, state, 1 / 30, idlePhase);
   }
   return scale;
 };
 
 describe('updateProceduralDeformation', () => {
-  it('squashes horizontally during ANTICIPATION with volume conservation', () => {
+  it('widens slightly during ANTICIPATION (rigid load)', () => {
     const scale = createDeformationScale();
-    convergeToTarget(scale, MovementState.ANTICIPATION, 0, 1);
+    convergeToTarget(scale, MovementState.ANTICIPATION, 0);
 
     expect(scale.scaleX).toBeCloseTo(
       swimmerDeformationTuning.ANTICIPATION_SCALE_X,
       2
     );
     expect(scale.scaleY).toBeCloseTo(
-      1 / swimmerDeformationTuning.ANTICIPATION_SCALE_X,
+      swimmerDeformationTuning.ANTICIPATION_SCALE_Y,
       2
     );
-    expect(scale.scaleX * scale.scaleY).toBeCloseTo(1, 2);
   });
 
-  it('stretches horizontally during STRIKE based on speed tier', () => {
+  it('keeps STRIKE deformation minimal', () => {
     const scale = createDeformationScale();
-    const expectedScaleX =
-      1 + swimmerDeformationTuning.STRIKE_SPEED_FACTOR_CAP * 3;
+    convergeToTarget(scale, MovementState.STRIKE, 0);
 
-    convergeToTarget(scale, MovementState.STRIKE, 500, 3);
-
-    expect(scale.scaleX).toBeCloseTo(expectedScaleX, 2);
-    expect(scale.scaleY).toBeCloseTo(1 / expectedScaleX, 2);
+    expect(scale.scaleX).toBeCloseTo(
+      swimmerDeformationTuning.STRIKE_SCALE_X,
+      2
+    );
+    expect(scale.scaleY).toBeCloseTo(
+      swimmerDeformationTuning.STRIKE_SCALE_Y,
+      2
+    );
   });
 
   it('compresses horizontally during PIVOT_BRAKE', () => {
     const scale = createDeformationScale();
-    convergeToTarget(scale, MovementState.PIVOT_BRAKE, 200, 2);
+    convergeToTarget(scale, MovementState.PIVOT_BRAKE, 0);
 
     expect(scale.scaleX).toBeCloseTo(
       swimmerDeformationTuning.PIVOT_BRAKE_SCALE_X,
       2
     );
     expect(scale.scaleY).toBeCloseTo(
-      1 / swimmerDeformationTuning.PIVOT_BRAKE_SCALE_X,
+      swimmerDeformationTuning.PIVOT_BRAKE_SCALE_Y,
+      2
+    );
+  });
+
+  it('squashes comically when PINNED', () => {
+    const scale = createDeformationScale();
+    convergeToTarget(scale, 'PINNED', 0);
+
+    expect(scale.scaleX).toBeCloseTo(
+      swimmerDeformationTuning.PINNED_SCALE_X,
+      2
+    );
+    expect(scale.scaleY).toBeCloseTo(
+      swimmerDeformationTuning.PINNED_SCALE_Y,
       2
     );
   });
@@ -62,22 +76,21 @@ describe('updateProceduralDeformation', () => {
   it('applies IDLE buoyancy from the provided oscillation phase', () => {
     const phase = Math.PI / 2;
     const scale = createDeformationScale();
-    convergeToTarget(scale, MovementState.IDLE, 0, 1, phase);
+    convergeToTarget(scale, MovementState.IDLE, phase);
 
     const expectedScaleX =
       1 + Math.sin(phase) * swimmerDeformationTuning.IDLE_BUOYANCY_AMPLITUDE;
     expect(scale.scaleX).toBeCloseTo(expectedScaleX, 2);
-    expect(scale.scaleY).toBeCloseTo(1 / expectedScaleX, 2);
   });
 
   it('interpolates toward targets over multiple dt steps', () => {
     const scale = createDeformationScale(1, 1);
-    updateProceduralDeformation(scale, MovementState.PIVOT_BRAKE, 0, 1, 1 / 60);
+    updateProceduralDeformation(scale, MovementState.PIVOT_BRAKE, 1 / 60);
 
-    expect(scale.scaleX).toBeGreaterThan(
-      swimmerDeformationTuning.PIVOT_BRAKE_SCALE_X
+    expect(scale.scaleX).toBeGreaterThan(1);
+    expect(scale.scaleX).toBeLessThan(
+      swimmerDeformationTuning.PIVOT_BRAKE_SCALE_X + 0.05
     );
-    expect(scale.scaleX).toBeLessThan(1);
   });
 
   it('notifies the display sink with interpolated scales', () => {
@@ -87,8 +100,6 @@ describe('updateProceduralDeformation', () => {
     updateProceduralDeformation(
       scale,
       MovementState.PIVOT_BRAKE,
-      0,
-      1,
       1 / 60,
       0,
       {
@@ -105,7 +116,7 @@ describe('updateProceduralDeformation', () => {
 
   it('returns neutral scale for GLIDE', () => {
     const scale = createDeformationScale(0.75, 1.333);
-    convergeToTarget(scale, MovementState.GLIDE, 120, 2);
+    convergeToTarget(scale, MovementState.GLIDE, 0);
 
     expect(scale.scaleX).toBeCloseTo(1, 2);
     expect(scale.scaleY).toBeCloseTo(1, 2);

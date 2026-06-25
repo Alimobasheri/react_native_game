@@ -5,23 +5,32 @@
 
 export const swimmerPhysicsTuning = {
   /** Swimmer render width and collision hitbox width as a fraction of one grid column. */
-  SWIMMER_WIDTH_COLUMN_RATIO: 2 / 3,
+  SWIMMER_WIDTH_COLUMN_RATIO: 0.8,
   SWIMMER_HEIGHT_TO_WIDTH_RATIO: 2.1,
 
   MAX_HORIZONTAL_SPEED: 520,
-  PINNED_VELOCITY_DAMPING: 0.8,
+  PINNED_VELOCITY_DAMPING: 0.85,
+  /** Minimum horizontal slide (fraction of column width) on a tap while pinned. */
+  PINNED_MIN_TAP_SLIDE_COLUMN_FRACTION: 0.12,
   TAP_IMPULSE_MULTIPLIER_MIN: 1,
   TAP_IMPULSE_MULTIPLIER_MAX: 3.5,
   MAX_WATER_CURRENT_SPEED: 200,
   WATER_CURRENT_RESPONSE_PER_SECOND: 5,
   WATER_CURRENT_SURGE_BOOST: 1.2,
-  SURFACE_FOLLOW_RESPONSE_PER_SECOND: 6,
-  SURFACE_SUBMERGENCE_RATIO: 0.82,
-  SURFACE_BOB_BLEND: 2,
+  SURFACE_FOLLOW_RESPONSE_PER_SECOND: 24,
+  /** Fraction of full swimmer height placed below the computed surface crest. */
+  SURFACE_SUBMERGENCE_RATIO: 0.1,
+  SURFACE_BOB_BLEND: 1.2,
   /** Visual tilt cap (radians) — matches former Matter body rotation. */
-  MAX_TILT_RADIANS: (75 * Math.PI) / 180,
+  MAX_TILT_RADIANS: (90 * Math.PI) / 180,
   /** |velocityX| at which MAX_TILT_RADIANS is reached. */
   FULL_TILT_SPEED_FRACTION: 0.25,
+  /** Max upward/downward integration per frame as a fraction of block height (anti-tunnel). */
+  MAX_VERTICAL_STEP_BLOCK_FRACTION: 0.35,
+  /** Max horizontal integration per collision sub-step as a fraction of block width. */
+  MAX_HORIZONTAL_STEP_BLOCK_FRACTION: 0.45,
+  /** Collision sub-step size as a fraction of block height (swept AABB). */
+  COLLISION_SUBSTEP_BLOCK_FRACTION: 0.32,
 } as const;
 
 /** Start-screen idle water vs post-tap ramp (see beginGameplay + StartScreenSystem). */
