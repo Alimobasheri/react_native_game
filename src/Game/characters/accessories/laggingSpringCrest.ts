@@ -27,10 +27,11 @@ const getCrestDamping = (weight: number): number => {
   return secondaryItemTuning.CREST_SPRING_DAMPING * weightScale;
 };
 
-/** Shift layer center so rotation pivots around the sprite bottom (crest base). */
-export const getCrestBottomAnchorPosition = (
-  offsetX: number,
-  offsetY: number,
+/**
+ * Layer-center offset so rotation pivots around the sprite bottom (crest root on head).
+ * Spring lag must not translate X — only angle bends the leaves.
+ */
+export const getCrestRootPinnedPosition = (
   angleRad: number,
   layerHeight: number
 ): { x: number; y: number } => {
@@ -39,8 +40,8 @@ export const getCrestBottomAnchorPosition = (
   const sinA = Math.sin(angleRad);
   const cosA = Math.cos(angleRad);
   return {
-    x: offsetX + sinA * halfH,
-    y: offsetY - (1 - cosA) * halfH,
+    x: sinA * halfH,
+    y: (1 - cosA) * halfH,
   };
 };
 
@@ -67,17 +68,16 @@ export const updateLaggingSpringCrest = (
   let nextLocalOffsetX = state.localOffsetX + nextSpringVelocityX * safeDt;
   nextLocalOffsetX = clamp(nextLocalOffsetX, -offsetClamp, offsetClamp);
 
-  const bendAngle =
-    nextLocalOffsetX * secondaryItemTuning.CREST_BEND_ANGLE_FACTOR;
-  const clampedAngle = clamp(
-    bendAngle,
-    -secondaryItemTuning.CREST_BEND_ANGLE_CLAMP,
-    secondaryItemTuning.CREST_BEND_ANGLE_CLAMP
-  );
+  const stalkBend =
+    nextLocalOffsetX * secondaryItemTuning.CREST_BEND_ANGLE_FACTOR +
+    Math.sign(nextLocalOffsetX) *
+      nextLocalOffsetX *
+      nextLocalOffsetX *
+      secondaryItemTuning.CREST_BEND_ANGLE_CURVE;
 
-  const targetOffsetY =
+  const targetWindLift =
     Math.abs(velocityX) * secondaryItemTuning.CREST_WIND_LIFT_FACTOR;
-  const forceY = (targetOffsetY - state.localOffsetY) * stiffness * 0.6;
+  const forceY = (targetWindLift - state.localOffsetY) * stiffness * 0.6;
   const accelerationY = forceY - state.springVelocityY * damping;
 
   const nextSpringVelocityY = state.springVelocityY + accelerationY * safeDt;
@@ -88,23 +88,43 @@ export const updateLaggingSpringCrest = (
     secondaryItemTuning.CREST_WIND_LIFT_CLAMP
   );
 
+  const windAngle =
+    nextLocalOffsetY * secondaryItemTuning.CREST_WIND_LIFT_ANGLE_FACTOR;
+
+  const windPhase =
+    (state.windPhase ?? 0) +
+    safeDt * secondaryItemTuning.CREST_WIND_PHASE_SPEED;
+  const flutterPhase =
+    (state.flutterPhase ?? 0) +
+    safeDt * secondaryItemTuning.CREST_FLUTTER_PHASE_SPEED;
+
+  const ambientWind =
+    Math.sin(windPhase) * secondaryItemTuning.CREST_WIND_AMBIENT_AMPLITUDE;
+  const leafFlutter =
+    Math.sin(flutterPhase * 2.17) *
+    Math.sin(flutterPhase * 1.31) *
+    secondaryItemTuning.CREST_FLUTTER_AMPLITUDE;
+
+  const totalAngle = clamp(
+    stalkBend + windAngle + ambientWind + leafFlutter,
+    -secondaryItemTuning.CREST_BEND_ANGLE_CLAMP,
+    secondaryItemTuning.CREST_BEND_ANGLE_CLAMP
+  );
+
   const nextState: LaggingSpringAccessoryState = {
     kind: 'LaggingSpring',
     localOffsetX: nextLocalOffsetX,
     localOffsetY: nextLocalOffsetY,
     springVelocityX: nextSpringVelocityX,
     springVelocityY: nextSpringVelocityY,
+    windPhase,
+    flutterPhase,
   };
 
   const layerSink = sink;
   if (layerSink) {
-    const anchored = getCrestBottomAnchorPosition(
-      nextLocalOffsetX,
-      nextLocalOffsetY,
-      clampedAngle,
-      layerHeight
-    );
-    layerSink.setLocalTransform(anchored.x, anchored.y, clampedAngle);
+    const pinned = getCrestRootPinnedPosition(totalAngle, layerHeight);
+    layerSink.setLocalTransform(pinned.x, pinned.y, totalAngle);
   }
 
   return nextState;

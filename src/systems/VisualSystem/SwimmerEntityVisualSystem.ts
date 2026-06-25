@@ -22,8 +22,14 @@ import {
   getPinnedCrestRestOffsetY,
   getSwimmerAccessoryLayerIndex,
   getSwimmerFeatureLayerIndex,
+  getSwimmerInternalLayerIndex,
   getSwimmerSkin,
 } from '@/Game/characters/swimmerSkins';
+import { updateFeatureBlink } from '@/Game/characters/swimmerFeatureBlink';
+import {
+  getInternalRippleBandSize,
+  updateInternalRipple,
+} from '@/Game/characters/swimmerInternalRipple';
 import {
   SwimmerComponentData,
   SwimmerComponentName,
@@ -145,6 +151,9 @@ export const SwimmerEntityVisualSystem: System = {
         swimmer.isPinnedFromAbove === true && swimmer.isSideBlocked !== true;
 
       const accessoryLayer = layers[accessoryLayerIndex];
+      const internalLayerIndex = getSwimmerInternalLayerIndex(skin);
+      const internalLayer =
+        internalLayerIndex !== null ? layers[internalLayerIndex] : null;
       const featureLayerIndex = getSwimmerFeatureLayerIndex(skin);
       const featureLayer =
         featureLayerIndex !== null ? layers[featureLayerIndex] : null;
@@ -223,13 +232,62 @@ export const SwimmerEntityVisualSystem: System = {
         renderDirty = true;
       }
 
+      if (internalLayer && skin.internalMotion && skin.internalMotion !== 'none') {
+        const ripple = updateInternalRipple(
+          locomotion.internalRippleState,
+          baseHeight,
+          deltaSeconds
+        );
+        locomotion.internalRippleState = ripple.state;
+        const bandSize = getInternalRippleBandSize(baseWidth, baseHeight);
+        if (
+          scaleLayerRect(
+            internalLayer,
+            visualResult.scaleX,
+            visualResult.scaleY,
+            bandSize.width,
+            bandSize.height
+          )
+        ) {
+          renderDirty = true;
+        }
+        if (
+          !internalLayer.position ||
+          Math.abs(internalLayer.position.y - ripple.offsetY) > 0.01
+        ) {
+          internalLayer.position = { x: 0, y: ripple.offsetY };
+          renderDirty = true;
+        }
+        if (
+          internalLayer.opacity == null ||
+          Math.abs(internalLayer.opacity - ripple.opacity) > 0.01
+        ) {
+          internalLayer.opacity = ripple.opacity;
+          renderDirty = true;
+        }
+      }
+
       if (featureLayer && skin.feature) {
         const featureBaseSize = getFeatureMeshSize(skin.feature, baseWidth);
+        let featureScaleY = visualResult.scaleY;
+        let featureOpacity = featureLayer.opacity ?? 1;
+
+        if (skin.blinkType === 'tinyDotBlink') {
+          const blink = updateFeatureBlink(
+            locomotion.featureBlinkState,
+            entityId,
+            deltaSeconds
+          );
+          locomotion.featureBlinkState = blink.state;
+          featureScaleY *= blink.scaleY;
+          featureOpacity = blink.opacity;
+        }
+
         if (
           scaleLayerRect(
             featureLayer,
             visualResult.scaleX,
-            visualResult.scaleY,
+            featureScaleY,
             featureBaseSize.width,
             featureBaseSize.height
           )
@@ -248,6 +306,13 @@ export const SwimmerEntityVisualSystem: System = {
           featureLayer.position = { x: 0, y: featureRestY };
           renderDirty = true;
         }
+        if (
+          featureLayer.opacity == null ||
+          Math.abs(featureLayer.opacity - featureOpacity) > 0.01
+        ) {
+          featureLayer.opacity = featureOpacity;
+          renderDirty = true;
+        }
       }
 
       if (accessoryLayer.shape.type === ShapeTypes.Rectangle) {
@@ -259,6 +324,13 @@ export const SwimmerEntityVisualSystem: System = {
           accessoryLayer.shape.height = nextAccessoryHeight;
           renderDirty = true;
         }
+      }
+
+      if (
+        (skin.internalMotion && skin.internalMotion !== 'none') ||
+        skin.blinkType === 'tinyDotBlink'
+      ) {
+        renderDirty = true;
       }
 
       if (renderDirty) {

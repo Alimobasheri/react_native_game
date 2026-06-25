@@ -1,6 +1,8 @@
 import { Component } from '@/containers/ReactNativeSkiaGameEngine/services-ecs';
 import { MovementState } from '@/Game/characters/characterMovementStates';
 import type { SecondaryItemPersistedState } from '@/Game/characters/secondaryItemTypes';
+import type { FeatureBlinkState } from '@/Game/characters/swimmerFeatureBlink';
+import type { InternalRippleState } from '@/Game/characters/swimmerInternalRipple';
 import type { VisualStrokePhase } from '@/Game/characters/visualStrokePhase';
 
 export const SwimmerComponentName = 'Swimmer';
@@ -73,6 +75,10 @@ export type SwimmerLocomotionData = {
   previousMovementState?: MovementState;
   /** Persisted secondary attachment simulation state. */
   accessoryState?: SecondaryItemPersistedState;
+  /** Randomized tiny-feature blink timer state. */
+  featureBlinkState?: FeatureBlinkState;
+  /** Upward ripple band phase inside the body. */
+  internalRippleState?: InternalRippleState;
 };
 
 export type SwimmerComponentData = {

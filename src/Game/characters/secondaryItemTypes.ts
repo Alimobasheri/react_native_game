@@ -13,6 +13,10 @@ export type LaggingSpringAccessoryState = {
   localOffsetY: number;
   springVelocityX: number;
   springVelocityY: number;
+  /** Crest-only ambient breeze phase (radians). */
+  windPhase?: number;
+  /** Crest-only leaf flutter phase (radians). */
+  flutterPhase?: number;
 };
 
 export type ProceduralChainAccessoryState = {

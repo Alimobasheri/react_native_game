@@ -1,9 +1,12 @@
+import { BlendMode } from '@shopify/react-native-skia';
 import {
   ShapeTypes,
   type RenderLayerData,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import { SWIMMER_CHARACTER_IMAGE } from '@/assets/swimmerCharacters';
+import { swimmerLifeTuning } from '@/config/swimmerLifeTuning';
 import { GIGGLE_CRYSTAL_PROFILE_ID } from './characterProfiles';
+import { getInternalRippleBandSize } from './swimmerInternalRipple';
 
 export const AQUA_SPROUT_SKIN_ID = 'aqua-sprout' as const;
 export const GOGGLED_SKIN_ID = 'goggled' as const;
@@ -11,6 +14,10 @@ export const GOGGLED_SKIN_ID = 'goggled' as const;
 export const DEFAULT_SWIMMER_SKIN_ID = AQUA_SPROUT_SKIN_ID;
 
 export type SwimmerSkinId = typeof AQUA_SPROUT_SKIN_ID | typeof GOGGLED_SKIN_ID;
+
+export type SwimmerInternalMotionType = 'none' | 'ripple';
+
+export type SwimmerBlinkType = 'none' | 'tinyDotBlink';
 
 export type SwimmerSkinFeatureLayer = {
   readonly featureImageKey: string;
@@ -44,27 +51,48 @@ export type SwimmerSkinDefinition = {
   readonly feature?: SwimmerSkinFeatureLayer;
   /** When true, crest uses bottom-anchored bend spring instead of face lag. */
   readonly crestAccessory?: boolean;
+  /** Masked procedural motion inside the body rect (layer between body and feature). */
+  readonly internalMotion?: SwimmerInternalMotionType;
+  /** Tiny feature blink / pulse animation on the feature layer. */
+  readonly blinkType?: SwimmerBlinkType;
 };
 
 export const SWIMMER_BODY_LAYER_INDEX = 0;
-export const SWIMMER_FEATURE_LAYER_INDEX = 1;
-export const SWIMMER_ACCESSORY_LAYER_INDEX_WITHOUT_FEATURE = 1;
-export const SWIMMER_ACCESSORY_LAYER_INDEX_WITH_FEATURE = 2;
+
+const skinHasInternalLayer = (skin: SwimmerSkinDefinition): boolean => {
+  'worklet';
+  return skin.internalMotion != null && skin.internalMotion !== 'none';
+};
+
+export const getSwimmerInternalLayerIndex = (
+  skin: SwimmerSkinDefinition
+): number | null => {
+  'worklet';
+  return skinHasInternalLayer(skin) ? 1 : null;
+};
 
 export const getSwimmerFeatureLayerIndex = (
   skin: SwimmerSkinDefinition
 ): number | null => {
   'worklet';
-  return skin.feature ? SWIMMER_FEATURE_LAYER_INDEX : null;
+  if (!skin.feature) {
+    return null;
+  }
+  return skinHasInternalLayer(skin) ? 2 : 1;
 };
 
 export const getSwimmerAccessoryLayerIndex = (
   skin: SwimmerSkinDefinition
 ): number => {
   'worklet';
-  return skin.feature
-    ? SWIMMER_ACCESSORY_LAYER_INDEX_WITH_FEATURE
-    : SWIMMER_ACCESSORY_LAYER_INDEX_WITHOUT_FEATURE;
+  let index = 1;
+  if (skinHasInternalLayer(skin)) {
+    index += 1;
+  }
+  if (skin.feature) {
+    index += 1;
+  }
+  return index;
 };
 
 export const AQUA_SPROUT_SKIN: SwimmerSkinDefinition = {
@@ -77,6 +105,8 @@ export const AQUA_SPROUT_SKIN: SwimmerSkinDefinition = {
   /** Crest base (sprite bottom) aligned to body mesh top — not face-centered like goggles. */
   accessoryRestOffsetYRatio: -0.68,
   crestAccessory: true,
+  internalMotion: 'ripple',
+  blinkType: 'tinyDotBlink',
   feature: {
     featureImageKey: SWIMMER_CHARACTER_IMAGE.aquaSproutEyes,
     featureWidthRatio: 0.58,
@@ -180,6 +210,21 @@ export const buildSwimmerSkinRenderLayers = (
       image: skin.bodyImageKey,
     },
   ];
+
+  if (skinHasInternalLayer(skin)) {
+    const bandSize = getInternalRippleBandSize(meshWidth, meshHeight);
+    layers.push({
+      shape: {
+        type: ShapeTypes.Rectangle,
+        width: bandSize.width,
+        height: bandSize.height,
+      },
+      fillColor: '#8fe8f5',
+      blendMode: BlendMode.SoftLight,
+      opacity: swimmerLifeTuning.INTERNAL_RIPPLE_OPACITY_MAX,
+      position: { x: 0, y: meshHeight * 0.28 },
+    });
+  }
 
   if (skin.feature) {
     const featureSize = getFeatureMeshSize(skin.feature, meshWidth);
