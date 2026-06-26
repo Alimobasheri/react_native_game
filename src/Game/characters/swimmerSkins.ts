@@ -65,6 +65,8 @@ export type SwimmerSkinDefinition = {
   readonly feature?: SwimmerSkinFeatureLayer;
   /** When true, crest uses bottom-anchored bend spring instead of face lag. */
   readonly crestAccessory?: boolean;
+  /** Upright stalk bend (aqua-sprout) vs side-combed fringe bob (kelp-drifter). */
+  readonly crestAccessoryStyle?: 'upright' | 'sideFringe';
   /** Masked procedural motion inside the body rect (layer between body and feature). */
   readonly internalMotion?: SwimmerInternalMotionType;
   /** Tiny feature blink / pulse animation on the feature layer. */
@@ -119,6 +121,7 @@ export const AQUA_SPROUT_SKIN: SwimmerSkinDefinition = {
   /** Crest base (sprite bottom) aligned to body mesh top — not face-centered like goggles. */
   accessoryRestOffsetYRatio: -0.68,
   crestAccessory: true,
+  crestAccessoryStyle: 'upright',
   internalMotion: 'ripple',
   blinkType: 'tinyDotBlink',
   feature: {
@@ -140,13 +143,14 @@ export const KELP_DRIFTER_SKIN: SwimmerSkinDefinition = {
   accessoryImageAspect: 438 / 407,
   /** Legacy fallback — crest anchor layout overrides placement when crestAccessory. */
   accessoryRestOffsetYRatio: -0.68,
-  /** Hair root at bottom-center of sprite bbox. */
+  /** Aligner-tuned anchor on hair sprite (red dot) — do not change without aligner. */
   accessoryAnchorXRatio: 1 / 2,
   accessoryAnchorYRatio: 407 / 407,
-  /** Derived from visual overlay placement (aligner output). */
+  /** Aligner-tuned attach on body (green dot). */
   accessoryAttachXRatio: 0.209,
   accessoryAttachYRatio: -0.0025,
   crestAccessory: true,
+  crestAccessoryStyle: 'sideFringe',
   /** Body art includes internal kelp strands — no procedural fill overlay. */
   internalMotion: 'none',
   blinkType: 'sleepyBlink',
@@ -344,8 +348,8 @@ const buildInternalMotionLayer = (
       width: bandSize.width,
       height: bandSize.height,
     },
-    fillColor: '#8fe8f5',
-    blendMode: BlendMode.SoftLight,
+    fillColor: '#c8fbff',
+    blendMode: BlendMode.Screen,
     opacity: swimmerLifeTuning.INTERNAL_RIPPLE_OPACITY_MAX,
     clipToGroupBounds: true,
     position: { x: 0, y: meshHeight * 0.28 },

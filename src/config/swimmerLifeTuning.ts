@@ -11,12 +11,12 @@ export const swimmerLifeTuning = {
   BLINK_CLOSED_SCALE_Y: 0.18,
   /** Full upward ripple cycle duration inside the body rect. */
   INTERNAL_RIPPLE_CYCLE_SEC: 3.4,
-  INTERNAL_RIPPLE_OPACITY_MIN: 0.06,
-  INTERNAL_RIPPLE_OPACITY_MAX: 0.26,
+  INTERNAL_RIPPLE_OPACITY_MIN: 0.9,
+  INTERNAL_RIPPLE_OPACITY_MAX: 0.9,
   /** Ripple band height as a fraction of body mesh height. */
-  INTERNAL_RIPPLE_BAND_HEIGHT_RATIO: 0.14,
+  INTERNAL_RIPPLE_BAND_HEIGHT_RATIO: 0.3,
   /** Ripple band width as a fraction of body mesh width. */
-  INTERNAL_RIPPLE_BAND_WIDTH_RATIO: 0.72,
+  INTERNAL_RIPPLE_BAND_WIDTH_RATIO: 0.82,
   /** Vertical travel span as a fraction of body mesh height (lower → upper body). */
   INTERNAL_RIPPLE_TRAVEL_RATIO: 0.62,
   /** Kelp Drifter — slow horizontal strand sway inside the body. */

@@ -27,6 +27,7 @@ export type SwimmerEntityVisualResult = {
 
 export type SwimmerEntityVisualOptions = {
   crestMode?: boolean;
+  crestAccessoryStyle?: 'upright' | 'sideFringe';
   crestLayerWidth?: number;
   crestLayerHeight?: number;
   crestAnchorXRatio?: number;
@@ -79,6 +80,7 @@ export const updateSwimmerEntityVisuals = (
     crestLayerWidth: options.crestLayerWidth,
     crestAnchorXRatio: options.crestAnchorXRatio,
     crestAnchorYRatio: options.crestAnchorYRatio,
+    crestAccessoryStyle: options.crestAccessoryStyle,
   };
 
   nextAccessoryState = updateSecondaryAccessory(
@@ -94,7 +96,8 @@ export const updateSwimmerEntityVisuals = (
       profile.secondaryItemType,
       nextAccessoryState,
       pivotImpactSpeed,
-      options.crestMode === true
+      options.crestMode === true,
+      options.crestAccessoryStyle ?? 'upright'
     );
     nextAccessoryState = updateSecondaryAccessory(
       profile.secondaryItemType,

@@ -205,6 +205,7 @@ export const SwimmerEntityVisualSystem: System = {
         isPinned,
         {
           crestMode: skin.crestAccessory === true,
+          crestAccessoryStyle: skin.crestAccessoryStyle ?? 'upright',
           crestLayerWidth: accessoryBaseSize.width * (locomotion.meshScaleX ?? 1),
           crestLayerHeight: accessoryBaseSize.height * meshScaleY,
           crestAnchorXRatio: skin.accessoryAnchorXRatio,

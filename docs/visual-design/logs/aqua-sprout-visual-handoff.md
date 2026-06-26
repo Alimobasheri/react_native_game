@@ -11,7 +11,7 @@
 | Item | State |
 |------|--------|
 | Assets | `assets/swimmer/characters/aqua-sprout/` — body 331×613, hair 242×228, eyes 250×50 |
-| Kelp Drifter assets | `assets/swimmer/characters/kelp-drifter/` — interim copies of aqua-sprout art (replace with green-teal art) |
+| Kelp Drifter assets | `assets/swimmer/characters/kelp-drifter/` — body 330×607, hair 438×407, eyes 188×22 |
 | Asset registry | `src/assets/swimmerCharacters.ts` — aqua-sprout + kelp-drifter + goggled keys |
 | Skin def | `src/Game/characters/swimmerSkins.ts` — `AQUA_SPROUT_SKIN`, `KELP_DRIFTER_SKIN`, default aqua-sprout |
 | Render today | **4 layers:** body → internal overlay → eyes → hair |
@@ -21,14 +21,17 @@
 | Eye blink | `swimmerFeatureBlink.ts` — `tinyDotBlink` + `sleepyBlink` (kelp drifter) |
 | Internal overlay | `swimmerInternalRipple.ts` (aqua) · `swimmerInternalKelpSway.ts` (kelp) |
 | Internal clip/blend | `clipToGroupBounds` on internal layers + `blendMode` on fill path in `renderSystem.ts` |
+| Aqua ripple visibility | Screen blend, `#c8fbff`, opacity 0.16–0.48, wider band (0.82×0.2 mesh) |
 | Crest stalk skew | `laggingSpringCrest.ts` — stalk bend → `skewX`, tip → `angle`; `RenderLayerData.skewX` |
+| Side-fringe hair | `laggingSpringSideFringe.ts` — strand-tip skew bob at aligner anchor (kelp-drifter) |
+| Crest styles | `crestAccessoryStyle: 'upright' \| 'sideFringe'` on skin def |
 | Life tuning | `src/config/swimmerLifeTuning.ts` |
 | Pinned crest | `getPinnedCrestRestOffsetY` + `PINNED_CREST_EXTRA_SCALE_Y: 0.72` in `SwimmerEntityVisualSystem` |
 | Crest bend | `laggingSpringCrest.ts` — X lag + angle bend + wind lift + quadratic bend curve; bottom-anchor |
-| Crest tuning | `secondaryItemTuning.ts` — `CREST_STALK_SKEW_BLEND`, `CREST_STALK_SKEW_GAIN` |
+| Crest tuning | `secondaryItemTuning.ts` — `CREST_STALK_SKEW_BLEND`, `CREST_STALK_SKEW_GAIN`, side-fringe constants |
 | Motion today | Crest mode routed when `skin.crestAccessory`; blink/ripple/kelpSway in `SwimmerEntityVisualSystem` |
 | Storybook preload | `Swimmer.stories.tsx`, `RNTGE.stories.tsx`, `ObstacleView-rntge.stories.tsx` |
-| Tests | `swimmerSkins.test.ts` — 10 passing; `swimmerLifeAnimation.test.ts` — 4 passing; `laggingSpringCrest.test.ts` — 3 passing |
+| Tests | `swimmerSkins.test.ts` — 10 passing; `swimmerLifeAnimation.test.ts` — 4 passing; `laggingSpringCrest.test.ts` — 3 passing; `laggingSpringSideFringe.test.ts` — 3 passing |
 
 ## Not done (future)
 
@@ -43,8 +46,11 @@
 
 ### C — Remaining skins
 
-- `kelp-drifter` wired (interim art); 9 canonical skins not started (`bubble_bean`, `moss_chunk`, …)
-- Replace kelp-drifter placeholder art with green-teal body + swept fringe
+- `kelp-drifter` wired with side-fringe hair animation; 9 canonical skins not started (`bubble_bean`, `moss_chunk`, …)
+
+### D — Kelp internal body sway (optional)
+
+- Kelp body art may include strands; procedural `kelpSway` overlay still available but `internalMotion: 'none'` today
 
 ## Key paths
 
@@ -56,6 +62,7 @@ src/Game/characters/swimmerFeatureBlink.ts
 src/Game/characters/swimmerInternalRipple.ts
 src/Game/characters/swimmerInternalKelpSway.ts
 src/Game/characters/accessories/laggingSpringCrest.ts
+src/Game/characters/accessories/laggingSpringSideFringe.ts
 src/Game/ecs-components/Swimmer.ts
 src/systems/VisualSystem/SwimmerEntityVisualSystem.ts
 src/config/secondaryItemTuning.ts
@@ -79,12 +86,11 @@ Read docs/visual-design/logs/aqua-sprout-visual-handoff.md and the AI context bl
 
 Task: Swimmer visual follow-up.
 
-Done: aqua-sprout + kelp-drifter scaffolds, internal clip/blend, crest skew, ripple + kelpSway + sleepyBlink.
+Done: aqua-sprout ripple boosted (Screen blend), kelp-drifter sideFringe hair (left-root anchor + tip skew bob).
 
 Next:
-1. Kelp Drifter final art (green-teal body, swept fringe, sleepy eyes)
-2. Body-alpha mask for internal overlay (optional)
-3. Next skin: bubble_bean or moss_chunk
+1. Body-alpha mask for internal overlay (optional)
+2. Next skin: bubble_bean or moss_chunk
 
 Match swimmerSkins / SwimmerEntityVisualSystem patterns. Engine changes only in renderSystem when needed.
 ```

@@ -9,7 +9,10 @@ import { SwimmerGameComp } from './src/containers/ReactNativeSkiaGameEngine/Swim
 // import { Game } from '@/containers/Game/index-rnsge';
 import { WATER_SURFACE_FROM_CONTAINER_BOTTOM_FRACTION } from './src/Layout';
 import { sideWallTuning } from './src/config/swimmerTuning';
-import { KELP_DRIFTER_SKIN_ID } from './src/Game/characters/swimmerSkins';
+import {
+  KELP_DRIFTER_SKIN_ID,
+  AQUA_SPROUT_SKIN_ID,
+} from './src/Game/characters/swimmerSkins';
 LogBox.ignoreAllLogs();
 
 function App() {

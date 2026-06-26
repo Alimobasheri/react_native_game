@@ -1,3 +1,4 @@
+import { BlendMode } from '@shopify/react-native-skia';
 import {
   AQUA_SPROUT_SKIN,
   AQUA_SPROUT_SKIN_ID,
@@ -63,7 +64,8 @@ describe('swimmerSkins', () => {
 
     expect(layers).toHaveLength(4);
     expect(layers[0].image).toBe(SWIMMER_CHARACTER_IMAGE.aquaSproutBody);
-    expect(layers[1].fillColor).toBe('#8fe8f5');
+    expect(layers[1].fillColor).toBe('#c8fbff');
+    expect(layers[1].blendMode).toBe(BlendMode.Screen);
     expect(layers[1].clipToGroupBounds).toBe(true);
     expect(layers[2].image).toBe(SWIMMER_CHARACTER_IMAGE.aquaSproutEyes);
     expect(layers[3].image).toBe(SWIMMER_CHARACTER_IMAGE.aquaSproutHair);
@@ -114,6 +116,7 @@ describe('swimmerSkins', () => {
     const overlayCenterOffsetY = rest.y / meshHeight;
     expect(overlayCenterOffsetX).toBeCloseTo(0.209, 3);
     expect(overlayCenterOffsetY).toBeCloseTo(-0.3897, 3);
+    expect(KELP_DRIFTER_SKIN.crestAccessoryStyle).toBe('sideFringe');
     expect(accessorySize.width / meshWidth).toBeCloseTo(1.5, 5);
   });
 
