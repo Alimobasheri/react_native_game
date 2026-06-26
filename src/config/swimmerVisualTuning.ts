@@ -20,7 +20,7 @@ export const swimmerVisualTuning = {
   PINNED_COLLIDER_HEIGHT_TO_WIDTH_RATIO: 1.65,
 
   /** Open-water lean caps per combo tier (degrees). Still clamped by clearance. */
-  OPEN_WATER_MAX_ANGLE_TIER: [42, 55, 66] as const,
+  OPEN_WATER_MAX_ANGLE_TIER: [80, 85, 90] as const,
   /** Max lean when clearance is at or below narrow-gap threshold. */
   NARROW_GAP_MAX_ANGLE_DEG: 14,
   /** Minimum lean at rest / low speed. */
