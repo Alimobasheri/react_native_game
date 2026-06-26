@@ -285,6 +285,17 @@ export const getCrestRestPosition = (
   };
 };
 
+/** Pinned crest: align sprite bottom to squashed body top — prevents ceiling clip. */
+export const getPinnedCrestRestOffsetY = (
+  meshHeight: number,
+  bodyScaleY: number,
+  crestHeight: number
+): number => {
+  'worklet';
+  const bodyTopY = -(meshHeight * bodyScaleY) / 2;
+  return bodyTopY - crestHeight / 2;
+};
+
 /** Pinned crest: align sprite anchor to squashed body top — prevents ceiling clip. */
 export const getPinnedCrestRestPosition = (
   skin: SwimmerSkinDefinition,
@@ -301,19 +312,8 @@ export const getPinnedCrestRestPosition = (
     const anchor = getCrestAnchorLocalOffset(skin, crestWidth, crestHeight);
     return { x: attachX - anchor.x, y: bodyTopY - anchor.y };
   }
-  const restY = getPinnedCrestRestOffsetY(meshHeight, bodyScaleY, crestHeight);
-  return { x: 0, y: restY };
-};
-
-/** Pinned crest: align sprite bottom to squashed body top — prevents ceiling clip. */
-export const getPinnedCrestRestOffsetY = (
-  meshHeight: number,
-  bodyScaleY: number,
-  crestHeight: number
-): number => {
-  'worklet';
   const bodyTopY = -(meshHeight * bodyScaleY) / 2;
-  return bodyTopY - crestHeight / 2;
+  return { x: 0, y: bodyTopY - crestHeight / 2 };
 };
 
 const buildInternalMotionLayer = (

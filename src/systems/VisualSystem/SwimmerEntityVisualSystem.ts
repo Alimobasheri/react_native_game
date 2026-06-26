@@ -20,7 +20,6 @@ import {
   getCrestRestPosition,
   getFeatureMeshSize,
   getFeatureRestOffsetY,
-  getPinnedCrestRestOffsetY,
   getPinnedCrestRestPosition,
   getSwimmerAccessoryLayerIndex,
   getSwimmerFeatureLayerIndex,
