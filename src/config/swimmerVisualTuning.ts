@@ -8,13 +8,9 @@ export const swimmerVisualTuning = {
   VISUAL_WIDTH_COLUMN_RATIO: 0.65,
   VISUAL_HEIGHT_TO_WIDTH_RATIO: 1.8,
 
-  /** Compact upright core for gap navigation — shorter than visual mesh. */
-  COLLIDER_WIDTH_COLUMN_RATIO: 0.48,
-  COLLIDER_HEIGHT_TO_WIDTH_RATIO: 0.88,
-
   /**
-   * Fair ceiling-contact bounds while pinned — taller than navigation collider,
-   * never tied to visual squash scale.
+   * Fair ceiling-contact bounds while pinned — taller than the live body box,
+   * never tied to visual squash scale. Normal navigation uses the rendered body.
    */
   PINNED_COLLIDER_WIDTH_COLUMN_RATIO: 0.48,
   PINNED_COLLIDER_HEIGHT_TO_WIDTH_RATIO: 1.65,

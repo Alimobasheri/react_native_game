@@ -289,13 +289,6 @@ export const SwimmerPhysicsSystem: System = {
         swimmerComponent.meshBaseHeight ??
         swimmerVisualWidth * swimmerVisualTuning.VISUAL_HEIGHT_TO_WIDTH_RATIO;
       const columnWidth = containerData.width / LAYOUT_CONSTANTS.COLUMNS;
-      const navColliderExtents = getSwimmerColliderExtents(columnWidth, false);
-      const pinnedColliderExtents = getSwimmerColliderExtents(columnWidth, true);
-      const colliderExtents = wasPinnedFromAbove
-        ? pinnedColliderExtents
-        : navColliderExtents;
-      const collisionHalfWidth = colliderExtents.halfWidth;
-      const collisionHalfHeight = colliderExtents.halfHeight;
       const swimmerHeightForBuoyancy = swimmerVisualHeight;
 
       if (depth > 0) {
@@ -330,6 +323,28 @@ export const SwimmerPhysicsSystem: System = {
       let swimmerVelocityX = swimmerComponent.velocityX ?? 0;
       let locomotion = swimmerComponent.locomotion;
       let kinematicsAngleRad = 0;
+
+      const colliderInput = {
+        baseWidth: swimmerVisualWidth,
+        baseHeight: swimmerVisualHeight,
+        meshScaleX: locomotion.meshScaleX,
+        meshScaleY: locomotion.meshScaleY,
+        columnWidth,
+      };
+      const navColliderExtents = getSwimmerColliderExtents({
+        ...colliderInput,
+        ceilingContact: false,
+      });
+      const pinnedColliderExtents = getSwimmerColliderExtents({
+        ...colliderInput,
+        ceilingContact: true,
+      });
+      const colliderExtents = wasPinnedFromAbove
+        ? pinnedColliderExtents
+        : navColliderExtents;
+      const collisionHalfWidth = colliderExtents.halfWidth;
+      const collisionHalfHeight = colliderExtents.halfHeight;
+
       const flowVelocityNorm = Math.max(
         -1,
         Math.min(1, waterData.flowVelocity ?? waterData.forceDirection ?? 0)
