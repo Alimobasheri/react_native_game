@@ -34,8 +34,10 @@ import {
   SwimmerComponentName,
 } from '@/Game/ecs-components/Swimmer';
 import { createDefaultSwimmerLocomotion } from '@/Game/characters/swimmerLocomotionDefaults';
+import { buildSwimmerRenderStack } from '@/Game/characters/buildSwimmerRenderStack';
+import { mapLifeToCompositeUniforms } from '@/Game/characters/life/swimmerLifeUniforms';
+import { createInternalLifeState } from '@/Game/characters/life/swimmerLifeTypes';
 import {
-  buildSwimmerSkinRenderLayers,
   getSwimmerSkin,
 } from '@/Game/characters/swimmerSkins';
 import {
@@ -186,6 +188,7 @@ const restartGameplay = (
           s.locomotion = {
             ...createDefaultSwimmerLocomotion(),
             profileId: skin.profileId,
+            internalLifeState: createInternalLifeState(),
           };
           s.waterSurfaceY = restY;
           s.isInInitialPhase = false;
@@ -213,11 +216,27 @@ const restartGameplay = (
             const baseHeight = swimmer.meshBaseHeight ?? render.shape.height;
             render.shape.width = baseWidth;
             render.shape.height = baseHeight;
-            render.renderLayers = buildSwimmerSkinRenderLayers(
-              skin,
+            const profile =
+              skin.internalMotion === 'kelpSway'
+                ? 'kelpSway'
+                : skin.internalMotion === 'ripple'
+                  ? 'ripple'
+                  : 'none';
+            const uniforms = mapLifeToCompositeUniforms(
+              profile,
+              0,
               baseWidth,
               baseHeight
             );
+            const stack = buildSwimmerRenderStack(
+              skin,
+              baseWidth,
+              baseHeight,
+              uniforms
+            );
+            render.compositeShader = stack.compositeShader;
+            render.renderLayers = stack.renderLayers;
+            render.renderPolicy = stack.renderPolicy;
           }
           render.isDirty = true;
         }

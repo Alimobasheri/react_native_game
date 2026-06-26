@@ -1,4 +1,3 @@
-import { BlendMode } from '@shopify/react-native-skia';
 import {
   AQUA_SPROUT_SKIN,
   AQUA_SPROUT_SKIN_ID,
@@ -8,8 +7,8 @@ import {
   getFeatureMeshSize,
   getFeatureRestOffsetY,
   getPinnedCrestRestOffsetY,
-  getPinnedCrestRestPosition,
   getSwimmerAccessoryLayerIndex,
+  getSwimmerFeatureLayerIndex,
   getSwimmerInternalLayerIndex,
   getSwimmerSkin,
   GOGGLED_SKIN,
@@ -17,6 +16,7 @@ import {
   KELP_DRIFTER_SKIN,
   KELP_DRIFTER_SKIN_ID,
 } from '../swimmerSkins';
+import { buildSwimmerRenderStack } from '../buildSwimmerRenderStack';
 import { SWIMMER_CHARACTER_IMAGE } from '@/assets/swimmerCharacters';
 import { GIGGLE_CRYSTAL_PROFILE_ID } from '../characterProfiles';
 
@@ -45,56 +45,62 @@ describe('swimmerSkins', () => {
     expect(AQUA_SPROUT_SKIN.profileId).toBe(GIGGLE_CRYSTAL_PROFILE_ID);
   });
 
-  it('builds body and accessory render layers from goggled skin art keys', () => {
+  it('builds legacy overlay layers for goggled skin (no body image layer)', () => {
     const layers = buildSwimmerSkinRenderLayers(GOGGLED_SKIN, 48, 120);
 
-    expect(layers).toHaveLength(2);
-    expect(layers[0].image).toBe(SWIMMER_CHARACTER_IMAGE.floaterGoggledBody);
-    expect(layers[1].image).toBe(SWIMMER_CHARACTER_IMAGE.floaterGoggledGoggles);
-    expect(layers[0].shape).toMatchObject({ width: 48, height: 120 });
-    expect(layers[1].position?.y).toBeLessThan(0);
+    expect(layers).toHaveLength(1);
+    expect(layers[0].image).toBe(SWIMMER_CHARACTER_IMAGE.floaterGoggledGoggles);
+    expect(layers[0].position?.y).toBeLessThan(0);
 
     const accessorySize = getAccessoryMeshSize(GOGGLED_SKIN, 48, 120);
-    expect(layers[1].shape).toMatchObject(accessorySize);
-    expect(getSwimmerAccessoryLayerIndex(GOGGLED_SKIN)).toBe(1);
+    expect(layers[0].shape).toMatchObject(accessorySize);
+    expect(getSwimmerAccessoryLayerIndex(GOGGLED_SKIN)).toBe(0);
   });
 
-  it('builds body, eyes, and hair crest layers from aqua-sprout skin art keys', () => {
-    const layers = buildSwimmerSkinRenderLayers(AQUA_SPROUT_SKIN, 48, 120);
+  it('builds eyes and hair overlay layers from aqua-sprout skin art keys', () => {
+    const stack = buildSwimmerRenderStack(AQUA_SPROUT_SKIN, 48, 120, {});
+    const layers = stack.renderLayers;
 
-    expect(layers).toHaveLength(4);
-    expect(layers[0].image).toBe(SWIMMER_CHARACTER_IMAGE.aquaSproutBody);
-    expect(layers[1].fillColor).toBe('#c8fbff');
-    expect(layers[1].blendMode).toBe(BlendMode.Screen);
-    expect(layers[1].clipToGroupBounds).toBe(true);
-    expect(layers[2].image).toBe(SWIMMER_CHARACTER_IMAGE.aquaSproutEyes);
-    expect(layers[3].image).toBe(SWIMMER_CHARACTER_IMAGE.aquaSproutHair);
-    expect(layers[0].shape).toMatchObject({ width: 48, height: 120 });
+    expect(layers).toHaveLength(2);
+    expect(layers[0].image).toBe(SWIMMER_CHARACTER_IMAGE.aquaSproutEyes);
+    expect(layers[1].image).toBe(SWIMMER_CHARACTER_IMAGE.aquaSproutHair);
+    expect(stack.compositeShader.childImages[0].imageKey).toBe(
+      SWIMMER_CHARACTER_IMAGE.aquaSproutBody
+    );
 
     const featureSize = getFeatureMeshSize(AQUA_SPROUT_SKIN.feature!, 48);
-    expect(layers[2].shape).toMatchObject(featureSize);
-    expect(layers[2].position?.y).toBe(
+    expect(layers[0].shape).toMatchObject(featureSize);
+    expect(layers[0].position?.y).toBe(
       getFeatureRestOffsetY(AQUA_SPROUT_SKIN.feature!, 120)
     );
-    expect(layers[2].position?.y).toBeLessThan(0);
+    expect(layers[0].position?.y).toBeLessThan(0);
 
     const accessorySize = getAccessoryMeshSize(AQUA_SPROUT_SKIN, 48, 120);
-    expect(layers[3].shape).toMatchObject(accessorySize);
-    expect(layers[3].position?.y).toBeLessThan(layers[2].position!.y!);
-    expect(getSwimmerInternalLayerIndex(AQUA_SPROUT_SKIN)).toBe(1);
-    expect(getSwimmerAccessoryLayerIndex(AQUA_SPROUT_SKIN)).toBe(3);
+    expect(layers[1].shape).toMatchObject(accessorySize);
+    expect(layers[1].position?.y).toBeLessThan(layers[0].position!.y!);
+    expect(getSwimmerInternalLayerIndex()).toBeNull();
+    expect(getSwimmerFeatureLayerIndex(AQUA_SPROUT_SKIN)).toBe(0);
+    expect(getSwimmerAccessoryLayerIndex(AQUA_SPROUT_SKIN)).toBe(1);
   });
 
-  it('builds body, eyes, and crest layers for kelp-drifter skin', () => {
-    const layers = buildSwimmerSkinRenderLayers(KELP_DRIFTER_SKIN, 48, 120);
+  it('builds eyes and crest overlay layers for kelp-drifter skin', () => {
+    const stack = buildSwimmerRenderStack(KELP_DRIFTER_SKIN, 48, 120, {});
+    const layers = stack.renderLayers;
 
-    expect(layers).toHaveLength(3);
-    expect(layers[0].image).toBe(SWIMMER_CHARACTER_IMAGE.kelpDrifterBody);
-    expect(layers[1].image).toBe(SWIMMER_CHARACTER_IMAGE.kelpDrifterEyes);
-    expect(layers[2].image).toBe(SWIMMER_CHARACTER_IMAGE.kelpDrifterHair);
-    expect(layers[2].position?.x).toBeGreaterThan(0);
-    expect(getSwimmerInternalLayerIndex(KELP_DRIFTER_SKIN)).toBeNull();
-    expect(getSwimmerAccessoryLayerIndex(KELP_DRIFTER_SKIN)).toBe(2);
+    expect(layers).toHaveLength(2);
+    expect(layers[0].image).toBe(SWIMMER_CHARACTER_IMAGE.kelpDrifterEyes);
+    expect(layers[1].image).toBe(SWIMMER_CHARACTER_IMAGE.kelpDrifterHair);
+    expect(layers[1].position?.x).toBeGreaterThan(0);
+    expect(getSwimmerFeatureLayerIndex(KELP_DRIFTER_SKIN)).toBe(0);
+    expect(getSwimmerAccessoryLayerIndex(KELP_DRIFTER_SKIN)).toBe(1);
+  });
+
+  it('uses separate motion pivot for kelp-drifter side-fringe hair', () => {
+    expect(KELP_DRIFTER_SKIN.accessoryAnchorXRatio).toBe(0.5);
+    expect(KELP_DRIFTER_SKIN.accessoryAnchorYRatio).toBe(1);
+    expect(KELP_DRIFTER_SKIN.accessoryMotionAnchorXRatio).toBeCloseTo(0.18, 5);
+    expect(KELP_DRIFTER_SKIN.accessoryMotionAnchorYRatio).toBeCloseTo(0.48, 5);
+    expect(KELP_DRIFTER_SKIN.internalMotion).toBe('kelpSway');
   });
 
   it('places kelp-drifter hair at aligner-tuned crest rest position', () => {

@@ -1,8 +1,8 @@
 # Log: Aqua Sprout visual wiring (handoff)
 
-**Updated:** 2025-06-25  
-**Skin:** `aqua-sprout` (default) · `kelp-drifter` (scaffold)  
-**Scope of this log:** hair position/animation + eyes + internal life — what exists, what's next.
+**Updated:** 2026-06-26  
+**Skin:** `aqua-sprout` (default) · `kelp-drifter` (wired)  
+**Scope:** compositeShader internal life (replaces fillColor band overlay).
 
 ---
 
@@ -10,30 +10,35 @@
 
 | Item | State |
 |------|--------|
-| Assets | `assets/swimmer/characters/aqua-sprout/` — body 331×613, hair 242×228, eyes 250×50 |
-| Kelp Drifter assets | `assets/swimmer/characters/kelp-drifter/` — body 330×607, hair 438×407, eyes 188×22 |
-| Asset registry | `src/assets/swimmerCharacters.ts` — aqua-sprout + kelp-drifter + goggled keys |
-| Skin def | `src/Game/characters/swimmerSkins.ts` — `AQUA_SPROUT_SKIN`, `KELP_DRIFTER_SKIN`, default aqua-sprout |
-| Render today | **4 layers:** body → internal overlay → eyes → hair |
-| Eyes layout | `featureWidthRatio: 0.58`, `featureRestOffsetYRatio: -0.28`, aspect 250/50 |
-| Hair layout | `accessoryWidthRatio: 0.72`, `accessoryRestOffsetYRatio: -0.68` — crest **sprite bottom** at body mesh top |
-| Layer indices | body=0, internal=1, feature=2, crest=3 — use `getSwimmer*LayerIndex(skin)` helpers |
-| Eye blink | `swimmerFeatureBlink.ts` — `tinyDotBlink` + `sleepyBlink` (kelp drifter) |
-| Internal overlay | `swimmerInternalRipple.ts` (aqua) · `swimmerInternalKelpSway.ts` (kelp) |
-| Internal clip/blend | `clipToGroupBounds` on internal layers + `blendMode` on fill path in `renderSystem.ts` |
-| Aqua ripple visibility | Screen blend, `#c8fbff`, opacity 0.16–0.48, wider band (0.82×0.2 mesh) |
-| Crest stalk skew | `laggingSpringCrest.ts` — stalk bend → `skewX`, tip → `angle`; `RenderLayerData.skewX` |
-| Side-fringe hair | `laggingSpringSideFringe.ts` — strand-tip skew bob at aligner anchor (kelp-drifter) |
-| Crest styles | `crestAccessoryStyle: 'upright' \| 'sideFringe'` on skin def |
-| Life tuning | `src/config/swimmerLifeTuning.ts` |
-| Pinned crest | `getPinnedCrestRestOffsetY` + `PINNED_CREST_EXTRA_SCALE_Y: 0.72` in `SwimmerEntityVisualSystem` |
-| Crest bend | `laggingSpringCrest.ts` — X lag + angle bend + wind lift + quadratic bend curve; bottom-anchor |
-| Crest tuning | `secondaryItemTuning.ts` — `CREST_STALK_SKEW_BLEND`, `CREST_STALK_SKEW_GAIN`, side-fringe constants |
-| Motion today | Crest mode routed when `skin.crestAccessory`; blink/ripple/kelpSway in `SwimmerEntityVisualSystem` |
-| Storybook preload | `Swimmer.stories.tsx`, `RNTGE.stories.tsx`, `ObstacleView-rntge.stories.tsx` |
-| Tests | `swimmerSkins.test.ts` — 10 passing; `swimmerLifeAnimation.test.ts` — 4 passing; `laggingSpringCrest.test.ts` — 3 passing; `laggingSpringSideFringe.test.ts` — 3 passing |
+| Render stack | **compositeShader** (body + internal motion) → eyes (layer 0) → hair (layer 1) |
+| Bootstrap | `SwimmerRenderBootstrapSystem` builds stack on UI worklet frame 1 |
+| Life | `SwimmerLifeSystem` updates `compositeShader.uniforms` each frame |
+| SKSL | `src/Shaders/SwimmerInternal/swimmerInternalComposite.ts` — `uDebugMode` 0–3 |
+| Engine | `compositeShader` + `RenderPolicy.AnimatedComposite` — no picture cache |
+| Debug story | `SwimmerInternalDebug` in `Swimmer.stories.tsx` — `lifeDebugMode` arg |
+| Layer indices | eyes=0, hair=1 — `getSwimmerInternalLayerIndex()` always null |
+| Kelp profile | `uMotionKind=1` horizontal shear in composite shader |
+| Production tune | `INTERNAL_RIPPLE_INTENSITY: 0.2`, kelp `0.22` |
 
-## Not done (future)
+## Device verification (manual)
+
+Run Storybook `SwimmerInternalDebug` on device with yellow background:
+
+| Gate | `lifeDebugMode` | Pass criterion |
+|------|-----------------|----------------|
+| G0 | 3 | Body art via shader |
+| G1 | 1 | White jelly silhouette |
+| G2 | 2 | UV bands inside silhouette only |
+| G3 | 0 | Subtle alive motion |
+| G4 | — | Record 3s screen video |
+
+## Deprecated (removed)
+
+- `buildInternalMotionLayer` fillColor bands
+- JS-thread `buildSwimmerSkinRenderLayers` on entity create
+- `ensureSwimmerSkinRenderLayers` fill-layer repair
+
+## Legacy reference (pre-composite)
 
 ### A — Body-alpha mask (optional polish)
 
@@ -46,11 +51,7 @@
 
 ### C — Remaining skins
 
-- `kelp-drifter` wired with side-fringe hair animation; 9 canonical skins not started (`bubble_bean`, `moss_chunk`, …)
-
-### D — Kelp internal body sway (optional)
-
-- Kelp body art may include strands; procedural `kelpSway` overlay still available but `internalMotion: 'none'` today
+- 9 canonical skins not started (`bubble_bean`, `moss_chunk`, …)
 
 ## Key paths
 
@@ -76,6 +77,7 @@ docs/visual-design/swimmer-character-system.md
 - Game task: do **not** edit `RNTGE.tsx` or engine globals (`.cursor/rules/rntge-swimmer-game.mdc`)
 - Renderer: `renderSystem.ts` draws `renderLayers` with per-layer `position`, `angle`, `skewX`, `opacity`, `clipToGroupBounds`, `blendMode`
 - Hair sprite: visual anchor at **bottom** of image; placement uses **layer rect center** → offset math must account for `hairHeight/2`
+- Side-fringe skins: use `accessoryMotionAnchorXRatio/Y` for skew pinning; keep `accessoryAnchorXRatio/Y` for static aligner placement
 
 ---
 
@@ -86,7 +88,7 @@ Read docs/visual-design/logs/aqua-sprout-visual-handoff.md and the AI context bl
 
 Task: Swimmer visual follow-up.
 
-Done: aqua-sprout ripple boosted (Screen blend), kelp-drifter sideFringe hair (left-root anchor + tip skew bob).
+Done: kelp hair motion pivot split (left-root pinned during skew), kelpSway internal overlay, aqua ripple contrast (Overlay blend).
 
 Next:
 1. Body-alpha mask for internal overlay (optional)

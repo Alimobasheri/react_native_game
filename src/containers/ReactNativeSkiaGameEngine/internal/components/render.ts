@@ -66,6 +66,28 @@ export interface ShaderInfo {
   uniforms: Record<string, number | number[]>;
 }
 
+/** How renderSystem caches and redraws this entity each frame. */
+export enum RenderPolicy {
+  StaticPicture = 'staticPicture',
+  LiveGroup = 'liveGroup',
+  AnimatedComposite = 'animatedComposite',
+}
+
+export type CompositeShaderChildImage = {
+  imageKey: string;
+  tileModeX?: 'repeat' | 'clamp';
+  tileModeY?: 'repeat' | 'clamp';
+};
+
+export type CompositeShaderInfo = {
+  key: string;
+  uniforms: Record<string, number | number[]>;
+  /** Flat float uniform keys in SKSL declaration order (excluding `uniform shader`). */
+  uniformKeys: readonly string[];
+  /** Child image shaders — order matches `uniform shader` declarations in SKSL. */
+  childImages: CompositeShaderChildImage[];
+};
+
 export interface SpriteInfo {
   frameWidth: number;
   frameHeight: number;
@@ -169,12 +191,15 @@ export interface RenderComponentData {
    */
   shaderCacheStatic?: boolean;
   /**
-   * When set, entity renders as a composed group (Skia Group analogue):
-   * all layers are recorded once into one SkPicture in parent-local space.
-   * Parent `shape` (rectangle) defines recording bounds (width × height).
-   * Top-level `image` / `fillColor` / `shader` are ignored when renderLayers is non-empty.
-   *
-   * v1: flat layers only; animated layer sprites rebuild the whole group picture.
+   * Masked multi-pass body shader drawn first in local space, then `renderLayers` on top.
+   * Mutually exclusive with top-level `shader` (water entities use `shader` alone).
+   */
+  compositeShader?: CompositeShaderInfo;
+  /** Controls picture caching. `AnimatedComposite` never picture-caches. */
+  renderPolicy?: RenderPolicy;
+  /**
+   * Overlay image layers (eyes, crest) drawn above `compositeShader`.
+   * When `compositeShader` is set, layers must not include the body image.
    */
   renderLayers?: RenderLayerData[];
   /**

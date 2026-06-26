@@ -84,18 +84,15 @@ export const createSystemManager = (
     const ecs = global._RNTGE_.ecs;
     if (!ecs) return;
     const events = eventQueue.readEvents();
-    // console.log(systems.map((sys) => sys?.name));
-    for (let i = 0; i < systems.length; i++) {
-      const system = systems[i];
-      if (!system) continue;
 
+    const runOneSystem = (system: System) => {
       const hasRequiredEvents = system.requiredEvents
         ? system.requiredEvents.some((event: string) =>
-          events.some((e) => e.type === event)
-        )
+            events.some((e) => e.type === event)
+          )
         : true;
 
-      if (!hasRequiredEvents) continue;
+      if (!hasRequiredEvents) return;
 
       const entities = system.requiredComponents
         ? ecs.getEntitiesWithComponents(system.requiredComponents)
@@ -108,6 +105,18 @@ export const createSystemManager = (
         ecs,
         dimensions,
       });
+    };
+
+    // INVARIANT: renderSystem must run last — all game systems mutate render state first.
+    for (let i = 0; i < systems.length; i++) {
+      const system = systems[i];
+      if (!system || system.name === 'renderSystem') continue;
+      runOneSystem(system);
+    }
+    for (let i = 0; i < systems.length; i++) {
+      const system = systems[i];
+      if (!system || system.name !== 'renderSystem') continue;
+      runOneSystem(system);
     }
   };
 

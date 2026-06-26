@@ -8,6 +8,8 @@ import { createPanComponent } from '@/containers/ReactNativeSkiaGameEngine/inter
 import { createSwimmerComponent } from '@/Game/ecs-components/Swimmer';
 import { useAddSystem } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useAddSystem/useAddSystem';
 import { SwimmerPhysicsSystem } from '@/systems/PhysicsSystem/SwimmerPhysicsSystem';
+import { SwimmerRenderBootstrapSystem } from '@/systems/VisualSystem/SwimmerRenderBootstrapSystem';
+import { SwimmerLifeSystem } from '@/Game/characters/life/SwimmerLifeSystem';
 import { SwimmerEntityVisualSystem } from '@/systems/VisualSystem/SwimmerEntityVisualSystem';
 import { SwimmerWaterContactFxSystem } from '@/systems/VisualSystem/SwimmerWaterContactFxSystem';
 import { LAYOUT_CONSTANTS } from '@/Layout';
@@ -19,11 +21,11 @@ import {
 import { SwimmerRenderLayer } from '@/Game/render/swimmerRenderLayers';
 import { createDefaultSwimmerLocomotion } from '@/Game/characters/swimmerLocomotionDefaults';
 import {
-  buildSwimmerSkinRenderLayers,
   DEFAULT_SWIMMER_SKIN_ID,
   getSwimmerSkin,
   type SwimmerSkinId,
 } from '@/Game/characters/swimmerSkins';
+import type { SwimmerLifeDebugMode } from '@/Game/characters/life/swimmerLifeTypes';
 import '@/Game/characters/characterProfiles';
 import { FC, useMemo } from 'react';
 
@@ -58,6 +60,10 @@ export const SwimmerView: FC<{
   disableGameOver?: boolean;
   /** Visual skin id (defaults to goggled). */
   skinId?: SwimmerSkinId;
+  /** Storybook: composite shader debug gate G0–G3. */
+  lifeDebugMode?: SwimmerLifeDebugMode;
+  /** Storybook: override internal motion intensity. */
+  internalIntensity?: number;
 }> = ({
   x: xProp,
   y,
@@ -69,6 +75,8 @@ export const SwimmerView: FC<{
   useColumnControl = false,
   disableGameOver = false,
   skinId = DEFAULT_SWIMMER_SKIN_ID,
+  lifeDebugMode,
+  internalIntensity,
 }) => {
   const skin = useMemo(() => getSwimmerSkin(skinId), [skinId]);
 
@@ -104,6 +112,8 @@ export const SwimmerView: FC<{
     const locomotion = {
       ...createDefaultSwimmerLocomotion(),
       profileId: skin.profileId,
+      ...(lifeDebugMode != null ? { lifeDebugMode } : {}),
+      ...(internalIntensity != null ? { internalIntensity } : {}),
     };
 
     const base = [
@@ -141,11 +151,6 @@ export const SwimmerView: FC<{
         visible: true,
         renderLayer: SwimmerRenderLayer.Swimmer,
         origin: RenderSortOrigin.Bottom,
-        renderLayers: buildSwimmerSkinRenderLayers(
-          skin,
-          swimmerWidth,
-          swimmerHeight
-        ),
       }),
     ];
     const panComponent = createPanComponent({
@@ -198,11 +203,15 @@ export const SwimmerView: FC<{
     swimmerWidth,
     swimmerHeight,
     skin,
+    lifeDebugMode,
+    internalIntensity,
   ]);
 
   useAddEntity({ components });
 
   useAddSystem({ system: SwimmerPhysicsSystem });
+  useAddSystem({ system: SwimmerRenderBootstrapSystem });
+  useAddSystem({ system: SwimmerLifeSystem });
   useAddSystem({ system: SwimmerEntityVisualSystem });
   useAddSystem({ system: SwimmerWaterContactFxSystem });
 

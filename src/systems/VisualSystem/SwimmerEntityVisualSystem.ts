@@ -2,7 +2,6 @@ import { System } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/syst
 import {
   RenderComponentData,
   RenderComponentName,
-  RenderLayerData,
   ShapeTypes,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import { getCharacterProfileForSwimmer } from '@/Game/characters/swimmerKinematicsController';
@@ -23,23 +22,15 @@ import {
   getPinnedCrestRestPosition,
   getSwimmerAccessoryLayerIndex,
   getSwimmerFeatureLayerIndex,
-  getSwimmerInternalLayerIndex,
   getSwimmerSkin,
   skinUsesCrestAnchorLayout,
 } from '@/Game/characters/swimmerSkins';
 import { updateFeatureBlink } from '@/Game/characters/swimmerFeatureBlink';
 import {
-  getInternalRippleBandSize,
-  updateInternalRipple,
-} from '@/Game/characters/swimmerInternalRipple';
-import {
-  getInternalKelpSwayBandSize,
-  updateInternalKelpSway,
-} from '@/Game/characters/swimmerInternalKelpSway';
-import {
   SwimmerComponentData,
   SwimmerComponentName,
 } from '@/Game/ecs-components/Swimmer';
+import type { RenderLayerData } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 
 /** Extra Y squash on crest when pinned — keeps tuft inside ceiling gap. */
 const PINNED_CREST_EXTRA_SCALE_Y = 0.72;
@@ -93,6 +84,26 @@ const scaleLayerRect = (
   return dirty;
 };
 
+const syncCompositeMeshSize = (
+  render: RenderComponentData,
+  meshW: number,
+  meshH: number
+): boolean => {
+  'worklet';
+  const composite = render.compositeShader;
+  if (!composite) {
+    return false;
+  }
+  const mesh = composite.uniforms.uMeshSize;
+  const prevW = Array.isArray(mesh) ? mesh[0] : meshW;
+  const prevH = Array.isArray(mesh) ? mesh[1] : meshH;
+  if (Math.abs(prevW - meshW) > 0.01 || Math.abs(prevH - meshH) > 0.01) {
+    composite.uniforms.uMeshSize = [meshW, meshH];
+    return true;
+  }
+  return false;
+};
+
 /**
  * Visual pass mediator: deformation + accessories from read-only locomotion telemetry.
  * Physics remains in SwimmerPhysicsSystem — no second kinematics tick here.
@@ -126,15 +137,14 @@ export const SwimmerEntityVisualSystem: System = {
         continue;
       }
 
-      const layers = render.renderLayers;
-      if (!layers || layers.length < 2) {
-        continue;
-      }
-
       const locomotion = swimmer.locomotion;
       const skin = getSwimmerSkin(swimmer.skinId);
+      const baseWidth = swimmer.meshBaseWidth ?? render.shape.width;
+      const baseHeight = swimmer.meshBaseHeight ?? render.shape.height;
+
+      const layers = render.renderLayers;
       const accessoryLayerIndex = getSwimmerAccessoryLayerIndex(skin);
-      if (layers.length <= accessoryLayerIndex) {
+      if (!layers || layers.length <= accessoryLayerIndex) {
         continue;
       }
 
@@ -151,16 +161,11 @@ export const SwimmerEntityVisualSystem: System = {
         pivotImpactSpeed = Math.abs(telemetry.velocityX);
       }
 
-      const baseWidth = swimmer.meshBaseWidth ?? render.shape.width;
-      const baseHeight = swimmer.meshBaseHeight ?? render.shape.height;
       const meshScaleY = locomotion.meshScaleY ?? 1;
       const isPinned =
         swimmer.isPinnedFromAbove === true && swimmer.isSideBlocked !== true;
 
       const accessoryLayer = layers[accessoryLayerIndex];
-      const internalLayerIndex = getSwimmerInternalLayerIndex(skin);
-      const internalLayer =
-        internalLayerIndex !== null ? layers[internalLayerIndex] : null;
       const featureLayerIndex = getSwimmerFeatureLayerIndex(skin);
       const featureLayer =
         featureLayerIndex !== null ? layers[featureLayerIndex] : null;
@@ -187,6 +192,11 @@ export const SwimmerEntityVisualSystem: System = {
             y: getAccessoryRestOffsetY(skin, baseHeight, meshScaleY),
           };
 
+      const breathEnvelope =
+        skin.internalMotion === 'ripple' || skin.internalMotion === 'kelpSway'
+          ? locomotion.breathEnvelope
+          : undefined;
+
       const visualResult = updateSwimmerEntityVisuals(
         profile,
         deformation,
@@ -207,9 +217,18 @@ export const SwimmerEntityVisualSystem: System = {
           crestAccessoryStyle: skin.crestAccessoryStyle ?? 'upright',
           crestLayerWidth: accessoryBaseSize.width * (locomotion.meshScaleX ?? 1),
           crestLayerHeight: accessoryBaseSize.height * meshScaleY,
-          crestAnchorXRatio: skin.accessoryAnchorXRatio,
-          crestAnchorYRatio: skin.accessoryAnchorYRatio,
-        }
+          crestAnchorXRatio:
+            skin.crestAccessoryStyle === 'sideFringe'
+              ? (skin.accessoryMotionAnchorXRatio ??
+                skin.accessoryAnchorXRatio)
+              : skin.accessoryAnchorXRatio,
+          crestAnchorYRatio:
+            skin.crestAccessoryStyle === 'sideFringe'
+              ? (skin.accessoryMotionAnchorYRatio ??
+                skin.accessoryAnchorYRatio)
+              : skin.accessoryAnchorYRatio,
+        },
+        breathEnvelope
       );
 
       const nextWidth = baseWidth * visualResult.scaleX;
@@ -251,91 +270,8 @@ export const SwimmerEntityVisualSystem: System = {
         renderDirty = true;
       }
 
-      const baseLayer = layers[0];
-      if (
-        scaleLayerRect(
-          baseLayer,
-          visualResult.scaleX,
-          visualResult.scaleY,
-          baseWidth,
-          baseHeight
-        )
-      ) {
+      if (syncCompositeMeshSize(render, nextWidth, nextHeight)) {
         renderDirty = true;
-      }
-
-      if (internalLayer && skin.internalMotion && skin.internalMotion !== 'none') {
-        if (skin.internalMotion === 'kelpSway') {
-          const kelp = updateInternalKelpSway(
-            locomotion.internalRippleState,
-            baseWidth,
-            baseHeight,
-            deltaSeconds
-          );
-          locomotion.internalRippleState = kelp.state;
-          const bandSize = getInternalKelpSwayBandSize(baseWidth, baseHeight);
-          if (
-            scaleLayerRect(
-              internalLayer,
-              visualResult.scaleX,
-              visualResult.scaleY,
-              bandSize.width,
-              bandSize.height
-            )
-          ) {
-            renderDirty = true;
-          }
-          const nextPosX = kelp.offsetX;
-          const nextPosY = kelp.offsetY;
-          if (
-            !internalLayer.position ||
-            Math.abs(internalLayer.position.x - nextPosX) > 0.01 ||
-            Math.abs(internalLayer.position.y - nextPosY) > 0.01
-          ) {
-            internalLayer.position = { x: nextPosX, y: nextPosY };
-            renderDirty = true;
-          }
-          if (
-            internalLayer.opacity == null ||
-            Math.abs(internalLayer.opacity - kelp.opacity) > 0.01
-          ) {
-            internalLayer.opacity = kelp.opacity;
-            renderDirty = true;
-          }
-        } else {
-          const ripple = updateInternalRipple(
-            locomotion.internalRippleState,
-            baseHeight,
-            deltaSeconds
-          );
-          locomotion.internalRippleState = ripple.state;
-          const bandSize = getInternalRippleBandSize(baseWidth, baseHeight);
-          if (
-            scaleLayerRect(
-              internalLayer,
-              visualResult.scaleX,
-              visualResult.scaleY,
-              bandSize.width,
-              bandSize.height
-            )
-          ) {
-            renderDirty = true;
-          }
-          if (
-            !internalLayer.position ||
-            Math.abs(internalLayer.position.y - ripple.offsetY) > 0.01
-          ) {
-            internalLayer.position = { x: 0, y: ripple.offsetY };
-            renderDirty = true;
-          }
-          if (
-            internalLayer.opacity == null ||
-            Math.abs(internalLayer.opacity - ripple.opacity) > 0.01
-          ) {
-            internalLayer.opacity = ripple.opacity;
-            renderDirty = true;
-          }
-        }
       }
 
       if (featureLayer && skin.feature) {
@@ -399,7 +335,6 @@ export const SwimmerEntityVisualSystem: System = {
       }
 
       if (
-        (skin.internalMotion && skin.internalMotion !== 'none') ||
         skin.blinkType === 'tinyDotBlink' ||
         skin.blinkType === 'sleepyBlink'
       ) {
@@ -412,8 +347,8 @@ export const SwimmerEntityVisualSystem: System = {
 
       locomotion.meshScaleX = visualResult.scaleX;
       locomotion.meshScaleY = visualResult.scaleY;
-      locomotion.accessoryState = visualResult.accessoryState;
       locomotion.previousMovementState = telemetry.state;
+      locomotion.accessoryState = visualResult.accessoryState;
     }
   },
 };

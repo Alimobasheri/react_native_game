@@ -24,7 +24,7 @@ SHAPE RULES:
   squash/stretch, water FX, accessory lag — NOT human acting
 
 RENDER LAYERS (target):
-1 body base → 2 internal overlay (masked) → 3 tiny feature/eyes → 4 top crest → 5 water FX
+1 compositeShader (body) → 2 tiny feature/eyes → 3 top crest → 4 water FX
 
 LIFE SYSTEM (minimum):
 - Body breathing (~1.4–2.2s, subtle scale pulse)
@@ -186,12 +186,10 @@ export type SwimmerSkinDefinition = {
 | 12 skins | ❌ 1 skin (`goggled`) |
 | Aqua Sprout default | ❌ Goggled is default |
 | Top kelp crest | ❌ Goggles on face instead |
-| Internal overlay | ❌ Not in render stack |
-| Blink system | ❌ Not implemented |
-| Animation personalities | ❌ Not in tuning |
-| Near-pin body jitter | ❌ Water tint only |
-| Revive splash ring | ❌ Event stub only |
-| Old arms/mouth doc | ⚠️ Deprecated — use this doc instead |
+| Internal overlay | ✅ `compositeShader` + `SwimmerLifeSystem` |
+| Blink system | ✅ `swimmerFeatureBlink.ts` |
+| Aqua Sprout default | ✅ Default skin |
+| Top kelp crest | ✅ aqua-sprout + kelp-drifter crest layers |
 
 ---
 

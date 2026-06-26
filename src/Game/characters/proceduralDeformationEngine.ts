@@ -12,7 +12,8 @@ export type DeformationState = MovementState | 'PINNED';
 
 const resolveTargetScales = (
   state: DeformationState,
-  idleOscillationPhase: number
+  idleOscillationPhase: number,
+  breathEnvelope?: number
 ): { scaleX: number; scaleY: number } => {
   'worklet';
   const tuning = swimmerDeformationTuning;
@@ -40,6 +41,12 @@ const resolveTargetScales = (
   }
 
   if (state === MovementState.IDLE) {
+    if (breathEnvelope != null) {
+      return {
+        scaleX: 1.0 + breathEnvelope * tuning.IDLE_BREATH_SCALE_X,
+        scaleY: tuning.IDLE_SCALE_Y - breathEnvelope * tuning.IDLE_BREATH_SCALE_Y,
+      };
+    }
     const buoyancy =
       Math.sin(idleOscillationPhase) * tuning.IDLE_BUOYANCY_AMPLITUDE;
     return {
@@ -75,11 +82,16 @@ export const updateProceduralDeformation = (
   deformationState: DeformationState,
   dt: number,
   idleOscillationPhase = 0,
-  displaySink: DeformationScaleSink | null = null
+  displaySink: DeformationScaleSink | null = null,
+  breathEnvelope?: number
 ): ProceduralDeformationResult => {
   'worklet';
   const safeDt = dt > 0 ? dt : 0;
-  const targets = resolveTargetScales(deformationState, idleOscillationPhase);
+  const targets = resolveTargetScales(
+    deformationState,
+    idleOscillationPhase,
+    breathEnvelope
+  );
 
   const nextScaleX = interpolateScale(scale.scaleX, targets.scaleX, safeDt);
   const nextScaleY = interpolateScale(scale.scaleY, targets.scaleY, safeDt);

@@ -16,8 +16,11 @@ export const swimmerDeformationTuning = {
   /** PINNED / game-over — comedic squash. */
   PINNED_SCALE_X: 1.15,
   PINNED_SCALE_Y: 0.8,
-  /** IDLE buoyancy sine amplitude on scaleX. */
+  /** IDLE buoyancy sine amplitude on scaleX (fallback when no breath sync). */
   IDLE_BUOYANCY_AMPLITUDE: 0.0075,
+  /** IDLE breath-synced puff (driven by SwimmerLifeSystem envelope). */
+  IDLE_BREATH_SCALE_X: 0.032,
+  IDLE_BREATH_SCALE_Y: 0.022,
   IDLE_SCALE_Y: 0.992,
   /** Retain base for scale interpolation: blend = 1 - pow(base, dt). */
   INTERP_RETAIN_BASE: 0.001,

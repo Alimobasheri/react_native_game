@@ -1,13 +1,9 @@
-import { BlendMode } from '@shopify/react-native-skia';
 import {
   ShapeTypes,
   type RenderLayerData,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import { SWIMMER_CHARACTER_IMAGE } from '@/assets/swimmerCharacters';
-import { swimmerLifeTuning } from '@/config/swimmerLifeTuning';
 import { GIGGLE_CRYSTAL_PROFILE_ID } from './characterProfiles';
-import { getInternalRippleBandSize } from './swimmerInternalRipple';
-import { getInternalKelpSwayBandSize } from './swimmerInternalKelpSway';
 
 export const AQUA_SPROUT_SKIN_ID = 'aqua-sprout' as const;
 export const KELP_DRIFTER_SKIN_ID = 'kelp-drifter' as const;
@@ -58,6 +54,12 @@ export type SwimmerSkinDefinition = {
    */
   readonly accessoryAnchorXRatio?: number;
   readonly accessoryAnchorYRatio?: number;
+  /**
+   * Side-fringe motion pivot on the sprite (left hair root) — separate from placement anchor.
+   * When set, sideFringe pinning keeps this point fixed during skew/bob.
+   */
+  readonly accessoryMotionAnchorXRatio?: number;
+  readonly accessoryMotionAnchorYRatio?: number;
   /** Body point where the sprite anchor attaches, as mesh fraction from center. */
   readonly accessoryAttachXRatio?: number;
   readonly accessoryAttachYRatio?: number;
@@ -75,40 +77,23 @@ export type SwimmerSkinDefinition = {
 
 export const SWIMMER_BODY_LAYER_INDEX = 0;
 
-const skinHasInternalLayer = (skin: SwimmerSkinDefinition): boolean => {
+export const getSwimmerInternalLayerIndex = (): null => {
   'worklet';
-  return skin.internalMotion != null && skin.internalMotion !== 'none';
-};
-
-export const getSwimmerInternalLayerIndex = (
-  skin: SwimmerSkinDefinition
-): number | null => {
-  'worklet';
-  return skinHasInternalLayer(skin) ? 1 : null;
+  return null;
 };
 
 export const getSwimmerFeatureLayerIndex = (
   skin: SwimmerSkinDefinition
 ): number | null => {
   'worklet';
-  if (!skin.feature) {
-    return null;
-  }
-  return skinHasInternalLayer(skin) ? 2 : 1;
+  return skin.feature ? 0 : null;
 };
 
 export const getSwimmerAccessoryLayerIndex = (
   skin: SwimmerSkinDefinition
 ): number => {
   'worklet';
-  let index = 1;
-  if (skinHasInternalLayer(skin)) {
-    index += 1;
-  }
-  if (skin.feature) {
-    index += 1;
-  }
-  return index;
+  return skin.feature ? 1 : 0;
 };
 
 export const AQUA_SPROUT_SKIN: SwimmerSkinDefinition = {
@@ -146,13 +131,15 @@ export const KELP_DRIFTER_SKIN: SwimmerSkinDefinition = {
   /** Aligner-tuned anchor on hair sprite (red dot) — do not change without aligner. */
   accessoryAnchorXRatio: 1 / 2,
   accessoryAnchorYRatio: 407 / 407,
+  /** Left hair root — fixed during side-fringe skew (placement anchor stays bottom-center). */
+  accessoryMotionAnchorXRatio: 0.18,
+  accessoryMotionAnchorYRatio: 0.48,
   /** Aligner-tuned attach on body (green dot). */
   accessoryAttachXRatio: 0.209,
   accessoryAttachYRatio: -0.0025,
   crestAccessory: true,
   crestAccessoryStyle: 'sideFringe',
-  /** Body art includes internal kelp strands — no procedural fill overlay. */
-  internalMotion: 'none',
+  internalMotion: 'kelpSway',
   blinkType: 'sleepyBlink',
   feature: {
     featureImageKey: SWIMMER_CHARACTER_IMAGE.kelpDrifterEyes,
@@ -316,68 +303,14 @@ export const getPinnedCrestRestPosition = (
   return { x: 0, y: bodyTopY - crestHeight / 2 };
 };
 
-const buildInternalMotionLayer = (
-  motion: SwimmerInternalMotionType,
-  meshWidth: number,
-  meshHeight: number
-): RenderLayerData => {
-  'worklet';
-  if (motion === 'kelpSway') {
-    const bandSize = getInternalKelpSwayBandSize(meshWidth, meshHeight);
-    return {
-      shape: {
-        type: ShapeTypes.Rectangle,
-        width: bandSize.width,
-        height: bandSize.height,
-      },
-      fillColor: '#6ec49a',
-      blendMode: BlendMode.SoftLight,
-      opacity: swimmerLifeTuning.INTERNAL_KELP_SWAY_OPACITY_MAX,
-      clipToGroupBounds: true,
-      position: {
-        x: 0,
-        y: meshHeight * swimmerLifeTuning.INTERNAL_KELP_SWAY_REST_Y_RATIO,
-      },
-    };
-  }
-
-  const bandSize = getInternalRippleBandSize(meshWidth, meshHeight);
-  return {
-    shape: {
-      type: ShapeTypes.Rectangle,
-      width: bandSize.width,
-      height: bandSize.height,
-    },
-    fillColor: '#c8fbff',
-    blendMode: BlendMode.Screen,
-    opacity: swimmerLifeTuning.INTERNAL_RIPPLE_OPACITY_MAX,
-    clipToGroupBounds: true,
-    position: { x: 0, y: meshHeight * 0.28 },
-  };
-};
-
+/** @deprecated Use buildSwimmerRenderStack — body is drawn via compositeShader. */
 export const buildSwimmerSkinRenderLayers = (
   skin: SwimmerSkinDefinition,
   meshWidth: number,
   meshHeight: number
 ): RenderLayerData[] => {
   'worklet';
-  const layers: RenderLayerData[] = [
-    {
-      shape: {
-        type: ShapeTypes.Rectangle,
-        width: meshWidth,
-        height: meshHeight,
-      },
-      image: skin.bodyImageKey,
-    },
-  ];
-
-  if (skinHasInternalLayer(skin)) {
-    layers.push(
-      buildInternalMotionLayer(skin.internalMotion!, meshWidth, meshHeight)
-    );
-  }
+  const layers: RenderLayerData[] = [];
 
   if (skin.feature) {
     const featureSize = getFeatureMeshSize(skin.feature, meshWidth);

@@ -2,15 +2,8 @@ import {
   createFeatureBlinkState,
   updateFeatureBlink,
 } from '../swimmerFeatureBlink';
-import {
-  createInternalRippleState,
-  updateInternalRipple,
-} from '../swimmerInternalRipple';
-
-import {
-  createInternalKelpSwayState,
-  updateInternalKelpSway,
-} from '../swimmerInternalKelpSway';
+import { advanceInternalLifePhase } from '../life/swimmerLifeDrivers';
+import { createInternalLifeState } from '../life/swimmerLifeTypes';
 
 describe('swimmerFeatureBlink', () => {
   it('starts open and eventually blinks closed', () => {
@@ -51,26 +44,12 @@ describe('swimmerFeatureBlink', () => {
   });
 });
 
-describe('swimmerInternalRipple', () => {
-  it('advances ripple phase and moves upward inside the body', () => {
-    let state = createInternalRippleState();
-    const first = updateInternalRipple(state, 120, 1 / 60);
-    const second = updateInternalRipple(first.state, 120, 1 / 60);
+describe('swimmerLifeDrivers', () => {
+  it('advances internal life phase over time', () => {
+    let state = createInternalLifeState();
+    const first = advanceInternalLifePhase(state, 'ripple', 1 / 60);
+    const second = advanceInternalLifePhase(first, 'ripple', 1 / 60);
 
-    expect(second.state.phase).toBeGreaterThan(first.state.phase);
-    expect(second.offsetY).toBeLessThan(first.offsetY);
-    expect(second.opacity).toBeGreaterThan(0);
-  });
-});
-
-describe('swimmerInternalKelpSway', () => {
-  it('advances kelp sway phase and oscillates horizontally', () => {
-    let state = createInternalKelpSwayState();
-    const first = updateInternalKelpSway(state, 48, 120, 1 / 60);
-    const second = updateInternalKelpSway(first.state, 48, 120, 1 / 60);
-
-    expect(second.state.phase).toBeGreaterThan(first.state.phase);
-    expect(Math.abs(second.offsetX)).toBeGreaterThan(0);
-    expect(second.opacity).toBeGreaterThan(0);
+    expect(second.phase).toBeGreaterThan(first.phase);
   });
 });

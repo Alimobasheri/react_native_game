@@ -14,15 +14,24 @@ export const loadShaderAssets = (
   if (assets) {
     const compiledShaders = Object.fromEntries(
       Object.entries(assets).reduce((acc, [key, source]) => {
-        const effect = Skia.RuntimeEffect.Make(source);
-        if (!effect) {
+        try {
+          const effect = Skia.RuntimeEffect.Make(source);
+          if (!effect) {
+            console.warn(
+              "[RNTGE] Warning: Couldn't make RuntimeEffect for shader:",
+              key
+            );
+            return acc;
+          }
+          return acc.concat([[key, effect]]);
+        } catch (error) {
           console.warn(
-            "[RNTGE] Warning: Couldn't make RuntimeEffect for shader:",
-            key
+            '[RNTGE] Warning: RuntimeEffect compile failed for shader:',
+            key,
+            error
           );
           return acc;
         }
-        return acc.concat([[key, effect]]);
       }, [] as [string, SkRuntimeEffect][])
     );
 

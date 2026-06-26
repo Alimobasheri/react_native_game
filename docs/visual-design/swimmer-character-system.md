@@ -82,7 +82,13 @@ Intended runtime stack (bottom → top):
 | 4. Top accessory / crest | ⚠️ Partial | Layer 1 exists but current default skin uses **goggles on face**, not top crest |
 | 5. Water-contact FX | ✅ Yes | `SwimmerWaterContactFxSystem`, `buildSwimmerContactFoamLayers`, `swimmerWaterFxTuning` |
 
-**Evolution path:** Extend `SwimmerSkinDefinition` and `buildSwimmerSkinRenderLayers()` with optional layer slots (`internalOverlayKey`, `featureKey`, `crestKey`) before adding runtime blink/shimmer systems.
+**Evolution path:** Body renders via `compositeShader` (`buildSwimmerRenderStack`); overlay layers are eyes + crest only. Internal motion is SKSL re-sample inside body alpha — not a fillColor band layer.
+
+| RenderPolicy | Picture cache | Use |
+|--------------|---------------|-----|
+| `StaticPicture` | Yes | Cave, static props |
+| `LiveGroup` | Rebuild on dirty | Sprite groups |
+| `AnimatedComposite` | Never | Swimmer body life, animated uniforms |
 
 ---
 
@@ -191,7 +197,7 @@ Defined in `src/Game/characters/visualStrokePhase.ts` — driven by `swimmerVisu
 1. **Expand `SwimmerSkinDefinition`** toward the suggested art-direction shape (see [AI context](./swimmer-ai-context.md#suggested-data-model)).
 2. **Add `SwimmerAnimationPersonalityTuning`** — multipliers on bob, rotation, squash, accessory lag, blink rate (see [personalities doc](./swimmer-animation-personalities.md)).
 3. **Split accessory role** — `crestImageKey` vs `faceAccessoryKey` (goggles/bandage only).
-4. **Add internal overlay render layer** — clipped rectangle with scroll/shimmer shader or animated sprite sheet.
+4. **Internal motion** — `compositeShader` samples body art inside alpha mask (`SwimmerLifeSystem` + `swimmerInternalComposite` SKSL).
 5. **Wire `SwimmerReviveSplashEvent`** in `RestartGameplaySystem` + foam `reviveRing` preset.
 6. **Replace default skin** with Aqua Sprout when art is ready; keep Goggle Tad as unlock skin #11.
 7. **Deprecate or annotate** `swimmer.styles.md` §7–8 character sections with link to this doc.

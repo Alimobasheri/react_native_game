@@ -2,8 +2,11 @@ import { Component } from '@/containers/ReactNativeSkiaGameEngine/services-ecs';
 import { MovementState } from '@/Game/characters/characterMovementStates';
 import type { SecondaryItemPersistedState } from '@/Game/characters/secondaryItemTypes';
 import type { FeatureBlinkState } from '@/Game/characters/swimmerFeatureBlink';
-import type { InternalRippleState } from '@/Game/characters/swimmerInternalRipple';
 import type { VisualStrokePhase } from '@/Game/characters/visualStrokePhase';
+import type {
+  InternalLifeState,
+  SwimmerLifeDebugMode,
+} from '@/Game/characters/life/swimmerLifeTypes';
 
 export const SwimmerComponentName = 'Swimmer';
 
@@ -77,8 +80,24 @@ export type SwimmerLocomotionData = {
   accessoryState?: SecondaryItemPersistedState;
   /** Randomized tiny-feature blink timer state. */
   featureBlinkState?: FeatureBlinkState;
-  /** Upward ripple band phase inside the body. */
-  internalRippleState?: InternalRippleState;
+  /** Internal body life phase (composite shader). */
+  internalLifeState?: InternalLifeState;
+  /** Storybook / debug gate for composite shader (G0–G3). */
+  lifeDebugMode?: SwimmerLifeDebugMode;
+  /** Optional intensity override (Storybook). */
+  internalIntensity?: number;
+  /** Bottom-up fill amount 0–1 (future: overridden per kinematic stage). */
+  breathEnvelope?: number;
+  /** Future: kinematic-driven fill speed multiplier. */
+  breathSpeedScale?: number;
+  /** Future: kinematic-driven glow strength multiplier. */
+  breathStrengthScale?: number;
+  /** Persisted internal fill 0–1 across kinematic stages. */
+  breathFillLevel?: number;
+  /** Fill level latched when the current visual phase began. */
+  breathStageStartFill?: number;
+  /** Tracks visual phase for breath stage transitions. */
+  breathTrackedVisualPhase?: VisualStrokePhase;
 };
 
 export type SwimmerComponentData = {

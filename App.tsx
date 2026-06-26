@@ -31,6 +31,8 @@ function App() {
           sideWallContainerOverlapPx={sideWallTuning.CONTAINER_OVERLAP_PX}
           lockedTemplateName={''}
           storyLockedProceduralSegment={''}
+          lifeDebugMode={0}
+          internalIntensity={0.55}
         />
       </View>
     </SafeAreaProvider>

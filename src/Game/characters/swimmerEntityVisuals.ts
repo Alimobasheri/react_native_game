@@ -45,7 +45,8 @@ export const updateSwimmerEntityVisuals = (
   pivotImpactSpeed: number | null,
   visualPhase: VisualStrokePhase,
   isPinned: boolean,
-  options: SwimmerEntityVisualOptions = {}
+  options: SwimmerEntityVisualOptions = {},
+  breathEnvelope?: number
 ): SwimmerEntityVisualResult => {
   'worklet';
   const deformationState: DeformationState = visualPhaseToDeformationState(
@@ -58,7 +59,9 @@ export const updateSwimmerEntityVisuals = (
     deformation,
     deformationState,
     dt,
-    idleOscillationPhase
+    idleOscillationPhase,
+    null,
+    breathEnvelope
   );
 
   let nextAccessoryState = ensureAccessoryState(

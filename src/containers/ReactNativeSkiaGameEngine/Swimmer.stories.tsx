@@ -29,6 +29,7 @@ import {
   SWIMMER_CHARACTER_IMAGE,
 } from '@/assets/swimmerCharacters';
 import { sourceCode as waterShaderSourceCode } from '@/Shaders/WaterShader/waterShader';
+import { sourceCode as swimmerInternalCompositeSourceCode } from '@/Shaders/SwimmerInternal/swimmerInternalComposite';
 import { sourceCode as screenAtmosphereGradientSourceCode } from '@/containers/ReactNativeSkiaGameEngine/Shaders/screenAtmosphereGradient';
 import { sourceCode as screenEdgeVignetteSourceCode } from '@/containers/ReactNativeSkiaGameEngine/Shaders/screenEdgeVignette';
 import { CaveBackground } from '@/components/CaveBackground/CaveBackground-rntge';
@@ -43,6 +44,7 @@ import {
   KELP_DRIFTER_SKIN_ID,
   type SwimmerSkinId,
 } from '@/Game/characters/swimmerSkins';
+import type { SwimmerLifeDebugMode } from '@/Game/characters/life/swimmerLifeTypes';
 import { SwimmerView } from '@/components/SwimmerView/SwimmerView-rntge';
 import { TapSwimmer } from '@/components/TapSwimmer/TapSwimmer-rntge';
 import { ObstacleView } from '@/components/ObstacleView/ObstacleView-rntge';
@@ -115,6 +117,10 @@ export type SwimmerStoryArgs = {
   storyLockedProceduralSegment: '' | StoryLockedProceduralSegment;
   /** Playable swimmer visual skin. */
   swimmerSkinId: SwimmerSkinId;
+  /** Composite shader debug gate: 0=composite, 1=mask, 2=uvScroll, 3=rawBody */
+  lifeDebugMode: SwimmerLifeDebugMode;
+  /** Internal motion intensity override (Storybook). */
+  internalIntensity: number;
 };
 
 const TEMPLATE_OPTIONS = [
@@ -281,6 +287,11 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                   />
                   <Asset
                     type="shader"
+                    name="swimmerInternal"
+                    source={swimmerInternalCompositeSourceCode}
+                  />
+                  <Asset
+                    type="shader"
                     name="water"
                     source={waterShaderSourceCode}
                   />
@@ -339,6 +350,8 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                     containerCenterY={containerCenterY}
                     useColumnControl={true}
                     skinId={args.swimmerSkinId}
+                    lifeDebugMode={args.lifeDebugMode}
+                    internalIntensity={args.internalIntensity}
                   />
 
                   <TapSwimmer
@@ -401,6 +414,8 @@ const meta = {
     lockedTemplateName: '',
     storyLockedProceduralSegment: '',
     swimmerSkinId: DEFAULT_SWIMMER_SKIN_ID,
+    lifeDebugMode: 0,
+    internalIntensity: 0.2,
   },
   argTypes: {
     waterSurfaceFromBottomFraction: {
@@ -432,6 +447,13 @@ const meta = {
       control: 'select',
       options: [AQUA_SPROUT_SKIN_ID, KELP_DRIFTER_SKIN_ID, GOGGLED_SKIN_ID],
     },
+    lifeDebugMode: {
+      control: { type: 'range', min: 0, max: 3, step: 1 },
+      description: 'G0–G3 device gates: 3=raw body, 1=mask, 2=UV scroll, 0=composite',
+    },
+    internalIntensity: {
+      control: { type: 'range', min: 0, max: 1, step: 0.05 },
+    },
   },
 } satisfies Meta<typeof SwimmerGameComp>;
 
@@ -446,6 +468,16 @@ export const Basic: StoryObj<typeof meta> = {
 export const KelpDrifter: StoryObj<typeof meta> = {
   args: {
     swimmerSkinId: KELP_DRIFTER_SKIN_ID,
+  },
+};
+
+/** Yellow bg, aqua sprout — tune lifeDebugMode 0–3 for G0–G3 device gates. */
+export const SwimmerInternalDebug: StoryObj<typeof meta> = {
+  args: {
+    swimmerSkinId: AQUA_SPROUT_SKIN_ID,
+    waterShaderOpacity: 0,
+    lifeDebugMode: 2,
+    internalIntensity: 0.5,
   },
 };
 
