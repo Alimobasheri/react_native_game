@@ -1,7 +1,9 @@
 import {
   clearance01FromPx,
   gapWidthAtSwimmerX,
+  sampleApproachRowClearancePx,
   sampleHorizontalClearancePx,
+  selectApproachRowFromRows,
 } from '../swimmerClearance';
 import { swimmerVisualTuning } from '@/config/swimmerVisualTuning';
 import { swimmerPhysicsTuning } from '@/config/swimmerTuning';
@@ -33,6 +35,28 @@ describe('swimmerClearance', () => {
       CONTAINER
     );
     expect(clearance).toBeCloseTo(COLUMN_WIDTH, 1);
+  });
+
+  it('selectApproachRowFromRows prefers the row at or above the swimmer', () => {
+    const rows = [
+      { y: 260, gaps: [3] },
+      { y: 340, gaps: [3, 4, 5] },
+    ];
+    expect(selectApproachRowFromRows(rows, 300)?.y).toBe(260);
+  });
+
+  it('sampleApproachRowClearancePx uses approach row gap, not wider current row', () => {
+    const swimmerX = CONTAINER.centerX - CONTAINER.width / 2 + COLUMN_WIDTH * 3.5;
+    const approachClearance = sampleApproachRowClearancePx(
+      swimmerX,
+      300,
+      [
+        { y: 280, gaps: [3] },
+        { y: 320, gaps: [2, 3, 4] },
+      ],
+      CONTAINER
+    );
+    expect(approachClearance).toBeCloseTo(COLUMN_WIDTH, 1);
   });
 
   it('maps one-column clearance to fully narrow and four-column to fully open', () => {
@@ -76,5 +100,23 @@ describe('swimmerClearance', () => {
   it('velocity-led lean returns toward zero as speed drops', () => {
     expect(Math.abs(computeVelocityLedAngleDeg(0, 1))).toBeLessThan(1);
     expect(Math.abs(computeVelocityLedAngleDeg(20, 1))).toBeLessThan(15);
+  });
+
+  it('velocity-led lean unlocks fully when cramped escape streak is active', () => {
+    const fullTiltSpeed =
+      swimmerPhysicsTuning.MAX_HORIZONTAL_SPEED *
+      swimmerPhysicsTuning.FULL_TILT_SPEED_FRACTION;
+    const narrowLean = computeVelocityLedAngleDeg(fullTiltSpeed, 0);
+    const escapeLean = computeVelocityLedAngleDeg(fullTiltSpeed, 1);
+    expect(Math.abs(narrowLean)).toBeLessThanOrEqual(
+      swimmerVisualTuning.NARROW_GAP_MAX_ANGLE_DEG + 1
+    );
+    expect(Math.abs(escapeLean)).toBeGreaterThan(
+      swimmerVisualTuning.NARROW_GAP_MAX_ANGLE_DEG + 5
+    );
+    expect(Math.abs(escapeLean)).toBeCloseTo(
+      swimmerVisualTuning.HIGH_SPEED_MAX_TILT_DEG,
+      1
+    );
   });
 });

@@ -64,7 +64,10 @@ import {
   SwimmerPinnedSplashEventType,
   SwimmerPivotSplashEventType,
 } from '@/Game/characters/swimmerLocomotionEvents';
-import { sampleHorizontalClearancePx } from '@/Game/characters/swimmerClearance';
+import {
+  sampleApproachRowClearancePx,
+  sampleHorizontalClearancePx,
+} from '@/Game/characters/swimmerClearance';
 import { updateSwimmerVisualLocomotion } from '@/Game/characters/swimmerVisualLocomotion';
 import { MovementState } from '@/Game/characters/characterMovementStates';
 import { getSwimmerColliderExtents } from '@/Game/characters/swimmerCollider';
@@ -409,13 +412,20 @@ export const SwimmerPhysicsSystem: System = {
           collisionHalfHeight,
           rowHeight
         );
-        const clearancePx = sampleHorizontalClearancePx(
+        const clearanceContainer = {
+          centerX: containerData.centerX,
+          width: containerData.width,
+        };
+        const visualClearancePx = sampleHorizontalClearancePx(
           swimmerCenterX,
           clearanceRows,
-          {
-            centerX: containerData.centerX,
-            width: containerData.width,
-          }
+          clearanceContainer
+        );
+        const tapClearancePx = sampleApproachRowClearancePx(
+          swimmerCenterX,
+          swimmerCenterY,
+          clearanceRows,
+          clearanceContainer
         );
 
         const pendingTapDirection = locomotion.pendingTapDirection ?? 0;
@@ -464,7 +474,7 @@ export const SwimmerPhysicsSystem: System = {
               normalizedSpeed,
               streakMultiplier,
               waterCurrentVelocityX,
-              clearancePx,
+              tapClearancePx,
               navColliderWidth,
               pinnedEscape
             );
@@ -569,10 +579,11 @@ export const SwimmerPhysicsSystem: System = {
           profile,
           locomotion,
           swimmerVelocityX,
-          clearancePx,
+          visualClearancePx,
           obstacleWidth,
           deltaSeconds,
-          startReady
+          startReady,
+          normalizedSpeed
         );
         kinematicsAngleRad = degreesToRadians(
           locomotion.visualAngleDeg ?? locomotion.currentAngleDeg

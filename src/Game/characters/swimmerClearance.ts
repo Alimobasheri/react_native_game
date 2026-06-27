@@ -101,3 +101,74 @@ export const clearance01FromPx = (
   const range = Math.max(1, open - narrow);
   return clamp01((clearancePx - narrow) / range);
 };
+
+/** Row the swimmer is entering — closest at or above swimmer Y (ahead on the rise path). */
+export const selectApproachRowFromRows = (
+  rows: readonly CollisionRow[],
+  swimmerY: number
+): CollisionRow | undefined => {
+  'worklet';
+  if (rows.length === 0) {
+    return undefined;
+  }
+
+  let approach: CollisionRow | undefined;
+  let closestAboveDist = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const deltaY = row.y - swimmerY;
+    if (deltaY <= 0) {
+      const dist = Math.abs(deltaY);
+      if (dist < closestAboveDist) {
+        closestAboveDist = dist;
+        approach = row;
+      }
+    }
+  }
+
+  if (approach !== undefined) {
+    return approach;
+  }
+
+  let fallback: CollisionRow | undefined;
+  let minDist = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < rows.length; i++) {
+    const dist = Math.abs(rows[i].y - swimmerY);
+    if (dist < minDist) {
+      minDist = dist;
+      fallback = rows[i];
+    }
+  }
+  return fallback;
+};
+
+/**
+ * Gap width at swimmer X on the approach row (for tap travel planning).
+ * Falls back to min-band clearance when approach row has no gap at X.
+ */
+export const sampleApproachRowClearancePx = (
+  swimmerX: number,
+  swimmerY: number,
+  rows: readonly CollisionRow[],
+  container: ContainerLayout
+): number => {
+  'worklet';
+  const columnWidth = getClearanceColumnWidth(container);
+  const openWaterClearancePx = getOpenWaterClearancePx(columnWidth);
+
+  if (rows.length === 0) {
+    return openWaterClearancePx;
+  }
+
+  const approach = selectApproachRowFromRows(rows, swimmerY);
+  if (approach === undefined) {
+    return openWaterClearancePx;
+  }
+
+  const approachGap = gapWidthAtSwimmerX(approach, swimmerX, container);
+  if (approachGap > 0) {
+    return approachGap;
+  }
+
+  return sampleHorizontalClearancePx(swimmerX, rows, container);
+};

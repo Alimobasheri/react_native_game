@@ -6,6 +6,7 @@ import {
   swimmerCoastPreset,
   swimmerCoastPresets,
   swimmerPhysicsTuning,
+  tapInputTuning,
 } from '@/config/swimmerTuning';
 import type { SpeedTier, SwimmerLocomotionData } from '@/Game/ecs-components/Swimmer';
 
@@ -82,21 +83,60 @@ export const computeVelocityLedAngleDeg = (
   return Math.sign(velocityAngleDeg) * maxByClearance;
 };
 
+/** Anticipation duration scaled by water speed — 0 at high speed skips straight to stroke. */
+export const computeVisualAnticipationDurationSec = (
+  normalizedWaterSpeed: number
+): number => {
+  'worklet';
+  const speed01 = clamp01(normalizedWaterSpeed);
+  const fadeStart = swimmerVisualTuning.ANTICIPATION_WATER_SPEED_FADE_START;
+  const removeAt = swimmerVisualTuning.ANTICIPATION_WATER_SPEED_REMOVE_AT;
+  const full = swimmerVisualTuning.ANTICIPATION_DURATION_SEC;
+
+  if (speed01 >= removeAt || full <= 0) {
+    return 0;
+  }
+  if (speed01 <= fadeStart) {
+    return full;
+  }
+  const t = (removeAt - speed01) / Math.max(0.0001, removeAt - fadeStart);
+  return full * t;
+};
+
+const enterVisualAnticipationOrStroke = (
+  locomotion: SwimmerLocomotionData,
+  anticipationSec: number
+): void => {
+  'worklet';
+  locomotion.visualGlideSettleTimer = 0;
+  locomotion.visualRecoveryTimer = 0;
+  locomotion.visualPivotTimer = 0;
+
+  if (anticipationSec <= 0) {
+    locomotion.visualPhase = VisualStrokePhase.STROKE;
+    locomotion.visualAnticipationTimer = 0;
+    locomotion.visualStrokeTimer = swimmerVisualTuning.STROKE_DURATION_SEC;
+    return;
+  }
+
+  locomotion.visualPhase = VisualStrokePhase.ANTICIPATION;
+  locomotion.visualAnticipationTimer = anticipationSec;
+  locomotion.visualStrokeTimer = 0;
+};
+
 export const beginVisualStroke = (
   locomotion: SwimmerLocomotionData,
   direction: 1 | -1,
-  tier: SpeedTier
+  tier: SpeedTier,
+  normalizedWaterSpeed = 0
 ): void => {
   'worklet';
   locomotion.visualStrokeDirection = direction;
   locomotion.visualStrokeTier = tier;
-  locomotion.visualPhase = VisualStrokePhase.ANTICIPATION;
-  locomotion.visualAnticipationTimer =
-    swimmerVisualTuning.ANTICIPATION_DURATION_SEC;
-  locomotion.visualStrokeTimer = 0;
-  locomotion.visualGlideSettleTimer = 0;
-  locomotion.visualRecoveryTimer = 0;
-  locomotion.visualPivotTimer = 0;
+  enterVisualAnticipationOrStroke(
+    locomotion,
+    computeVisualAnticipationDurationSec(normalizedWaterSpeed)
+  );
   locomotion.targetAngleDeg =
     direction * swimmerVisualTuning.MIN_SPEED_ANGLE_DEG;
 };
@@ -113,7 +153,8 @@ export const beginVisualPivot = (locomotion: SwimmerLocomotionData): void => {
 
 const advanceVisualPhaseTimers = (
   locomotion: SwimmerLocomotionData,
-  dt: number
+  dt: number,
+  normalizedWaterSpeed: number
 ): void => {
   'worklet';
   if ((locomotion.visualAnticipationTimer ?? 0) > 0) {
@@ -161,9 +202,10 @@ const advanceVisualPhaseTimers = (
     const next = locomotion.visualPivotTimer! - dt;
     locomotion.visualPivotTimer = next > 0 ? next : 0;
     if (locomotion.visualPivotTimer <= 0) {
-      locomotion.visualPhase = VisualStrokePhase.ANTICIPATION;
-      locomotion.visualAnticipationTimer =
-        swimmerVisualTuning.ANTICIPATION_DURATION_SEC;
+      enterVisualAnticipationOrStroke(
+        locomotion,
+        computeVisualAnticipationDurationSec(normalizedWaterSpeed)
+      );
     }
   }
 };
@@ -202,13 +244,14 @@ export const updateSwimmerVisualLocomotion = (
   clearancePx: number,
   columnWidth: number,
   dt: number,
-  startReady: boolean
+  startReady: boolean,
+  normalizedWaterSpeed = 0
 ): void => {
   'worklet';
   const safeDt = dt > 0 ? dt : 0;
 
   if (!startReady) {
-    advanceVisualPhaseTimers(locomotion, safeDt);
+    advanceVisualPhaseTimers(locomotion, safeDt, normalizedWaterSpeed);
   }
 
   const targetClearance01 = clearance01FromPx(clearancePx, columnWidth);
@@ -225,7 +268,15 @@ export const updateSwimmerVisualLocomotion = (
     Math.abs(velocityX) > 1 ? velocityX : direction * Math.abs(velocityX);
 
   const clearance01 = locomotion.clearance01 ?? 1;
-  let targetAngleDeg = computeVelocityLedAngleDeg(signedVelocity, clearance01);
+  const rapidTapStreak = locomotion.rapidTapStreak ?? 0;
+  const isCramped =
+    targetClearance01 <= tapInputTuning.NARROW_ESCAPE_CLEARANCE01_THRESHOLD;
+  const angleClearance01 =
+    isCramped && rapidTapStreak >= 1 ? 1 : clearance01;
+  let targetAngleDeg = computeVelocityLedAngleDeg(
+    signedVelocity,
+    angleClearance01
+  );
 
   // Subtle phase nudge on top of velocity lean — deformation carries most stroke juice.
   if (locomotion.visualPhase === VisualStrokePhase.PIVOT) {

@@ -26,7 +26,7 @@ function App() {
             WATER_SURFACE_FROM_CONTAINER_BOTTOM_FRACTION
           }
           waterRiseSpeed={50}
-          raisingSpeed={200}
+          raisingSpeed={300}
           waterShaderOpacity={0.5}
           sideWallContainerOverlapPx={sideWallTuning.CONTAINER_OVERLAP_PX}
           lockedTemplateName={''}

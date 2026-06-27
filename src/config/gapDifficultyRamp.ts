@@ -18,20 +18,20 @@ export const gapDifficultyRampTuning = {
    * After this many total spawned rows (including runway duplicates), difficulty reaches 1
    * and stays at floor values. Larger = slower ramp (easier for longer).
    */
-  ROWS_FOR_FULL_RAMP: 2400,
+  ROWS_FOR_FULL_RAMP: 500,
   /**
    * Shape of the ramp vs linear progress `p = clamp(totalRows / ROWS_FOR_FULL_RAMP, 0, 1)`:
    * - `1` — linear
    * - `> 1` — ramps slowly at first, accelerates late (stays forgiving longer)
    * - `< 1` — ramps quickly at first, eases toward the end
    */
-  CURVE_EXPONENT: 0.55,
+  CURVE_EXPONENT: 1.5,
 
   /** Extra stacked rows after a lateral gap change (see `appendGapShiftRunwayRows`). Inclusive. */
   RUNWAY_DUP_ROWS_START_MIN: 5,
   RUNWAY_DUP_ROWS_START_MAX: 8,
-  RUNWAY_DUP_ROWS_END_MIN: 0,
-  RUNWAY_DUP_ROWS_END_MAX: 2,
+  RUNWAY_DUP_ROWS_END_MIN: 2,
+  RUNWAY_DUP_ROWS_END_MAX: 3,
 
   /**
    * Multipath contiguous gap width as **fractions** of `rowLength`, converted to integer columns.

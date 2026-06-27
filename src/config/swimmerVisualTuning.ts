@@ -45,6 +45,13 @@ export const swimmerVisualTuning = {
 
   /** Visual stroke phase durations (seconds) — decoupled from physics state machine. */
   ANTICIPATION_DURATION_SEC: 0.04,
+  /**
+   * Normalized water speed (0..1) below which anticipation uses full duration.
+   * Above fade start, duration lerps to zero by REMOVE_AT.
+   */
+  ANTICIPATION_WATER_SPEED_FADE_START: 0.25,
+  /** Normalized water speed at/above which anticipation is skipped (jump to stroke). */
+  ANTICIPATION_WATER_SPEED_REMOVE_AT: 0.5,
   STROKE_DURATION_SEC: 0.135,
   GLIDE_VISUAL_SETTLE_SEC: 0.26,
   RECOVERY_DURATION_SEC: 0.14,

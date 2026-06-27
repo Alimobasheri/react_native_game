@@ -2,11 +2,13 @@ import { MovementState } from './characterMovementStates';
 import type { ICharacterProfile } from './characterProfileTypes';
 import { beginVisualPivot, beginVisualStroke } from './swimmerVisualLocomotion';
 import type { SpeedTier, SwimmerLocomotionData } from '@/Game/ecs-components/Swimmer';
+import { clearance01FromPx } from './swimmerClearance';
 import {
   hyperCasualPhysicsTuning,
   swimmerPhysicsTuning,
   swimmerCoastPreset,
   swimmerCoastPresets,
+  tapInputTuning,
   type SwimmerCoastPresetValues,
 } from '@/config/swimmerTuning';
 
@@ -280,12 +282,41 @@ export const computePinnedEscapeMinSlidePx = (
   return Math.max(minSlide, distToEdge + exitSlack);
 };
 
+/** Streak multiplier escalated faster during narrow-gap escape (tap 2+). */
+export const computeNarrowEscapeStreakMultiplier = (
+  streakMultiplier: number,
+  rapidTapStreak: number
+): number => {
+  'worklet';
+  if (rapidTapStreak < 1) {
+    return streakMultiplier;
+  }
+  const excess = Math.max(0, streakMultiplier - 1);
+  const boosted =
+    1 +
+    excess * tapInputTuning.NARROW_ESCAPE_STREAK_RESPONSE +
+    rapidTapStreak * tapInputTuning.NARROW_ESCAPE_STREAK_STEP;
+  return Math.min(tapInputTuning.RAPID_TAP_MAX_MULT, boosted);
+};
+
+export const isCrampedClearancePx = (
+  clearancePx: number,
+  columnWidth: number
+): boolean => {
+  'worklet';
+  return (
+    clearance01FromPx(clearancePx, columnWidth) <=
+    tapInputTuning.NARROW_ESCAPE_CLEARANCE01_THRESHOLD
+  );
+};
+
 export const estimateTravelPx = (
   columnWidth: number,
   streakMultiplier: number,
   preset: SwimmerCoastPresetValues,
   clearancePx: number,
-  colliderWidthPx: number
+  colliderWidthPx: number,
+  rapidTapStreak = 0
 ): number => {
   'worklet';
   const openTarget =
@@ -293,6 +324,17 @@ export const estimateTravelPx = (
   const slackPx = Math.max(0, clearancePx - colliderWidthPx);
   const narrowTarget = slackPx * 0.96;
   const minTarget = columnWidth * 0.12;
+  const cramped = isCrampedClearancePx(clearancePx, columnWidth);
+  const isEscapeTap = cramped && rapidTapStreak >= 1;
+
+  if (isEscapeTap) {
+    const escapeStreak = computeNarrowEscapeStreakMultiplier(
+      streakMultiplier,
+      rapidTapStreak
+    );
+    return openTarget * escapeStreak;
+  }
+
   const targetPx = Math.min(openTarget, Math.max(narrowTarget, minTarget));
   return targetPx * streakMultiplier;
 };
@@ -308,7 +350,8 @@ export const computeForwardTapImpulseMagnitude = (
   preset: SwimmerCoastPresetValues,
   clearancePx: number,
   colliderWidthPx: number,
-  targetPxOverride?: number
+  targetPxOverride?: number,
+  rapidTapStreak = 0
 ): number => {
   'worklet';
   const targetPx =
@@ -318,7 +361,8 @@ export const computeForwardTapImpulseMagnitude = (
       streakMultiplier,
       preset,
       clearancePx,
-      colliderWidthPx
+      colliderWidthPx,
+      rapidTapStreak
     );
   const probeImpulse = 120;
   const probeTravel = Math.abs(
@@ -376,6 +420,7 @@ export const applyHyperCasualTap = (
           streakMultiplier
         )
       : undefined;
+  const rapidTapStreak = locomotion.rapidTapStreak ?? 0;
   const forwardImpulseMag = computeForwardTapImpulseMagnitude(
     columnWidth,
     normalizedWaterSpeed,
@@ -386,7 +431,8 @@ export const applyHyperCasualTap = (
     preset,
     clearancePx,
     colliderWidthPx,
-    travelTargetPx
+    travelTargetPx,
+    rapidTapStreak
   );
 
   const previousFacing = locomotion.facingDirection;
@@ -422,12 +468,22 @@ export const applyHyperCasualTap = (
     const flipImpulse = tapDirection * forwardImpulseMag;
     tapImpulseApplied = flipImpulse;
     nextVelocityX = flipImpulse;
-    beginVisualStroke(locomotion, tapDirection, visualStrokeTier);
+    beginVisualStroke(
+      locomotion,
+      tapDirection,
+      visualStrokeTier,
+      normalizedWaterSpeed
+    );
   } else {
     const forwardImpulse = tapDirection * forwardImpulseMag;
     tapImpulseApplied = forwardImpulse;
     nextVelocityX += forwardImpulse;
-    beginVisualStroke(locomotion, tapDirection, visualStrokeTier);
+    beginVisualStroke(
+      locomotion,
+      tapDirection,
+      visualStrokeTier,
+      normalizedWaterSpeed
+    );
   }
 
   if (nextVelocityX > swimmerPhysicsTuning.MAX_HORIZONTAL_SPEED) {

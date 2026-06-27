@@ -225,6 +225,63 @@ describe('swimmerHyperCasualPhysics', () => {
     );
   });
 
+  it('grants full-column escape travel on tap 2 in a cramped one-column gap', () => {
+    const preset = swimmerCoastPresets.snappy;
+    const navWidth = colliderWidth(columnWidth);
+    const streakMult = computeStreakMultiplier(1);
+    const tap1 = estimateTravelPx(
+      columnWidth,
+      1,
+      preset,
+      columnWidth,
+      navWidth,
+      0
+    );
+    const tap2 = estimateTravelPx(
+      columnWidth,
+      streakMult,
+      preset,
+      columnWidth,
+      navWidth,
+      1
+    );
+    const openTap = estimateTravelPx(
+      columnWidth,
+      1,
+      preset,
+      columnWidth * 4,
+      navWidth,
+      0
+    );
+    expect(tap1).toBeLessThan(openTap * 0.5);
+    expect(tap2).toBeGreaterThan(openTap * 0.9);
+    expect(tap2).toBeGreaterThan(tap1 * 2);
+  });
+
+  it('does not apply narrow escape in open water even on tap 2', () => {
+    const preset = swimmerCoastPresets.snappy;
+    const navWidth = colliderWidth(columnWidth);
+    const openClearance = columnWidth * 4;
+    const streakMult = computeStreakMultiplier(1);
+    const tap2Open = estimateTravelPx(
+      columnWidth,
+      streakMult,
+      preset,
+      openClearance,
+      navWidth,
+      1
+    );
+    const tap1Open = estimateTravelPx(
+      columnWidth,
+      1,
+      preset,
+      openClearance,
+      navWidth,
+      0
+    );
+    expect(tap2Open / tap1Open).toBeCloseTo(streakMult, 1);
+  });
+
   it('simulated coast travel stays ~one column with water speed and opposing current', () => {
     const preset = swimmerCoastPresets.snappy;
     const openClearance = columnWidth * 4;

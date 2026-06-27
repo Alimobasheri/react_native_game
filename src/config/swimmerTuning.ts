@@ -96,6 +96,15 @@ export const tapInputTuning = {
   RAPID_TAP_STREAK_ACCEL: 0.1,
   /** Streak ceiling for tap-fueled steering (~6–9 rapid taps to max). */
   RAPID_TAP_MAX_MULT: 4.4,
+  /** clearance01 at or below this — cramped corridor (matches NEAR_PIN foam threshold). */
+  NARROW_ESCAPE_CLEARANCE01_THRESHOLD: 0.35,
+  /**
+   * Amplifies (streakMultiplier − 1) during narrow escape taps (tap 2+ in cramped gaps).
+   * 2.0 = double the normal streak bonus on top of full-column travel.
+   */
+  NARROW_ESCAPE_STREAK_RESPONSE: 2,
+  /** Per escape-streak depth added to multiplier during narrow escape. */
+  NARROW_ESCAPE_STREAK_STEP: 0.35,
 } as const;
 
 export type SwimmerCoastPresetName = 'snappy' | 'balanced' | 'floaty';
