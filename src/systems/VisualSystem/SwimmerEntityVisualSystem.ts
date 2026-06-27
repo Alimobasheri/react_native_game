@@ -163,7 +163,7 @@ export const SwimmerEntityVisualSystem: System = {
 
       const meshScaleY = locomotion.meshScaleY ?? 1;
       const isPinned =
-        swimmer.isPinnedFromAbove === true && swimmer.isSideBlocked !== true;
+        swimmer.isPinnedFromAbove === true;
 
       const accessoryLayer = layers[accessoryLayerIndex];
       const featureLayerIndex = getSwimmerFeatureLayerIndex(skin);
@@ -179,18 +179,18 @@ export const SwimmerEntityVisualSystem: System = {
 
       const normalRest = skinUsesCrestAnchorLayout(skin)
         ? getCrestRestPosition(
-            skin,
-            baseWidth,
-            baseHeight,
-            accessoryBaseSize.width,
-            accessoryBaseSize.height,
-            1,
-            meshScaleY
-          )
+          skin,
+          baseWidth,
+          baseHeight,
+          accessoryBaseSize.width,
+          accessoryBaseSize.height,
+          1,
+          meshScaleY
+        )
         : {
-            x: 0,
-            y: getAccessoryRestOffsetY(skin, baseHeight, meshScaleY),
-          };
+          x: 0,
+          y: getAccessoryRestOffsetY(skin, baseHeight, meshScaleY),
+        };
 
       const breathEnvelope =
         skin.internalMotion === 'ripple' || skin.internalMotion === 'kelpSway'
@@ -236,8 +236,8 @@ export const SwimmerEntityVisualSystem: System = {
       const nextAccessoryWidth = accessoryBaseSize.width * visualResult.scaleX;
       const nextAccessoryHeight = isPinned
         ? accessoryBaseSize.height *
-          visualResult.scaleY *
-          PINNED_CREST_EXTRA_SCALE_Y
+        visualResult.scaleY *
+        PINNED_CREST_EXTRA_SCALE_Y
         : accessoryBaseSize.height * visualResult.scaleY;
 
       if (isPinned) {

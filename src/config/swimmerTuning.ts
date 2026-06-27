@@ -5,7 +5,7 @@
 
 export const swimmerPhysicsTuning = {
   /** Swimmer render width and collision hitbox width as a fraction of one grid column. */
-  SWIMMER_WIDTH_COLUMN_RATIO: 0.8,
+  SWIMMER_WIDTH_COLUMN_RATIO: 3,
   SWIMMER_HEIGHT_TO_WIDTH_RATIO: 2.1,
 
   MAX_HORIZONTAL_SPEED: 520,

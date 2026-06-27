@@ -8,6 +8,7 @@ import {
 import { buildSwimmerRenderStack } from '@/Game/characters/buildSwimmerRenderStack';
 import { mapLifeToCompositeUniforms } from '@/Game/characters/life/swimmerLifeUniforms';
 import { createInternalLifeState } from '@/Game/characters/life/swimmerLifeTypes';
+import { resolveInternalMotionProfile } from '@/Game/characters/life/resolveInternalMotionProfile';
 import { getSwimmerSkin } from '@/Game/characters/swimmerSkins';
 import {
   SwimmerComponentData,
@@ -37,7 +38,21 @@ export const SwimmerRenderBootstrapSystem: System = {
         continue;
       }
 
+      const skin = getSwimmerSkin(swimmer.skinId);
+      const profile = resolveInternalMotionProfile(skin.internalMotion);
+      const hasComposite = profile !== 'none';
+
       if (
+        !hasComposite &&
+        render.image === skin.bodyImageKey &&
+        render.renderPolicy === RenderPolicy.LiveGroup &&
+        render.renderLayers != null
+      ) {
+        continue;
+      }
+
+      if (
+        hasComposite &&
         render.compositeShader != null &&
         render.renderPolicy === RenderPolicy.AnimatedComposite &&
         render.renderLayers != null
@@ -45,7 +60,6 @@ export const SwimmerRenderBootstrapSystem: System = {
         continue;
       }
 
-      const skin = getSwimmerSkin(swimmer.skinId);
       const baseWidth = swimmer.meshBaseWidth ?? render.shape.width;
       const baseHeight = swimmer.meshBaseHeight ?? render.shape.height;
       const locomotion = swimmer.locomotion;
@@ -53,13 +67,6 @@ export const SwimmerRenderBootstrapSystem: System = {
       if (!locomotion.internalLifeState) {
         locomotion.internalLifeState = createInternalLifeState();
       }
-
-      const profile =
-        skin.internalMotion === 'kelpSway'
-          ? 'kelpSway'
-          : skin.internalMotion === 'ripple'
-            ? 'ripple'
-            : 'none';
 
       const uniforms = mapLifeToCompositeUniforms(
         profile,
@@ -78,6 +85,7 @@ export const SwimmerRenderBootstrapSystem: System = {
       );
 
       render.compositeShader = stack.compositeShader;
+      render.image = stack.bodyImageKey;
       render.renderLayers = stack.renderLayers;
       render.renderPolicy = stack.renderPolicy;
       render.isDirty = true;

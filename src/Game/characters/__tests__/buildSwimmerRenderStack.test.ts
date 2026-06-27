@@ -6,52 +6,49 @@ import {
   KELP_DRIFTER_SKIN,
 } from '../swimmerSkins';
 import { SWIMMER_CHARACTER_IMAGE } from '@/assets/swimmerCharacters';
+import {
+  KELP_SWAY_EFFECT_SHADER_KEY,
+  RIPPLE_EFFECT_SHADER_KEY,
+} from '@/Shaders/SwimmerInternal';
 
 describe('buildSwimmerRenderStack', () => {
-  it('builds composite shader with body child and overlay layers without fillColor', () => {
+  it('builds ripple composite shader with body-only child and overlay layers', () => {
     const stack = buildSwimmerRenderStack(AQUA_SPROUT_SKIN, 48, 120, {
       uPhase: 0,
       uIntensity: 0.2,
       uDebugMode: 0,
       uMeshSize: [48, 120],
-      uMotionKind: 0,
     });
 
     expect(stack.renderPolicy).toBe(RenderPolicy.AnimatedComposite);
-    expect(stack.compositeShader.key).toBe('swimmerInternal');
-    expect(stack.compositeShader.childImages).toEqual([
-      { imageKey: SWIMMER_CHARACTER_IMAGE.aquaSproutBody },
+    expect(stack.compositeShader?.key).toBe(RIPPLE_EFFECT_SHADER_KEY);
+    expect(stack.compositeShader?.childImages).toEqual([
       { imageKey: SWIMMER_CHARACTER_IMAGE.aquaSproutBody },
     ]);
+    expect(stack.bodyImageKey).toBeUndefined();
     expect(stack.renderLayers).toHaveLength(2);
     expect(stack.renderLayers[0].image).toBe(SWIMMER_CHARACTER_IMAGE.aquaSproutEyes);
     expect(stack.renderLayers[1].image).toBe(SWIMMER_CHARACTER_IMAGE.aquaSproutHair);
     expect(stack.renderLayers.every((layer) => layer.fillColor == null)).toBe(true);
   });
 
-  it('builds goggles-only overlay for goggled skin', () => {
-    const stack = buildSwimmerRenderStack(GOGGLED_SKIN, 48, 120, {
-      uIntensity: 0,
-    });
+  it('builds body-only stack for legacy goggled skin without internal shader', () => {
+    const stack = buildSwimmerRenderStack(GOGGLED_SKIN, 48, 120, {});
 
+    expect(stack.compositeShader).toBeUndefined();
+    expect(stack.bodyImageKey).toBe(SWIMMER_CHARACTER_IMAGE.floaterGoggledBody);
+    expect(stack.renderPolicy).toBe(RenderPolicy.LiveGroup);
     expect(stack.renderLayers).toHaveLength(1);
     expect(stack.renderLayers[0].image).toBe(
       SWIMMER_CHARACTER_IMAGE.floaterGoggledGoggles
     );
-    expect(stack.compositeShader.childImages[0].imageKey).toBe(
-      SWIMMER_CHARACTER_IMAGE.floaterGoggledBody
-    );
-    expect(stack.compositeShader.childImages[1].imageKey).toBe(
-      SWIMMER_CHARACTER_IMAGE.floaterGoggledBody
-    );
   });
 
   it('builds kelp composite with separate internal strand child image', () => {
-    const stack = buildSwimmerRenderStack(KELP_DRIFTER_SKIN, 48, 120, {
-      uMotionKind: 1,
-    });
+    const stack = buildSwimmerRenderStack(KELP_DRIFTER_SKIN, 48, 120, {});
 
-    expect(stack.compositeShader.childImages).toEqual([
+    expect(stack.compositeShader?.key).toBe(KELP_SWAY_EFFECT_SHADER_KEY);
+    expect(stack.compositeShader?.childImages).toEqual([
       { imageKey: SWIMMER_CHARACTER_IMAGE.kelpDrifterBody },
       { imageKey: SWIMMER_CHARACTER_IMAGE.kelpDrifterInternal },
     ]);

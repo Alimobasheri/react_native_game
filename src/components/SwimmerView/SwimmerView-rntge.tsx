@@ -58,7 +58,7 @@ export const SwimmerView: FC<{
   useColumnControl?: boolean;
   /** When true, disables dispatching any game-over events (storybook/debug use). */
   disableGameOver?: boolean;
-  /** Visual skin id (defaults to goggled). */
+  /** Visual skin id (defaults to Aqua Sprout). */
   skinId?: SwimmerSkinId;
   /** Storybook: composite shader debug gate G0–G3. */
   lifeDebugMode?: SwimmerLifeDebugMode;

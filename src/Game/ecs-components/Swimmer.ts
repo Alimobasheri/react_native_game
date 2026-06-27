@@ -5,6 +5,7 @@ import type { FeatureBlinkState } from '@/Game/characters/swimmerFeatureBlink';
 import type { VisualStrokePhase } from '@/Game/characters/visualStrokePhase';
 import type {
   InternalLifeState,
+  SwayBiasSpringState,
   SwimmerLifeDebugMode,
 } from '@/Game/characters/life/swimmerLifeTypes';
 
@@ -98,6 +99,14 @@ export type SwimmerLocomotionData = {
   breathStageStartFill?: number;
   /** Tracks visual phase for breath stage transitions. */
   breathTrackedVisualPhase?: VisualStrokePhase;
+  /** Persisted kelp sway amplitude scale 0–1+ across kinematic stages. */
+  swayAmplitudeLevel?: number;
+  /** Amplitude latched when the current visual phase began. */
+  swayStageStartAmplitude?: number;
+  /** Tracks visual phase for kelp sway stage transitions. */
+  swayTrackedVisualPhase?: VisualStrokePhase;
+  /** Lagging spring for horizontal strand bias (-1..1). */
+  swayBiasState?: SwayBiasSpringState;
 };
 
 export type SwimmerComponentData = {

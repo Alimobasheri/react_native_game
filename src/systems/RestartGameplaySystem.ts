@@ -37,6 +37,7 @@ import { createDefaultSwimmerLocomotion } from '@/Game/characters/swimmerLocomot
 import { buildSwimmerRenderStack } from '@/Game/characters/buildSwimmerRenderStack';
 import { mapLifeToCompositeUniforms } from '@/Game/characters/life/swimmerLifeUniforms';
 import { createInternalLifeState } from '@/Game/characters/life/swimmerLifeTypes';
+import { resolveInternalMotionProfile } from '@/Game/characters/life/resolveInternalMotionProfile';
 import {
   getSwimmerSkin,
 } from '@/Game/characters/swimmerSkins';
@@ -216,12 +217,7 @@ const restartGameplay = (
             const baseHeight = swimmer.meshBaseHeight ?? render.shape.height;
             render.shape.width = baseWidth;
             render.shape.height = baseHeight;
-            const profile =
-              skin.internalMotion === 'kelpSway'
-                ? 'kelpSway'
-                : skin.internalMotion === 'ripple'
-                  ? 'ripple'
-                  : 'none';
+            const profile = resolveInternalMotionProfile(skin.internalMotion);
             const uniforms = mapLifeToCompositeUniforms(
               profile,
               0,
@@ -235,6 +231,7 @@ const restartGameplay = (
               uniforms
             );
             render.compositeShader = stack.compositeShader;
+            render.image = stack.bodyImageKey;
             render.renderLayers = stack.renderLayers;
             render.renderPolicy = stack.renderPolicy;
           }

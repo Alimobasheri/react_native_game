@@ -29,8 +29,11 @@ import {
   kelpDrifterHair,
   SWIMMER_CHARACTER_IMAGE,
 } from '@/assets/swimmerCharacters';
+import {
+  rippleEffectSourceCode,
+  kelpSwayEffectSourceCode,
+} from '@/Shaders/SwimmerInternal';
 import { sourceCode as waterShaderSourceCode } from '@/Shaders/WaterShader/waterShader';
-import { sourceCode as swimmerInternalCompositeSourceCode } from '@/Shaders/SwimmerInternal/swimmerInternalComposite';
 import { sourceCode as screenAtmosphereGradientSourceCode } from '@/containers/ReactNativeSkiaGameEngine/Shaders/screenAtmosphereGradient';
 import { sourceCode as screenEdgeVignetteSourceCode } from '@/containers/ReactNativeSkiaGameEngine/Shaders/screenEdgeVignette';
 import { CaveBackground } from '@/components/CaveBackground/CaveBackground-rntge';
@@ -41,7 +44,6 @@ import { WaterView } from '@/components/WaterView/WaterView-rntge';
 import {
   AQUA_SPROUT_SKIN_ID,
   DEFAULT_SWIMMER_SKIN_ID,
-  GOGGLED_SKIN_ID,
   KELP_DRIFTER_SKIN_ID,
   type SwimmerSkinId,
 } from '@/Game/characters/swimmerSkins';
@@ -293,8 +295,13 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                   />
                   <Asset
                     type="shader"
-                    name="swimmerInternal"
-                    source={swimmerInternalCompositeSourceCode}
+                    name="swimmerInternalRipple"
+                    source={rippleEffectSourceCode}
+                  />
+                  <Asset
+                    type="shader"
+                    name="swimmerInternalKelpSway"
+                    source={kelpSwayEffectSourceCode}
                   />
                   <Asset
                     type="shader"
@@ -451,7 +458,7 @@ const meta = {
     },
     swimmerSkinId: {
       control: 'select',
-      options: [AQUA_SPROUT_SKIN_ID, KELP_DRIFTER_SKIN_ID, GOGGLED_SKIN_ID],
+      options: [AQUA_SPROUT_SKIN_ID, KELP_DRIFTER_SKIN_ID],
     },
     lifeDebugMode: {
       control: { type: 'range', min: 0, max: 3, step: 1 },

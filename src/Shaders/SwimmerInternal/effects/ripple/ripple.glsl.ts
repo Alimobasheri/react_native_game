@@ -1,7 +1,7 @@
 /**
  * Aqua Sprout — radial breath bloom from belly fill origin.
  */
-export const swimmerInternalRippleGlsl = `
+export const rippleEffectGlsl = `
 half4 debugRippleFill(vec2 uv, float bodyAlpha, float aspect) {
   float fillAmount = clamp(uBreath, 0.0, 1.0);
   vec2 originDelta = uv - uFillOrigin;

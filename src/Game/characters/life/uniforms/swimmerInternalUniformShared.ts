@@ -3,7 +3,7 @@ import type { SwimmerLifeDebugMode } from '../swimmerLifeTypes';
 
 export type SwimmerInternalUniformValues = Record<string, number | number[]>;
 
-export const mapSharedInternalUniforms = (
+export const mapRippleSharedUniforms = (
   phase: number,
   meshW: number,
   meshH: number,
@@ -24,6 +24,22 @@ export const mapSharedInternalUniforms = (
       swimmerLifeTuning.INTERNAL_RIPPLE_FILL_ORIGIN_X,
       swimmerLifeTuning.INTERNAL_RIPPLE_FILL_ORIGIN_Y,
     ],
+  };
+};
+
+export const mapKelpSharedUniforms = (
+  phase: number,
+  meshW: number,
+  meshH: number,
+  debugMode: SwimmerLifeDebugMode,
+  juiceBoost: number
+): SwimmerInternalUniformValues => {
+  'worklet';
+  return {
+    uPhase: phase,
+    uJuiceBoost: juiceBoost,
+    uDebugMode: debugMode,
+    uMeshSize: [meshW, meshH],
   };
 };
 

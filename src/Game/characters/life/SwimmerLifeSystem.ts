@@ -14,21 +14,17 @@ import {
   computeKinematicBreath,
   syncBreathStageTransition,
 } from './swimmerKinematicBreath';
+import {
+  computeKinematicSway,
+  syncSwayStageTransition,
+  updateSwayDirectionLag,
+} from './swimmerKinematicSway';
 import { mapLifeToCompositeUniforms } from './swimmerLifeUniforms';
 import {
   createInternalLifeState,
-  type InternalMotionProfileId,
 } from './swimmerLifeTypes';
+import { resolveInternalMotionProfile } from './resolveInternalMotionProfile';
 import { swimmerLifeTuning } from '@/config/swimmerLifeTuning';
-
-const resolveMotionProfile = (
-  internalMotion: string | undefined
-): InternalMotionProfileId => {
-  'worklet';
-  if (internalMotion === 'kelpSway') return 'kelpSway';
-  if (internalMotion === 'ripple') return 'ripple';
-  return 'none';
-};
 
 export const SwimmerLifeSystem: System = {
   name: 'SwimmerLifeSystem',
@@ -59,7 +55,7 @@ export const SwimmerLifeSystem: System = {
       }
 
       const skin = getSwimmerSkin(swimmer.skinId);
-      const profile = resolveMotionProfile(skin.internalMotion);
+      const profile = resolveInternalMotionProfile(skin.internalMotion);
       const locomotion = swimmer.locomotion;
       const meshScaleY = locomotion.meshScaleY ?? 1;
       const meshW = render.shape.width;
@@ -70,6 +66,11 @@ export const SwimmerLifeSystem: System = {
       }
 
       syncBreathStageTransition(locomotion);
+      syncSwayStageTransition(locomotion);
+
+      if (profile === 'kelpSway') {
+        updateSwayDirectionLag(locomotion, swimmer.velocityX, deltaSeconds);
+      }
 
       const kinematicBreath =
         profile === 'ripple'
@@ -79,8 +80,14 @@ export const SwimmerLifeSystem: System = {
             )
           : null;
 
+      const kinematicSway =
+        profile === 'kelpSway' ? computeKinematicSway(locomotion) : null;
+
       const phaseSpeedScale =
-        kinematicBreath?.phaseSpeedScale ?? locomotion.breathSpeedScale ?? 1;
+        kinematicBreath?.phaseSpeedScale ??
+        kinematicSway?.speedScale ??
+        locomotion.breathSpeedScale ??
+        1;
 
       locomotion.internalLifeState = advanceInternalLifePhase(
         locomotion.internalLifeState,
@@ -96,14 +103,18 @@ export const SwimmerLifeSystem: System = {
       const breathOverride = kinematicBreath?.breath;
       const breathMotion = computeBreathMotion(
         phase,
-        locomotion.internalIntensity,
+        undefined,
         strengthScale,
         breathOverride
       );
 
-      if (profile === 'ripple' || profile === 'kelpSway') {
+      if (profile === 'ripple') {
         locomotion.breathEnvelope = breathMotion.breath;
         locomotion.breathFillLevel = breathMotion.breath;
+      }
+
+      if (profile === 'kelpSway' && kinematicSway) {
+        locomotion.swayAmplitudeLevel = kinematicSway.amplitudeScale;
       }
 
       const uniforms = mapLifeToCompositeUniforms(
@@ -115,7 +126,8 @@ export const SwimmerLifeSystem: System = {
         locomotion.internalIntensity,
         swimmerLifeTuning.INTERNAL_JUICE_BOOST_DEFAULT,
         breathMotion.breath,
-        breathMotion.glow
+        breathMotion.glow,
+        kinematicSway ?? undefined
       );
 
       const composite = render.compositeShader;

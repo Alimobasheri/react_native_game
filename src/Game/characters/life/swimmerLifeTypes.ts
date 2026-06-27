@@ -2,6 +2,11 @@ export type InternalLifeState = {
   phase: number;
 };
 
+export type SwayBiasSpringState = {
+  laggedBias: number;
+  springVelocity: number;
+};
+
 export type InternalMotionProfileId = 'ripple' | 'kelpSway' | 'none';
 
 /** Debug gates G0–G3: 0=composite, 1=mask, 2=uvScroll, 3=rawBody */

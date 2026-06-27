@@ -14,8 +14,8 @@ export const swimmerDeformationTuning = {
   PIVOT_BRAKE_SCALE_X: 1.06,
   PIVOT_BRAKE_SCALE_Y: 0.95,
   /** PINNED / game-over — comedic squash. */
-  PINNED_SCALE_X: 1.15,
-  PINNED_SCALE_Y: 0.8,
+  PINNED_SCALE_X: 1.35,
+  PINNED_SCALE_Y: 0.6,
   /** IDLE buoyancy sine amplitude on scaleX (fallback when no breath sync). */
   IDLE_BUOYANCY_AMPLITUDE: 0.0075,
   /** IDLE breath-synced puff (driven by SwimmerLifeSystem envelope). */

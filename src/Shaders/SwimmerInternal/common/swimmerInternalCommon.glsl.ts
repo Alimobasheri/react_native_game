@@ -1,4 +1,4 @@
-/** Shared coordinate helpers for swimmer internal composite shaders. */
+/** Shared coordinate helpers for swimmer internal body shaders. */
 export const swimmerInternalCommonGlsl = `
 const float SWIMMER_TAU = 6.28318530718;
 

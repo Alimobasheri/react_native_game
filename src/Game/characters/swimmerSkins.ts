@@ -16,7 +16,17 @@ export type SwimmerSkinId =
   | typeof KELP_DRIFTER_SKIN_ID
   | typeof GOGGLED_SKIN_ID;
 
-export type SwimmerInternalMotionType = 'none' | 'ripple' | 'kelpSway';
+export type SwimmerInternalMotionType =
+  | 'none'
+  | 'ripple'
+  | 'kelpSway'
+  // Future skins — each gets its own effect shader module:
+  | 'bubbleRise'
+  | 'mossPulse'
+  | 'coralShimmer'
+  | 'lavaPulse'
+  | 'iceShimmer'
+  | 'pearlShimmer';
 
 export type SwimmerBlinkType = 'none' | 'tinyDotBlink' | 'sleepyBlink';
 
