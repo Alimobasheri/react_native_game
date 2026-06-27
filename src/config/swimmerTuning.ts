@@ -80,11 +80,89 @@ export const waterPhysicsTuning = {
 } as const;
 
 export const tapInputTuning = {
+  /** Same-direction taps within this window increment rapidTapStreak. */
   RAPID_TAP_WINDOW_MS: 220,
-  RAPID_TAP_STEP_MULT: 0.22,
-  RAPID_TAP_STREAK_ACCEL: 0.1,
-  RAPID_TAP_MAX_MULT: 4.4,
+  /** Uncapped sqrt streak: multiplier = 1 + STREAK_SQRT_COEFF * sqrt(streak). */
+  STREAK_SQRT_COEFF: 0.4,
+  /** Optional log tail for very high streaks (0 = sqrt only). */
+  STREAK_LOG_COEFF: 0,
 } as const;
+
+export type SwimmerCoastPresetName = 'snappy' | 'balanced' | 'floaty';
+
+/** Switch active coast profile — change this one line to A/B feel. */
+export const swimmerCoastPreset: SwimmerCoastPresetName = 'snappy';
+
+export type SwimmerCoastPresetValues = {
+  TAP_TRAVEL_COLUMN_MULTIPLIER: number;
+  MIN_RETAIN_PER_SECOND: number;
+  MAX_RETAIN_PER_SECOND: number;
+  DISTANCE_SCALE_WATER_SPEED_FACTOR: number;
+  TAP_MODE_CURRENT_RESPONSE_SCALE: number;
+  OPPOSING_CURRENT_IMPULSE_BOOST: number;
+  VELOCITY_LEAN_SMOOTH_PER_SEC: number;
+};
+
+/** Each preset is a complete editable table — tune numbers directly. */
+export const swimmerCoastPresets: Record<
+  SwimmerCoastPresetName,
+  SwimmerCoastPresetValues
+> = {
+  snappy: {
+    TAP_TRAVEL_COLUMN_MULTIPLIER: 1.05,
+    MIN_RETAIN_PER_SECOND: 0.06,
+    MAX_RETAIN_PER_SECOND: 0.12,
+    DISTANCE_SCALE_WATER_SPEED_FACTOR: 0.12,
+    TAP_MODE_CURRENT_RESPONSE_SCALE: 0.28,
+    OPPOSING_CURRENT_IMPULSE_BOOST: 0.35,
+    VELOCITY_LEAN_SMOOTH_PER_SEC: 48,
+  },
+  balanced: {
+    TAP_TRAVEL_COLUMN_MULTIPLIER: 1.05,
+    MIN_RETAIN_PER_SECOND: 0.1,
+    MAX_RETAIN_PER_SECOND: 0.18,
+    DISTANCE_SCALE_WATER_SPEED_FACTOR: 0.1,
+    TAP_MODE_CURRENT_RESPONSE_SCALE: 0.35,
+    OPPOSING_CURRENT_IMPULSE_BOOST: 0.4,
+    VELOCITY_LEAN_SMOOTH_PER_SEC: 36,
+  },
+  floaty: {
+    TAP_TRAVEL_COLUMN_MULTIPLIER: 1.05,
+    MIN_RETAIN_PER_SECOND: 0.15,
+    MAX_RETAIN_PER_SECOND: 0.25,
+    DISTANCE_SCALE_WATER_SPEED_FACTOR: 0.08,
+    TAP_MODE_CURRENT_RESPONSE_SCALE: 0.45,
+    OPPOSING_CURRENT_IMPULSE_BOOST: 0.45,
+    VELOCITY_LEAN_SMOOTH_PER_SEC: 28,
+  },
+};
+
+export const getActiveCoastPreset = (): SwimmerCoastPresetValues => {
+  'worklet';
+  return swimmerCoastPresets[swimmerCoastPreset];
+};
+
+/** Hyper-casual globals not tied to coast preset (worklet-safe). */
+export const hyperCasualPhysicsTuning = {
+  /** |velocityX| below this is treated as idle (px/s). */
+  VELOCITY_ZERO_EPSILON: 0.5,
+  IDLE_SPEED_THRESHOLD: 8,
+  DECELERATING_SPEED_THRESHOLD: 40,
+  /**
+   * Opposite tap is a soft reverse only when still coasting with facing at or above
+   * this speed (px/s). Below this — full tap in the new direction, no pivot lag.
+   */
+  SOFT_REVERSE_MIN_COAST_SPEED: 80,
+  /** Opposite-tap impulse scale when soft reverse applies (high-speed coast only). */
+  REVERSE_IMPULSE_SCALE: 0.65,
+  MAX_SPLASH_STRENGTH: 1.35,
+  MAX_FRAME_DT: 0.1,
+} as const;
+
+export type SwimmerLocomotionMode = 'hybrid' | 'kinematic';
+
+/** Default tap locomotion model — hybrid restores hyper-casual physics + visual phases. */
+export const swimmerLocomotionMode: SwimmerLocomotionMode = 'hybrid';
 
 /** Water shader uniform animation step: `iTime += deltaTime / iTimeDeltaDivisor`. */
 export const waterShaderRuntimeTuning = {

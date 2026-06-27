@@ -1,4 +1,3 @@
-import { MovementState } from '@/Game/characters/characterMovementStates';
 import { swimmerLifeTuning } from '@/config/swimmerLifeTuning';
 import { swimmerVisualTuning } from '@/config/swimmerVisualTuning';
 import type { SwimmerLocomotionData } from '@/Game/ecs-components/Swimmer';
@@ -138,7 +137,7 @@ export const computeKinematicBreath = (
     };
   }
 
-  if (locomotion.movementState === MovementState.DRAG) {
+  if (visualPhase === VisualStrokePhase.STROKE) {
     return {
       breath: Math.max(locomotion.breathFillLevel ?? 1, 0.95),
       strengthScale: tierStrengthScale(tier),

@@ -1,4 +1,4 @@
-import { MovementState } from '../characterMovementStates';
+import type { MovementState } from '../characterMovementStates';
 import { secondaryItemTuning } from '@/config/secondaryItemTuning';
 import type {
   SecondaryItemLayerSink,
@@ -19,18 +19,14 @@ export const updateShaderReactiveAccessory = (
   state: ShaderReactiveAccessoryState,
   velocityX: number,
   scaleX: number,
-  movementState: MovementState,
+  _movementState: MovementState,
   dt: number,
   sink: SecondaryItemLayerSink | null
 ): ShaderReactiveAccessoryState => {
   'worklet';
   const safeDt = dt > 0 ? dt : 0;
   const absVelocityX = Math.abs(velocityX);
-  const tierProxy =
-    movementState === MovementState.STRIKE ||
-    movementState === MovementState.GLIDE
-      ? Math.min(3, 1 + Math.floor(absVelocityX / 150))
-      : 1;
+  const tierProxy = Math.min(3, Math.max(1, Math.floor(absVelocityX / 150)));
 
   const targetOpacity = Math.min(
     1,

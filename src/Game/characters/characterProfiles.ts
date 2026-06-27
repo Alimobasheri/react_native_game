@@ -6,6 +6,8 @@ export const GIGGLE_CRYSTAL_PROFILE = {
   id: GIGGLE_CRYSTAL_PROFILE_ID,
   mass: 1.2,
   baseDrag: 0.15,
+  impulseScale: 1,
+  dragScale: 1,
   baseStrikeForce: 324,
   /** Legacy profile caps — runtime uses swimmerVisualTuning tier open-water angles. */
   targetSwimAngles: [42, 55, 66],

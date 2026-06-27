@@ -2,6 +2,11 @@ import { MovementState } from './characterMovementStates';
 import type { ICharacterProfile } from './characterProfileTypes';
 import { clearance01FromPx } from './swimmerClearance';
 import { swimmerVisualTuning } from '@/config/swimmerVisualTuning';
+import {
+  swimmerCoastPreset,
+  swimmerCoastPresets,
+  swimmerPhysicsTuning,
+} from '@/config/swimmerTuning';
 import type { SpeedTier, SwimmerLocomotionData } from '@/Game/ecs-components/Swimmer';
 
 import { VisualStrokePhase } from './visualStrokePhase';
@@ -45,6 +50,38 @@ export const computeClearanceAwareAngleDeg = (
   return Math.min(desiredAngle, maxAngleByClearance);
 };
 
+/** Old hyper-casual inchworm lean: speed-scaled max tilt with clearance cap. */
+export const computeVelocityLedAngleDeg = (
+  velocityX: number,
+  clearance01: number
+): number => {
+  'worklet';
+  const fullTiltSpeed =
+    swimmerPhysicsTuning.MAX_HORIZONTAL_SPEED *
+    swimmerPhysicsTuning.FULL_TILT_SPEED_FRACTION;
+  const speed01 = clamp01(Math.abs(velocityX) / Math.max(1, fullTiltSpeed));
+  const dynamicMaxTilt = lerp(
+    swimmerVisualTuning.LOW_SPEED_MAX_TILT_DEG,
+    swimmerVisualTuning.HIGH_SPEED_MAX_TILT_DEG,
+    speed01
+  );
+  const tiltNormalized = Math.max(
+    -1,
+    Math.min(1, velocityX / Math.max(1, fullTiltSpeed))
+  );
+  const velocityAngleDeg = tiltNormalized * dynamicMaxTilt;
+  const maxByClearance = lerp(
+    swimmerVisualTuning.NARROW_GAP_MAX_ANGLE_DEG,
+    dynamicMaxTilt,
+    clearance01
+  );
+  const absAngle = Math.abs(velocityAngleDeg);
+  if (absAngle <= maxByClearance) {
+    return velocityAngleDeg;
+  }
+  return Math.sign(velocityAngleDeg) * maxByClearance;
+};
+
 export const beginVisualStroke = (
   locomotion: SwimmerLocomotionData,
   direction: 1 | -1,
@@ -61,7 +98,7 @@ export const beginVisualStroke = (
   locomotion.visualRecoveryTimer = 0;
   locomotion.visualPivotTimer = 0;
   locomotion.targetAngleDeg =
-    -direction * swimmerVisualTuning.MIN_SPEED_ANGLE_DEG;
+    direction * swimmerVisualTuning.MIN_SPEED_ANGLE_DEG;
 };
 
 export const beginVisualPivot = (locomotion: SwimmerLocomotionData): void => {
@@ -131,10 +168,10 @@ const advanceVisualPhaseTimers = (
   }
 };
 
-/** Maps visual stroke phase to deformation state (physics state may differ). */
+/** Maps visual stroke phase to deformation state (visual-only; no physics fallback). */
 export const visualPhaseToDeformationState = (
   visualPhase: VisualStrokePhase,
-  physicsState: MovementState,
+  _physicsState: MovementState,
   isPinned: boolean
 ): MovementState | 'PINNED' => {
   'worklet';
@@ -151,11 +188,10 @@ export const visualPhaseToDeformationState = (
     case VisualStrokePhase.RECOVERY:
       return MovementState.DECELERATING;
     case VisualStrokePhase.GLIDE:
+      return MovementState.GLIDE;
     case VisualStrokePhase.IDLE:
     default:
-      return physicsState === MovementState.IDLE
-        ? MovementState.IDLE
-        : MovementState.GLIDE;
+      return MovementState.IDLE;
   }
 };
 
@@ -183,31 +219,28 @@ export const updateSwimmerVisualLocomotion = (
   const prevClearance01 = locomotion.clearance01 ?? 1;
   locomotion.clearance01 = prevClearance01 + (targetClearance01 - prevClearance01) * smooth;
 
-  const tier = locomotion.visualStrokeTier ?? locomotion.currentTier;
   const direction =
     locomotion.visualStrokeDirection ?? locomotion.facingDirection;
   const signedVelocity =
     Math.abs(velocityX) > 1 ? velocityX : direction * Math.abs(velocityX);
 
-  let targetMag = computeClearanceAwareAngleDeg(
-    signedVelocity,
-    tier,
-    locomotion.clearance01 ?? 1
-  );
+  const clearance01 = locomotion.clearance01 ?? 1;
+  let targetAngleDeg = computeVelocityLedAngleDeg(signedVelocity, clearance01);
 
-  if (locomotion.visualPhase === VisualStrokePhase.ANTICIPATION) {
-    targetMag = swimmerVisualTuning.MIN_SPEED_ANGLE_DEG;
-    locomotion.targetAngleDeg = -direction * targetMag;
-  } else if (locomotion.visualPhase === VisualStrokePhase.PIVOT) {
-    locomotion.targetAngleDeg =
+  // Subtle phase nudge on top of velocity lean — deformation carries most stroke juice.
+  if (locomotion.visualPhase === VisualStrokePhase.PIVOT) {
+    const pivotLean =
       -swimmerVisualTuning.NARROW_GAP_MAX_ANGLE_DEG * locomotion.facingDirection;
-  } else {
-    const sign = signedVelocity >= 0 ? 1 : -1;
-    locomotion.targetAngleDeg = sign * targetMag;
+    targetAngleDeg = lerp(targetAngleDeg, pivotLean, 0.55);
   }
 
-  const interpStep = Math.min(1, 18 * safeDt);
-  const delta = locomotion.targetAngleDeg - locomotion.visualAngleDeg;
-  locomotion.visualAngleDeg += delta * interpStep;
+  locomotion.targetAngleDeg = targetAngleDeg;
+
+  const interpStep = Math.min(
+    1,
+    swimmerCoastPresets[swimmerCoastPreset].VELOCITY_LEAN_SMOOTH_PER_SEC * safeDt
+  );
+  const delta = targetAngleDeg - (locomotion.visualAngleDeg ?? 0);
+  locomotion.visualAngleDeg = (locomotion.visualAngleDeg ?? 0) + delta * interpStep;
   locomotion.currentAngleDeg = locomotion.visualAngleDeg;
 };

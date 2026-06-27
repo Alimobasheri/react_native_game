@@ -1,4 +1,3 @@
-import { MovementState } from '@/Game/characters/characterMovementStates';
 import { swimmerLifeTuning } from '@/config/swimmerLifeTuning';
 import { swimmerVisualTuning } from '@/config/swimmerVisualTuning';
 import type { SwimmerLocomotionData } from '@/Game/ecs-components/Swimmer';
@@ -220,14 +219,14 @@ export function computeKinematicSway(
     };
   }
 
-  if (locomotion.movementState === MovementState.DRAG) {
-    const dragAmplitude = Math.max(
+  if (visualPhase === VisualStrokePhase.STROKE) {
+    const strokeAmplitude = Math.max(
       locomotion.swayAmplitudeLevel ?? t.KINEMATIC_KELP_STROKE_AMPLITUDE,
       t.KINEMATIC_KELP_STROKE_AMPLITUDE * 0.95
     );
     return {
-      amplitudeScale: dragAmplitude * tierStrengthScale(tier),
-      speedScale: t.KINEMATIC_KELP_ACTION_SPEED_SCALE,
+      amplitudeScale: strokeAmplitude * tierStrengthScale(tier),
+      speedScale: t.KINEMATIC_KELP_STROKE_SPEED_SCALE,
       directionBias,
       glowScale: 1.05,
     };

@@ -8,7 +8,7 @@ export type SwimmerColliderExtents = {
 /**
  * Gameplay collider extents — always upright, never tied to visual squash.
  *
- * Navigation: fair compact core for gap passage (tuned wider than original).
+ * Navigation: compact core for gap passage (slightly narrower than visual mesh).
  * Pinned: taller ceiling-contact box — never shrinks with visual squash.
  */
 export const getSwimmerColliderExtents = (

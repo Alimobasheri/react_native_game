@@ -1,4 +1,3 @@
-import { MovementState } from '@/Game/characters/characterMovementStates';
 import { VisualStrokePhase } from '@/Game/characters/visualStrokePhase';
 import { swimmerVisualTuning } from '@/config/swimmerVisualTuning';
 import { swimmerLifeTuning } from '@/config/swimmerLifeTuning';
@@ -117,10 +116,10 @@ describe('swimmerKinematicSway', () => {
     expect(locomotion.swayTrackedVisualPhase).toBe(VisualStrokePhase.GLIDE);
   });
 
-  it('keeps drag committed near stroke amplitude', () => {
+  it('keeps stroke committed near stroke amplitude', () => {
     const locomotion = makeLocomotion({
-      movementState: MovementState.DRAG,
       visualPhase: VisualStrokePhase.STROKE,
+      visualStrokeTimer: swimmerVisualTuning.STROKE_DURATION_SEC * 0.5,
       swayAmplitudeLevel: 1.2,
       swayTrackedVisualPhase: VisualStrokePhase.STROKE,
     });

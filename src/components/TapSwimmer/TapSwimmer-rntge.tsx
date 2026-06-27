@@ -9,6 +9,8 @@ import {
   SwimmerComponentData,
   SwimmerComponentName,
 } from '@/Game/ecs-components/Swimmer';
+import { applyTapInputToLocomotion } from '@/Game/characters/swimmerTapInput';
+import '@/Game/characters/characterProfiles';
 import { beginGameplay, dismissTutorial } from '@/Game/session/beginGameplay';
 import {
   getGameSession,
@@ -73,6 +75,11 @@ export const TapSwimmer: FC<{
               SwimmerComponentName,
               (swimmer: SwimmerComponentData) => {
                 if (!swimmer.useColumnControl) return;
+                applyTapInputToLocomotion(
+                  swimmer.locomotion,
+                  tapDirection,
+                  data.timestamp ?? Date.now()
+                );
                 swimmer.locomotion.pendingTapDirection = tapDirection;
               }
             );

@@ -1,4 +1,3 @@
-import { MovementState } from '@/Game/characters/characterMovementStates';
 import { VisualStrokePhase } from '@/Game/characters/visualStrokePhase';
 import { swimmerVisualTuning } from '@/config/swimmerVisualTuning';
 import type { SwimmerLocomotionData } from '@/Game/ecs-components/Swimmer';
@@ -96,10 +95,10 @@ describe('swimmerKinematicBreath', () => {
     expect(locomotion.breathTrackedVisualPhase).toBe(VisualStrokePhase.GLIDE);
   });
 
-  it('keeps drag committed near full breath', () => {
+  it('keeps stroke committed near full breath', () => {
     const locomotion = makeLocomotion({
-      movementState: MovementState.DRAG,
       visualPhase: VisualStrokePhase.STROKE,
+      visualStrokeTimer: swimmerVisualTuning.STROKE_DURATION_SEC * 0.5,
       breathFillLevel: 1,
       breathTrackedVisualPhase: VisualStrokePhase.STROKE,
     });

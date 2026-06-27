@@ -69,6 +69,14 @@ export type SwimmerLocomotionData = {
   pivotTargetDirection?: -1 | 1 | 0;
   /** One-shot tap direction consumed by physics each frame. */
   pendingTapDirection?: -1 | 1 | 0;
+  /** Epoch ms of the most recent tap (rapid-tap streak). */
+  lastTapTimeMs?: number;
+  /** Direction of the most recent tap (-1 left, 1 right). */
+  lastTapDirection?: -1 | 1;
+  /** Consecutive rapid same-direction taps within streak window. */
+  rapidTapStreak?: number;
+  /** One-shot streak multiplier consumed when physics applies tap impulse. */
+  pendingTapMultiplier?: number;
   /** Current procedural mesh scale X (volume-conserved with meshScaleY). */
   meshScaleX?: number;
   /** Current procedural mesh scale Y (volume-conserved with meshScaleX). */
@@ -103,6 +111,8 @@ export type SwimmerLocomotionData = {
   swayStageStartAmplitude?: number;
   /** Tracks visual phase for kelp sway stage transitions. */
   swayTrackedVisualPhase?: VisualStrokePhase;
+  /** Prior frame visual stroke phase for pivot edge detection. */
+  previousVisualPhase?: VisualStrokePhase;
   /** Lagging spring for horizontal strand bias (-1..1). */
   swayBiasState?: SwayBiasSpringState;
 };

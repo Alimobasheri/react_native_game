@@ -16,7 +16,11 @@ export interface ICharacterProfile {
   readonly id: string;
   readonly mass: number;
   readonly baseDrag: number;
-  /** Strike impulse numerator before tier scaling and mass division (pixels/s). */
+  /** Multiplier on hyper-casual tap impulse (default 1). */
+  readonly impulseScale: number;
+  /** Multiplier on water-speed exponential drag retention (default 1). */
+  readonly dragScale: number;
+  /** @deprecated Legacy kinematic strike force — use impulseScale. */
   readonly baseStrikeForce: number;
   /** Tier 1, tier 2, tier 3 strike tilt targets in degrees. */
   readonly targetSwimAngles: CharacterTierTriple;

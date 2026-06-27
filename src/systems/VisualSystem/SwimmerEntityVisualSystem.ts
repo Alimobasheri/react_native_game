@@ -150,13 +150,15 @@ export const SwimmerEntityVisualSystem: System = {
 
       const profile = getCharacterProfileForSwimmer(locomotion.profileId);
       const telemetry = buildKinematicTelemetry(locomotion, swimmer.velocityX);
-      const previousState =
-        locomotion.previousMovementState ?? MovementState.IDLE;
+      const currentVisualPhase =
+        locomotion.visualPhase ?? VisualStrokePhase.IDLE;
+      const previousVisualPhase =
+        locomotion.previousVisualPhase ?? VisualStrokePhase.IDLE;
 
       let pivotImpactSpeed: number | null = null;
       if (
-        previousState !== MovementState.PIVOT_BRAKE &&
-        telemetry.state === MovementState.PIVOT_BRAKE
+        previousVisualPhase !== VisualStrokePhase.PIVOT &&
+        currentVisualPhase === VisualStrokePhase.PIVOT
       ) {
         pivotImpactSpeed = Math.abs(telemetry.velocityX);
       }
@@ -348,6 +350,7 @@ export const SwimmerEntityVisualSystem: System = {
       locomotion.meshScaleX = visualResult.scaleX;
       locomotion.meshScaleY = visualResult.scaleY;
       locomotion.previousMovementState = telemetry.state;
+      locomotion.previousVisualPhase = currentVisualPhase;
       locomotion.accessoryState = visualResult.accessoryState;
     }
   },

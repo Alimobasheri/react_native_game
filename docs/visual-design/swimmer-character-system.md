@@ -162,6 +162,9 @@ Defined in `src/Game/characters/visualStrokePhase.ts` — driven by `swimmerVisu
 | Accessory spring | `src/Game/characters/accessories/laggingSpringGoggles.ts` |
 | Water FX | `src/systems/VisualSystem/SwimmerWaterContactFxSystem.ts`, `src/config/swimmerWaterFxTuning.ts` |
 | Locomotion events | `src/Game/characters/swimmerLocomotionEvents.ts` |
+| **Hybrid tap physics** | `src/Game/characters/swimmerHyperCasualPhysics.ts` (impulse + drag) |
+| **Visual stroke phases** | `src/Game/characters/swimmerVisualLocomotion.ts`, `visualStrokePhase.ts` |
+| Tap input (streak + tier) | `src/Game/characters/swimmerTapInput.ts`, `TapSwimmer-rntge.tsx` |
 | ECS component | `src/Game/ecs-components/Swimmer.ts` |
 | View / entity setup | `src/components/SwimmerView/SwimmerView-rntge.tsx` |
 | Assets | `src/assets/swimmerCharacters.ts`, `assets/swimmer/characters/` |
@@ -174,6 +177,16 @@ Defined in `src/Game/characters/visualStrokePhase.ts` — driven by `swimmerVisu
 - **Accessory lag** — `LaggingSpring` secondary item with pivot whiplash.
 - **Danger communication** — foam collar tints red when `clearance01 < NEAR_PIN_CLEARANCE01`.
 - **Pinned comedy squash** — exaggerated `PINNED_SCALE` deformation + upward dome splash.
+
+### Hybrid locomotion contract (default: `swimmerLocomotionMode = 'hybrid'`)
+
+- **Base unit:** ~**1 column width** per tap (streak 0). Target distance comes from `TAP_TRAVEL_COLUMN_MULTIPLIER` in the active coast preset (`swimmerTuning.ts`).
+- **Physics:** distance-targeted tap impulse solved by simulating the full per-frame loop (tap → drag → water advection → integrate) so **net displacement ≈ 1 column** after all forces. Each tap **adds** impulse onto current velocity (Option B stacking).
+- **Streak:** uncapped sqrt scaling — `1 + STREAK_SQRT_COEFF * sqrt(rapidTapStreak)` in `tapInputTuning`. Rapid taps within `RAPID_TAP_WINDOW_MS` increment streak; higher streaks reach extra columns via soft sqrt growth (no hard cap).
+- **Coast presets:** switch feel with one line — `swimmerCoastPreset = 'snappy' | 'balanced' | 'floaty'`. Each entry in `swimmerCoastPresets` is a **fully editable numeric table** (travel multiplier, retain min/max, current response, opposing-current boost, lean smooth rate). Default is **snappy** (~0.25–0.35s settle).
+- **Visual:** independent stroke phases (anticipation → stroke → glide → recovery) drive deformation, life shaders, and FX only — **never** displacement or lean. Lean is velocity-led with **speed-scaled max tilt** (`LOW_SPEED_MAX_TILT_DEG` → `HIGH_SPEED_MAX_TILT_DEG` in `swimmerVisualTuning.ts`) and clearance-aware caps.
+- **Tier window:** same-direction taps within `comboWindowMs` bump `visualStrokeTier` for FX/lean intensity only — not a separate physics formula.
+- **Legacy:** `swimmerLocomotionMode = 'kinematic'` retains the full physics FSM in `swimmerKinematicsController.ts` for A/B comparison.
 
 ### Incompatibilities / gaps (action items for future work)
 

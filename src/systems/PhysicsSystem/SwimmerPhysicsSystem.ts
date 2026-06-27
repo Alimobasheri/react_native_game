@@ -41,7 +41,7 @@ import {
   RunResultComponentData,
   RunResultComponentName,
 } from '@/Game/ecs-components/RunResult';
-import { swimmerPhysicsTuning } from '@/config/swimmerTuning';
+import { swimmerPhysicsTuning, swimmerLocomotionMode, swimmerCoastPreset, swimmerCoastPresets } from '@/config/swimmerTuning';
 import { runOnJS } from 'react-native-reanimated';
 import {
   degreesToRadians,
@@ -49,6 +49,12 @@ import {
   swimmerKinematicsOnTap,
   swimmerKinematicsUpdate,
 } from '@/Game/characters/swimmerKinematicsController';
+import {
+  applyHyperCasualDrag,
+  applyHyperCasualTap,
+  computeHybridSplashStrength,
+  updateHyperCasualLocomotionTelemetry,
+} from '@/Game/characters/swimmerHyperCasualPhysics';
 import { computeFinalSurfaceUv } from '@/Game/water/waterSurfaceProfile';
 import {
   SwimmerAnticipationDentEventType,
@@ -392,67 +398,9 @@ export const SwimmerPhysicsSystem: System = {
       let tapImpulseAppliedThisFrame = false;
       if (swimmerComponent.useColumnControl) {
         const profile = getCharacterProfileForSwimmer(locomotion.profileId);
-
-        const pendingTapDirection = locomotion.pendingTapDirection ?? 0;
-        if (pendingTapDirection === -1 || pendingTapDirection === 1) {
-          tapImpulseAppliedThisFrame = true;
-          const prevMovementState = locomotion.movementState;
-          swimmerVelocityX = swimmerKinematicsOnTap(
-            profile,
-            locomotion,
-            swimmerVelocityX,
-            pendingTapDirection,
-            (prefabKey, impactSpeed) => {
-              eventQueue.addEvent({
-                type: SwimmerPivotSplashEventType,
-                payload: {
-                  entityId: swimmerEntity,
-                  prefabKey,
-                  impactSpeed,
-                  x: swimmerCenterX,
-                  y: swimmerCenterY,
-                  direction: pendingTapDirection,
-                },
-              });
-            }
-          );
-          if (
-            locomotion.movementState === MovementState.ANTICIPATION &&
-            prevMovementState !== MovementState.PIVOT_BRAKE
-          ) {
-            eventQueue.addEvent({
-              type: SwimmerAnticipationDentEventType,
-              payload: {
-                entityId: swimmerEntity,
-                x: swimmerCenterX,
-                y: swimmerCenterY,
-                direction: pendingTapDirection,
-              },
-            });
-            eventQueue.addEvent({
-              type: SwimmerDirectionalSplashEventType,
-              payload: {
-                entityId: swimmerEntity,
-                x: swimmerCenterX,
-                y: swimmerCenterY,
-                direction: pendingTapDirection,
-                tier: locomotion.currentTier,
-                strength: Math.min(
-                  1.35,
-                  0.75 + locomotion.currentTier * 0.12
-                ),
-              },
-            });
-          }
-          locomotion.pendingTapDirection = 0;
-        }
-
-        swimmerVelocityX = swimmerKinematicsUpdate(
-          profile,
-          locomotion,
-          swimmerVelocityX,
-          deltaSeconds
-        );
+        const columnWidth =
+          swimmerComponent.containerWidth / LAYOUT_CONSTANTS.COLUMNS;
+        const navColliderWidth = navColliderExtents.halfWidth * 2;
 
         const clearanceRows = selectRowsNearSwimmerFromComponentStore(
           obstacleRowStore,
@@ -468,6 +416,135 @@ export const SwimmerPhysicsSystem: System = {
             width: containerData.width,
           }
         );
+
+        const pendingTapDirection = locomotion.pendingTapDirection ?? 0;
+        if (pendingTapDirection === -1 || pendingTapDirection === 1) {
+          tapImpulseAppliedThisFrame = true;
+
+          if (swimmerLocomotionMode === 'hybrid') {
+            const streakMultiplier = locomotion.pendingTapMultiplier ?? 1;
+            const tapResult = applyHyperCasualTap(
+              profile,
+              locomotion,
+              swimmerVelocityX,
+              pendingTapDirection,
+              columnWidth,
+              normalizedSpeed,
+              streakMultiplier,
+              waterCurrentVelocityX,
+              clearancePx,
+              navColliderWidth
+            );
+            swimmerVelocityX = tapResult.velocityX;
+            locomotion.pendingTapMultiplier = 1;
+
+            if (tapResult.isSoftReverseTap) {
+              eventQueue.addEvent({
+                type: SwimmerPivotSplashEventType,
+                payload: {
+                  entityId: swimmerEntity,
+                  prefabKey: profile.splashFxPrefabKey,
+                  impactSpeed: Math.abs(swimmerVelocityX),
+                  x: swimmerCenterX,
+                  y: swimmerCenterY,
+                  direction: pendingTapDirection,
+                },
+              });
+            } else {
+              eventQueue.addEvent({
+                type: SwimmerAnticipationDentEventType,
+                payload: {
+                  entityId: swimmerEntity,
+                  x: swimmerCenterX,
+                  y: swimmerCenterY,
+                  direction: pendingTapDirection,
+                },
+              });
+              eventQueue.addEvent({
+                type: SwimmerDirectionalSplashEventType,
+                payload: {
+                  entityId: swimmerEntity,
+                  x: swimmerCenterX,
+                  y: swimmerCenterY,
+                  direction: pendingTapDirection,
+                  tier: tapResult.visualStrokeTier,
+                  strength: computeHybridSplashStrength(
+                    tapResult.visualStrokeTier,
+                    tapResult.streakMultiplier
+                  ),
+                },
+              });
+            }
+          } else {
+            const prevMovementState = locomotion.movementState;
+            swimmerVelocityX = swimmerKinematicsOnTap(
+              profile,
+              locomotion,
+              swimmerVelocityX,
+              pendingTapDirection,
+              (prefabKey, impactSpeed) => {
+                eventQueue.addEvent({
+                  type: SwimmerPivotSplashEventType,
+                  payload: {
+                    entityId: swimmerEntity,
+                    prefabKey,
+                    impactSpeed,
+                    x: swimmerCenterX,
+                    y: swimmerCenterY,
+                    direction: pendingTapDirection,
+                  },
+                });
+              }
+            );
+            if (
+              locomotion.movementState === MovementState.ANTICIPATION &&
+              prevMovementState !== MovementState.PIVOT_BRAKE
+            ) {
+              eventQueue.addEvent({
+                type: SwimmerAnticipationDentEventType,
+                payload: {
+                  entityId: swimmerEntity,
+                  x: swimmerCenterX,
+                  y: swimmerCenterY,
+                  direction: pendingTapDirection,
+                },
+              });
+              eventQueue.addEvent({
+                type: SwimmerDirectionalSplashEventType,
+                payload: {
+                  entityId: swimmerEntity,
+                  x: swimmerCenterX,
+                  y: swimmerCenterY,
+                  direction: pendingTapDirection,
+                  tier: locomotion.currentTier,
+                  strength: Math.min(
+                    1.35,
+                    0.75 + locomotion.currentTier * 0.12
+                  ),
+                },
+              });
+            }
+          }
+          locomotion.pendingTapDirection = 0;
+        }
+
+        if (swimmerLocomotionMode === 'hybrid') {
+          swimmerVelocityX = applyHyperCasualDrag(
+            swimmerVelocityX,
+            normalizedSpeed,
+            profile,
+            deltaSeconds
+          );
+          updateHyperCasualLocomotionTelemetry(locomotion, swimmerVelocityX);
+        } else {
+          swimmerVelocityX = swimmerKinematicsUpdate(
+            profile,
+            locomotion,
+            swimmerVelocityX,
+            deltaSeconds
+          );
+        }
+
         updateSwimmerVisualLocomotion(
           profile,
           locomotion,
@@ -491,8 +568,11 @@ export const SwimmerPhysicsSystem: System = {
 
       // Water advection: treat flow as a target lateral velocity and relax toward it
       // with a frame-rate-independent response curve.
-      const currentResponse =
+      let currentResponse =
         1 - Math.exp(-swimmerPhysicsTuning.WATER_CURRENT_RESPONSE_PER_SECOND * deltaSeconds);
+      if (swimmerComponent.useColumnControl) {
+        currentResponse *= swimmerCoastPresets[swimmerCoastPreset].TAP_MODE_CURRENT_RESPONSE_SCALE;
+      }
       const vxBeforeWaterCurrent = swimmerVelocityX;
       swimmerVelocityX +=
         (waterCurrentVelocityX - swimmerVelocityX) * currentResponse;
@@ -706,7 +786,7 @@ export const SwimmerPhysicsSystem: System = {
       }
 
       const proposedDeltaY = targetY - swimmerCenterY;
-      const collisionAngleRad = swimmerComponent.useColumnControl
+      const visualAngleRad = swimmerComponent.useColumnControl
         ? kinematicsAngleRad
         : (() => {
           const fullTiltSpeed =
@@ -718,6 +798,10 @@ export const SwimmerPhysicsSystem: System = {
           );
           return tiltNormalized * swimmerPhysicsTuning.MAX_TILT_RADIANS;
         })();
+      // Upright collider for tap steering — lean is render-only. Tilted AABB blocked 1-col gaps.
+      const collisionAngleRad = swimmerComponent.useColumnControl
+        ? 0
+        : visualAngleRad;
       const collisionHalfWidthForBounds = collisionHalfWidth;
       const collisionHalfHeightForBounds = collisionHalfHeight;
       const verticalSweepPx =
@@ -884,7 +968,7 @@ export const SwimmerPhysicsSystem: System = {
         }
       }
 
-      const swimmerAngle = collisionAngleRad;
+      const swimmerAngle = visualAngleRad;
 
       ecs.updateComponent<RenderComponentData>(
         swimmerEntity,

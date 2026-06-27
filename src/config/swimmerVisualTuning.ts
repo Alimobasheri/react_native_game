@@ -8,13 +8,14 @@ export const swimmerVisualTuning = {
   VISUAL_WIDTH_COLUMN_RATIO: 0.65,
   VISUAL_HEIGHT_TO_WIDTH_RATIO: 1.8,
 
-  /** Fair navigation collider — upright core, decoupled from visual mesh / stroke scale. */
-  COLLIDER_WIDTH_COLUMN_RATIO: 0.9,
+  /** Navigation hitbox width — narrower than visual mesh (forgiving in gaps). */
+  COLLIDER_WIDTH_COLUMN_RATIO: 0.58,
+  /** Navigation hitbox height = collider width × this (0.95 ≈ slightly wider than tall). */
   COLLIDER_HEIGHT_TO_WIDTH_RATIO: 0.95,
 
   /**
-   * Fair ceiling-contact bounds while pinned — taller than navigation collider,
-   * never tied to visual squash scale.
+   * Ceiling-pin collider — narrower and taller for sliding under blocks.
+   * height = (column × PINNED_COLLIDER_WIDTH_COLUMN_RATIO) × PINNED_COLLIDER_HEIGHT_TO_WIDTH_RATIO
    */
   PINNED_COLLIDER_WIDTH_COLUMN_RATIO: 0.6,
   PINNED_COLLIDER_HEIGHT_TO_WIDTH_RATIO: 1.8,
@@ -25,8 +26,15 @@ export const swimmerVisualTuning = {
   NARROW_GAP_MAX_ANGLE_DEG: 20,
   /** Minimum lean at rest / low speed. */
   MIN_SPEED_ANGLE_DEG: 8,
-  /** |velocityX| reference for full open-water lean. */
+  /** |velocityX| reference for legacy tier path and FX intensity. */
   MAX_VISUAL_SPEED: 520,
+
+  /**
+   * Speed-scaled inchworm lean caps (degrees).
+   * Low |vx| → modest tilt for gap entry; high |vx| → dramatic up to 90°.
+   */
+  LOW_SPEED_MAX_TILT_DEG: 58,
+  HIGH_SPEED_MAX_TILT_DEG: 90,
 
   /** Horizontal clearance at or below one column → fully narrow lean cap. */
   NARROW_GAP_CLEARANCE_COLUMNS: 1,
@@ -36,7 +44,7 @@ export const swimmerVisualTuning = {
   CLEARANCE_ANGLE_SMOOTH_PER_SEC: 14,
 
   /** Visual stroke phase durations (seconds) — decoupled from physics state machine. */
-  ANTICIPATION_DURATION_SEC: 0.055,
+  ANTICIPATION_DURATION_SEC: 0.04,
   STROKE_DURATION_SEC: 0.135,
   GLIDE_VISUAL_SETTLE_SEC: 0.26,
   RECOVERY_DURATION_SEC: 0.14,

@@ -18,7 +18,6 @@ import {
   SwimmerComponentData,
   SwimmerComponentName,
 } from '@/Game/ecs-components/Swimmer';
-import { MovementState } from '@/Game/characters/characterMovementStates';
 import {
   SwimmerAnticipationDentEventType,
   SwimmerDirectionalSplashEventType,
@@ -261,16 +260,9 @@ const isWakeTrailPhase = (
 ): boolean => {
   'worklet';
   const visualPhase = locomotion.visualPhase ?? VisualStrokePhase.IDLE;
-  if (
+  return (
     visualPhase === VisualStrokePhase.STROKE ||
     visualPhase === VisualStrokePhase.GLIDE
-  ) {
-    return true;
-  }
-  return (
-    locomotion.movementState === MovementState.STRIKE ||
-    locomotion.movementState === MovementState.DRAG ||
-    locomotion.movementState === MovementState.GLIDE
   );
 };
 

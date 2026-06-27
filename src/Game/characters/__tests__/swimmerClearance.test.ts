@@ -4,7 +4,8 @@ import {
   sampleHorizontalClearancePx,
 } from '../swimmerClearance';
 import { swimmerVisualTuning } from '@/config/swimmerVisualTuning';
-import { computeClearanceAwareAngleDeg } from '../swimmerVisualLocomotion';
+import { swimmerPhysicsTuning } from '@/config/swimmerTuning';
+import { computeClearanceAwareAngleDeg, computeVelocityLedAngleDeg } from '../swimmerVisualLocomotion';
 
 const CONTAINER = { centerX: 200, width: 360, columnCount: 8 };
 const COLUMN_WIDTH = CONTAINER.width / 8;
@@ -54,5 +55,26 @@ describe('swimmerClearance', () => {
     expect(open).toBeLessThanOrEqual(
       swimmerVisualTuning.OPEN_WATER_MAX_ANGLE_TIER[2]
     );
+  });
+
+  it('velocity-led lean uses speed-scaled max tilt in open water', () => {
+    const fullTiltSpeed =
+      swimmerPhysicsTuning.MAX_HORIZONTAL_SPEED *
+      swimmerPhysicsTuning.FULL_TILT_SPEED_FRACTION;
+    const lowSpeedLean = computeVelocityLedAngleDeg(fullTiltSpeed * 0.15, 1);
+    const highSpeedLean = computeVelocityLedAngleDeg(fullTiltSpeed, 1);
+    expect(Math.abs(lowSpeedLean)).toBeLessThanOrEqual(
+      swimmerVisualTuning.LOW_SPEED_MAX_TILT_DEG + 1
+    );
+    expect(Math.abs(highSpeedLean)).toBeCloseTo(
+      swimmerVisualTuning.HIGH_SPEED_MAX_TILT_DEG,
+      1
+    );
+    expect(Math.abs(highSpeedLean)).toBeGreaterThan(Math.abs(lowSpeedLean));
+  });
+
+  it('velocity-led lean returns toward zero as speed drops', () => {
+    expect(Math.abs(computeVelocityLedAngleDeg(0, 1))).toBeLessThan(1);
+    expect(Math.abs(computeVelocityLedAngleDeg(20, 1))).toBeLessThan(15);
   });
 });

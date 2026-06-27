@@ -29,8 +29,13 @@ export const createDefaultSwimmerLocomotion = (): SwimmerLocomotionData => {
     pivotLockoutTimer: 0,
     pivotTargetDirection: 0,
     pendingTapDirection: 0,
+    lastTapTimeMs: undefined,
+    lastTapDirection: undefined,
+    rapidTapStreak: 0,
+    pendingTapMultiplier: 1,
     meshScaleX: 1,
     meshScaleY: 1,
     previousMovementState: MovementState.IDLE,
+    previousVisualPhase: VisualStrokePhase.IDLE,
   };
 };

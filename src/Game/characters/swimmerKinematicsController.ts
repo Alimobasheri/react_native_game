@@ -1,3 +1,7 @@
+/**
+ * Legacy kinematic FSM — used only when swimmerLocomotionMode === 'kinematic'.
+ * Default hybrid mode uses swimmerHyperCasualPhysics.ts for tap displacement.
+ */
 import { MovementState } from './characterMovementStates';
 import { getCharacterProfile } from './characterProfileRegistry';
 import type { ICharacterProfile } from './characterProfileTypes';
