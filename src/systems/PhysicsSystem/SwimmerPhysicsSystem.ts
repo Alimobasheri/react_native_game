@@ -52,7 +52,9 @@ import {
 import {
   applyHyperCasualDrag,
   applyHyperCasualTap,
+  buildPinnedEscapeContext,
   computeHybridSplashStrength,
+  computePinnedEscapeMinSlidePx,
   updateHyperCasualLocomotionTelemetry,
 } from '@/Game/characters/swimmerHyperCasualPhysics';
 import { computeFinalSurfaceUv } from '@/Game/water/waterSurfaceProfile';
@@ -396,10 +398,9 @@ export const SwimmerPhysicsSystem: System = {
 
       // Horizontal control: tap-based hyper-casual (useColumnControl) or pan-based.
       let tapImpulseAppliedThisFrame = false;
+      let tapDirectionThisFrame: -1 | 0 | 1 = 0;
       if (swimmerComponent.useColumnControl) {
         const profile = getCharacterProfileForSwimmer(locomotion.profileId);
-        const columnWidth =
-          swimmerComponent.containerWidth / LAYOUT_CONSTANTS.COLUMNS;
         const navColliderWidth = navColliderExtents.halfWidth * 2;
 
         const clearanceRows = selectRowsNearSwimmerFromComponentStore(
@@ -418,11 +419,42 @@ export const SwimmerPhysicsSystem: System = {
         );
 
         const pendingTapDirection = locomotion.pendingTapDirection ?? 0;
-        if (pendingTapDirection === -1 || pendingTapDirection === 1) {
+        const hasPendingTap =
+          pendingTapDirection === -1 || pendingTapDirection === 1;
+
+        // Decay last frame's velocity before applying a new tap impulse.
+        if (swimmerLocomotionMode === 'hybrid') {
+          swimmerVelocityX = applyHyperCasualDrag(
+            swimmerVelocityX,
+            normalizedSpeed,
+            profile,
+            deltaSeconds
+          );
+        } else if (!hasPendingTap) {
+          swimmerVelocityX = swimmerKinematicsUpdate(
+            profile,
+            locomotion,
+            swimmerVelocityX,
+            deltaSeconds
+          );
+        }
+
+        if (hasPendingTap) {
           tapImpulseAppliedThisFrame = true;
+          tapDirectionThisFrame = pendingTapDirection;
 
           if (swimmerLocomotionMode === 'hybrid') {
             const streakMultiplier = locomotion.pendingTapMultiplier ?? 1;
+            const pinnedEscape = wasPinnedFromAbove
+              ? buildPinnedEscapeContext(
+                  swimmerCenterX,
+                  columnWidth,
+                  containerData.centerX,
+                  containerData.width,
+                  swimmerComponent.pinnedCeilingMinX,
+                  swimmerComponent.pinnedCeilingMaxX
+                )
+              : undefined;
             const tapResult = applyHyperCasualTap(
               profile,
               locomotion,
@@ -433,7 +465,8 @@ export const SwimmerPhysicsSystem: System = {
               streakMultiplier,
               waterCurrentVelocityX,
               clearancePx,
-              navColliderWidth
+              navColliderWidth,
+              pinnedEscape
             );
             swimmerVelocityX = tapResult.velocityX;
             locomotion.pendingTapMultiplier = 1;
@@ -529,20 +562,7 @@ export const SwimmerPhysicsSystem: System = {
         }
 
         if (swimmerLocomotionMode === 'hybrid') {
-          swimmerVelocityX = applyHyperCasualDrag(
-            swimmerVelocityX,
-            normalizedSpeed,
-            profile,
-            deltaSeconds
-          );
           updateHyperCasualLocomotionTelemetry(locomotion, swimmerVelocityX);
-        } else {
-          swimmerVelocityX = swimmerKinematicsUpdate(
-            profile,
-            locomotion,
-            swimmerVelocityX,
-            deltaSeconds
-          );
         }
 
         updateSwimmerVisualLocomotion(
@@ -572,6 +592,9 @@ export const SwimmerPhysicsSystem: System = {
         1 - Math.exp(-swimmerPhysicsTuning.WATER_CURRENT_RESPONSE_PER_SECOND * deltaSeconds);
       if (swimmerComponent.useColumnControl) {
         currentResponse *= swimmerCoastPresets[swimmerCoastPreset].TAP_MODE_CURRENT_RESPONSE_SCALE;
+        if (wasPinnedFromAbove && tapImpulseAppliedThisFrame) {
+          currentResponse *= swimmerPhysicsTuning.PINNED_TAP_WATER_CURRENT_SCALE;
+        }
       }
       const vxBeforeWaterCurrent = swimmerVelocityX;
       swimmerVelocityX +=
@@ -821,11 +844,19 @@ export const SwimmerPhysicsSystem: System = {
         rowHeight,
         verticalSweepPx
       );
+      const collisionReleaseHalfWidth = wasPinnedFromAbove
+        ? navColliderExtents.halfWidth
+        : undefined;
+      const collisionReleaseHalfHeight = wasPinnedFromAbove
+        ? navColliderExtents.halfHeight
+        : undefined;
       const collisionResult = resolveSwimmerAgainstRows({
         x: swimmerCenterX,
         y: swimmerCenterY,
         halfWidth: collisionHalfWidth,
         halfHeight: collisionHalfHeight,
+        releaseHalfWidth: collisionReleaseHalfWidth,
+        releaseHalfHeight: collisionReleaseHalfHeight,
         pinAnchorX: swimmerCenterX,
         pinnedCeilingMinX: swimmerComponent.pinnedCeilingMinX,
         pinnedCeilingMaxX: swimmerComponent.pinnedCeilingMaxX,
@@ -867,26 +898,43 @@ export const SwimmerPhysicsSystem: System = {
       if (
         wasPinnedFromAbove &&
         tapImpulseAppliedThisFrame &&
-        Math.abs(proposedDeltaX) > 1
+        tapDirectionThisFrame !== 0
       ) {
-        const minPinnedSlidePx =
-          columnWidth * swimmerPhysicsTuning.PINNED_MIN_TAP_SLIDE_COLUMN_FRACTION;
+        const tapSlideDirection = tapDirectionThisFrame;
+        const pinnedEscapeBounds = buildPinnedEscapeContext(
+          swimmerCenterX,
+          columnWidth,
+          containerData.centerX,
+          containerData.width,
+          swimmerComponent.pinnedCeilingMinX,
+          swimmerComponent.pinnedCeilingMaxX
+        );
+        const minPinnedSlidePx = computePinnedEscapeMinSlidePx(
+          swimmerCenterX,
+          tapSlideDirection,
+          pinnedEscapeBounds.ceilingMinX,
+          pinnedEscapeBounds.ceilingMaxX,
+          columnWidth
+        );
         const appliedDxAfterCollision = finalX - swimmerCenterX;
-        if (
-          Math.sign(appliedDxAfterCollision) !== Math.sign(proposedDeltaX) ||
-          Math.abs(appliedDxAfterCollision) < minPinnedSlidePx * 0.35
-        ) {
+        const needsRetry =
+          Math.abs(proposedDeltaX) > 0.5 &&
+          (Math.sign(appliedDxAfterCollision) !== Math.sign(proposedDeltaX) ||
+            Math.abs(appliedDxAfterCollision) < minPinnedSlidePx * 0.35);
+        if (needsRetry) {
           const retryResult = resolveSwimmerAgainstRows({
             x: swimmerCenterX,
             y: swimmerCenterY,
-            halfWidth: collisionHalfWidth,
-            halfHeight: collisionHalfHeight,
+            halfWidth: navColliderExtents.halfWidth,
+            halfHeight: navColliderExtents.halfHeight,
+            releaseHalfWidth: navColliderExtents.halfWidth,
+            releaseHalfHeight: navColliderExtents.halfHeight,
             pinAnchorX: swimmerCenterX,
             pinnedCeilingMinX: swimmerComponent.pinnedCeilingMinX,
             pinnedCeilingMaxX: swimmerComponent.pinnedCeilingMaxX,
             angle: collisionAngleRad,
             deltaX:
-              Math.sign(proposedDeltaX) *
+              tapSlideDirection *
               Math.max(Math.abs(proposedDeltaX), minPinnedSlidePx),
             deltaY: 0,
             rowDeltaY,
@@ -908,6 +956,49 @@ export const SwimmerPhysicsSystem: System = {
             Math.abs(appliedDxAfterCollision)
           ) {
             finalX = retryResult.x;
+          }
+        }
+
+        const visibleNudgePx =
+          columnWidth *
+          swimmerPhysicsTuning.PINNED_TAP_VISIBLE_NUDGE_COLUMN_FRACTION;
+        const appliedAfterRetry = finalX - swimmerCenterX;
+        if (
+          Math.abs(appliedAfterRetry) <
+          Math.max(visibleNudgePx, minPinnedSlidePx * 0.2)
+        ) {
+          const nudgeResult = resolveSwimmerAgainstRows({
+            x: swimmerCenterX,
+            y: swimmerCenterY,
+            halfWidth: navColliderExtents.halfWidth,
+            halfHeight: navColliderExtents.halfHeight,
+            releaseHalfWidth: navColliderExtents.halfWidth,
+            releaseHalfHeight: navColliderExtents.halfHeight,
+            pinAnchorX: swimmerCenterX,
+            pinnedCeilingMinX: swimmerComponent.pinnedCeilingMinX,
+            pinnedCeilingMaxX: swimmerComponent.pinnedCeilingMaxX,
+            angle: 0,
+            deltaX: tapSlideDirection * Math.max(visibleNudgePx, minPinnedSlidePx * 0.25),
+            deltaY: 0,
+            rowDeltaY,
+            rows: nearbyRows,
+            container: {
+              centerX: containerData.centerX,
+              width: containerData.width,
+            },
+            blockSize: {
+              width: blockDimensions.width,
+              height: blockDimensions.height,
+            },
+            minX,
+            maxX,
+            kinematicHorizontal: true,
+          });
+          if (
+            Math.abs(nudgeResult.x - swimmerCenterX) >
+            Math.abs(finalX - swimmerCenterX)
+          ) {
+            finalX = nudgeResult.x;
           }
         }
       }

@@ -127,6 +127,71 @@ export const simulateTapDisplacementPx = (
   return displacement;
 };
 
+export type PinnedEscapeContext = {
+  swimmerX: number;
+  ceilingMinX: number;
+  ceilingMaxX: number;
+};
+
+export const buildPinnedEscapeContext = (
+  swimmerX: number,
+  columnWidth: number,
+  containerCenterX: number,
+  containerWidth: number,
+  ceilingMinX?: number,
+  ceilingMaxX?: number
+): PinnedEscapeContext => {
+  'worklet';
+  if (ceilingMinX !== undefined && ceilingMaxX !== undefined) {
+    return { swimmerX, ceilingMinX, ceilingMaxX };
+  }
+  const containerLeft = containerCenterX - containerWidth / 2;
+  const columnCount = Math.max(1, Math.round(containerWidth / columnWidth));
+  const col = Math.max(
+    0,
+    Math.min(columnCount - 1, Math.floor((swimmerX - containerLeft) / columnWidth))
+  );
+  const minX = containerLeft + col * columnWidth;
+  return { swimmerX, ceilingMinX: minX, ceilingMaxX: minX + columnWidth };
+};
+
+/** Horizontal coast target while pinned — slide out of the ceiling column, not gap slack. */
+export const estimatePinnedEscapeTravelPx = (
+  swimmerX: number,
+  tapDirection: 1 | -1,
+  ceilingMinX: number,
+  ceilingMaxX: number,
+  columnWidth: number,
+  streakMultiplier: number
+): number => {
+  'worklet';
+  const edgeX = tapDirection > 0 ? ceilingMaxX : ceilingMinX;
+  const distToEdge = Math.abs(swimmerX - edgeX);
+  const exitSlack =
+    columnWidth * swimmerPhysicsTuning.PINNED_ESCAPE_EXIT_SLACK_COLUMN_FRACTION;
+  const minTravel =
+    columnWidth * swimmerPhysicsTuning.PINNED_ESCAPE_MIN_TAP_TRAVEL_COLUMN_FRACTION;
+  return Math.max(distToEdge + exitSlack, minTravel) * streakMultiplier;
+};
+
+/** Minimum horizontal displacement for pinned tap collision retry. */
+export const computePinnedEscapeMinSlidePx = (
+  swimmerX: number,
+  tapDirection: 1 | -1,
+  ceilingMinX: number,
+  ceilingMaxX: number,
+  columnWidth: number
+): number => {
+  'worklet';
+  const edgeX = tapDirection > 0 ? ceilingMaxX : ceilingMinX;
+  const distToEdge = Math.abs(swimmerX - edgeX);
+  const exitSlack =
+    columnWidth * swimmerPhysicsTuning.PINNED_ESCAPE_EXIT_SLACK_COLUMN_FRACTION;
+  const minSlide =
+    columnWidth * swimmerPhysicsTuning.PINNED_ESCAPE_MIN_SLIDE_COLUMN_FRACTION;
+  return Math.max(minSlide, distToEdge + exitSlack);
+};
+
 export const estimateTravelPx = (
   columnWidth: number,
   streakMultiplier: number,
@@ -154,16 +219,19 @@ export const computeForwardTapImpulseMagnitude = (
   tapDirection: 1 | -1,
   preset: SwimmerCoastPresetValues,
   clearancePx: number,
-  colliderWidthPx: number
+  colliderWidthPx: number,
+  targetPxOverride?: number
 ): number => {
   'worklet';
-  const targetPx = estimateTravelPx(
-    columnWidth,
-    streakMultiplier,
-    preset,
-    clearancePx,
-    colliderWidthPx
-  );
+  const targetPx =
+    targetPxOverride ??
+    estimateTravelPx(
+      columnWidth,
+      streakMultiplier,
+      preset,
+      clearancePx,
+      colliderWidthPx
+    );
   const probeImpulse = 120;
   const probeTravel = Math.abs(
     simulateTapDisplacementPx(
@@ -194,11 +262,23 @@ export const applyHyperCasualTap = (
   streakMultiplier: number,
   waterCurrentVelocityX: number,
   clearancePx: number,
-  colliderWidthPx: number
+  colliderWidthPx: number,
+  pinnedEscape?: PinnedEscapeContext
 ): HyperCasualTapResult => {
   'worklet';
   const preset = swimmerCoastPresets[swimmerCoastPreset];
   const visualStrokeTier = locomotion.visualStrokeTier ?? locomotion.currentTier;
+  const travelTargetPx =
+    pinnedEscape !== undefined
+      ? estimatePinnedEscapeTravelPx(
+          pinnedEscape.swimmerX,
+          tapDirection,
+          pinnedEscape.ceilingMinX,
+          pinnedEscape.ceilingMaxX,
+          columnWidth,
+          streakMultiplier
+        )
+      : undefined;
   const forwardImpulseMag = computeForwardTapImpulseMagnitude(
     columnWidth,
     normalizedWaterSpeed,
@@ -208,7 +288,8 @@ export const applyHyperCasualTap = (
     tapDirection,
     preset,
     clearancePx,
-    colliderWidthPx
+    colliderWidthPx,
+    travelTargetPx
   );
 
   const absVelocityX = Math.abs(velocityX);
@@ -216,7 +297,9 @@ export const applyHyperCasualTap = (
     absVelocityX >= hyperCasualPhysicsTuning.SOFT_REVERSE_MIN_COAST_SPEED &&
     Math.sign(velocityX) === locomotion.facingDirection;
   const isSoftReverseTap =
-    tapDirection !== locomotion.facingDirection && isCoastingWithFacing;
+    pinnedEscape === undefined &&
+    tapDirection !== locomotion.facingDirection &&
+    isCoastingWithFacing;
 
   let tapImpulseApplied = 0;
   let nextVelocityX = velocityX;

@@ -10,8 +10,16 @@ export const swimmerPhysicsTuning = {
 
   MAX_HORIZONTAL_SPEED: 520,
   PINNED_VELOCITY_DAMPING: 0.85,
-  /** Minimum horizontal slide (fraction of column width) on a tap while pinned. */
-  PINNED_MIN_TAP_SLIDE_COLUMN_FRACTION: 0.12,
+  /** Floor for pinned escape tap travel target (fraction of column width). */
+  PINNED_ESCAPE_MIN_TAP_TRAVEL_COLUMN_FRACTION: 0.45,
+  /** Extra slide past ceiling column edge to clear pin (fraction of column width). */
+  PINNED_ESCAPE_EXIT_SLACK_COLUMN_FRACTION: 0.15,
+  /** Floor for pinned tap collision retry min slide (fraction of column width). */
+  PINNED_ESCAPE_MIN_SLIDE_COLUMN_FRACTION: 0.35,
+  /** Per-tap kinematic nudge while pinned when velocity slide is blocked (fraction of column). */
+  PINNED_TAP_VISIBLE_NUDGE_COLUMN_FRACTION: 0.1,
+  /** Water-current pull scale on a pinned escape tap frame (keep impulse). */
+  PINNED_TAP_WATER_CURRENT_SCALE: 0.08,
   TAP_IMPULSE_MULTIPLIER_MIN: 1,
   TAP_IMPULSE_MULTIPLIER_MAX: 3.5,
   MAX_WATER_CURRENT_SPEED: 200,

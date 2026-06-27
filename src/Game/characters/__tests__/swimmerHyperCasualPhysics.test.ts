@@ -4,9 +4,12 @@ import { getSwimmerColliderExtents } from '../swimmerCollider';
 import {
   applyHyperCasualDrag,
   applyHyperCasualTap,
+  buildPinnedEscapeContext,
   computeForwardTapImpulseMagnitude,
   computeHybridSplashStrength,
+  computePinnedEscapeMinSlidePx,
   deriveMovementStateFromVelocity,
+  estimatePinnedEscapeTravelPx,
   estimateTravelPx,
   simulateTapDisplacementPx,
 } from '../swimmerHyperCasualPhysics';
@@ -14,6 +17,7 @@ import { computeStreakMultiplier } from '../swimmerTapInput';
 import {
   hyperCasualPhysicsTuning,
   swimmerCoastPresets,
+  swimmerPhysicsTuning,
 } from '@/config/swimmerTuning';
 import '../characterProfiles';
 
@@ -365,5 +369,142 @@ describe('swimmerHyperCasualPhysics', () => {
     const high = computeHybridSplashStrength(3, computeStreakMultiplier(10));
     expect(high).toBeGreaterThan(low);
     expect(high).toBeLessThanOrEqual(hyperCasualPhysicsTuning.MAX_SPLASH_STRENGTH);
+  });
+
+  it('estimatePinnedEscapeTravelPx targets exit past ceiling column edge', () => {
+    const ceilingMinX = 150;
+    const ceilingMaxX = 250;
+    const swimmerX = 200;
+    const target = estimatePinnedEscapeTravelPx(
+      swimmerX,
+      1,
+      ceilingMinX,
+      ceilingMaxX,
+      columnWidth,
+      1
+    );
+    const minTravel =
+      columnWidth * swimmerPhysicsTuning.PINNED_ESCAPE_MIN_TAP_TRAVEL_COLUMN_FRACTION;
+    expect(target).toBeGreaterThanOrEqual(minTravel);
+    expect(target).toBeGreaterThanOrEqual(
+      Math.abs(swimmerX - ceilingMaxX) +
+        columnWidth * swimmerPhysicsTuning.PINNED_ESCAPE_EXIT_SLACK_COLUMN_FRACTION
+    );
+  });
+
+  it('computePinnedEscapeMinSlidePx exceeds legacy 12% column floor', () => {
+    const minSlide = computePinnedEscapeMinSlidePx(
+      200,
+      1,
+      150,
+      250,
+      columnWidth
+    );
+    expect(minSlide).toBeGreaterThanOrEqual(
+      columnWidth * swimmerPhysicsTuning.PINNED_ESCAPE_MIN_SLIDE_COLUMN_FRACTION
+    );
+    expect(minSlide).toBeGreaterThan(columnWidth * 0.12);
+  });
+
+  it('applyHyperCasualTap uses pinned escape travel instead of narrow gap clearance', () => {
+    const locomotion = createDefaultSwimmerLocomotion();
+    const preset = swimmerCoastPresets.snappy;
+    const navWidth = colliderWidth(columnWidth);
+    const narrowClearance = columnWidth;
+    const gapTarget = estimateTravelPx(
+      columnWidth,
+      1,
+      preset,
+      narrowClearance,
+      navWidth
+    );
+    const pinnedTarget = estimatePinnedEscapeTravelPx(
+      200,
+      1,
+      150,
+      250,
+      columnWidth,
+      1
+    );
+    expect(pinnedTarget).toBeGreaterThan(gapTarget);
+
+    const gapImpulse = computeForwardTapImpulseMagnitude(
+      columnWidth,
+      0,
+      1,
+      profile,
+      0,
+      1,
+      preset,
+      narrowClearance,
+      navWidth
+    );
+    const pinnedImpulse = computeForwardTapImpulseMagnitude(
+      columnWidth,
+      0,
+      1,
+      profile,
+      0,
+      1,
+      preset,
+      narrowClearance,
+      navWidth,
+      pinnedTarget
+    );
+    expect(pinnedImpulse).toBeGreaterThan(gapImpulse);
+
+    const pinnedTap = applyHyperCasualTap(
+      profile,
+      locomotion,
+      0,
+      1,
+      columnWidth,
+      0,
+      1,
+      0,
+      narrowClearance,
+      navWidth,
+      { swimmerX: 200, ceilingMinX: 150, ceilingMaxX: 250 }
+    );
+    expect(Math.abs(pinnedTap.tapImpulseApplied)).toBeCloseTo(pinnedImpulse, 0);
+    expect(Math.abs(pinnedTap.tapImpulseApplied)).toBeGreaterThan(gapImpulse);
+  });
+
+  it('buildPinnedEscapeContext falls back to swimmer column when ceiling bounds missing', () => {
+    const ctx = buildPinnedEscapeContext(200, columnWidth, 250, 500);
+    expect(ctx.ceilingMaxX - ctx.ceilingMinX).toBeCloseTo(columnWidth, 1);
+    expect(200).toBeGreaterThanOrEqual(ctx.ceilingMinX);
+    expect(200).toBeLessThanOrEqual(ctx.ceilingMaxX);
+  });
+
+  it('applyHyperCasualTap does not soft-reverse while pinned', () => {
+    const locomotion = createDefaultSwimmerLocomotion();
+    locomotion.facingDirection = 1;
+    const navWidth = colliderWidth(columnWidth);
+    const coastSpeed =
+      hyperCasualPhysicsTuning.SOFT_REVERSE_MIN_COAST_SPEED + 40;
+    const pinnedEscape = buildPinnedEscapeContext(
+      200,
+      columnWidth,
+      250,
+      500,
+      150,
+      250
+    );
+    const reverse = applyHyperCasualTap(
+      profile,
+      locomotion,
+      coastSpeed,
+      -1,
+      columnWidth,
+      0,
+      1,
+      0,
+      columnWidth * 4,
+      navWidth,
+      pinnedEscape
+    );
+    expect(reverse.isSoftReverseTap).toBe(false);
+    expect(reverse.tapImpulseApplied).toBeLessThan(0);
   });
 });

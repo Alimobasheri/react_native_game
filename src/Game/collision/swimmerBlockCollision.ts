@@ -681,6 +681,7 @@ function resolveSwimmerAgainstRowsStep(
   let x = input.x;
   let y = input.y;
   const startX = x;
+  const pinAnchorX = input.pinAnchorX ?? x;
   let isPinnedFromAbove = false;
   let isSideBlocked = false;
   let sideBlockedDirection: -1 | 0 | 1 = 0;
@@ -785,16 +786,22 @@ function resolveSwimmerAgainstRowsStep(
   }
 
   // --- Horizontal (tilted bounds — lean reaches walls before visual clips) ---
-  const pinAnchorX = x;
   const pinnedUnderCeiling = isPinnedFromAbove;
+  const useReleaseSlide =
+    pinnedUnderCeiling &&
+    horizontalDelta !== 0 &&
+    input.releaseHalfWidth !== undefined &&
+    input.releaseHalfHeight !== undefined;
+  const slideHalfW = useReleaseSlide ? input.releaseHalfWidth! : motHalfW;
+  const slideHalfH = useReleaseSlide ? input.releaseHalfHeight! : motHalfH;
   let targetX = Math.max(input.minX, Math.min(input.maxX, x + horizontalDelta));
 
   if (horizontalDelta !== 0) {
     const mover = motionAabbForSideContact(
       x,
       y,
-      motHalfW,
-      motHalfH,
+      slideHalfW,
+      slideHalfH,
       pinnedUnderCeiling,
       upHalfH,
       horizontalSlide
@@ -860,11 +867,13 @@ function resolveSwimmerAgainstRowsStep(
   // Depenetration passes (resting contact / numeric drift).
   for (let pass = 0; pass < 4; pass++) {
     let moved = false;
+    const contactHalfW = horizontalDelta !== 0 ? slideHalfW : motHalfW;
+    const contactHalfH = horizontalDelta !== 0 ? slideHalfH : motHalfH;
     const motionMover = motionAabbForSideContact(
       x,
       y,
-      motHalfW,
-      motHalfH,
+      contactHalfW,
+      contactHalfH,
       pinnedUnderCeiling,
       upHalfH,
       horizontalSlide
@@ -906,8 +915,8 @@ function resolveSwimmerAgainstRowsStep(
           }
           isColliding = true;
           moved = true;
-          motionMover.minX = x - motHalfW;
-          motionMover.maxX = x + motHalfW;
+          motionMover.minX = x - contactHalfW;
+          motionMover.maxX = x + contactHalfW;
           uprightMover.minX = x - upHalfW;
           uprightMover.maxX = x + upHalfW;
         }
@@ -990,8 +999,8 @@ function resolveSwimmerAgainstRowsStep(
         moved = true;
       }
 
-      motionMover.minX = x - motHalfW;
-      motionMover.maxX = x + motHalfW;
+      motionMover.minX = x - contactHalfW;
+      motionMover.maxX = x + contactHalfW;
       motionMover.minY = y - Math.max(motHalfH, pinnedUnderCeiling ? upHalfH : motHalfH) - SKIN_EPSILON;
       motionMover.maxY = y + Math.max(motHalfH, pinnedUnderCeiling ? upHalfH : motHalfH) + SKIN_EPSILON;
       uprightMover.minX = x - upHalfW;
