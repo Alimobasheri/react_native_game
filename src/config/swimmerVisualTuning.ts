@@ -9,9 +9,9 @@ export const swimmerVisualTuning = {
   VISUAL_HEIGHT_TO_WIDTH_RATIO: 1.8,
 
   /** Navigation hitbox width — narrower than visual mesh (forgiving in gaps). */
-  COLLIDER_WIDTH_COLUMN_RATIO: 0.58,
+  COLLIDER_WIDTH_COLUMN_RATIO: 0.65,
   /** Navigation hitbox height = collider width × this (0.95 ≈ slightly wider than tall). */
-  COLLIDER_HEIGHT_TO_WIDTH_RATIO: 0.95,
+  COLLIDER_HEIGHT_TO_WIDTH_RATIO: 1.8,
 
   /**
    * Ceiling-pin collider — narrower and taller for sliding under blocks.
