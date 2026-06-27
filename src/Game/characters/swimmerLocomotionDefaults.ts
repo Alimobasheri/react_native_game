@@ -16,7 +16,6 @@ export const createDefaultSwimmerLocomotion = (): SwimmerLocomotionData => {
     targetAngleDeg: 0,
     visualAngleDeg: 0,
     clearance01: 1,
-    horizontalClearancePx: 0,
     visualPhase: VisualStrokePhase.IDLE,
     visualAnticipationTimer: 0,
     visualStrokeTimer: 0,

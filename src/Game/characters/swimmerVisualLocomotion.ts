@@ -164,6 +164,7 @@ export const updateSwimmerVisualLocomotion = (
   locomotion: SwimmerLocomotionData,
   velocityX: number,
   clearancePx: number,
+  columnWidth: number,
   dt: number,
   startReady: boolean
 ): void => {
@@ -174,14 +175,13 @@ export const updateSwimmerVisualLocomotion = (
     advanceVisualPhaseTimers(locomotion, safeDt);
   }
 
-  const targetClearance01 = clearance01FromPx(clearancePx);
+  const targetClearance01 = clearance01FromPx(clearancePx, columnWidth);
   const smooth = Math.min(
     1,
     swimmerVisualTuning.CLEARANCE_ANGLE_SMOOTH_PER_SEC * safeDt
   );
   const prevClearance01 = locomotion.clearance01 ?? 1;
   locomotion.clearance01 = prevClearance01 + (targetClearance01 - prevClearance01) * smooth;
-  locomotion.horizontalClearancePx = clearancePx;
 
   const tier = locomotion.visualStrokeTier ?? locomotion.currentTier;
   const direction =

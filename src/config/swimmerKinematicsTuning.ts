@@ -10,8 +10,6 @@ export const swimmerKinematicsTuning = {
   ANTICIPATION_OPPOSITE_ANGLE_DEG: 6,
   /** Short post-impulse settle duration in seconds before GLIDE. */
   DRAG_DURATION_SEC: 0.06,
-  /** Multiplier applied with profile.baseDrag for angle interpolation speed. */
-  ANGLE_INTERP_DRAG_SCALE: 48,
   /** Fraction of tier-1 strike speed used as GLIDE exit threshold. */
   GLIDE_EXIT_SPEED_RATIO: 0.12,
   /** Fraction of GLIDE exit speed used to snap into IDLE from DECELERATING. */

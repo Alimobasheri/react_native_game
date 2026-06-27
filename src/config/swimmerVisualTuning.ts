@@ -20,18 +20,18 @@ export const swimmerVisualTuning = {
   PINNED_COLLIDER_HEIGHT_TO_WIDTH_RATIO: 1.8,
 
   /** Open-water lean caps per combo tier (degrees). Still clamped by clearance. */
-  OPEN_WATER_MAX_ANGLE_TIER: [80, 85, 90] as const,
+  OPEN_WATER_MAX_ANGLE_TIER: [35, 45, 60] as const,
   /** Max lean when clearance is at or below narrow-gap threshold. */
-  NARROW_GAP_MAX_ANGLE_DEG: 14,
+  NARROW_GAP_MAX_ANGLE_DEG: 20,
   /** Minimum lean at rest / low speed. */
   MIN_SPEED_ANGLE_DEG: 8,
   /** |velocityX| reference for full open-water lean. */
   MAX_VISUAL_SPEED: 520,
 
-  /** Horizontal clearance (px) treated as a one-column gap. */
-  NARROW_GAP_CLEARANCE_PX: 52,
-  /** Clearance (px) treated as fully open water for angle caps. */
-  OPEN_WATER_CLEARANCE_PX: 180,
+  /** Horizontal clearance at or below one column → fully narrow lean cap. */
+  NARROW_GAP_CLEARANCE_COLUMNS: 1,
+  /** Horizontal clearance at or above this many columns → fully open lean cap. */
+  OPEN_WATER_CLEARANCE_COLUMNS: 4,
   /** Smoothing rate for clearance-driven angle clamping. */
   CLEARANCE_ANGLE_SMOOTH_PER_SEC: 14,
 

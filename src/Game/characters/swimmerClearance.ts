@@ -1,7 +1,6 @@
 import { swimmerVisualTuning } from '@/config/swimmerVisualTuning';
 import { LAYOUT_CONSTANTS } from '@/Layout';
 import type {
-  BlockSize,
   CollisionRow,
   ContainerLayout,
 } from '@/Game/collision/swimmerBlockCollision';
@@ -11,6 +10,17 @@ const clamp01 = (value: number): number => {
   return Math.max(0, Math.min(1, value));
 };
 
+export const getClearanceColumnWidth = (container: ContainerLayout): number => {
+  'worklet';
+  const columnCount = container.columnCount ?? LAYOUT_CONSTANTS.COLUMNS;
+  return container.width / columnCount;
+};
+
+export const getOpenWaterClearancePx = (columnWidth: number): number => {
+  'worklet';
+  return columnWidth * swimmerVisualTuning.OPEN_WATER_CLEARANCE_COLUMNS;
+};
+
 /** Gap width in pixels that contains `swimmerX` on a single obstacle row. */
 export const gapWidthAtSwimmerX = (
   row: CollisionRow,
@@ -18,9 +28,9 @@ export const gapWidthAtSwimmerX = (
   container: ContainerLayout
 ): number => {
   'worklet';
-  const columnCount = container.columnCount ?? LAYOUT_CONSTANTS.COLUMNS;
-  const columnWidth = container.width / columnCount;
+  const columnWidth = getClearanceColumnWidth(container);
   const containerLeft = container.centerX - container.width / 2;
+  const columnCount = container.columnCount ?? LAYOUT_CONSTANTS.COLUMNS;
   const col = Math.floor((swimmerX - containerLeft) / columnWidth);
 
   if (col < 0 || col >= columnCount) {
@@ -56,12 +66,14 @@ export const gapWidthAtSwimmerX = (
 export const sampleHorizontalClearancePx = (
   swimmerX: number,
   rows: readonly CollisionRow[],
-  container: ContainerLayout,
-  _blockSize: BlockSize
+  container: ContainerLayout
 ): number => {
   'worklet';
+  const columnWidth = getClearanceColumnWidth(container);
+  const openWaterClearancePx = getOpenWaterClearancePx(columnWidth);
+
   if (rows.length === 0) {
-    return swimmerVisualTuning.OPEN_WATER_CLEARANCE_PX;
+    return openWaterClearancePx;
   }
 
   let minGap = Number.POSITIVE_INFINITY;
@@ -73,15 +85,19 @@ export const sampleHorizontalClearancePx = (
   }
 
   if (!Number.isFinite(minGap)) {
-    return swimmerVisualTuning.OPEN_WATER_CLEARANCE_PX;
+    return openWaterClearancePx;
   }
   return minGap;
 };
 
-export const clearance01FromPx = (clearancePx: number): number => {
+export const clearance01FromPx = (
+  clearancePx: number,
+  columnWidth: number
+): number => {
   'worklet';
-  const narrow = swimmerVisualTuning.NARROW_GAP_CLEARANCE_PX;
-  const open = swimmerVisualTuning.OPEN_WATER_CLEARANCE_PX;
+  const narrow =
+    columnWidth * swimmerVisualTuning.NARROW_GAP_CLEARANCE_COLUMNS;
+  const open = columnWidth * swimmerVisualTuning.OPEN_WATER_CLEARANCE_COLUMNS;
   const range = Math.max(1, open - narrow);
   return clamp01((clearancePx - narrow) / range);
 };

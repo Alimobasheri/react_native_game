@@ -35,8 +35,6 @@ export type SwimmerLocomotionData = {
   visualAngleDeg?: number;
   /** Smoothed 0..1 clearance factor for angle tucking. */
   clearance01?: number;
-  /** Raw sampled horizontal gap width in pixels. */
-  horizontalClearancePx?: number;
   /** Visual stroke phase — continues after physics enters GLIDE. */
   visualPhase?: VisualStrokePhase;
   visualAnticipationTimer?: number;

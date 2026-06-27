@@ -466,14 +466,14 @@ export const SwimmerPhysicsSystem: System = {
           {
             centerX: containerData.centerX,
             width: containerData.width,
-          },
-          blockDimensions
+          }
         );
         updateSwimmerVisualLocomotion(
           profile,
           locomotion,
           swimmerVelocityX,
           clearancePx,
+          obstacleWidth,
           deltaSeconds,
           startReady
         );
