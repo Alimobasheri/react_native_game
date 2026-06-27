@@ -447,13 +447,13 @@ export const SwimmerPhysicsSystem: System = {
             const streakMultiplier = locomotion.pendingTapMultiplier ?? 1;
             const pinnedEscape = wasPinnedFromAbove
               ? buildPinnedEscapeContext(
-                  swimmerCenterX,
-                  columnWidth,
-                  containerData.centerX,
-                  containerData.width,
-                  swimmerComponent.pinnedCeilingMinX,
-                  swimmerComponent.pinnedCeilingMaxX
-                )
+                swimmerCenterX,
+                columnWidth,
+                containerData.centerX,
+                containerData.width,
+                swimmerComponent.pinnedCeilingMinX,
+                swimmerComponent.pinnedCeilingMaxX
+              )
               : undefined;
             const tapResult = applyHyperCasualTap(
               profile,

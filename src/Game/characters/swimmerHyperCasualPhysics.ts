@@ -252,6 +252,15 @@ export const computeForwardTapImpulseMagnitude = (
   return probeImpulse * (targetPx / probeTravel);
 };
 
+/** |velocityX| at or above which an opposite tap soft-brakes instead of hard-flipping. */
+export const getSoftReverseMinCoastSpeedPx = (): number => {
+  'worklet';
+  return (
+    swimmerPhysicsTuning.MAX_HORIZONTAL_SPEED *
+    hyperCasualPhysicsTuning.SOFT_REVERSE_SPEED_FRACTION
+  );
+};
+
 export const applyHyperCasualTap = (
   profile: ICharacterProfile,
   locomotion: SwimmerLocomotionData,
@@ -292,14 +301,20 @@ export const applyHyperCasualTap = (
     travelTargetPx
   );
 
+  const previousFacing = locomotion.facingDirection;
   const absVelocityX = Math.abs(velocityX);
+  const isOppositeTap =
+    pinnedEscape === undefined && tapDirection !== previousFacing;
   const isCoastingWithFacing =
-    absVelocityX >= hyperCasualPhysicsTuning.SOFT_REVERSE_MIN_COAST_SPEED &&
-    Math.sign(velocityX) === locomotion.facingDirection;
-  const isSoftReverseTap =
-    pinnedEscape === undefined &&
-    tapDirection !== locomotion.facingDirection &&
-    isCoastingWithFacing;
+    absVelocityX > hyperCasualPhysicsTuning.VELOCITY_ZERO_EPSILON &&
+    Math.sign(velocityX) === previousFacing;
+  const softReverseThresholdPx = getSoftReverseMinCoastSpeedPx();
+  const isHighSpeedOpposite =
+    isOppositeTap &&
+    isCoastingWithFacing &&
+    absVelocityX >= softReverseThresholdPx;
+  const isLowSpeedOppositeFlip =
+    isOppositeTap && isCoastingWithFacing && !isHighSpeedOpposite;
 
   let tapImpulseApplied = 0;
   let nextVelocityX = velocityX;
@@ -307,14 +322,19 @@ export const applyHyperCasualTap = (
   locomotion.facingDirection = tapDirection;
   locomotion.currentTier = visualStrokeTier;
 
-  if (isSoftReverseTap) {
-    const reverseImpulse =
+  if (isHighSpeedOpposite) {
+    const brakeImpulse =
       tapDirection *
       forwardImpulseMag *
       hyperCasualPhysicsTuning.REVERSE_IMPULSE_SCALE;
-    tapImpulseApplied = reverseImpulse;
-    nextVelocityX += reverseImpulse;
+    tapImpulseApplied = brakeImpulse;
+    nextVelocityX = brakeImpulse;
     beginVisualPivot(locomotion);
+  } else if (isLowSpeedOppositeFlip) {
+    const flipImpulse = tapDirection * forwardImpulseMag;
+    tapImpulseApplied = flipImpulse;
+    nextVelocityX = flipImpulse;
+    beginVisualStroke(locomotion, tapDirection, visualStrokeTier);
   } else {
     const forwardImpulse = tapDirection * forwardImpulseMag;
     tapImpulseApplied = forwardImpulse;
@@ -332,7 +352,7 @@ export const applyHyperCasualTap = (
     velocityX: nextVelocityX,
     facingDirection: tapDirection,
     visualStrokeTier,
-    isSoftReverseTap,
+    isSoftReverseTap: isHighSpeedOpposite,
     streakMultiplier,
     tapImpulseApplied,
   };

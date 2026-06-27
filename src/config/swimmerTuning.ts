@@ -90,10 +90,12 @@ export const waterPhysicsTuning = {
 export const tapInputTuning = {
   /** Same-direction taps within this window increment rapidTapStreak. */
   RAPID_TAP_WINDOW_MS: 220,
-  /** Uncapped sqrt streak: multiplier = 1 + STREAK_SQRT_COEFF * sqrt(streak). */
-  STREAK_SQRT_COEFF: 0.4,
-  /** Optional log tail for very high streaks (0 = sqrt only). */
-  STREAK_LOG_COEFF: 0,
+  /** Base per-streak step — each rapid tap adds `streak × step(streak)` to the multiplier. */
+  RAPID_TAP_STEP_MULT: 0.22,
+  /** Step grows with streak count so later taps in a chain accelerate harder. */
+  RAPID_TAP_STREAK_ACCEL: 0.1,
+  /** Streak ceiling for tap-fueled steering (~6–9 rapid taps to max). */
+  RAPID_TAP_MAX_MULT: 4.4,
 } as const;
 
 export type SwimmerCoastPresetName = 'snappy' | 'balanced' | 'floaty';
@@ -157,11 +159,11 @@ export const hyperCasualPhysicsTuning = {
   IDLE_SPEED_THRESHOLD: 8,
   DECELERATING_SPEED_THRESHOLD: 40,
   /**
-   * Opposite tap is a soft reverse only when still coasting with facing at or above
-   * this speed (px/s). Below this — full tap in the new direction, no pivot lag.
+   * Opposite tap soft-brakes only when |velocityX| / MAX_HORIZONTAL_SPEED reaches
+   * this fraction (physics-based, not time). Below — cancel coast and full impulse.
    */
-  SOFT_REVERSE_MIN_COAST_SPEED: 80,
-  /** Opposite-tap impulse scale when soft reverse applies (high-speed coast only). */
+  SOFT_REVERSE_SPEED_FRACTION: 0.38,
+  /** Opposite-tap impulse scale when soft brake applies (high-momentum coast only). */
   REVERSE_IMPULSE_SCALE: 0.65,
   MAX_SPLASH_STRENGTH: 1.35,
   MAX_FRAME_DT: 0.1,

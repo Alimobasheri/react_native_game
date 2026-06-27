@@ -7,18 +7,21 @@ export type TapInputUpdateResult = {
   visualStrokeTier: SpeedTier;
 };
 
-/** Uncapped sqrt (+ optional log) streak multiplier from rapidTapStreak count. */
+/**
+ * Tap-fueled steering multiplier from rapid same-direction streak count.
+ * Each tap adds `streak × step(streak)` where step accelerates with streak depth.
+ * Restores pre-locomotion TapSwimmer curve (feat/swimmer-game-game-over-scene).
+ */
 export const computeStreakMultiplier = (streak: number): number => {
   'worklet';
   if (streak <= 0) {
     return 1;
   }
-  const sqrtBoost = tapInputTuning.STREAK_SQRT_COEFF * Math.sqrt(streak);
-  const logBoost =
-    tapInputTuning.STREAK_LOG_COEFF > 0
-      ? tapInputTuning.STREAK_LOG_COEFF * Math.log1p(streak)
-      : 0;
-  return 1 + sqrtBoost + logBoost;
+  const streakStepMult =
+    tapInputTuning.RAPID_TAP_STEP_MULT *
+    (1 + streak * tapInputTuning.RAPID_TAP_STREAK_ACCEL);
+  const mult = 1 + streak * streakStepMult;
+  return Math.min(tapInputTuning.RAPID_TAP_MAX_MULT, mult);
 };
 
 /** Updates rapid-tap streak and visual tier window; call before queuing pendingTapDirection. */

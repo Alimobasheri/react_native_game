@@ -11,6 +11,7 @@ import {
   deriveMovementStateFromVelocity,
   estimatePinnedEscapeTravelPx,
   estimateTravelPx,
+  getSoftReverseMinCoastSpeedPx,
   simulateTapDisplacementPx,
 } from '../swimmerHyperCasualPhysics';
 import { computeStreakMultiplier } from '../swimmerTapInput';
@@ -50,7 +51,7 @@ describe('swimmerHyperCasualPhysics', () => {
     expect(locomotion.facingDirection).toBe(1);
   });
 
-  it('sqrt streak multiplier increases impulse magnitude without cap', () => {
+  it('accelerating streak multiplier increases impulse magnitude toward cap', () => {
     const preset = swimmerCoastPresets.snappy;
     const openClearance = columnWidth * 4;
     const navWidth = colliderWidth(columnWidth);
@@ -65,13 +66,13 @@ describe('swimmerHyperCasualPhysics', () => {
       openClearance,
       navWidth
     );
-    const streak5 = computeStreakMultiplier(5);
-    const streak20 = computeStreakMultiplier(20);
-    expect(streak20).toBeGreaterThan(streak5);
-    const boosted5 = computeForwardTapImpulseMagnitude(
+    const streak2 = computeStreakMultiplier(1);
+    const streakCap = computeStreakMultiplier(20);
+    expect(streak2).toBeGreaterThan(1);
+    const boosted2 = computeForwardTapImpulseMagnitude(
       columnWidth,
       0,
-      streak5,
+      streak2,
       profile,
       0,
       1,
@@ -79,10 +80,10 @@ describe('swimmerHyperCasualPhysics', () => {
       openClearance,
       navWidth
     );
-    const boosted20 = computeForwardTapImpulseMagnitude(
+    const boostedCap = computeForwardTapImpulseMagnitude(
       columnWidth,
       0,
-      streak20,
+      streakCap,
       profile,
       0,
       1,
@@ -90,16 +91,16 @@ describe('swimmerHyperCasualPhysics', () => {
       openClearance,
       navWidth
     );
-    expect(boosted5).toBeGreaterThan(base);
-    expect(boosted20).toBeGreaterThan(boosted5);
+    expect(boosted2).toBeGreaterThan(base);
+    expect(boostedCap).toBeGreaterThan(boosted2);
   });
 
-  it('applyHyperCasualTap scales impulse with uncapped streak multiplier', () => {
+  it('applyHyperCasualTap scales impulse with capped streak multiplier', () => {
     const locomotion = createDefaultSwimmerLocomotion();
     const preset = swimmerCoastPresets.snappy;
     const openClearance = columnWidth * 4;
     const navWidth = colliderWidth(columnWidth);
-    const streakMult = computeStreakMultiplier(20);
+    const streakMult = computeStreakMultiplier(10);
     const result = applyHyperCasualTap(
       profile,
       locomotion,
@@ -225,17 +226,27 @@ describe('swimmerHyperCasualPhysics', () => {
     expect(travel).toBeLessThanOrEqual(target * 1.12);
   });
 
-  it('soft reverse tap adds reduced impulse only while coasting fast with facing', () => {
+  it('high-speed opposite tap soft-brakes with cancel-then-reduced impulse', () => {
     const locomotion = createDefaultSwimmerLocomotion();
     locomotion.facingDirection = 1;
     const openClearance = columnWidth * 4;
     const navWidth = colliderWidth(columnWidth);
-    const coastSpeed =
-      hyperCasualPhysicsTuning.SOFT_REVERSE_MIN_COAST_SPEED + 40;
+    const highCoastSpeed = getSoftReverseMinCoastSpeedPx() + 60;
+    const fullImpulse = computeForwardTapImpulseMagnitude(
+      columnWidth,
+      0,
+      1,
+      profile,
+      0,
+      -1,
+      swimmerCoastPresets.snappy,
+      openClearance,
+      navWidth
+    );
     const forward = applyHyperCasualTap(
       profile,
       locomotion,
-      coastSpeed,
+      highCoastSpeed,
       1,
       columnWidth,
       0,
@@ -248,7 +259,7 @@ describe('swimmerHyperCasualPhysics', () => {
     const reverse = applyHyperCasualTap(
       profile,
       locomotion,
-      coastSpeed,
+      highCoastSpeed,
       -1,
       columnWidth,
       0,
@@ -258,21 +269,47 @@ describe('swimmerHyperCasualPhysics', () => {
       navWidth
     );
     expect(reverse.isSoftReverseTap).toBe(true);
-    expect(Math.abs(reverse.tapImpulseApplied)).toBeLessThan(
-      Math.abs(
-        computeForwardTapImpulseMagnitude(
-          columnWidth,
-          0,
-          1,
-          profile,
-          0,
-          -1,
-          swimmerCoastPresets.snappy,
-          openClearance,
-          navWidth
-        )
-      )
+    expect(Math.abs(reverse.tapImpulseApplied)).toBeCloseTo(
+      fullImpulse * hyperCasualPhysicsTuning.REVERSE_IMPULSE_SCALE,
+      0
     );
+    expect(reverse.velocityX).toBeCloseTo(reverse.tapImpulseApplied, 0);
+    expect(Math.abs(reverse.velocityX)).toBeLessThan(highCoastSpeed);
+  });
+
+  it('moderate-speed opposite tap hard-flips with full cancel-then-impulse', () => {
+    const locomotion = createDefaultSwimmerLocomotion();
+    locomotion.facingDirection = 1;
+    const openClearance = columnWidth * 4;
+    const navWidth = colliderWidth(columnWidth);
+    const preset = swimmerCoastPresets.snappy;
+    const moderateCoastSpeed = getSoftReverseMinCoastSpeedPx() - 40;
+    const fullImpulse = computeForwardTapImpulseMagnitude(
+      columnWidth,
+      0,
+      1,
+      profile,
+      0,
+      -1,
+      preset,
+      openClearance,
+      navWidth
+    );
+    const reverse = applyHyperCasualTap(
+      profile,
+      locomotion,
+      moderateCoastSpeed,
+      -1,
+      columnWidth,
+      0,
+      1,
+      0,
+      openClearance,
+      navWidth
+    );
+    expect(reverse.isSoftReverseTap).toBe(false);
+    expect(Math.abs(reverse.tapImpulseApplied)).toBeCloseTo(fullImpulse, 0);
+    expect(reverse.velocityX).toBeCloseTo(-fullImpulse, 0);
   });
 
   it('opposite tap at rest or low drift is a full forward tap without pivot penalty', () => {
@@ -305,7 +342,7 @@ describe('swimmerHyperCasualPhysics', () => {
       navWidth
     );
     expect(atRest.isSoftReverseTap).toBe(false);
-    expect(Math.abs(atRest.tapImpulseApplied)).toBeCloseTo(fullImpulse, 0);
+    expect(atRest.velocityX).toBeCloseTo(-fullImpulse, 0);
 
     locomotion.facingDirection = 1;
     const slowDrift = applyHyperCasualTap(
@@ -322,6 +359,7 @@ describe('swimmerHyperCasualPhysics', () => {
     );
     expect(slowDrift.isSoftReverseTap).toBe(false);
     expect(Math.abs(slowDrift.tapImpulseApplied)).toBeCloseTo(fullImpulse, 0);
+    expect(slowDrift.velocityX).toBeCloseTo(-fullImpulse, 0);
   });
 
   it('applyHyperCasualDrag decays velocity toward zero', () => {
@@ -481,8 +519,7 @@ describe('swimmerHyperCasualPhysics', () => {
     const locomotion = createDefaultSwimmerLocomotion();
     locomotion.facingDirection = 1;
     const navWidth = colliderWidth(columnWidth);
-    const coastSpeed =
-      hyperCasualPhysicsTuning.SOFT_REVERSE_MIN_COAST_SPEED + 40;
+    const coastSpeed = getSoftReverseMinCoastSpeedPx() + 40;
     const pinnedEscape = buildPinnedEscapeContext(
       200,
       columnWidth,
