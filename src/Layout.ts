@@ -25,7 +25,7 @@ export const getWaterSurfaceRestY = (
 
 export const LAYOUT_CONSTANTS = {
   // Grid layout constants
-  COLUMNS: 6,
+  COLUMNS: 8,
 
   // Get obstacle width based on container width
 

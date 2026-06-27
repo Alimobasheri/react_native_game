@@ -24,12 +24,10 @@ import {
   SwimmerDirectionalSplashEventType,
   SwimmerPinnedSplashEventType,
   SwimmerPivotSplashEventType,
-  SwimmerWakeTrailEventType,
   type SwimmerAnticipationDentPayload,
   type SwimmerDirectionalSplashPayload,
   type SwimmerPinnedSplashPayload,
   type SwimmerPivotSplashPayload,
-  type SwimmerWakeTrailPayload,
 } from '@/Game/characters/swimmerLocomotionEvents';
 import { SwimmerRenderLayer } from '@/Game/render/swimmerRenderLayers';
 import { swimmerVisualTuning } from '@/config/swimmerVisualTuning';
@@ -256,6 +254,36 @@ const swimmerTouchesWater = (swimmer: SwimmerComponentData): boolean => {
     swimmer.waterSurfaceY,
     swimmerVisualHalfHeight(swimmer)
   );
+};
+
+const isWakeTrailPhase = (
+  locomotion: SwimmerComponentData['locomotion']
+): boolean => {
+  'worklet';
+  const visualPhase = locomotion.visualPhase ?? VisualStrokePhase.IDLE;
+  if (
+    visualPhase === VisualStrokePhase.STROKE ||
+    visualPhase === VisualStrokePhase.GLIDE
+  ) {
+    return true;
+  }
+  return (
+    locomotion.movementState === MovementState.STRIKE ||
+    locomotion.movementState === MovementState.DRAG ||
+    locomotion.movementState === MovementState.GLIDE
+  );
+};
+
+const countActiveWakeDroplets = (): number => {
+  'worklet';
+  const store = getSwimmerWaterFxBurstStore();
+  let count = 0;
+  for (let i = 0; i < store.length; i++) {
+    if (store[i].kind === 'wake') {
+      count++;
+    }
+  }
+  return count;
 };
 
 const swimmerAtWaterForCollar = (swimmer: SwimmerComponentData): boolean => {
@@ -602,6 +630,33 @@ const spawnFoamBurst = (
   });
 };
 
+const spawnWakeDroplet = (
+  ecs: ECS,
+  ctx: WaterFxContext,
+  sceneEntity: Entity,
+  args: {
+    swimmerX: number;
+    direction: -1 | 1;
+    strength: number;
+    foamSeed: number;
+  }
+): void => {
+  'worklet';
+  if (
+    countActiveWakeDroplets() >= swimmerWaterFxTuning.wakeCurl.maxConcurrent
+  ) {
+    return;
+  }
+  spawnFoamBurst(ecs, ctx, sceneEntity, {
+    maxAge: swimmerWaterFxTuning.preset.wake.maxAge,
+    swimmerX: args.swimmerX,
+    kind: 'wake',
+    direction: args.direction,
+    strength: args.strength,
+    foamSeed: args.foamSeed,
+  });
+};
+
 const updateBurstRender = (
   burst: SwimmerWaterFxBurstRecord,
   render: RenderComponentData,
@@ -788,21 +843,6 @@ export const SwimmerWaterContactFxSystem: System = {
           direction: payload.direction,
           strength: payload.strength,
         });
-      } else if (event.type === SwimmerWakeTrailEventType) {
-        const payload = event.payload as SwimmerWakeTrailPayload;
-        const wakeSwimmer = swimmerStoreForEvents?.get(payload.entityId);
-        if (wakeSwimmer && !swimmerTouchesWater(wakeSwimmer)) {
-          continue;
-        }
-        const direction = Math.sign(payload.velocityX);
-        const strength = Math.min(1, Math.abs(payload.velocityX) / 400);
-        spawnFoamBurst(ecs, ctx, sceneEntity, {
-          maxAge: swimmerWaterFxTuning.preset.wake.maxAge,
-          swimmerX: payload.x - direction * swimmerWaterFxTuning.wakeTrailOffsetPx,
-          kind: 'wake',
-          direction,
-          strength,
-        });
       } else if (event.type === SwimmerPinnedSplashEventType) {
         const payload = event.payload as SwimmerPinnedSplashPayload;
         const strength = Math.min(1.5, payload.impactSpeed / 220);
@@ -856,6 +896,21 @@ export const SwimmerWaterContactFxSystem: System = {
           direction,
           strength,
         });
+        spawnWakeDroplet(ecs, ctx, sceneEntity, {
+          swimmerX:
+            swimmer.x -
+            direction * swimmerWaterFxTuning.wakeCurl.spawnOffsetPx,
+          direction,
+          strength: Math.max(
+            0.45,
+            Math.min(
+              1,
+              Math.abs(swimmer.velocityX) / swimmerVisualTuning.MAX_VISUAL_SPEED
+            )
+          ),
+          foamSeed: swimmer.x * 0.317 + entityId * 13.7,
+        });
+        locomotion.wakeSpawnTimer = 0;
       }
       phasePrev[entityId] = currentPhase;
 
@@ -1069,17 +1124,14 @@ export const SwimmerWaterContactFxSystem: System = {
         }
       }
 
-      const isGliding =
-        locomotion.movementState === MovementState.GLIDE ||
-        locomotion.visualPhase === VisualStrokePhase.GLIDE;
-
-      if (
+      const isWakeTrail =
         !gameOver &&
         !startReady &&
         atWater &&
-        isGliding &&
-        Math.abs(swimmer.velocityX) >= swimmerVisualTuning.WAKE_MIN_SPEED
-      ) {
+        isWakeTrailPhase(locomotion) &&
+        Math.abs(swimmer.velocityX) >= swimmerVisualTuning.WAKE_MIN_SPEED;
+
+      if (isWakeTrail) {
         locomotion.wakeSpawnTimer =
           (locomotion.wakeSpawnTimer ?? 0) + deltaSeconds;
         if (
@@ -1087,17 +1139,29 @@ export const SwimmerWaterContactFxSystem: System = {
           swimmerVisualTuning.WAKE_SPAWN_INTERVAL_SEC
         ) {
           locomotion.wakeSpawnTimer = 0;
-          eventQueue.addEvent({
-            type: SwimmerWakeTrailEventType,
-            payload: {
-              entityId,
-              x: swimmer.x,
-              y: swimmer.y,
-              velocityX: swimmer.velocityX,
-              tier: locomotion.currentTier,
-            },
-          });
+          const direction =
+            locomotion.visualStrokeDirection ?? locomotion.facingDirection;
+          const strength = Math.min(
+            1,
+            Math.abs(swimmer.velocityX) / swimmerVisualTuning.MAX_VISUAL_SPEED
+          );
+          const spawnX =
+            swimmer.x -
+            direction * swimmerWaterFxTuning.wakeCurl.spawnOffsetPx;
+          if (ctx && typeof sceneEntity === 'number') {
+            spawnWakeDroplet(ecs, ctx, sceneEntity, {
+              swimmerX: spawnX,
+              direction,
+              strength: Math.max(0.45, strength),
+              foamSeed:
+                spawnX * 0.317 +
+                entityId * 13.7 +
+                getSwimmerWaterFxBurstStore().length * 41.3,
+            });
+          }
         }
+      } else {
+        locomotion.wakeSpawnTimer = 0;
       }
     }
 
@@ -1109,10 +1173,6 @@ export const SwimmerWaterContactFxSystem: System = {
     for (let i = store.length - 1; i >= 0; i--) {
       const burst = store[i];
       burst.age += deltaSeconds;
-      if (burst.kind === 'wake') {
-        burst.swimmerX +=
-          burst.direction * deltaSeconds * swimmerWaterFxTuning.wakeDriftPxPerSec;
-      }
       const render = components[RenderComponentName]?.get(
         burst.entityId
       ) as RenderComponentData | undefined;

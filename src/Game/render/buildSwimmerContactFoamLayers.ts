@@ -544,9 +544,11 @@ const buildPinnedBurstParticles = (
   );
 };
 
-const buildWakeDroplets = (
+/** Single wake-trail droplet — drifts backward and curls up as foamAge advances. */
+const buildWakeTrailDroplet = (
   layers: RenderLayerData[],
   foamSeed: number,
+  foamAge: number,
   life01: number,
   strength: number,
   direction: -1 | 0 | 1,
@@ -555,33 +557,35 @@ const buildWakeDroplets = (
 ): void => {
   'worklet';
   const wake = FX.wakeCurl;
+  const wakeMaxAge = FX.preset.wake.maxAge;
   const dir = direction !== 0 ? direction : 1;
-  const fade = life01 * lerp(0.55, 1, strength) * wake.opacityScale;
+  const drift = FX.wakeDriftPxPerSec * foamAge;
+  const spawnOffset = wake.spawnOffsetPx;
+  const x =
+    -dir * (spawnOffset + drift) + (hash01(foamSeed + 8.3) - 0.5) * 3.2;
+  const curlProgress = smoothstep01(foamAge / wakeMaxAge);
+  const curl =
+    wake.upwardCurlPx *
+    curlProgress *
+    (0.45 + hash01(foamSeed + 11.6) * 0.55);
+  const y = waterContactYAtLocalX(x, surfaceCtx) - curl;
+  const radius =
+    lerp(wake.minRadiusPx, wake.maxRadiusPx, hash01(foamSeed + 15.2)) *
+    lerp(0.82, 1.04, life01);
+  const birthFade = smoothstep01(foamAge / 0.028);
+  const opacity =
+    life01 *
+    birthFade *
+    lerp(0.55, 1, strength) *
+    wake.opacityScale *
+    FX.maxBlobOpacity *
+    rowRange(foamSeed, foamSeed, [0.72, 1]);
 
-  for (let i = 0; i < wake.blobCount; i++) {
-    const seed = foamSeed + i * 31.7;
-    const along = (i + hash01(seed + 2.4)) / Math.max(1, wake.blobCount);
-    const trailLen = wake.trailLengthPx * lerp(0.75, 1.15, hash01(seed + 5.1));
-    const x =
-      -dir * (4 + along * trailLen) +
-      (hash01(seed + 8.3) - 0.5) * 4.5;
-    const curl = wake.upwardCurlPx * along * (0.5 + hash01(seed + 11.6) * 0.6);
-    const y = waterContactYAtLocalX(x, surfaceCtx) - curl;
-    const radius =
-      lerp(wake.minRadiusPx, wake.maxRadiusPx, hash01(seed + 15.2)) *
-      lerp(0.82, 1.05, 1 - along * 0.35);
-    const opacity =
-      fade *
-      FX.maxBlobOpacity *
-      lerp(0.45, 0.95, 1 - along * 0.55) *
-      rowRange(foamSeed, seed, [0.7, 1]);
-
-    if (opacity < FX.minDrawOpacity || radius < 0.7) {
-      continue;
-    }
-
-    pushFoamDropletLayer(layers, { x, y, radius, opacity }, fillColor);
+  if (opacity < FX.minDrawOpacity || radius < 0.65) {
+    return;
   }
+
+  pushFoamDropletLayer(layers, { x, y, radius, opacity }, fillColor);
 };
 
 const buildDentSpines = (
@@ -724,9 +728,10 @@ export function buildSwimmerContactFoamLayers(
         surfaceCtx
       );
     } else if (kind === 'wake') {
-      buildWakeDroplets(
+      buildWakeTrailDroplet(
         layers,
         foamSeed,
+        foamAge,
         life01,
         strength,
         direction,

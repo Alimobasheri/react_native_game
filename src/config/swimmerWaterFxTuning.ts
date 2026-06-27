@@ -30,9 +30,9 @@ export const swimmerWaterFxTuning = {
   /** Lower the whole foam band on the waterline. */
   entityYOffsetPx: 10,
   /** Extra downward offset for droplet anchors inside the band. */
-  blobYOffsetPx: 6,
-  minRadiusPx: 4,
-  maxRadiusPx: 6,
+  blobYOffsetPx: 3,
+  minRadiusPx: 6,
+  maxRadiusPx: 8,
   minDrawOpacity: 0.02,
   spineWidthPx: 1.2,
   spineWidthSplashPx: 1.6,
@@ -47,7 +47,6 @@ export const swimmerWaterFxTuning = {
   dangerFillColor: '#FFD4CC',
   splashOffsetPx: 14,
   dentOffsetPx: 8,
-  wakeTrailOffsetPx: 22,
   wakeDriftPxPerSec: 48,
   /** Swimmer bottom must reach within this margin of waterSurfaceY to spawn collar / wakes. */
   waterContactMarginPx: 10,
@@ -96,13 +95,16 @@ export const swimmerWaterFxTuning = {
     opacityScale: 1.35,
   },
   wakeCurl: {
-    /** Trailing wake tips curl slightly above the surface line. */
-    upwardCurlPx: 8,
-    blobCount: 6,
-    minRadiusPx: 3,
-    maxRadiusPx: 6,
-    trailLengthPx: 30,
-    opacityScale: 1.5,
+    /** Trailing wake tips curl slightly above the surface line as each droplet ages. */
+    upwardCurlPx: 28,
+    /** Spawn slightly behind swimmer trailing edge (local band center). */
+    spawnOffsetPx: 5,
+    minRadiusPx: 3.5,
+    maxRadiusPx: 7.5,
+    /** Per-droplet opacity multiplier (one blob per spawn). */
+    opacityScale: 4,
+    /** Cap concurrent wake droplet entities. */
+    maxConcurrent: 16,
   },
   /**
    * Collar = continuous radiating ripple fronts (2D side-view water disturbance).
@@ -119,15 +121,15 @@ export const swimmerWaterFxTuning = {
     /** Outward travel speed of each ring front (px/s). */
     expandSpeedPxPerSec: 10.5,
     /** Inner radius where the first front spawns. */
-    startRadiusPx: 5,
+    startRadiusPx: 1,
     /** Stop spawning blobs beyond this radius. */
-    maxRadiusPx: 48,
+    maxRadiusPx: 100,
     /** Small blobs placed along each ring front (narrow foam band). */
-    blobsPerRing: 16,
-    minBlobRadiusPx: 1,
-    maxBlobRadiusPx: 1.35,
+    blobsPerRing: 9,
+    minBlobRadiusPx: 2,
+    maxBlobRadiusPx: 2.7,
     /** Thickness jitter of the ring front band. */
-    ringBandPx: 1.6,
+    ringBandPx: 4,
     /** Opacity falloff exponent as ripple ages (higher = faster fade). */
     temporalFadePower: 1.4,
     /** Skip blobs this close to center (under swimmer body in 2D). */
@@ -181,9 +183,9 @@ export const swimmerWaterFxTuning = {
       spineCount: 0,
     },
     wake: {
-      halfWidthNorm: 0.024,
+      halfWidthNorm: 0.018,
       strength: 0.8,
-      maxAge: 0.32,
+      maxAge: 0.48,
       blobCount: 0,
       spineCount: 0,
     },

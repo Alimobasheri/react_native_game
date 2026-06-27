@@ -121,16 +121,32 @@ describe('buildSwimmerContactFoamLayers', () => {
     expect(spineLayers(pinned).length).toBe(0);
   });
 
-  it('renders soft wake droplets instead of spine lines', () => {
-    const layers = buildSwimmerContactFoamLayers({
+  it('renders a single wake trail droplet that drifts and curls with age', () => {
+    const young = buildSwimmerContactFoamLayers({
       ...baseArgs,
       kind: 'wake',
-      life01: 0.85,
+      foamAge: 0.04,
+      life01: 0.92,
       direction: 1,
       layerMode: 'blobsOnly',
     });
-    expect(circleLayers(layers).length).toBeGreaterThan(2);
-    expect(spineLayers(layers).length).toBe(0);
+    const aged = buildSwimmerContactFoamLayers({
+      ...baseArgs,
+      kind: 'wake',
+      foamAge: 0.28,
+      life01: 0.55,
+      direction: 1,
+      layerMode: 'blobsOnly',
+    });
+    expect(circleLayers(young).length).toBe(1);
+    expect(circleLayers(aged).length).toBe(1);
+    expect(spineLayers(young).length).toBe(0);
+    const youngY = circleLayers(young)[0].position.y;
+    const agedY = circleLayers(aged)[0].position.y;
+    const youngX = circleLayers(young)[0].position.x;
+    const agedX = circleLayers(aged)[0].position.x;
+    expect(agedX).toBeLessThan(youngX);
+    expect(agedY).toBeLessThan(youngY);
   });
 
   it.each(['collar', 'dangerEdge'] as const)(
