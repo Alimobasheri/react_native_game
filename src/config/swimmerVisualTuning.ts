@@ -8,11 +8,15 @@ export const swimmerVisualTuning = {
   VISUAL_WIDTH_COLUMN_RATIO: 0.65,
   VISUAL_HEIGHT_TO_WIDTH_RATIO: 1.8,
 
+  /** Fair navigation collider — upright core, decoupled from visual mesh / stroke scale. */
+  COLLIDER_WIDTH_COLUMN_RATIO: 0.55,
+  COLLIDER_HEIGHT_TO_WIDTH_RATIO: 0.95,
+
   /**
-   * Fair ceiling-contact bounds while pinned — taller than the live body box,
-   * never tied to visual squash scale. Normal navigation uses the rendered body.
+   * Fair ceiling-contact bounds while pinned — taller than navigation collider,
+   * never tied to visual squash scale.
    */
-  PINNED_COLLIDER_WIDTH_COLUMN_RATIO: 0.48,
+  PINNED_COLLIDER_WIDTH_COLUMN_RATIO: 0.55,
   PINNED_COLLIDER_HEIGHT_TO_WIDTH_RATIO: 1.65,
 
   /** Open-water lean caps per combo tier (degrees). Still clamped by clearance. */

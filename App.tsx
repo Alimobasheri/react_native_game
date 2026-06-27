@@ -21,7 +21,7 @@ function App() {
       <View style={[styles.container]}>
         <StatusBar hidden />
         <SwimmerGameComp
-          swimmerSkinId={AQUA_SPROUT_SKIN_ID}
+          swimmerSkinId={KELP_DRIFTER_SKIN_ID}
           waterSurfaceFromBottomFraction={
             WATER_SURFACE_FROM_CONTAINER_BOTTOM_FRACTION
           }

@@ -324,21 +324,8 @@ export const SwimmerPhysicsSystem: System = {
       let locomotion = swimmerComponent.locomotion;
       let kinematicsAngleRad = 0;
 
-      const colliderInput = {
-        baseWidth: swimmerVisualWidth,
-        baseHeight: swimmerVisualHeight,
-        meshScaleX: locomotion.meshScaleX,
-        meshScaleY: locomotion.meshScaleY,
-        columnWidth,
-      };
-      const navColliderExtents = getSwimmerColliderExtents({
-        ...colliderInput,
-        ceilingContact: false,
-      });
-      const pinnedColliderExtents = getSwimmerColliderExtents({
-        ...colliderInput,
-        ceilingContact: true,
-      });
+      const navColliderExtents = getSwimmerColliderExtents(columnWidth, false);
+      const pinnedColliderExtents = getSwimmerColliderExtents(columnWidth, true);
       const colliderExtents = wasPinnedFromAbove
         ? pinnedColliderExtents
         : navColliderExtents;

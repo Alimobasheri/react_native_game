@@ -1,6 +1,12 @@
 import { swimmerLifeTuning } from '@/config/swimmerLifeTuning';
 import { computeBreathMotion } from './swimmerLifeDrivers';
 import type { InternalMotionProfileId, SwimmerLifeDebugMode } from './swimmerLifeTypes';
+import { mapKelpSwayProfileUniforms } from './uniforms/mapKelpSwayProfileUniforms';
+import { mapRippleProfileUniforms } from './uniforms/mapRippleProfileUniforms';
+import {
+  applyDebugIntensity,
+  mapSharedInternalUniforms,
+} from './uniforms/swimmerInternalUniformShared';
 
 export const mapLifeToCompositeUniforms = (
   profile: InternalMotionProfileId,
@@ -15,46 +21,50 @@ export const mapLifeToCompositeUniforms = (
 ): Record<string, number | number[]> => {
   'worklet';
   const motion = computeBreathMotion(phase, glowOverride, 1, breathOverride);
-  const debugIntensity = swimmerLifeTuning.INTERNAL_RIPPLE_INTENSITY_DEBUG;
-  const prodIntensity = swimmerLifeTuning.INTERNAL_RIPPLE_INTENSITY;
 
-  let uIntensity = 0;
-  let uMotionKind = 0;
-  let uGlow = motion.glow;
-  let uBreath = motion.breath;
+  const shared = mapSharedInternalUniforms(
+    phase,
+    meshW,
+    meshH,
+    debugMode,
+    juiceBoost,
+    motion.breath,
+    motion.glow
+  );
 
-  if (profile === 'ripple') {
-    uIntensity = intensityOverride ?? prodIntensity;
-    uMotionKind = 0;
-    if (intensityOverride != null) {
-      uGlow =
-        swimmerLifeTuning.INTERNAL_RIPPLE_GLOW_BASE +
-        swimmerLifeTuning.INTERNAL_RIPPLE_GLOW_PEAK * intensityOverride;
-    }
-  } else if (profile === 'kelpSway') {
-    uIntensity =
-      intensityOverride ?? swimmerLifeTuning.INTERNAL_KELP_SWAY_INTENSITY;
-    uMotionKind = 1;
-    uGlow = swimmerLifeTuning.INTERNAL_KELP_SWAY_GLOW;
+  if (profile === 'none') {
+    return {
+      ...shared,
+      uIntensity: 0,
+      uMotionKind: 0,
+      uStrandRegion: [0, 1],
+      uKelpSway: [0, 0, 1],
+    };
   }
 
-  if (debugMode !== 0 && profile !== 'none') {
-    uIntensity = intensityOverride ?? debugIntensity;
-    uGlow = Math.max(uGlow, swimmerLifeTuning.INTERNAL_RIPPLE_GLOW_DEBUG);
-  }
+  const profileUniforms =
+    profile === 'kelpSway'
+      ? mapKelpSwayProfileUniforms(intensityOverride)
+      : mapRippleProfileUniforms(intensityOverride, motion.glow);
+
+  const uIntensity = applyDebugIntensity(
+    profileUniforms.uIntensity as number,
+    debugMode,
+    intensityOverride
+  );
+  const uGlow =
+    debugMode !== 0
+      ? Math.max(
+          profileUniforms.uGlow as number,
+          swimmerLifeTuning.INTERNAL_RIPPLE_GLOW_DEBUG
+        )
+      : (profileUniforms.uGlow as number);
 
   return {
-    uPhase: phase,
-    uBreath,
-    uGlow,
+    ...shared,
+    ...profileUniforms,
     uIntensity,
-    uJuiceBoost: juiceBoost,
-    uDebugMode: debugMode,
-    uMeshSize: [meshW, meshH],
-    uFillOrigin: [
-      swimmerLifeTuning.INTERNAL_RIPPLE_FILL_ORIGIN_X,
-      swimmerLifeTuning.INTERNAL_RIPPLE_FILL_ORIGIN_Y,
-    ],
-    uMotionKind,
+    uGlow,
+    uBreath: motion.breath,
   };
 };

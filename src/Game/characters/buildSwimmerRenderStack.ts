@@ -5,6 +5,7 @@ import {
   type RenderLayerData,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import { SWIMMER_INTERNAL_UNIFORM_KEYS } from '@/Shaders/SwimmerInternal/swimmerInternalComposite';
+import { swimmerLifeTuning } from '@/config/swimmerLifeTuning';
 import {
   getAccessoryMeshSize,
   getAccessoryRestOffsetY,
@@ -44,8 +45,17 @@ export const buildSwimmerRenderStack = (
         0.9,
       ],
       uMotionKind: uniforms.uMotionKind ?? 0,
+      uStrandRegion: uniforms.uStrandRegion ?? [0, 1],
+      uKelpSway: uniforms.uKelpSway ?? [
+        swimmerLifeTuning.INTERNAL_KELP_SWAY_TIP_AMPLITUDE_X,
+        swimmerLifeTuning.INTERNAL_KELP_SWAY_TIP_AMPLITUDE_Y,
+        swimmerLifeTuning.INTERNAL_KELP_SWAY_BEND_POWER,
+      ],
     },
-    childImages: [{ imageKey: skin.bodyImageKey }],
+    childImages: [
+      { imageKey: skin.bodyImageKey },
+      { imageKey: skin.internalImageKey ?? skin.bodyImageKey },
+    ],
   };
 
   const renderLayers: RenderLayerData[] = [];

@@ -5,51 +5,26 @@ export type SwimmerColliderExtents = {
   halfHeight: number;
 };
 
-export type SwimmerColliderInput = {
-  /** Render mesh base width (`meshBaseWidth`). */
-  baseWidth: number;
-  /** Render mesh base height (`meshBaseHeight`). */
-  baseHeight: number;
-  /** Current procedural mesh scale X from locomotion. */
-  meshScaleX?: number;
-  /** Current procedural mesh scale Y from locomotion. */
-  meshScaleY?: number;
-  /** Grid column width — used for pinned ceiling-contact bounds. */
-  columnWidth: number;
-  /** When true, use fair pinned bounds instead of the live body silhouette. */
-  ceilingContact: boolean;
-};
-
 /**
- * Gameplay collider extents.
+ * Gameplay collider extents — always upright, never tied to visual squash.
  *
- * Navigation: matches the rendered body rectangle (base mesh × current scale).
- * Pinned: taller fair ceiling-contact box — never tied to visual squash.
+ * Navigation: fair compact core for gap passage (tuned wider than original).
+ * Pinned: taller ceiling-contact box — never shrinks with visual squash.
  */
 export const getSwimmerColliderExtents = (
-  input: SwimmerColliderInput
+  columnWidth: number,
+  ceilingContact: boolean
 ): SwimmerColliderExtents => {
   'worklet';
-  if (input.ceilingContact) {
-    const pinnedWidth =
-      input.columnWidth *
-      swimmerVisualTuning.PINNED_COLLIDER_WIDTH_COLUMN_RATIO;
-    const pinnedHeight =
-      pinnedWidth * swimmerVisualTuning.PINNED_COLLIDER_HEIGHT_TO_WIDTH_RATIO;
-    const scaleX = input.meshScaleX ?? 1;
-    const scaleY = input.meshScaleY ?? 1;
-    const bodyWidth = input.baseWidth * scaleX;
-    const bodyHeight = input.baseHeight * scaleY;
-    return {
-      halfWidth: Math.max(bodyWidth, pinnedWidth) / 2,
-      halfHeight: Math.max(bodyHeight, pinnedHeight) / 2,
-    };
-  }
-
-  const scaleX = input.meshScaleX ?? 1;
-  const scaleY = input.meshScaleY ?? 1;
-  const width = input.baseWidth * scaleX;
-  const height = input.baseHeight * scaleY;
+  const width =
+    columnWidth *
+    (ceilingContact
+      ? swimmerVisualTuning.PINNED_COLLIDER_WIDTH_COLUMN_RATIO
+      : swimmerVisualTuning.COLLIDER_WIDTH_COLUMN_RATIO);
+  const heightToWidth = ceilingContact
+    ? swimmerVisualTuning.PINNED_COLLIDER_HEIGHT_TO_WIDTH_RATIO
+    : swimmerVisualTuning.COLLIDER_HEIGHT_TO_WIDTH_RATIO;
+  const height = width * heightToWidth;
   return {
     halfWidth: width / 2,
     halfHeight: height / 2,

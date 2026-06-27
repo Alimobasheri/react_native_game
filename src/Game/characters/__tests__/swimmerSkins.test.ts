@@ -91,6 +91,9 @@ describe('swimmerSkins', () => {
     expect(layers[0].image).toBe(SWIMMER_CHARACTER_IMAGE.kelpDrifterEyes);
     expect(layers[1].image).toBe(SWIMMER_CHARACTER_IMAGE.kelpDrifterHair);
     expect(layers[1].position?.x).toBeGreaterThan(0);
+    expect(stack.compositeShader.childImages[1].imageKey).toBe(
+      SWIMMER_CHARACTER_IMAGE.kelpDrifterInternal
+    );
     expect(getSwimmerFeatureLayerIndex(KELP_DRIFTER_SKIN)).toBe(0);
     expect(getSwimmerAccessoryLayerIndex(KELP_DRIFTER_SKIN)).toBe(1);
   });

@@ -38,6 +38,8 @@ export type SwimmerSkinDefinition = {
   /** Locomotion / physics profile for this skin. */
   readonly profileId: string;
   readonly bodyImageKey: string;
+  /** Optional strand / caustic layer composited inside the body shader. */
+  readonly internalImageKey?: string;
   readonly accessoryImageKey: string;
   /** Accessory draw width as a fraction of the body mesh width. */
   readonly accessoryWidthRatio: number;
@@ -122,6 +124,7 @@ export const KELP_DRIFTER_SKIN: SwimmerSkinDefinition = {
   id: KELP_DRIFTER_SKIN_ID,
   profileId: GIGGLE_CRYSTAL_PROFILE_ID,
   bodyImageKey: SWIMMER_CHARACTER_IMAGE.kelpDrifterBody,
+  internalImageKey: SWIMMER_CHARACTER_IMAGE.kelpDrifterInternal,
   accessoryImageKey: SWIMMER_CHARACTER_IMAGE.kelpDrifterHair,
   /** Side-fringe hair 438×407 — aligned via swimmer-layer-aligner.html */
   accessoryWidthRatio: 1.5,

@@ -30,6 +30,7 @@ import {
   floaterGoggledBody,
   floaterGoggledGoggles,
   kelpDrifterBody,
+  kelpDrifterInternal,
   kelpDrifterEyes,
   kelpDrifterHair,
   SWIMMER_CHARACTER_IMAGE,
@@ -407,6 +408,11 @@ const SwimmerGameComp: FC<{}> = memo(
                     type="image"
                     name={SWIMMER_CHARACTER_IMAGE.kelpDrifterBody}
                     uriOrBase64={kelpDrifterBody}
+                  />
+                  <Asset
+                    type="image"
+                    name={SWIMMER_CHARACTER_IMAGE.kelpDrifterInternal}
+                    uriOrBase64={kelpDrifterInternal}
                   />
                   <Asset
                     type="image"

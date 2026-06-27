@@ -53,9 +53,18 @@ export const swimmerLifeTuning = {
   /** Future score fever — scales band + brightness (1.0 = idle). */
   INTERNAL_JUICE_BOOST_DEFAULT: 1,
   /** Kelp Drifter — slow horizontal strand sway inside the body. */
-  INTERNAL_KELP_SWAY_CYCLE_SEC: 5.8,
+  INTERNAL_KELP_SWAY_CYCLE_SEC: 2.4,
   INTERNAL_KELP_SWAY_INTENSITY: 0.22,
   INTERNAL_KELP_SWAY_GLOW: 0.35,
+  /** Root-pinned sway: horizontal tip amplitude (mesh fraction). */
+  INTERNAL_KELP_SWAY_TIP_AMPLITUDE_X: 0.09,
+  /** Root-pinned sway: vertical tip amplitude (mesh fraction). */
+  INTERNAL_KELP_SWAY_TIP_AMPLITUDE_Y: 0.003,
+  /** Bend curve power — higher = more motion at tips vs mid-strand. */
+  INTERNAL_KELP_SWAY_BEND_POWER: 1.5,
+  /** Strand band in body UV (y=0 top, y=1 bottom) — ~half body height. */
+  INTERNAL_KELP_STRAND_REGION_TOP: 0.46,
+  INTERNAL_KELP_STRAND_REGION_BOTTOM: 0.96,
   /** Sleepy blink — slower, softer close for relaxed skins. */
   SLEEPY_BLINK_INTERVAL_MIN_SEC: 3.5,
   SLEEPY_BLINK_INTERVAL_MAX_SEC: 8.0,

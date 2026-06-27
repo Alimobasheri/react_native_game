@@ -1,6 +1,10 @@
 import { RenderPolicy } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import { buildSwimmerRenderStack } from '../buildSwimmerRenderStack';
-import { AQUA_SPROUT_SKIN, GOGGLED_SKIN } from '../swimmerSkins';
+import {
+  AQUA_SPROUT_SKIN,
+  GOGGLED_SKIN,
+  KELP_DRIFTER_SKIN,
+} from '../swimmerSkins';
 import { SWIMMER_CHARACTER_IMAGE } from '@/assets/swimmerCharacters';
 
 describe('buildSwimmerRenderStack', () => {
@@ -16,6 +20,7 @@ describe('buildSwimmerRenderStack', () => {
     expect(stack.renderPolicy).toBe(RenderPolicy.AnimatedComposite);
     expect(stack.compositeShader.key).toBe('swimmerInternal');
     expect(stack.compositeShader.childImages).toEqual([
+      { imageKey: SWIMMER_CHARACTER_IMAGE.aquaSproutBody },
       { imageKey: SWIMMER_CHARACTER_IMAGE.aquaSproutBody },
     ]);
     expect(stack.renderLayers).toHaveLength(2);
@@ -36,5 +41,19 @@ describe('buildSwimmerRenderStack', () => {
     expect(stack.compositeShader.childImages[0].imageKey).toBe(
       SWIMMER_CHARACTER_IMAGE.floaterGoggledBody
     );
+    expect(stack.compositeShader.childImages[1].imageKey).toBe(
+      SWIMMER_CHARACTER_IMAGE.floaterGoggledBody
+    );
+  });
+
+  it('builds kelp composite with separate internal strand child image', () => {
+    const stack = buildSwimmerRenderStack(KELP_DRIFTER_SKIN, 48, 120, {
+      uMotionKind: 1,
+    });
+
+    expect(stack.compositeShader.childImages).toEqual([
+      { imageKey: SWIMMER_CHARACTER_IMAGE.kelpDrifterBody },
+      { imageKey: SWIMMER_CHARACTER_IMAGE.kelpDrifterInternal },
+    ]);
   });
 });

@@ -16,6 +16,11 @@ describe('swimmerLifeUniforms', () => {
     const uniforms = mapLifeToCompositeUniforms('kelpSway', 0.3, 48, 120, 0);
     expect(uniforms.uMotionKind).toBe(1);
     expect(uniforms.uIntensity).toBe(swimmerLifeTuning.INTERNAL_KELP_SWAY_INTENSITY);
+    expect(uniforms.uKelpSway).toEqual([
+      swimmerLifeTuning.INTERNAL_KELP_SWAY_TIP_AMPLITUDE_X,
+      swimmerLifeTuning.INTERNAL_KELP_SWAY_TIP_AMPLITUDE_Y,
+      swimmerLifeTuning.INTERNAL_KELP_SWAY_BEND_POWER,
+    ]);
   });
 
   it('uses debug intensity when debug mode is active', () => {
