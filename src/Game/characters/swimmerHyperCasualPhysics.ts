@@ -92,7 +92,95 @@ const integratePhysicsFrame = (
   return vx;
 };
 
-/** Mirrors SwimmerPhysicsSystem per-frame order: drag, advection, integrate. */
+type CoastStepParams = {
+  dragFactor: number;
+  currentResponse: number;
+  waterCurrentVelocityX: number;
+  safeDt: number;
+};
+
+/** Precompute per-tap coast constants — one pow + one exp instead of per frame. */
+const computeCoastStepParams = (
+  normalizedWaterSpeed: number,
+  waterCurrentVelocityX: number,
+  profile: ICharacterProfile,
+  preset: SwimmerCoastPresetValues,
+  frameDt: number
+): CoastStepParams => {
+  'worklet';
+  const safeDt = clampFrameDt(frameDt);
+  const retainPerSecond = getRetainPerSecond(normalizedWaterSpeed, preset);
+  const adjustedRetain = Math.pow(retainPerSecond, profile.dragScale);
+  const dragFactor = Math.pow(Math.max(0.0001, adjustedRetain), safeDt);
+  const currentResponse =
+    (1 -
+      Math.exp(
+        -swimmerPhysicsTuning.WATER_CURRENT_RESPONSE_PER_SECOND * safeDt
+      )) *
+    preset.TAP_MODE_CURRENT_RESPONSE_SCALE;
+  return {
+    dragFactor,
+    currentResponse,
+    waterCurrentVelocityX,
+    safeDt,
+  };
+};
+
+/** Single coast frame — mirrors integratePhysicsFrame with precomputed coefficients. */
+const integrateCoastStep = (
+  velocityX: number,
+  params: CoastStepParams
+): number => {
+  'worklet';
+  let vx = velocityX * params.dragFactor;
+  if (Math.abs(vx) < hyperCasualPhysicsTuning.VELOCITY_ZERO_EPSILON) {
+    vx = 0;
+  }
+  vx +=
+    (params.waterCurrentVelocityX - vx) * params.currentResponse;
+  return vx;
+};
+
+/**
+ * Fast coast displacement — exact match to simulateTapDisplacementPx but precomputes
+ * drag/current coefficients once (~120 cheap mul-adds vs ~120 full pow+exp frames).
+ */
+export const computeCoastDisplacementPx = (
+  impulseMagnitude: number,
+  tapDirection: 1 | -1,
+  startVelocityX: number,
+  normalizedWaterSpeed: number,
+  waterCurrentVelocityX: number,
+  profile: ICharacterProfile,
+  preset: SwimmerCoastPresetValues,
+  frameDt: number,
+  maxSeconds: number
+): number => {
+  'worklet';
+  const params = computeCoastStepParams(
+    normalizedWaterSpeed,
+    waterCurrentVelocityX,
+    profile,
+    preset,
+    frameDt
+  );
+  const v0 = startVelocityX + tapDirection * impulseMagnitude;
+  let vx = v0;
+  let displacement = 0;
+  const maxFrames = Math.ceil(maxSeconds / Math.max(0.0001, params.safeDt));
+  const epsilon = hyperCasualPhysicsTuning.VELOCITY_ZERO_EPSILON;
+
+  for (let frame = 0; frame < maxFrames; frame++) {
+    vx = integrateCoastStep(vx, params);
+    displacement += vx * params.safeDt;
+    if (Math.abs(vx) < epsilon) {
+      break;
+    }
+  }
+  return displacement;
+};
+
+/** Reference integrator — kept for tests; production uses computeCoastDisplacementPx. */
 export const simulateTapDisplacementPx = (
   impulseMagnitude: number,
   tapDirection: 1 | -1,
@@ -234,7 +322,7 @@ export const computeForwardTapImpulseMagnitude = (
     );
   const probeImpulse = 120;
   const probeTravel = Math.abs(
-    simulateTapDisplacementPx(
+    computeCoastDisplacementPx(
       probeImpulse,
       tapDirection,
       0,

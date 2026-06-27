@@ -5,6 +5,7 @@ import {
   applyHyperCasualDrag,
   applyHyperCasualTap,
   buildPinnedEscapeContext,
+  computeCoastDisplacementPx,
   computeForwardTapImpulseMagnitude,
   computeHybridSplashStrength,
   computePinnedEscapeMinSlidePx,
@@ -30,6 +31,42 @@ const colliderWidth = (column: number) =>
   getSwimmerColliderExtents(column, false).halfWidth * 2;
 
 describe('swimmerHyperCasualPhysics', () => {
+  it('computeCoastDisplacementPx matches loop simulation within tolerance', () => {
+    const preset = swimmerCoastPresets.snappy;
+    const scenarios = [
+      { impulse: 120, speed: 0, current: 0 },
+      { impulse: 240, speed: 0.6, current: -80 },
+      { impulse: 80, speed: 1, current: 40 },
+      { impulse: 50, speed: 0.3, current: 0 },
+    ] as const;
+
+    for (const scenario of scenarios) {
+      const closed = computeCoastDisplacementPx(
+        scenario.impulse,
+        1,
+        0,
+        scenario.speed,
+        scenario.current,
+        profile,
+        preset,
+        REFERENCE_FRAME_DT,
+        2
+      );
+      const loop = simulateTapDisplacementPx(
+        scenario.impulse,
+        1,
+        0,
+        scenario.speed,
+        scenario.current,
+        profile,
+        preset,
+        REFERENCE_FRAME_DT,
+        2
+      );
+      expect(closed).toBeCloseTo(loop, 6);
+    }
+  });
+
   it('applyHyperCasualTap adds immediate forward velocity on tap', () => {
     const locomotion = createDefaultSwimmerLocomotion();
     const preset = swimmerCoastPresets.snappy;
