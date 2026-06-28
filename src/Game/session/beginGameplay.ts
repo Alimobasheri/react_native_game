@@ -221,6 +221,7 @@ export function recordRunDeathOnGameOver(
         deathCtx,
         runProgressionTuning.DEATH_HISTORY_CAP
       );
+      s.lastDeathContext = deathCtx;
       if (isNewBest) {
         s.bestScore = floored;
       }

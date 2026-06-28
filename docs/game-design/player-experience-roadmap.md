@@ -326,7 +326,7 @@ P0 Audit ──► P1 Skill juice ──► P2 Rest + coins ──► P3 World m
 | Style bible | ✅ | `swimmer.styles.md` |
 | World skin type + equip persistence | ⬜ | New — Phase 3 |
 | Coin currency + persist | ⬜ | New — Phase 2 |
-| Floating feedback overlay system | ⬜ | New — Phase 1 |
+| Floating feedback overlay system | ✅ | `GameplayFeedbackSystem.ts` + `GameplayFeedbackView-rntge.tsx` |
 
 **Exit:** checklist above marked; pick Phase 1.
 
@@ -338,16 +338,21 @@ P0 Audit ──► P1 Skill juice ──► P2 Rest + coins ──► P3 World m
 
 **Ship on device:**
 
-- [ ] `CLOSE!` / `NICE!` on near-pin (clearance threshold tune from `NEAR_PIN_CLEARANCE01`)
-- [ ] Floating `+N` flyout into score (small amounts — 10–25)
-- [ ] `TAP` triple-flash when under block lip in narrow slot + `SAVED!` on escape
-- [ ] `×2` / `×3` combo badge (wire to existing tap streak / clean gap logic)
-- [ ] Death line on game over panel (phase + generator → player copy from §7)
+- [x] `CLOSE!` / `NICE!` on near-pin (clearance threshold tune from `NEAR_PIN_CLEARANCE01`)
+- [x] Floating `+N` flyout into score (small amounts — 10–25)
+- [ ] `TAP` triple-flash when under block lip in narrow slot + `SAVED!` on escape — **deferred** (see handoff)
+- [x] `×2` / `×3` combo badge (**tap-tier** `visualStrokeTier` MVP — not clean-gap yet)
+- [x] Death line on game over panel (generator → player copy from §7; suffix toggle in `deathCopy.ts`)
 
 **Art / style:**
 
-- [ ] Flash text style: Montserrat SemiBold, white + `#FFD43B` outline, 0.4s float-up fade
-- [ ] Spark sprite or Skia ring (reuse water FX colors)
+- [x] Flash text style: **Fredoka Bold**, white + yellow stroke, 0.4s float-up fade
+- [x] Spark: Skia circle ring (config `SHOW_SPARK_RING`)
+
+**Follow-up session (not blocking P2):**
+
+- [ ] **Clean gap combo** — HUD badge from gap-thread skill, not tap tier only; 20-run playtest script
+- [ ] **TAP / SAVED!** coaching under ceiling pin
 
 **Engine touchpoints (implementer hints):**
 
@@ -357,9 +362,9 @@ P0 Audit ──► P1 Skill juice ──► P2 Rest + coins ──► P3 World m
 
 **Tests / QA:**
 
-- [ ] Near-miss doesn’t fire in open water
-- [ ] TAP doesn’t fire on first run tutorial overlay
-- [ ] Combo resets on sloppy steer
+- [x] Near-miss doesn’t fire in open water (unit: `nearMissDetection.test.ts`)
+- [x] TAP doesn’t fire on first run tutorial overlay (gate: `gameplayFeedbackGates.test.ts`)
+- [ ] Combo resets on sloppy steer (manual — tap tier resets in `swimmerTapInput.ts`; verify on device)
 
 **Exit:** founder plays 10 runs and can **feel** praise — not just score ticking.
 
@@ -635,6 +640,7 @@ The shipped blueprint system remains **geometry scheduler only**:
 | Date | Change |
 |------|--------|
 | 2026-06-28 | v1 — initial roadmap from founder creative sessions |
+| 2026-06-28 | P1 partial — skill feedback MVP shipped (see `docs/visual-design/logs/phase1-skill-feedback-handoff.md`) |
 
 ---
 

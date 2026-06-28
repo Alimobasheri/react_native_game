@@ -29,6 +29,7 @@ import { gameSessionTuning } from '@/config/swimmerTuning';
 import {
   GAME_OVER_PANEL_COLORS,
 } from '@/Game/ui/gameOverPanelVisuals';
+import { formatDeathLine } from '@/Game/feedback/deathCopyLine';
 import {
   COLOR_CAVE_DEEP,
   COLOR_REWARD_YELLOW,
@@ -260,6 +261,13 @@ export const GameOverScreenSystem: System = {
           TextComponentName,
           (t) => {
             t.opacity = elementOpacity;
+            if (role === 'subtitle') {
+              const line = formatDeathLine(session.lastDeathContext);
+              if (t.text !== line) {
+                t.text = line;
+                t.isDirty = true;
+              }
+            }
             if (role === 'scoreValue') {
               const line = `${displayedScore}`;
               if (t.text !== line) {

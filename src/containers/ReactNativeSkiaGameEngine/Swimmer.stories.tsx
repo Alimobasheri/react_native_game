@@ -62,6 +62,7 @@ import { ScoreHudTagComponentName } from '@/Game/ecs-components/ScoreHudTag';
 import { RunResultComponentName } from '@/Game/ecs-components/RunResult';
 import { GameOverScoreComponentName } from '@/Game/ecs-components/GameOverScore';
 import { ScoreView } from '@/components/ScoreView/ScoreView-rntge';
+import { GameplayFeedbackView } from '@/components/GameplayFeedbackView/GameplayFeedbackView-rntge';
 import { ObstacleRowComponentName } from '@/Game/ecs-components/ObstacleRowComponent';
 import { BlockFoamComponentName } from '@/Game/ecs-components/BlockFoam';
 import { WaterSurfaceFoamComponentName } from '@/Game/ecs-components/WaterSurfaceFoam';
@@ -72,6 +73,8 @@ import { TemplateContextComponentName } from '@/Game/ecs-components/TemplateCont
 import { GameSessionComponentName } from '@/Game/ecs-components/GameSession';
 import { StartOverlayTagComponentName } from '@/Game/ecs-components/StartOverlayTag';
 import { GameOverOverlayTagComponentName } from '@/Game/ecs-components/GameOverOverlayTag';
+import { GameplayFeedbackManagerComponentName } from '@/Game/ecs-components/GameplayFeedbackManager';
+import { GameplayFeedbackFlashTagComponentName } from '@/Game/ecs-components/GameplayFeedbackFlashTag';
 import { GameOverScene } from '../Scenes/GameOverScene/index-rntge';
 import { StartScene } from '../Scenes/StartScene/index-rntge';
 import {
@@ -195,6 +198,8 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
               GameSessionComponentName,
               StartOverlayTagComponentName,
               GameOverOverlayTagComponentName,
+              GameplayFeedbackManagerComponentName,
+              GameplayFeedbackFlashTagComponentName,
             ]}
           >
             <Preload>
@@ -381,6 +386,7 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                       right: insets.right,
                     }}
                   />
+                  <GameplayFeedbackView />
                 </Content>
               </Scene>
               <StartScene

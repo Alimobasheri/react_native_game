@@ -11,6 +11,8 @@ export type ScoreHudAnimState = {
   newBestStartMs: number;
   beatBestShown: boolean;
   lastMilestone: number;
+  lastComboTier: number;
+  comboPopStartMs: number;
 };
 
 export type ScoreComponentData = {
@@ -31,6 +33,8 @@ export const createDefaultScoreHudAnimState = (): ScoreHudAnimState => {
   newBestStartMs: 0,
   beatBestShown: false,
     lastMilestone: 0,
+    lastComboTier: 0,
+    comboPopStartMs: 0,
   };
 };
 

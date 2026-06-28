@@ -92,6 +92,8 @@ const resetHudAnim = (hud: ScoreHudAnimState): void => {
   hud.newBestStartMs = 0;
   hud.beatBestShown = false;
   hud.lastMilestone = 0;
+  hud.lastComboTier = 0;
+  hud.comboPopStartMs = 0;
 };
 
 export const ScoreHudSystem: System = {
@@ -249,6 +251,40 @@ export const ScoreHudSystem: System = {
           : 1;
     const newBestYOffset = -refSize(20, screenW, screenH) * newBestT;
 
+    const comboTier = swimmerData?.locomotion.visualStrokeTier ?? 1;
+    let comboPopStartMs = hud.comboPopStartMs;
+    let lastComboTier = hud.lastComboTier;
+    if (showHud && comboTier >= 2 && comboTier > lastComboTier) {
+      comboPopStartMs = nowMs;
+      lastComboTier = comboTier;
+      if (scoreEntity !== undefined) {
+        ecs.updateComponent<ScoreComponentData>(
+          scoreEntity,
+          ScoreComponentName,
+          (s) => {
+            s.hud.comboPopStartMs = nowMs;
+            s.hud.lastComboTier = comboTier;
+          }
+        );
+        hud = { ...hud, comboPopStartMs: nowMs, lastComboTier: comboTier };
+      }
+    } else if (comboTier < 2 && lastComboTier !== comboTier) {
+      lastComboTier = comboTier;
+      if (scoreEntity !== undefined) {
+        ecs.updateComponent<ScoreComponentData>(
+          scoreEntity,
+          ScoreComponentName,
+          (s) => {
+            s.hud.lastComboTier = comboTier;
+          }
+        );
+        hud = { ...hud, lastComboTier: comboTier };
+      }
+    }
+    const comboLabel = comboTier >= 3 ? '×3' : comboTier === 2 ? '×2' : '';
+    const comboVisible = showHud && comboTier >= 2;
+    const comboScale = computePopScale(comboPopStartMs, nowMs, POP_MS, 1.15);
+
     const tagStore = components[ScoreHudTagComponentName];
     if (!tagStore) return;
 
@@ -266,15 +302,18 @@ export const ScoreHudSystem: System = {
       const isCrown = hudTag.role === 'crown';
       const isPanel = hudTag.role === 'panel';
       const isNewBest = hudTag.role === 'newBest';
+      const isComboBadge = hudTag.role === 'comboBadge';
       const roleScale = isValue
         ? valuePopScale
         : isCrown
           ? stackScale
           : isPanel
             ? panelScale
-            : 1;
+            : isComboBadge
+              ? comboScale
+              : 1;
 
-      const scalesShape = isCrown || isValue || isPanel;
+      const scalesShape = isCrown || isValue || isPanel || isComboBadge;
       const w = hudTag.baseWidth * (scalesShape ? roleScale : 1);
       const h = hudTag.baseHeight * (scalesShape ? roleScale : 1);
       const offsetX =
@@ -294,7 +333,8 @@ export const ScoreHudSystem: System = {
       const visible =
         showHud &&
         hudOpacity > 0.01 &&
-        (!isNewBest || newBestVisible);
+        (!isNewBest || newBestVisible) &&
+        (!isComboBadge || comboVisible);
 
       const elementOpacity = isNewBest
         ? hudOpacity * newBestOpacity
@@ -386,6 +426,19 @@ export const ScoreHudSystem: System = {
           t.opacity = elementOpacity;
           const pop = computePopScale(hud.newBestStartMs, nowMs, 260, 1.1);
           t.fontSize = layout.fonts.newBest * pop;
+          t.isDirty = true;
+        });
+        return;
+      }
+
+      if (isComboBadge && textData) {
+        ecs.updateComponent<TextComponentData>(entityId, TextComponentName, (t) => {
+          t.opacity = elementOpacity;
+          if (t.text !== comboLabel) {
+            t.text = comboLabel;
+            t.isDirty = true;
+          }
+          t.fontSize = layout.fonts.comboBadge * comboScale;
           t.isDirty = true;
         });
       }

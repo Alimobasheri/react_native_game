@@ -52,8 +52,13 @@ import {
 import { getWaterSurfaceRestY, LAYOUT_CONSTANTS } from '@/Layout';
 import { RestartGameplayRequestType } from '@/Game/session/restartGameplayEvents';
 import { clearSwimmerWaterFx } from '@/Game/water/swimmerWaterFxLifecycle';
-import { assignBlueprintForNewRun } from '@/Game/path/runBlueprint';
+import {
+  GameplayFeedbackManagerData,
+  GameplayFeedbackManagerComponentName,
+} from '@/Game/ecs-components/GameplayFeedbackManager';
+import { resetGameplayFeedbackManager } from '@/systems/GameplayFeedbackSystem';
 import { resolvePacingRunContext } from '@/Game/path/cyclePersonality';
+import { assignBlueprintForNewRun } from '@/Game/path/runBlueprint';
 
 const SWIMMER_START_ABOVE_SURFACE_PX = 10;
 const REMOVE_ENTITY_BATCH_REQUEST = 'RemoveEntityBatchRequest';
@@ -69,6 +74,8 @@ const defaultScoreHudAnimState = (): ScoreHudAnimState => {
     newBestStartMs: 0,
     beatBestShown: false,
     lastMilestone: 0,
+    lastComboTier: 0,
+    comboPopStartMs: 0,
   };
 };
 
@@ -293,6 +300,19 @@ const restartGameplay = (
         s.score = 0;
         s.accumulatedTime = 0;
         s.hud = defaultScoreHudAnimState();
+      }
+    );
+  }
+
+  const feedbackManagers = ecs.getEntitiesWithComponents([
+    GameplayFeedbackManagerComponentName,
+  ]);
+  for (let fi = 0; fi < feedbackManagers.length; fi++) {
+    ecs.updateComponent<GameplayFeedbackManagerData>(
+      feedbackManagers[fi],
+      GameplayFeedbackManagerComponentName,
+      (m) => {
+        resetGameplayFeedbackManager(m);
       }
     );
   }

@@ -257,12 +257,50 @@ export const ScoreView: FC<ScoreViewProps> = ({
     ];
   }, [dimensions?.height, dimensions?.width, safeAreaInsets]);
 
+  const comboBadgeComponents = useMemo(() => {
+    const screenW = dimensions?.width ?? 400;
+    const screenH = dimensions?.height ?? 800;
+    const layout = layoutScoreHud(screenW, screenH, safeAreaInsets);
+    const badge = layout.comboBadge;
+    return [
+      createScoreHudTagComponent({
+        role: 'comboBadge',
+        baseX: badge.x,
+        baseY: badge.y,
+        baseWidth: badge.width,
+        baseHeight: badge.height,
+      }),
+      createTextComponent({
+        text: '×2',
+        fontAssetId: 'Fredoka',
+        fontSize: layout.fonts.comboBadge,
+        color: Skia.Color(COLOR_REWARD_YELLOW),
+        strokeColor: COLOR_CAVE_DEEP,
+        strokeWidth: 2.5,
+        align: TextAlign.Center,
+        maxWidth: badge.width,
+      }),
+      createRenderComponent({
+        shape: {
+          type: ShapeTypes.Rectangle,
+          width: badge.width,
+          height: badge.height,
+        },
+        position: { x: badge.x, y: badge.y },
+        visible: false,
+        zIndex: 4,
+        renderLayer: SwimmerRenderLayer.Hud,
+      }),
+    ];
+  }, [dimensions?.height, dimensions?.width, safeAreaInsets]);
+
   useAddEntity({ components: panelComponents });
   useAddEntity({ components: crownComponents });
   useAddEntity({ components: valueComponents });
   useAddEntity({ components: bestLabelComponents });
   useAddEntity({ components: bestValueComponents });
   useAddEntity({ components: newBestComponents });
+  useAddEntity({ components: comboBadgeComponents });
   useAddSystem({ system: ScoreSystem });
   useAddSystem({ system: ScoreHudSystem });
 

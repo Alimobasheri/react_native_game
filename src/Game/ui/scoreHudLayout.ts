@@ -34,6 +34,11 @@ export const SCORE_HUD_REF = {
   newBestFont: 30,
   newBestOffsetY: -12,
   newBestHeight: 36,
+  comboBadgeWidth: 72,
+  comboBadgeHeight: 40,
+  comboBadgeFont: 34,
+  comboBadgeOffsetX: -8,
+  comboBadgeOffsetY: 4,
 } as const;
 
 export type ScoreHudLayout = {
@@ -43,12 +48,14 @@ export type ScoreHudLayout = {
   bestLabel: ScoreHudLayoutBox;
   bestValue: ScoreHudLayoutBox;
   newBest: ScoreHudLayoutBox;
+  comboBadge: ScoreHudLayoutBox;
   borderRadius: number;
   fonts: {
     value: number;
     bestLabel: number;
     bestValue: number;
     newBest: number;
+    comboBadge: number;
   };
 };
 
@@ -123,6 +130,15 @@ export function layoutScoreHud(
     refSize(SCORE_HUD_REF.newBestHeight, screenW, screenH)
   );
 
+  const comboW = refSize(SCORE_HUD_REF.comboBadgeWidth, screenW, screenH);
+  const comboH = refSize(SCORE_HUD_REF.comboBadgeHeight, screenW, screenH);
+  const comboBadge = box(
+    value.x + value.width - comboW + SCORE_HUD_REF.comboBadgeOffsetX * s,
+    value.y + SCORE_HUD_REF.comboBadgeOffsetY * s,
+    comboW,
+    comboH
+  );
+
   return {
     panel,
     crown,
@@ -130,12 +146,14 @@ export function layoutScoreHud(
     bestLabel,
     bestValue,
     newBest,
+    comboBadge,
     borderRadius: refSize(SCORE_HUD_REF.panelBorderRadius, screenW, screenH),
     fonts: {
       value: refSize(SCORE_HUD_REF.scoreFont, screenW, screenH),
       bestLabel: refSize(SCORE_HUD_REF.bestLabelFont, screenW, screenH),
       bestValue: refSize(SCORE_HUD_REF.bestValueFont, screenW, screenH),
       newBest: refSize(SCORE_HUD_REF.newBestFont, screenW, screenH),
+      comboBadge: refSize(SCORE_HUD_REF.comboBadgeFont, screenW, screenH),
     },
   };
 }

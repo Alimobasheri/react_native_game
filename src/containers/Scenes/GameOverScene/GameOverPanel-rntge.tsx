@@ -126,7 +126,7 @@ export const GameOverPanel: FC<{ insets: SafeAreaInsets }> = ({ insets }) => {
         baseHeight: layout.subtitle.height,
       }),
       createTextComponent({
-        text: 'You got squished',
+        text: '',
         fontAssetId: 'Fredoka',
         fontSize: layout.fonts.subtitle,
         color: GAME_OVER_SUBTITLE_COLOR,

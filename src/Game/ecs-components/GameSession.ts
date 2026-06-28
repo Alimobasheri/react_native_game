@@ -50,6 +50,8 @@ export type GameSessionComponentData = {
   lifetimeRunCount: number;
   /** Last N deaths this session — attempt memory on retry. */
   deathHistory: DeathContext[];
+  /** Most recent death — player-facing subtitle on game over. */
+  lastDeathContext?: DeathContext;
 };
 
 export const createGameSessionComponent = (
@@ -89,6 +91,7 @@ export const createGameSessionComponent = (
       runBlueprint: data.runBlueprint,
       lifetimeRunCount: data.lifetimeRunCount ?? 0,
       deathHistory: data.deathHistory ?? [],
+      lastDeathContext: data.lastDeathContext,
     },
   };
 };
