@@ -83,4 +83,12 @@ describe('resolveOpeningFlowParams', () => {
     expect(p.chuteRowsTargetOverride).toBeGreaterThanOrEqual(3);
     expect(p.chuteRowsTargetOverride).toBeLessThanOrEqual(5);
   });
+
+  it('breather caps chute to full opening budget', () => {
+    const p = resolveOpeningFlowParams('breather', 1, 8);
+    expect(p.chuteRowsTargetOverride).toBe(
+      runProgressionTuning.BREATHER_CHUTE_ROWS_OVERRIDE
+    );
+    expect(p.seedCenter).toBeUndefined();
+  });
 });

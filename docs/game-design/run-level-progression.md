@@ -1,6 +1,6 @@
 # Run-Level Progression — Design Spec
 
-**Status:** Phases 1–4 complete + founder sign-off on geometry vocabulary (2026-06-28). **Next agent: Phase 5 only** — see [Phase 5 handoff](#phase-5-handoff--geometry-plateau--next-agent-brief).  
+**Status:** Phases 1–5 complete (2026-06-28). **Next:** post–Phase 5 polish — see [Post-Phase 5](#post-phase-5--founder-notes--next-tracks) (T-005 framing, T-003/T-004 tuning, optional T-007).  
 **Scope:** How each **run** (tap Start → play → die → retry) feels different from the last.  
 **Out of scope:** New core mechanics, biome rule-twists, character gameplay modifiers, monetization, handcrafted level mode.
 
@@ -35,7 +35,7 @@ Micro-layout varies, but the **first act** of every run reads the same. Retries 
 | Biome visuals / swim animation | Collection & atmosphere | Visual only — no generator weights |
 | Character skins | Collection | No gameplay tie-in |
 | World / mechanic unlocks | New verbs | **Future — out of scope** |
-| Adaptive death analytics | Weight blueprint by death context | **Future — TBD** |
+| Adaptive death analytics | Weight blueprint by death context | **Partial — v1 breather boost only (T-003)** |
 
 ---
 
@@ -64,10 +64,11 @@ Micro-layout varies, but the **first act** of every run reads the same. Retries 
 
 Do not tie Run Blueprint weights to equipped skin or active biome.
 
-### 4. Death-context weighting is deferred
+### 4. Death-context weighting (v1 shipped, full tuning deferred)
 
 - Pinball currently reads as one of the **easier** climax patterns; 1–2 column gaps may be harder in practice.
-- **TODO (future):** Instrument death context (`phase`, `generator`, `column`, `score`) and validate before biasing Attempt Memory away from specific generators.
+- **Shipped (Phase 5):** Death telemetry on game over (`phase`, `generator` tag, `score`); session `deathHistory[3]`; retry breather weight boost when all last 3 deaths are below `ATTEMPT_MEMORY_LOW_SCORE_THRESHOLD` (200) and breather is unlocked.
+- **Deferred:** Generator-specific penalties (e.g. reduce pinball CLIMAX weight after 3× pinball deaths) — validate tags in play before tuning (T-003).
 
 ---
 
@@ -95,10 +96,14 @@ Do not tie Run Blueprint weights to equipped skin or active biome.
 | Start / phase transition | `src/Game/session/beginGameplay.ts` |
 | **Gameplay grid (SSOT)** | `src/Layout.ts` → `LAYOUT_CONSTANTS.COLUMNS` (**8** cols) |
 | Signature cadence + rhythm boss | `src/Game/path/signatureCadence.ts` |
+| Milestone pools + weight builders | `src/Game/path/runProgressionPools.ts` |
+| Death telemetry + attempt memory | `src/Game/path/deathTelemetry.ts` |
+| Persist best score + lifetime runs | `src/Game/persistence/runProgressionStorage.ts` |
+| RN-thread persist bridge (game over) | `src/Game/persistence/persistRunFinishedRunBridge.ts` |
 
 **Grid SSOT:** Production infinite run uses **`LAYOUT_CONSTANTS.COLUMNS`** from [`src/Layout.ts`](../../src/Layout.ts) (currently **8**). Do not hardcode column counts in docs or generators. JSON silhouette art templates may use a different art grid — see T-011.
 
-**Hooks:** signature cadence routing (Phase 4). Opening routing, blueprint roll, cycle personality, and CLIMAX preference routing are **done** (Phases 2–3).
+**Hooks:** Phases 1–5 wired — blueprint roll, opening routing (incl. `breather` / `earlyFork`), cycle personality, CLIMAX preference, signature cadence, milestone pools, attempt memory.
 
 ---
 
@@ -204,7 +209,7 @@ Every **N completed macro cycles** (starting at `firstSignatureAtCycle`), force 
 
 - `firstSignatureAtCycle = 2`
 - `signatureEveryNCycles = 2`
-- Pool starts with `{ pinballHop, mirrorChicane }`; others unlock via milestones
+- Pool starts with `{ pinballHop }` only — extra patterns deferred until new boss design (T-010)
 
 **TODO (future):** Expose cadence in config; A/B cycle count vs retention.
 
@@ -224,10 +229,10 @@ type DeathContext = {
 
 On blueprint roll (attempt ≥ 2):
 
-- If same `generator` appears in 2+ of last 3 deaths → **reduce weight** on that generator for **opening cycle only** (not global difficulty).
-- If `score < threshold` (e.g. 200) on all last 3 → **+weight** on `breather` opening archetype.
+- ~~If same `generator` appears in 2+ of last 3 deaths → reduce weight on that generator~~ — **deferred** (T-003; validate tags first).
+- If `score < ATTEMPT_MEMORY_LOW_SCORE_THRESHOLD` (200) on all last 3 → **+weight** on `breather` opening archetype (×3 when breather is milestone-unlocked).
 
-**Status:** Spec approved; **instrumentation and weights TBD** after death telemetry exists.
+**Status:** ✅ Shipped (Phase 5). Telemetry in `deathTelemetry.ts`; storage in `recordRunDeathOnGameOver` (`beginGameplay.ts`).
 
 ---
 
@@ -235,19 +240,18 @@ On blueprint roll (attempt ≥ 2):
 
 Unlocks expand what can appear in **Run Blueprint rolls**. They do **not** change character stats, biome rules, or core mechanics.
 
-| Milestone (score or lifetime runs) | Unlocks |
-|-----------------------------------|---------|
-| Default | `warmChute`, `fastChicane`, `leftBias`, `rightBias` |
-| 100 | `earlyFork` |
-| 500 | `breather` |
-| 1000 | Signature pattern `falseWallFakeout` |
-| 2000 | Signature pattern `paradoxNoRunway` |
-| 5000 | Cycle personality `tensionEarly` added to pool |
-| 10000 | Rare roll: `climaxForward` + shortened cycle 1 RELEASE |
+**Gate:** **`session.bestScore` only** (loaded from AsyncStorage on cold start). `lifetimeRunCount` is persisted separately for analytics — not used for unlocks in v1.
 
-Exact thresholds are tuning constants — not product commitments.
+| Milestone (best score) | Unlocks |
+|------------------------|---------|
+| Default | `warmChute`, `fastChicane`, `leftBias`, `rightBias`, `flowHeavy`, `{ pinballHop }` |
+| 300 | `earlyFork` (multipath opening rows) |
+| 700 | `breather` (14-row straight chute opening) |
+| 1000 | Cycle personality `tensionEarly` |
 
-**Explicitly not milestone-gated here:** biome art, swimmer skins, new obstacle types, water rules.
+All thresholds are **`runProgressionTuning.MILESTONE_*`** in [`runProgression.ts`](../../src/config/runProgression.ts) — adjustable tuning constants, not product commitments.
+
+**Explicitly not milestone-gated (founder locked):** extra signature patterns (`falseWallFakeout`, `paradoxNoRunway`, `mirrorChicane`), `shortRelease` / `climaxForward`, biome art, swimmer skins, new obstacle types.
 
 ---
 
@@ -270,11 +274,13 @@ Map rows to **felt time** at current `raisingSpeed` when tuning; generation rema
 
 ```
 GameSession
-  sessionSeed: u32                 // set once at entity create (overlayIntroStartMs >>> 0)
+  sessionSeed: u32
   runAttemptIndex: number          // 0 = never started; 1 = first run (fixed blueprint)
   runSeed: u32
   runBlueprint: RunBlueprint
-  deathHistory: DeathContext[3]     // Phase 5 — not stored yet
+  bestScore: number                // hydrated from AsyncStorage; updated on new best
+  lifetimeRunCount: number          // hydrated + incremented on game over (worklet + AsyncStorage)
+  deathHistory: DeathContext[3]     // session-scoped; ring buffer on game over ✅
 
 ObstaclesManager
   totalRowsGenerated               // unchanged — still drives in-run ramp
@@ -317,7 +323,7 @@ ObstacleSystem
 - [x] `runSeed` → `pathRunId` on template init; deterministic per-cycle re-roll
 - [x] Production path: `directed` → `baseMultiPathGetRow` opening budget, then multipath
 - [x] Unit tests — `openingArchetype.test.ts`, `flowOpeningRows.test.ts`, `flowGenerators.test.ts`
-- [ ] `breather` / `earlyFork` — **deferred** (see handoff below)
+- [x] `breather` / `earlyFork` — **Phase 5** (milestone-gated routing; see below)
 
 **Player-visible change:** Retries (attempt ≥ 2) open with distinct lane read in first ~5–15s. First session Start unchanged (`warmChute`).
 
@@ -338,10 +344,23 @@ ObstacleSystem
 - [x] v1 pool: `{ pinballHop }` only — `mirrorChicane` deferred (T-010)
 - [x] Config keys in `runProgression.ts`; tests on 8-col grid (`Layout.ts`)
 
-### Phase 5 — Milestones + attempt memory
+### Phase 5 — Milestones + attempt memory ✅ (2026-06-28)
 
-- [ ] Load unlocked pools from persistence (score / run count)
-- [ ] Death history + weight nudges (after telemetry)
+- [x] `resolveUnlockedPools(bestScore)` — milestones 300 / 700 / 1000 (adjustable in `runProgression.ts`)
+- [x] Load `bestScore` + `lifetimeRunCount` from AsyncStorage (`runProgressionStorage.ts`); persist on game over via `scheduleOnRN` bridge
+- [x] `deathHistory[3]` on `GameSession`; `recordRunDeathOnGameOver` on UI thread
+- [x] Attempt memory v1: low-score death streak → breather weight boost (no generator penalties yet)
+- [x] Opening routing: `breather` (14-row chute), `earlyFork` (multipath opening budget)
+- [x] Signature pool unchanged: `{ pinballHop }` only
+- [x] Unit tests — `runProgressionPools`, `deathTelemetry`, `earlyForkOpening`, extended `runBlueprint`
+
+**Player-visible change:** Retries respect best-score unlocks; early deaths skew toward calmer openings; first session Start unchanged.
+
+**Verify Phase 5:**
+
+```bash
+npm test -- --watchAll=false runProgressionPools deathTelemetry runBlueprint openingArchetype flowOpeningRows earlyForkOpening cyclePersonality signatureCadence
+```
 
 ---
 
@@ -356,7 +375,7 @@ ObstacleSystem
 | `src/config/runProgression.ts` | Default pools, weights, signature cadence constants |
 | `src/Game/path/runBlueprint.ts` | Types, `createFixedFirstRunBlueprint`, `rollRunBlueprint`, `assignBlueprintForNewRun` |
 | `src/Game/path/__tests__/runBlueprint.test.ts` | 12 tests — determinism, pools, lifecycle |
-| `src/Game/ecs-components/GameSession.ts` | `sessionSeed`, `runAttemptIndex`, `runSeed`, `runBlueprint` |
+| `src/Game/ecs-components/GameSession.ts` | `sessionSeed`, `runAttemptIndex`, `runSeed`, `runBlueprint`, `bestScore`, `lifetimeRunCount`, `deathHistory` |
 | `src/Game/session/beginGameplay.ts` | Roll on Start; preserve attempt index on title reset |
 | `src/systems/RestartGameplaySystem.ts` | Roll on Retry |
 
@@ -371,13 +390,12 @@ ObstacleSystem
 | `resetGameSessionToStartReady` | unchanged |
 | App cold start (new entity) | `0` |
 
-**Not wired yet (intentional):**
+**Not wired yet (intentional / future):**
 
-- `deathHistory` on game over
-- Milestone pools from AsyncStorage
-- Opening archetypes `breather` / `earlyFork` (deferred — see Phase 2 handoff)
+- Generator-specific attempt-memory penalties (T-003)
+- Milestone gates on `lifetimeRunCount` (tracked only)
 - AsyncStorage session seed for first-run pacing variety (T-007)
-- `mirrorChicane` signature routing (T-010)
+- `mirrorChicane` / extra signature patterns (T-010 — founder: pinballHop only on 8 cols until new boss design)
 
 **Verify Phase 1:** `npm test -- --watchAll=false runBlueprint` — all green.
 
@@ -464,30 +482,57 @@ ObstacleSystem
 - Attempt #1 gets signature beats; pattern pick uses `runBlueprint.runSeed` (not pacing `runSeed: 0`)
 - v1 pool: `{ pinballHop }` only — `mirrorChicane` deferred (T-010)
 
-**Founder QA notes (2026-06):** Chutes are **fair** and distinct from false-wall caverns; SNAP is not “sudden hop” fantasy but **acceptable for v1**. No further signature/path tuning before Phase 5.
+**Founder QA notes (2026-06):** Chutes are **fair** and distinct from false-wall caverns; SNAP is **acceptable for v1**. Signature pool stays `{ pinballHop }` until a new boss mode is designed.
 
 **Verify Phase 4:** `npm test -- --watchAll=false signatureCadence signatureRouting climaxGenerators cyclePersonality runBlueprint`
 
-### Deferred opening archetypes (Phase 2 handoff)
+### Phase 5 — Milestones + attempt memory ✅ (2026-06-28)
 
-| Archetype | Player read | Why deferred | When to pick up |
-|-----------|-------------|--------------|-----------------|
-| `breather` | Long calm straight before any spike | Needs “too easy?” tuning; overlaps Phase 5 attempt-memory `breather` weight | Milestone 500 unlock + attempt memory |
-| `earlyFork` | Two lanes visible in first ~15s | Highest seam risk (chute→multipath handoff); milestone-gated | After Phase 3–4 stable; route early rows through multipath/paradox |
+**Done:**
 
-### Recommended next — Phase 5 (milestones + attempt memory)
+| File | What it does |
+|------|----------------|
+| `src/config/runProgression.ts` | Milestone thresholds (300/700/1000), attempt-memory tuning |
+| `src/Game/path/runProgressionPools.ts` | `resolveUnlockedPools`, dynamic weight builders |
+| `src/Game/path/deathTelemetry.ts` | Death capture, history ring buffer, breather weight boost |
+| `src/Game/path/runBlueprint.ts` | Pools + `deathHistory` wired into roll / assign |
+| `src/Game/ecs-components/GameSession.ts` | `lifetimeRunCount`, `deathHistory` |
+| `src/Game/session/beginGameplay.ts` | `recordRunDeathOnGameOver` (UI thread) |
+| `src/Game/persistence/runProgressionStorage.ts` | Load/persist best score + lifetime run count |
+| `src/Game/persistence/persistRunFinishedRunBridge.ts` | RN-thread bridge for `scheduleOnRN` |
+| `src/containers/Scenes/StartScene/ReadySceneController-rntge.tsx` | Hydrate stats on cold start |
+| `src/systems/PhysicsSystem/SwimmerPhysicsSystem.ts` | Game over → record death + persist |
+| `src/Game/path/openingArchetype.ts` | `breather` chute cap override |
+| `src/systems/PhysicsSystem/ObstacleSystem.ts` | `earlyFork` multipath opening rows |
+| Tests | `runProgressionPools`, `deathTelemetry`, `earlyForkOpening`, extended `runBlueprint` |
 
-**→ Full brief:** [Phase 5 handoff — Geometry plateau & next agent](#phase-5-handoff--geometry-plateau--next-agent-brief) (authoritative for next agent).
+**Locked tuning (founder, Phase 5):**
 
-1. Load unlocked pools from persistence (score / run count).
-2. Death history + weight nudges (after telemetry).
+- Milestones: best score **300** → `earlyFork`, **700** → `breather`, **1000** → `tensionEarly`
+- Attempt memory: all last **3** deaths below **200** → breather weight **×3** (when unlocked)
+- Signature pool: **`{ pinballHop }` only**
+- First run of session: still fixed `warmChute` regardless of best score
+
+**Opening archetypes (formerly deferred):**
+
+| Archetype | Player read | Status |
+|-----------|-------------|--------|
+| `breather` | Long calm straight before chicane | ✅ Milestone 700 + attempt-memory boost |
+| `earlyFork` | Two lanes in first ~14 rows | ✅ Milestone 300; multipath opening |
+
+**Verify Phase 5:**
+
+```bash
+npm test -- --watchAll=false runProgressionPools deathTelemetry runBlueprint openingArchetype flowOpeningRows earlyForkOpening cyclePersonality signatureCadence
+```
 
 ---
 
-## Phase 5 Handoff — Geometry Plateau & Next Agent Brief
+## Phase 5 Handoff — Geometry Plateau & Agent Brief (historical)
 
 **Date locked:** 2026-06-28  
-**Founder decision:** Do **not** implement chapter UI, telegraph FX, JSON silhouette segments, or new signature/path generators before Phase 5. Document this plateau; start Phase 5 with a fresh agent.
+**Phase 5 shipped:** 2026-06-28 — see [Phase 5 implementation status](#phase-5--milestones--attempt-memory--2026-06-28-1) above.  
+**Founder decision:** Do **not** implement chapter UI, telegraph FX, JSON silhouette segments, or new signature/path generators before Phase 5 meta shipped. **Meta layer is now live.**
 
 ### Realization (authoritative)
 
@@ -497,7 +542,7 @@ The **core loop** — one-thumb steer, rising water, descending block rows, vert
 |-------|--------|
 | Macro phases (FLOW → TENSION → CLIMAX → RELEASE) | ✅ Shipped |
 | Phase generators (chute, chicane, funnel, paradox, pinball, false wall, release strip, multipath) | ✅ Shipped |
-| Run blueprint (opening, cycle personality, climax preference) | ✅ Phases 2–3 |
+| Run blueprint + milestone pools + attempt memory | ✅ Phase 5 |
 | Signature cadence + pinballHop boss block | ✅ Phase 4 |
 | **New path/rhythm generators on same grid** | ⚠️ **Diminishing returns** — do not prioritize |
 
@@ -508,35 +553,36 @@ The **core loop** — one-thumb steer, rising water, descending block rows, vert
 - `mirrorChicane` and extra signature pool entries were deferred because **vertical budget + phase hook** matter more than another gap mutator (T-010).
 - `gapDifficultyRamp` scales runway dup down at speed (2–3 rows late run); signature transfer has its own floor — further dup tuning fixes **fairness**, not **variety**.
 
-**What is NOT maxed (Phase 5+ and later — not pre–Phase 5)**
+**What is NOT maxed (post–Phase 5)**
 
 | Track | Fixes | Spec / TODO |
 |-------|--------|-------------|
-| **Milestone pool unlocks** | Long-term reason to return; expands blueprint pool | Phase 5 |
-| **Attempt memory** | Retry feels different after specific deaths | Phase 5, `deathHistory` in `runBlueprint.ts` |
-| **Death telemetry** | Know which generators actually kill | T-003 |
-| **Deferred openings** (`breather`, `earlyFork`) | Milestone-gated | Phase 2 handoff table |
-| **Chapter framing** (phase labels, telegraph FX) | Player reads which “act” they’re in | T-005 — **after Phase 5** |
+| ~~**Milestone pool unlocks**~~ | ~~Long-term reason to return~~ | ✅ Phase 5 |
+| ~~**Attempt memory (v1)**~~ | ~~Retry breather boost~~ | ✅ Phase 5 |
+| **Death telemetry tuning** | Generator-specific retry nudges | T-003 |
+| **Milestone retention tuning** | Threshold A/B vs churn | T-004 |
+| **Chapter framing** (phase labels, telegraph FX) | Player reads which “act” they’re in | T-005 — **recommended next** |
 | **JSON silhouette postcards** | Delight / store screenshots | T-011 |
 | **Biome / skin as visual chapter** | New world feel, same generators | Out of scope for weights |
+| **New boss / special modes** | Distinct 8-col chapters | Future design pass (not pool filler) |
 | **New core verb** (dash, dive, grab) | Sequel-scale | Out of scope |
 
 ### Mental model for future work
 
 ```
 Geometry (Phases 1–4)  →  What can happen on the grid        [DONE for v1]
-Meta (Phase 5)         →  Why this run / retry feels different [NEXT]
-Framing (post–5)       →  Why the player *notices* chapters    [Deferred]
+Meta (Phase 5)         →  Why this run / retry feels different [DONE for v1]
+Framing (post–5)       →  Why the player *notices* chapters    [NEXT — T-005]
 New verb (future)      →  Sequel / major update              [Out of scope]
 ```
 
-### Phase 5 — implementation checklist
+### Phase 5 — implementation checklist (complete)
 
-1. **Persistence:** Load unlocked pools from AsyncStorage (or project storage pattern) keyed by lifetime score / run count / best score — thresholds TBD (T-004).
-2. **`UnlockedPools` wiring:** Pass `unlockedPools` into `rollRunBlueprint()` so milestones add `breather`, `earlyFork`, `tensionEarly`, `shortRelease`, extra signatures — see `DEFAULT_UNLOCKED_POOLS` in `runBlueprint.ts`.
-3. **`DeathContext` storage:** On game over, append `{ phase, generator, score }` (cap N). Type exists in `runBlueprint.ts`; not stored yet.
-4. **Attempt memory weights:** On retry, nudge blueprint away from recent death context — **after T-003 validates** which tags matter.
-5. **T-007 (optional):** Persist `sessionSeed` across cold start.
+1. [x] **Persistence:** `bestScore` + `lifetimeRunCount` via AsyncStorage; milestones gate on **best score only**
+2. [x] **`UnlockedPools` wiring:** `earlyFork`, `breather`, `tensionEarly` — signatures stay `{ pinballHop }`
+3. [x] **`DeathContext` storage:** `recordRunDeathOnGameOver` appends ring buffer on game over
+4. [x] **Attempt memory v1:** Breather weight boost on low-score streak — generator penalties deferred (T-003)
+5. [ ] **T-007 (optional):** Persist `sessionSeed` across cold start
 
 ### Phase 5 — files to touch
 
@@ -549,19 +595,18 @@ New verb (future)      →  Sequel / major update              [Out of scope]
 | Retry roll | `src/systems/RestartGameplaySystem.ts` |
 | Tests | `src/Game/path/__tests__/runBlueprint.test.ts` |
 
-### Do-not-do until Phase 5 ships (T-013)
+### ~~Do-not-do until Phase 5 ships (T-013)~~ — **lifted 2026-06-28**
 
-- New signature patterns or CLIMAX generators “for variety”
-- Phase transition UI / chapter text / boss telegraph (T-005)
-- Sprinkling JSON templates into infinite `directed` run
-- Widen grid or reauthor 15-col art (T-011) as a progression task
+Phase 5 meta shipped. Still **do not** (without new design pass):
+
+- New signature patterns or CLIMAX generators “for variety” on 8 cols
 - Coupling biome or skin to blueprint weights
 
-### Verify before Phase 5 coding
+**Now OK to prioritize (post–Phase 5):**
 
-```bash
-npm test -- --watchAll=false runBlueprint signatureCadence signatureRouting cyclePersonality openingArchetype
-```
+- Phase transition UI / chapter text / boss telegraph (T-005)
+- Milestone / attempt-memory tuning from play data (T-003, T-004)
+- Optional `sessionSeed` persist (T-007)
 
 ### ~~Recommended next — Phase 4~~ (superseded — Phases 1–4 complete)
 
@@ -636,7 +681,7 @@ Signature block = **4 cycles** (**20 generator rows**) → then normal `climaxPr
 | **Runway at speed** | Global dup → 2–3 late run; signature chute/SNAP uses `SIGNATURE_TRANSFER_RUNWAY_DUP_MIN: 6` |
 | **Normal CLIMAX pinball** | `climaxPinballRepairHopOverlap` — effective hop ≈ ±1 col |
 | **Signature budget** | 20 rows ≈ substantial CLIMAX prefix; remainder = normal pinball / false wall |
-| **Further signature tuning** | **Frozen** until Phase 5 ships — see handoff section |
+| **Further signature tuning** | Phase 5 shipped — tune only with new boss design, not pool filler |
 
 ### Cadence defaults
 
@@ -651,17 +696,17 @@ Signature block = **4 cycles** (**20 generator rows**) → then normal `climaxPr
 |----|----------|--------|
 | T-001 | First-run policy: per install, per session, or onboarding arc? | **Locked: per session** (first Start after entity create) |
 | T-002 | Signature cadence: every 2 cycles vs every 3; start cycle 1 vs 2 | Open — defaults in `runProgression.ts` (2 / 2) |
-| T-003 | Death telemetry: which generators to tag; confirm pinball vs narrow-gap difficulty | Open — Phase 5 |
-| T-004 | Milestone thresholds vs retention data | Open — Phase 5 |
-| T-005 | Signature telegraph FX (water surge before beat) | **Deferred — after Phase 5** (founder) |
-| T-006 | Cross-session `runAttemptIndex` reset | **Locked: session-scoped**; lifetime counters separate in Phase 5 |
+| T-003 | Death telemetry: which generators to tag; generator-specific attempt memory | **Partial — capture shipped; penalty weights open** |
+| T-004 | Milestone thresholds vs retention data | **Partial — defaults 300/700/1000 in code; tune from play** |
+| T-005 | Signature telegraph FX (water surge before beat) | **Recommended next — post Phase 5** |
+| T-006 | Cross-session `runAttemptIndex` reset | **Locked: session-scoped**; `lifetimeRunCount` persisted separately ✅ |
 | T-007 | Persist `sessionSeed` via AsyncStorage so first run pacing can vary after cold start | Open — TODO in `runProgression.ts` |
 | T-008 | False-wall CLIMAX emits consecutive **fully block-free rows** (`climaxFalseWallFullWidthGapRow` + runway dup). Player sees empty water bands between cavern/squeeze segments. Fix: pillar bridge, single bridge max, or remove bridge. | Open — post Phase 4 |
 | T-009 | Signature SNAP + sliding chutes (partial-width, not full false-wall bridge) + transfer runway floor. Normal pinball overlap repair unchanged. | **Partial — v1 acceptable; no more pre–Phase 5 tuning** |
 | T-010 | `mirrorChicane` deferred — FLOW slalom in CLIMAX with short row budget is not a boss chapter. Redesign with 12–20+ row vertical budget or alternate phase hook. Removed from v1 pool. | Open — Phase 5+ |
 | T-011 | JSON silhouette templates (`templates/obstacles/*.ts`) still 15-col art vs 8-col gameplay grid. Reauthor art or add scale at render time. | Open — art pipeline |
 | T-012 | Path unit tests historically used `COLS=15`; migrated in Phase 4 to `Layout.ts`. | **Closed in Phase 4** |
-| T-013 | **Geometry vocabulary plateau** — Phases 1–4 complete; do not add path generators before Phase 5. Framing/telegraph/segments deferred. | **Locked — see Phase 5 handoff** |
+| T-013 | **Geometry vocabulary plateau** — Phases 1–4 complete; Phase 5 meta shipped 2026-06-28 | **Closed** |
 
 ---
 
@@ -678,7 +723,39 @@ Signature block = **4 cycles** (**20 generator rows**) → then normal `climaxPr
 - [x] Signature beat at cycle 2 CLIMAX (`signatureCadence.test.ts`)
 - [x] pinballHop rhythm block: 20 rows (2 drift + 2 chute + SNAP × 4) then normal CLIMAX (`signatureRouting.test.ts`)
 - [x] Grid docs + path tests use `Layout.ts` (8 cols — T-012)
-- [x] Founder sign-off: geometry vocabulary complete for v1; Phase 5 next (T-013)
+- [x] Founder sign-off: geometry vocabulary complete for v1 (T-013)
+- [x] Milestone pools unlock from best score (`runProgressionPools.test.ts`)
+- [x] Death history + breather attempt-memory on retry (`deathTelemetry.test.ts`, `runBlueprint.test.ts`)
+- [x] `breather` / `earlyFork` opening routing with seam tests (`flowOpeningRows`, `earlyForkOpening`)
+- [ ] Founder manual QA: milestone unlocks + low-score breather skew in device play
+
+---
+
+## Post-Phase 5 — founder notes & next tracks
+
+**Where the game sits:** The infinite-run stack is **feature-complete for v1 hyper-casual**: geometry (Phases 1–4) + meta variety (Phase 5). A player who dies and retries gets a different blueprint script; a player who improves their best score unlocks new opening and cycle-1 flavors. The first Start of each session stays a fixed onboarding beat.
+
+**Highest-ROI next (not more gap mutators):**
+
+1. **T-005 — Chapter framing** — Water tint pulse / subtle label before signature CLIMAX so the pinballHop block *reads* as a boss act, not another lane shift. Cheap retention win vs new generators.
+2. **Playtest pass on Phase 5** — Confirm 300/700/1000 thresholds feel fair; watch whether breather + attempt memory reads as “the game helped me” vs “too easy.” Tune only `runProgression.ts` numbers.
+3. **T-003 follow-up** — Log death `generator` tags in dev builds for 20–30 runs; then add *one* generator penalty if data supports it (e.g. pinball CLIMAX weight down after 3× pinball deaths).
+4. **T-008** — False-wall empty-band rows (visual fairness polish, not variety).
+5. **T-007 (optional)** — Persist `sessionSeed` so attempt #1 cycle-1 pacing can vary after app reopen without breaking first-run opening fixed policy.
+
+**Explicitly defer until a design doc exists:**
+
+- New signature / boss modes on 8 cols (founder: pinballHop is enough until a real new *mode* is designed)
+- `mirrorChicane`, extra milestone signature patterns
+- Biome/skin tied to blueprint weights
+
+**Manual QA checklist (Phase 5):**
+
+1. Fresh install → first Start = warm center chute
+2. Die → game over (no crash); `lifetimeRunCount` increments after relaunch
+3. Best 0 → retries = lane shifts only
+4. Best ≥ 300 / 700 / 1000 → fork / breather / shorter cycle-1 can appear on retries
+5. Die 3× under score 200 with breather unlocked → calmer retry skew
 
 ---
 
@@ -688,4 +765,4 @@ Signature block = **4 cycles** (**20 generator rows**) → then normal `climaxPr
 - `src/config/gapDifficultyRamp.ts` — in-run difficulty ramp tuning
 - `src/Game/path/pacingDirector.ts` — macro cycle director
 
-**Next agent:** Start with [Phase 5 handoff](#phase-5-handoff--geometry-plateau--next-agent-brief) in this file. Do not expand path generators before Phase 5 (T-013).
+**Next agent:** Phases 1–5 complete. Start with [Post-Phase 5](#post-phase-5--founder-notes--next-tracks) — framing (T-005) and playtest tuning before new geometry.

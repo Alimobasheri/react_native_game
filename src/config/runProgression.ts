@@ -2,10 +2,7 @@
  * Run-level progression tuning — blueprint pools, weights, and signature cadence.
  * Worklet-safe: plain constants + numeric weights only.
  *
- * Milestone-gated pool expansion is Phase 5; v1 uses default pools in runBlueprint.ts.
- *
- * Geometry vocabulary (Phases 1–4) is complete — do not add path generators before Phase 5.
- * See docs/game-design/run-level-progression.md → "Phase 5 Handoff" (T-013).
+ * Milestone-gated pool expansion — Phase 5 shipped (see run-level-progression.md).
  *
  * TODO(T-007): Persist `sessionSeed` via AsyncStorage on cold start so attempt #1
  * can use a real `runSeed` for cycle-1 pacing after app reopen (not per-session-only).
@@ -57,6 +54,19 @@ export const runProgressionTuning = {
   SIGNATURE_TRANSFER_RUNWAY_DUP_MIN: 6,
   /** Raw hop intent; signature SNAP uses opposite-band target, not hopMag. */
   SIGNATURE_PINBALL_HOP_MAG: 4,
+
+  /** Phase 5 — milestone best-score gates (adjustable tuning). */
+  MILESTONE_EARLY_FORK_BEST_SCORE: 300,
+  MILESTONE_BREATHER_BEST_SCORE: 700,
+  MILESTONE_TENSION_EARLY_BEST_SCORE: 1000,
+
+  /** Session death ring buffer size for attempt memory. */
+  DEATH_HISTORY_CAP: 3,
+  /** All last N deaths below this score → boost breather opening weight on retry. */
+  ATTEMPT_MEMORY_LOW_SCORE_THRESHOLD: 200,
+  ATTEMPT_MEMORY_BREATHER_WEIGHT_MULTIPLIER: 3,
+  /** breather: straight chute for full opening budget before chicane. */
+  BREATHER_CHUTE_ROWS_OVERRIDE: 14,
 } as const;
 
 /** Default milestone pool — openings minus milestone-gated `earlyFork` / `breather`. */

@@ -952,15 +952,27 @@ const baseMultiPathGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
         : null;
     const archetype = (xctx.openingArchetype as OpeningArchetype) ?? 'warmChute';
     const baseSeed = (xctx.baseRunSeed as number) ?? pathRunId;
-    gaps = generateFlowOpeningRowGaps(
-      xctx,
-      lastSw,
-      rowLength,
-      stream,
-      pathRunId,
-      archetype,
-      baseSeed
-    );
+    if (archetype === 'earlyFork') {
+      gaps = generateMultiPathGapsDeterministic(
+        !prevRow ? [] : prevRow.gaps,
+        rowLength,
+        rowIndex,
+        pathRunId,
+        macroPhase,
+        stream,
+        stream
+      );
+    } else {
+      gaps = generateFlowOpeningRowGaps(
+        xctx,
+        lastSw,
+        rowLength,
+        stream,
+        pathRunId,
+        archetype,
+        baseSeed
+      );
+    }
   } else {
     gaps = generateMultiPathGapsDeterministic(
       !prevRow ? [] : prevRow.gaps,

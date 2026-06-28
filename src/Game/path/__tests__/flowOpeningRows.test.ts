@@ -114,4 +114,37 @@ describe('generateFlowOpeningRowGaps', () => {
       )
     ).toBe(true);
   });
+
+  it('breather stays in chute for full opening budget rows', () => {
+    const max = runProgressionTuning.OPENING_ARCHETYPE_MAX_ROWS;
+    const ctx: Record<string, unknown> = {};
+    let prevSw = null as ReturnType<typeof rowFromGaps> | null;
+
+    for (let stream = 0; stream < max; stream++) {
+      const gaps = generateFlowOpeningRowGaps(
+        ctx,
+        prevSw,
+        TEST_COLS,
+        stream,
+        42,
+        'breather',
+        42
+      );
+      if (stream < max - 1) {
+        expect(ctx.flowMode).not.toBe('chicane');
+      }
+      prevSw = rowFromGaps(gaps, TEST_COLS);
+    }
+    expect((ctx.flowChuteRowCount as number) ?? 0).toBe(max);
+  });
+
+  it('breather maintains valid seams across opening budget', () => {
+    const max = runProgressionTuning.OPENING_ARCHETYPE_MAX_ROWS;
+    const rows = simulateOpeningRows('breather', 888, max);
+    for (let i = 1; i < rows.length; i++) {
+      expect(
+        validateSeam(rowFromGaps(rows[i - 1], TEST_COLS), rowFromGaps(rows[i], TEST_COLS))
+      ).toBe(true);
+    }
+  });
 });

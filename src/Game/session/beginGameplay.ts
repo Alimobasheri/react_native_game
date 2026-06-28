@@ -1,11 +1,29 @@
 import type { ECS } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/ecs';
 import type { Entity } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/entity';
+import { firstDataFromStore, firstEntityFromStore } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/query';
 import {
   GameSessionComponentData,
   GameSessionComponentName,
 } from '@/Game/ecs-components/GameSession';
+import {
+  ObstacleRowComponentData,
+  ObstacleRowComponentName,
+} from '@/Game/ecs-components/ObstacleRowComponent';
+import {
+  ObstaclesManagerComponentData,
+  ObstaclesManagerComponentName,
+} from '@/Game/ecs-components/ObstaclesManager';
+import {
+  WaterComponentData,
+  WaterComponentName,
+} from '@/Game/ecs-components/Water';
 import { assignBlueprintForNewRun } from '@/Game/path/runBlueprint';
 import { resolvePacingRunContext } from '@/Game/path/cyclePersonality';
+import {
+  appendDeathHistory,
+  captureDeathContext,
+} from '@/Game/path/deathTelemetry';
+import { runProgressionTuning } from '@/config/runProgression';
 import {
   TemplateContextComponentData,
   TemplateContextComponentName,
@@ -130,19 +148,63 @@ export const resetGameSessionToStartReady = (
   );
 };
 
-export const markGameSessionGameOver = (
+/** Game over + death history + lifetime run count (UI thread). */
+export function recordRunDeathOnGameOver(
   ecs: ECS,
   sessionEntity: Entity,
   finalScore: number
-): void => {
+): void {
   'worklet';
+  const components = ecs.components;
+  const sessionBefore = components[GameSessionComponentName]?.get(
+    sessionEntity
+  ) as GameSessionComponentData | undefined;
+  if (!sessionBefore || sessionBefore.phase === 'game_over') {
+    return;
+  }
+
+  const floored = Math.floor(finalScore);
+  const isNewBest = floored > sessionBefore.bestScore;
+
+  const mgrStore = components[ObstaclesManagerComponentName];
+  const mgr = mgrStore
+    ? (firstDataFromStore(mgrStore) as ObstaclesManagerComponentData | undefined)
+    : undefined;
+  const totalRowsGenerated = mgr?.totalRowsGenerated ?? 0;
+  const pacingCtx = resolvePacingRunContext(
+    sessionBefore.runBlueprint,
+    sessionBefore.runAttemptIndex
+  );
+
+  const waterStore = components[WaterComponentName];
+  let spawnDiagBranchKey: string | undefined;
+  if (waterStore) {
+    const waterEntity = firstEntityFromStore(waterStore);
+    if (typeof waterEntity === 'number') {
+      const water = waterStore.get(waterEntity) as WaterComponentData | undefined;
+      const centerRow = water?.centerRowEntity;
+      const rowStore = components[ObstacleRowComponentName];
+      if (typeof centerRow === 'number' && rowStore) {
+        const row = rowStore.get(centerRow) as ObstacleRowComponentData | undefined;
+        if (typeof row?.spawnDiagBranchKey === 'string') {
+          spawnDiagBranchKey = row.spawnDiagBranchKey;
+        }
+      }
+    }
+  }
+
+  const deathCtx = captureDeathContext({
+    totalRowsGenerated,
+    pacingCtx,
+    spawnDiagBranchKey,
+    finalScore: floored,
+  });
+
   const nowMs = Date.now();
   ecs.updateComponent<GameSessionComponentData>(
     sessionEntity,
     GameSessionComponentName,
     (s) => {
-      const floored = Math.floor(finalScore);
-      const isNewBest = floored > s.bestScore;
       s.phase = 'game_over';
       s.overlayOpacity = 0;
       s.overlayFadeStartMs = 0;
@@ -153,12 +215,27 @@ export const markGameSessionGameOver = (
       s.gameOverOverlayFadeStartMs = 0;
       s.gameOverRetryPressStartMs = 0;
       s.gameOverScoreAnimStartMs = nowMs;
+      s.lifetimeRunCount = (s.lifetimeRunCount ?? 0) + 1;
+      s.deathHistory = appendDeathHistory(
+        s.deathHistory ?? [],
+        deathCtx,
+        runProgressionTuning.DEATH_HISTORY_CAP
+      );
       if (isNewBest) {
         s.bestScore = floored;
       }
     }
   );
-};
+}
+
+export function markGameSessionGameOver(
+  ecs: ECS,
+  sessionEntity: Entity,
+  finalScore: number
+): void {
+  'worklet';
+  recordRunDeathOnGameOver(ecs, sessionEntity, finalScore);
+}
 
 export const computeGameOverDimOpacity = (
   session: GameSessionComponentData,

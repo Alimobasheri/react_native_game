@@ -42,7 +42,7 @@ import {
   RunResultComponentName,
 } from '@/Game/ecs-components/RunResult';
 import { swimmerPhysicsTuning, swimmerLocomotionMode, swimmerCoastPreset, swimmerCoastPresets } from '@/config/swimmerTuning';
-import { runOnJS } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import {
   degreesToRadians,
   getCharacterProfileForSwimmer,
@@ -80,7 +80,11 @@ import {
   isStartReady,
 } from '@/Game/session/gameSessionQuery';
 import { markGameSessionGameOver } from '@/Game/session/beginGameplay';
-import { saveBestScoreIfHigher } from '@/Game/persistence/bestScoreStorage';
+import {
+  GameSessionComponentData,
+  GameSessionComponentName,
+} from '@/Game/ecs-components/GameSession';
+import { persistRunFinishedRunBridge } from '@/Game/persistence/persistRunFinishedRunBridge';
 
 /**
  * SwimmerPhysicsSystem - Handles swimmer movement and game mechanics
@@ -98,10 +102,6 @@ import { saveBestScoreIfHigher } from '@/Game/persistence/bestScoreStorage';
  * - Handles swimmer collision and falling states
  * - Manages horizontal swimmer movement
  */
-const persistBestScoreAsync = (score: number) => {
-  saveBestScoreIfHigher(score).catch(() => undefined);
-};
-
 export const SwimmerPhysicsSystem: System = {
   requiredComponents: [SwimmerComponentName],
   process: ({ entities, components, deltaTime, ecs, dimensions, eventQueue }) => {
@@ -1065,8 +1065,14 @@ export const SwimmerPhysicsSystem: System = {
 
         const sessionEntity = getGameSessionEntity(components);
         if (typeof sessionEntity === 'number') {
+          const sessionBefore = components[GameSessionComponentName]?.get(
+            sessionEntity
+          ) as GameSessionComponentData | undefined;
+          const flooredScore = Math.floor(finalScore);
+          const isNewBest =
+            !!sessionBefore && flooredScore > (sessionBefore.bestScore ?? 0);
           markGameSessionGameOver(ecs, sessionEntity, finalScore);
-          runOnJS(saveBestScoreIfHigher)(finalScore);
+          scheduleOnRN(persistRunFinishedRunBridge, flooredScore, isNewBest);
         }
       }
 

@@ -1,5 +1,5 @@
 import { Component } from '@/containers/ReactNativeSkiaGameEngine/services-ecs';
-import type { RunBlueprint } from '@/Game/path/runBlueprint';
+import type { RunBlueprint, DeathContext } from '@/Game/path/runBlueprint';
 
 export const GameSessionComponentName = 'GameSession';
 
@@ -46,6 +46,10 @@ export type GameSessionComponentData = {
   runSeed: number;
   /** Per-run identity roll — Phase 2+ consumes for generator routing. */
   runBlueprint: RunBlueprint | undefined;
+  /** Total completed runs persisted across app launches. */
+  lifetimeRunCount: number;
+  /** Last N deaths this session — attempt memory on retry. */
+  deathHistory: DeathContext[];
 };
 
 export const createGameSessionComponent = (
@@ -83,6 +87,8 @@ export const createGameSessionComponent = (
       runAttemptIndex: data.runAttemptIndex ?? 0,
       runSeed: data.runSeed ?? 0,
       runBlueprint: data.runBlueprint,
+      lifetimeRunCount: data.lifetimeRunCount ?? 0,
+      deathHistory: data.deathHistory ?? [],
     },
   };
 };

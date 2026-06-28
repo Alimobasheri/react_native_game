@@ -64,6 +64,10 @@ export function resolveOpeningFlowParams(
       return { seedCenter: pickBiasCenter('right', runSeed, columnCount) };
     case 'fastChicane':
       return { chuteRowsTargetOverride: pickFastChicaneRowCap(runSeed) };
+    case 'breather':
+      return {
+        chuteRowsTargetOverride: runProgressionTuning.BREATHER_CHUTE_ROWS_OVERRIDE,
+      };
     case 'warmChute':
     default:
       return {};

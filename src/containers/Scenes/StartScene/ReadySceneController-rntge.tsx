@@ -1,6 +1,6 @@
 import { useAddEntity, useAddSystem } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs';
 import { createGameSessionComponent } from '@/Game/ecs-components/GameSession';
-import { loadBestScore } from '@/Game/persistence/bestScoreStorage';
+import { loadRunProgressionStats } from '@/Game/persistence/runProgressionStorage';
 import { gameSessionTuning } from '@/config/swimmerTuning';
 import { StartScreenSystem } from '@/systems/StartScreenSystem';
 import type { SafeAreaInsets } from '@/Game/ui/refLayout';
@@ -15,12 +15,17 @@ export type ReadySceneControllerProps = {
 };
 
 const GameSessionEntity: FC<
-  ReadySceneControllerProps & { bestScore: number; children?: ReactNode }
+  ReadySceneControllerProps & {
+    bestScore: number;
+    lifetimeRunCount: number;
+    children?: ReactNode;
+  }
 > = ({
   gameTitle,
   shopEnabled,
   gameplayRaisingSpeed,
   bestScore,
+  lifetimeRunCount,
   children,
 }) => {
   const visualRaisingSpeed =
@@ -36,6 +41,7 @@ const GameSessionEntity: FC<
         gameplayRaisingSpeed,
         visualRaisingSpeed,
         bestScore,
+        lifetimeRunCount,
         phase: 'start_ready',
         overlayOpacity: 1,
         overlayIntroStartMs,
@@ -47,6 +53,7 @@ const GameSessionEntity: FC<
       gameplayRaisingSpeed,
       visualRaisingSpeed,
       bestScore,
+      lifetimeRunCount,
       overlayIntroStartMs,
     ]
   );
@@ -62,11 +69,15 @@ export const ReadySceneController: FC<ReadySceneControllerProps> = ({
   ...props
 }) => {
   const [bestScore, setBestScore] = useState(0);
+  const [lifetimeRunCount, setLifetimeRunCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    loadBestScore().then((score) => {
-      if (!cancelled) setBestScore(score);
+    loadRunProgressionStats().then((stats) => {
+      if (!cancelled) {
+        setBestScore(stats.bestScore);
+        setLifetimeRunCount(stats.lifetimeRunCount);
+      }
     });
     return () => {
       cancelled = true;
@@ -74,7 +85,11 @@ export const ReadySceneController: FC<ReadySceneControllerProps> = ({
   }, []);
 
   return (
-    <GameSessionEntity {...props} bestScore={bestScore}>
+    <GameSessionEntity
+      {...props}
+      bestScore={bestScore}
+      lifetimeRunCount={lifetimeRunCount}
+    >
       {children}
     </GameSessionEntity>
   );

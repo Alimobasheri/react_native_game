@@ -5,16 +5,20 @@
  */
 
 import {
-  CLIMAX_PREFERENCE_WEIGHTS,
-  CYCLE_PERSONALITY_WEIGHTS,
   DEFAULT_CLIMAX_PREFERENCES,
   DEFAULT_CYCLE_PERSONALITIES,
   DEFAULT_OPENING_ARCHETYPES,
   DEFAULT_SIGNATURE_PATTERNS,
-  OPENING_ARCHETYPE_WEIGHTS,
   runProgressionTuning,
 } from '@/config/runProgression';
+import { applyAttemptMemoryToOpeningWeights } from '@/Game/path/deathTelemetry';
 import { intMod, mixU32, unitFloatFromU32 } from '@/Game/path/deterministicMix';
+import {
+  buildClimaxPreferenceWeights,
+  buildOpeningWeights,
+  buildPersonalityWeights,
+  resolveUnlockedPools,
+} from '@/Game/path/runProgressionPools';
 
 export type OpeningArchetype =
   | 'warmChute'
@@ -133,7 +137,7 @@ export function createFixedFirstRunBlueprint(
 export type RollRunBlueprintArgs = {
   sessionSeed: number;
   runAttemptIndex: number;
-  /** Reserved for Phase 5 attempt memory — ignored in v1. */
+  bestScore?: number;
   deathHistory?: DeathContext[];
   unlockedPools?: UnlockedPools;
 };
@@ -143,11 +147,19 @@ export function rollRunBlueprint(args: RollRunBlueprintArgs): RunBlueprint {
   'worklet';
   const sessionSeed = args.sessionSeed >>> 0;
   const runAttemptIndex = Math.max(1, Math.floor(args.runAttemptIndex));
-  const pools = args.unlockedPools ?? DEFAULT_UNLOCKED_POOLS;
+  const pools =
+    args.unlockedPools ?? resolveUnlockedPools(args.bestScore ?? 0);
+
+  const baseOpeningWeights = buildOpeningWeights(pools.openingArchetypes);
+  const openingWeights = applyAttemptMemoryToOpeningWeights(
+    pools.openingArchetypes,
+    baseOpeningWeights,
+    args.deathHistory
+  );
 
   const openingArchetype = pickFromPool(
     pools.openingArchetypes,
-    OPENING_ARCHETYPE_WEIGHTS.slice(0, pools.openingArchetypes.length),
+    openingWeights,
     sessionSeed,
     runAttemptIndex,
     SALT_OPENING
@@ -155,7 +167,7 @@ export function rollRunBlueprint(args: RollRunBlueprintArgs): RunBlueprint {
 
   const cyclePersonality = pickFromPool(
     pools.cyclePersonalities,
-    CYCLE_PERSONALITY_WEIGHTS.slice(0, pools.cyclePersonalities.length),
+    buildPersonalityWeights(pools.cyclePersonalities),
     sessionSeed,
     runAttemptIndex,
     SALT_PERSONALITY
@@ -163,7 +175,7 @@ export function rollRunBlueprint(args: RollRunBlueprintArgs): RunBlueprint {
 
   const climaxPreference = pickFromPool(
     pools.climaxPreferences,
-    CLIMAX_PREFERENCE_WEIGHTS.slice(0, pools.climaxPreferences.length),
+    buildClimaxPreferenceWeights(pools.climaxPreferences),
     sessionSeed,
     runAttemptIndex,
     SALT_CLIMAX
@@ -186,6 +198,8 @@ export function rollRunBlueprint(args: RollRunBlueprintArgs): RunBlueprint {
 export type RunBlueprintSessionSlice = {
   sessionSeed: number;
   runAttemptIndex: number;
+  bestScore?: number;
+  deathHistory?: DeathContext[];
 };
 
 export type AssignBlueprintResult = {
@@ -207,6 +221,9 @@ export function assignBlueprintForNewRun(
   'worklet';
   const sessionSeed = session.sessionSeed >>> 0;
   const currentAttempt = Math.max(0, Math.floor(session.runAttemptIndex));
+  const bestScore = session.bestScore ?? 0;
+  const deathHistory = session.deathHistory ?? [];
+  const unlockedPools = resolveUnlockedPools(bestScore);
 
   if (mode === 'begin' && currentAttempt === 0) {
     const runAttemptIndex = 1;
@@ -219,7 +236,13 @@ export function assignBlueprintForNewRun(
   }
 
   const runAttemptIndex = currentAttempt + 1;
-  const runBlueprint = rollRunBlueprint({ sessionSeed, runAttemptIndex });
+  const runBlueprint = rollRunBlueprint({
+    sessionSeed,
+    runAttemptIndex,
+    bestScore,
+    deathHistory,
+    unlockedPools,
+  });
   return {
     runAttemptIndex,
     runSeed: runBlueprint.runSeed,
