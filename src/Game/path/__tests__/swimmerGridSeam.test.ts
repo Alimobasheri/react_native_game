@@ -5,24 +5,27 @@ import {
   finalizeGapsForObstacleRow,
   rowFromGaps,
 } from '@/Game/path/swimmerGrid';
-
-const COLS = 15;
+import { TEST_COLS } from '@/Game/path/__tests__/testGrid';
 
 describe('repairGapsVerticalSeamIfNeeded', () => {
   it('opens a seam when prev gaps only touch margin and next is interior-only', () => {
-    const prevGaps = [14];
-    const nextGaps = Array.from({ length: 13 }, (_, i) => i + 1);
-    const merged = repairGapsVerticalSeamIfNeeded(prevGaps, nextGaps, COLS);
-    expect(hasVerticalSeam(rowFromGaps(prevGaps, COLS), rowFromGaps(merged, COLS))).toBe(true);
-    expect(merged.includes(14)).toBe(true);
+    const prevGaps = [TEST_COLS - 1];
+    const nextGaps = Array.from({ length: TEST_COLS - 2 }, (_, i) => i + 1);
+    const merged = repairGapsVerticalSeamIfNeeded(prevGaps, nextGaps, TEST_COLS);
+    expect(hasVerticalSeam(rowFromGaps(prevGaps, TEST_COLS), rowFromGaps(merged, TEST_COLS))).toBe(
+      true
+    );
+    expect(merged.includes(TEST_COLS - 1)).toBe(true);
   });
 
   it('is a no-op when seam already exists', () => {
-    const prev = [5, 6, 7];
-    const next = [3, 4, 5, 6, 7, 8];
-    const merged = repairGapsVerticalSeamIfNeeded(prev, next, COLS);
+    const prev = [3, 4, 5];
+    const next = [2, 3, 4, 5, 6];
+    const merged = repairGapsVerticalSeamIfNeeded(prev, next, TEST_COLS);
     expect(merged.length).toBe(next.length);
-    expect(hasVerticalSeam(rowFromGaps(prev, COLS), rowFromGaps(merged, COLS))).toBe(true);
+    expect(hasVerticalSeam(rowFromGaps(prev, TEST_COLS), rowFromGaps(merged, TEST_COLS))).toBe(
+      true
+    );
   });
 });
 
@@ -35,10 +38,10 @@ describe('repairGapsEachPrevRunNearNext', () => {
   });
 
   it('adds a gap inside a prev island when next row only lines up with a different island', () => {
-    const prev = [1, 2, 3, 7, 8];
-    const next = [7, 8];
-    const merged = repairGapsEachPrevRunNearNext(prev, next, COLS);
-    expect(merged.includes(7) || merged.includes(8)).toBe(true);
+    const prev = [1, 2, 3, 5, 6];
+    const next = [5, 6];
+    const merged = repairGapsEachPrevRunNearNext(prev, next, TEST_COLS);
+    expect(merged.includes(5) || merged.includes(6)).toBe(true);
     let okLeft = false;
     for (let c = 0; c <= 4; c++) {
       if (merged.includes(c)) {
@@ -61,16 +64,16 @@ describe('finalizeGapsForObstacleRow', () => {
   it('drops out-of-range indices then ensures a seam vs prev', () => {
     const prev = [2];
     const raw = [-1, 99, 2.4, 2];
-    const g = finalizeGapsForObstacleRow(prev, raw, COLS);
+    const g = finalizeGapsForObstacleRow(prev, raw, TEST_COLS);
     expect(g).toContain(2);
-    expect(hasVerticalSeam(rowFromGaps(prev, COLS), rowFromGaps(g, COLS))).toBe(true);
+    expect(hasVerticalSeam(rowFromGaps(prev, TEST_COLS), rowFromGaps(g, TEST_COLS))).toBe(true);
   });
 
   it('uses center fallback when all gap indices are invalid', () => {
-    const g = finalizeGapsForObstacleRow(undefined, [-5, 200], COLS);
+    const g = finalizeGapsForObstacleRow(undefined, [-5, 200], TEST_COLS);
     expect(g.length).toBeGreaterThan(0);
     expect(g[0]).toBeGreaterThanOrEqual(0);
-    expect(g[0]).toBeLessThan(COLS);
+    expect(g[0]).toBeLessThan(TEST_COLS);
   });
 
   it('keeps each prev gap island with a next-row gap in the same column interval [lo, hi]', () => {
@@ -79,7 +82,10 @@ describe('finalizeGapsForObstacleRow', () => {
     const raw = [6, 7];
     const g = finalizeGapsForObstacleRow(prev, raw, COLS9);
     expect(hasVerticalSeam(rowFromGaps(prev, COLS9), rowFromGaps(g, COLS9))).toBe(true);
-    const runs = [[1, 2], [6, 7]] as const;
+    const runs = [
+      [1, 2],
+      [6, 7],
+    ] as const;
     for (const [lo, hi] of runs) {
       let inRun = false;
       for (let c = lo; c <= hi; c++) {

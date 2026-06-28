@@ -4,6 +4,12 @@ import {
   GameSessionComponentData,
   GameSessionComponentName,
 } from '@/Game/ecs-components/GameSession';
+import { assignBlueprintForNewRun } from '@/Game/path/runBlueprint';
+import { resolvePacingRunContext } from '@/Game/path/cyclePersonality';
+import {
+  TemplateContextComponentData,
+  TemplateContextComponentName,
+} from '@/Game/ecs-components/TemplateContextComponent';
 import { gameSessionTuning } from '@/config/swimmerTuning';
 
 const {
@@ -59,6 +65,7 @@ export const beginGameplay = (
   }
 
   const nowMs = Date.now();
+  const blueprintAssignment = assignBlueprintForNewRun(session, 'begin');
   ecs.updateComponent<GameSessionComponentData>(
     sessionEntity,
     GameSessionComponentName,
@@ -67,8 +74,36 @@ export const beginGameplay = (
       s.overlayFadeStartMs = nowMs;
       s.speedRampStartMs = nowMs;
       s.animTimeSec = 0;
+      s.runAttemptIndex = blueprintAssignment.runAttemptIndex;
+      s.runSeed = blueprintAssignment.runSeed;
+      s.runBlueprint = blueprintAssignment.runBlueprint;
     }
   );
+
+  const pacingRunContext = resolvePacingRunContext(
+    blueprintAssignment.runBlueprint,
+    blueprintAssignment.runAttemptIndex
+  );
+  const templateEntities = ecs.getEntitiesWithComponents([
+    TemplateContextComponentName,
+  ]);
+  for (let i = 0; i < templateEntities.length; i++) {
+    ecs.updateComponent<TemplateContextComponentData>(
+      templateEntities[i],
+      TemplateContextComponentName,
+      (tc) => {
+        const ctx = (tc.ctx ?? {}) as Record<string, unknown>;
+        ctx.pathRunId = blueprintAssignment.runSeed;
+        ctx.baseRunSeed = blueprintAssignment.runSeed;
+        ctx.openingArchetype = blueprintAssignment.runBlueprint.openingArchetype;
+        ctx.cyclePersonality = blueprintAssignment.runBlueprint.cyclePersonality;
+        ctx.climaxPreference = blueprintAssignment.runBlueprint.climaxPreference;
+        ctx.pacingRunContext = pacingRunContext;
+        tc.ctx = ctx;
+        tc.runId = blueprintAssignment.runSeed;
+      }
+    );
+  }
 
   // TODO: audio hook — start_button_press, game_start_splash
 };
@@ -90,6 +125,7 @@ export const resetGameSessionToStartReady = (
       s.ctaPressStartMs = 0;
       s.animTimeSec = 0;
       s.tutorialFadeStartMs = 0;
+      // runAttemptIndex / runBlueprint intentionally preserved — variety continues after title return.
     }
   );
 };

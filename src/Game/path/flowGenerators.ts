@@ -71,11 +71,13 @@ export function rowFromGapCenter(center: number, columnCount: number): SwimmerRo
  */
 export function flowChuteNextRow(
   lastGeneratedRow: SwimmerRow | null,
-  columnCount: number
+  columnCount: number,
+  seedCenter?: number
 ): SwimmerRow {
   'worklet';
   if (!lastGeneratedRow || lastGeneratedRow.length === 0) {
-    const seed = Math.floor(columnCount / 2);
+    const seed =
+      seedCenter !== undefined ? seedCenter : Math.floor(columnCount / 2);
     return rowFromGapCenter(seed, columnCount);
   }
   const out: SwimmerRow = new Array(lastGeneratedRow.length) as SwimmerRow;

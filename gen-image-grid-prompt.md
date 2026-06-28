@@ -2,18 +2,22 @@ You are generating level data for a vertical, tile-based **“cave + rising wate
 
 ### Grid / coordinates
 
+**Production infinite run:** column count is **`LAYOUT_CONSTANTS.COLUMNS`** in `src/Layout.ts` (currently **8**). Always read that file — do not assume 15.
+
+**Legacy JSON silhouette art** (`src/Game/templates/obstacles/*.ts`) may still use 15-col grids for pixel-art authoring. That is separate from the live gameplay grid (T-011).
+
 - The play area is a **rectangular container**.
-- The container width is divided into **15 equal columns** (\(N=15\)).
-- Each **row** is one tile tall, where tile size is \(tileWidth = containerWidth / 15\). Rows stack upward like a grid.
+- The container width is divided into **N equal columns**, where \(N\) = `LAYOUT_CONSTANTS.COLUMNS` from `src/Layout.ts` (currently **8**).
+- Each **row** is one tile tall, where tile size is \(tileWidth = containerWidth / N\). Rows stack upward like a grid.
 
 ### Row definition
 
 - A row describes which columns are **open** (gaps) vs **blocked** (stone blocks).
-- Columns are indexed **0..14** from left to right.
+- Columns are indexed **0..N−1** from left to right (currently **0..7**).
 - Each row has:
   - `gaps`: array of open column indices (walkable / passable)
   - `blocks`: array of blocked column indices (solid obstacles)
-- Constraint: `gaps ∪ blocks = {0..14}` and `gaps ∩ blocks = ∅`.
+- Constraint: `gaps ∪ blocks = {0..N−1}` and `gaps ∩ blocks = ∅`.
 
 ### Visual / gameplay meaning
 

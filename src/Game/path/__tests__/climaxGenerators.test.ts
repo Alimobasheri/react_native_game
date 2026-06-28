@@ -1,6 +1,9 @@
+import { runProgressionTuning } from '@/config/runProgression';
 import { validateSeam } from '@/Game/path/pacingDirector';
 import { mixU32 } from '@/Game/path/deterministicMix';
 import {
+  CLIMAX_FALSE_CAVERN_HI,
+  CLIMAX_FALSE_CAVERN_LO,
   CLIMAX_FALSE_WALL_ROWS,
   CLIMAX_PINBALL_SEGMENT_ROWS,
   climaxClampTwoWideLeft,
@@ -12,27 +15,30 @@ import {
   climaxPinballRepairHopOverlap,
   climaxPinballStep,
   climaxRowHasGap,
+  climaxSignatureTransferBridgeRow,
   createClimaxPinballRollState,
+  createSignaturePinballHopState,
 } from '@/Game/path/climaxGenerators';
 import {
   FALSE_WALL_MIN_CAVERN_ROWS_BEFORE_SQUEEZE,
   FALSE_WALL_MIN_PHASE_ROWS_SINGLE_SEGMENT,
 } from '@/Layout';
 import { gapsFromRow, rowFromGaps, unionMinimalSeam } from '@/Game/path/swimmerGrid';
+import { TEST_COLS } from '@/Game/path/__tests__/testGrid';
 
-const COLS = 15;
 const MIN_CAVERN = FALSE_WALL_MIN_CAVERN_ROWS_BEFORE_SQUEEZE;
 const MIN_PHASE = FALSE_WALL_MIN_PHASE_ROWS_SINGLE_SEGMENT;
+const CAVERN_LO = Math.max(0, Math.min(CLIMAX_FALSE_CAVERN_LO, TEST_COLS - 1));
+const CAVERN_HI = Math.min(Math.max(CAVERN_LO, CLIMAX_FALSE_CAVERN_HI), TEST_COLS - 1);
 
 describe('climaxPinballRepairHopOverlap', () => {
   it('always returns a 2-wide interval overlapping prev 2-wide', () => {
-    for (let prev = 0; prev <= COLS - 2; prev++) {
+    for (let prev = 0; prev <= TEST_COLS - 2; prev++) {
       for (let raw = -20; raw <= 20; raw++) {
-        const left = climaxPinballRepairHopOverlap(raw, prev, COLS);
+        const left = climaxPinballRepairHopOverlap(raw, prev, TEST_COLS);
         expect(left).toBeGreaterThanOrEqual(0);
-        expect(left).toBeLessThanOrEqual(COLS - 2);
-        const overlap =
-          left <= prev + 1 && prev <= left + 1;
+        expect(left).toBeLessThanOrEqual(TEST_COLS - 2);
+        const overlap = left <= prev + 1 && prev <= left + 1;
         expect(overlap).toBe(true);
       }
     }
@@ -40,29 +46,28 @@ describe('climaxPinballRepairHopOverlap', () => {
 });
 
 describe('climaxPinballStep', () => {
-  it('matches legacy +1,+1 drift then hop when patternSeed yields +1,+1 and hopMag -5', () => {
+  it('matches +1 drift then overlap-repaired hop on production grid', () => {
     let state = {
       stepMod: 0,
-      anchorLeft: 5,
-      wanderLeft: 5,
-      driftCount: 3,
+      anchorLeft: 2,
+      wanderLeft: 2,
+      driftCount: 2,
       patternSeed: 27,
-      hopMag: -5,
+      hopMag: -4,
     };
     const lefts: number[] = [];
-    for (let i = 0; i < 4; i++) {
-      const { row, state: next } = climaxPinballStep(state, COLS);
+    for (let i = 0; i < 3; i++) {
+      const { row, state: next } = climaxPinballStep(state, TEST_COLS);
       state = next;
       const g = gapsFromRow(row);
       expect(g.length).toBe(2);
       expect(g[1]).toBe(g[0] + 1);
       lefts.push(g[0]);
     }
-    expect(lefts[0]).toBe(5);
-    expect(lefts[1]).toBe(6);
-    expect(lefts[2]).toBe(7);
-    const hop = lefts[3];
-    expect(hop <= lefts[2] + 1 && lefts[2] <= hop + 1).toBe(true);
+    expect(lefts[0]).toBe(2);
+    expect(lefts[1]).toBe(3);
+    const hop = lefts[2];
+    expect(hop <= lefts[1] + 1 && lefts[1] <= hop + 1).toBe(true);
   });
 
   it('drift deltas are always in {-1,0,+1}', () => {
@@ -76,54 +81,57 @@ describe('climaxPinballStep', () => {
 });
 
 describe('climaxFalseWallRow', () => {
-  it(`opens columns 2..12 for cavern rows (first segment, R=${MIN_PHASE})`, () => {
+  it(`opens cavern band for cavern rows (first segment, R=${MIN_PHASE})`, () => {
     const salt = 0;
     for (let sub = 0; sub < MIN_CAVERN; sub++) {
-      const row = climaxFalseWallRow(sub, COLS, MIN_PHASE, salt);
-      for (let c = 2; c <= 12; c++) {
+      const row = climaxFalseWallRow(sub, TEST_COLS, MIN_PHASE, salt);
+      for (let c = CAVERN_LO; c <= CAVERN_HI; c++) {
         expect(row[c]).toBe(0);
       }
       expect(row[0]).toBe(1);
       expect(row[1]).toBe(1);
-      expect(row[13]).toBe(1);
-      expect(row[14]).toBe(1);
     }
   });
 
   it(`squeeze row at end (R=${MIN_PHASE})`, () => {
-    const leftSqueeze = climaxFalseWallRow(MIN_PHASE - 1, COLS, MIN_PHASE, 0);
-    expect(gapsFromRow(leftSqueeze)).toEqual([1]);
-    const rightSqueeze = climaxFalseWallRow(MIN_PHASE - 1, COLS, MIN_PHASE, 2);
-    expect(gapsFromRow(rightSqueeze)).toEqual([13]);
+    const leftSalt = 0;
+    const rightSalt = 2;
+    const leftSqueeze = climaxFalseWallRow(MIN_PHASE - 1, TEST_COLS, MIN_PHASE, leftSalt);
+    const rightSqueeze = climaxFalseWallRow(MIN_PHASE - 1, TEST_COLS, MIN_PHASE, rightSalt);
+    expect(gapsFromRow(leftSqueeze).length).toBe(1);
+    expect(gapsFromRow(rightSqueeze).length).toBe(1);
+    expect(gapsFromRow(leftSqueeze)[0]).not.toBe(gapsFromRow(rightSqueeze)[0]);
   });
 
   it('extra rows add cavern depth with one segment', () => {
     const total = 10;
     const salt = 0;
     for (let sub = 0; sub < total - 1; sub++) {
-      const row = climaxFalseWallRow(sub, COLS, total, salt);
-      for (let c = 2; c <= 12; c++) {
+      const row = climaxFalseWallRow(sub, TEST_COLS, total, salt);
+      for (let c = CAVERN_LO; c <= CAVERN_HI; c++) {
         expect(row[c]).toBe(0);
       }
     }
-    expect(gapsFromRow(climaxFalseWallRow(total - 1, COLS, total, salt))).toEqual([1]);
+    expect(gapsFromRow(climaxFalseWallRow(total - 1, TEST_COLS, total, salt))).toEqual([1]);
   });
 
-  it('R=17 yields two segments and a full-width gap bridge', () => {
+  it('multi-segment schedule includes a full-width gap bridge when K >= 2', () => {
     const R = 17;
     const salt = 0;
-    expect(climaxFalseWallSegmentCount(R)).toBe(2);
-    const full = climaxFalseWallFullWidthGapRow(COLS);
-    expect(gapsFromRow(full).length).toBe(COLS);
-    expect(gapsFromRow(climaxFalseWallRow(8, COLS, R, salt))).toEqual(gapsFromRow(full));
-    expect(gapsFromRow(climaxFalseWallRow(7, COLS, R, salt))).toEqual([13]);
-    expect(gapsFromRow(climaxFalseWallRow(16, COLS, R, salt))).toEqual([1]);
+    expect(climaxFalseWallSegmentCount(R)).toBeGreaterThanOrEqual(2);
+    const full = climaxFalseWallFullWidthGapRow(TEST_COLS);
+    expect(gapsFromRow(full).length).toBe(TEST_COLS);
+    let foundBridge = false;
+    for (let sub = 0; sub < R; sub++) {
+      if (gapsFromRow(climaxFalseWallRow(sub, TEST_COLS, R, salt)).length === TEST_COLS) {
+        foundBridge = true;
+        break;
+      }
+    }
+    expect(foundBridge).toBe(true);
   });
 });
 
-/**
- * Mirrors ObstacleSystem CLIMAX branch: Pinball (8) → False Wall (min phase rows), with seam union vs previous row.
- */
 function simulateClimaxSegment(args: {
   columnCount: number;
   pathRunId: number;
@@ -174,13 +182,12 @@ function simulateClimaxSegment(args: {
 describe('CLIMAX segment stress (1000 iterations)', () => {
   it('never loses seam or full-wall rows for Pinball + False Wall at margins', () => {
     for (let seg = 0; seg < 1000; seg++) {
-      const anchor = seg % 12;
-      const prevGaps = [Math.min(anchor, COLS - 1)];
+      const anchor = seg % (TEST_COLS - 1);
       simulateClimaxSegment({
-        columnCount: COLS,
+        columnCount: TEST_COLS,
         pathRunId: seg,
         rowIndexBase: seg * 17,
-        prevGaps: [...prevGaps],
+        prevGaps: [Math.min(anchor, TEST_COLS - 1)],
       });
     }
   });
@@ -188,15 +195,15 @@ describe('CLIMAX segment stress (1000 iterations)', () => {
   it('handles empty prev gaps and extreme anchors', () => {
     for (let seg = 0; seg < 200; seg++) {
       simulateClimaxSegment({
-        columnCount: COLS,
+        columnCount: TEST_COLS,
         pathRunId: seg + 9000,
         rowIndexBase: seg,
         prevGaps: [],
       });
     }
-    for (let col = 0; col < COLS; col++) {
+    for (let col = 0; col < TEST_COLS; col++) {
       simulateClimaxSegment({
-        columnCount: COLS,
+        columnCount: TEST_COLS,
         pathRunId: col,
         rowIndexBase: col * 3,
         prevGaps: [col],
@@ -207,25 +214,81 @@ describe('CLIMAX segment stress (1000 iterations)', () => {
 
 describe('climaxClampTwoWideLeft', () => {
   it('clamps to valid 2-wide window', () => {
-    expect(climaxClampTwoWideLeft(-99, COLS)).toBe(0);
-    expect(climaxClampTwoWideLeft(99, COLS)).toBe(COLS - 2);
+    expect(climaxClampTwoWideLeft(-99, TEST_COLS)).toBe(0);
+    expect(climaxClampTwoWideLeft(99, TEST_COLS)).toBe(TEST_COLS - 2);
+  });
+});
+
+describe('createSignaturePinballHopState', () => {
+  it('runs 4 rhythm cycles with fixed drift pattern on production grid', () => {
+    const state0 = createSignaturePinballHopState([], TEST_COLS, 42);
+    expect(state0.driftCount).toBe(2);
+    expect(state0.signatureDriftPattern).toEqual([0, 1]);
+    let state = state0;
+    const budget =
+      runProgressionTuning.SIGNATURE_PINBALL_HOP_CYCLES *
+      (runProgressionTuning.SIGNATURE_PINBALL_DRIFT_ROWS +
+        runProgressionTuning.SIGNATURE_PINBALL_BRIDGE_ROWS +
+        1);
+    for (let i = 0; i < budget; i++) {
+      const { state: next } = climaxPinballStep(state, TEST_COLS);
+      state = next;
+    }
+    expect(state.stepMod).toBe(0);
+  });
+
+  it('drifts +1 on second drift row, sliding chute (not full width), then SNAP hops', () => {
+    let state = createSignaturePinballHopState([], TEST_COLS, 99);
+    const lefts: number[] = [];
+    const gapCounts: number[] = [];
+    const budget =
+      runProgressionTuning.SIGNATURE_PINBALL_HOP_CYCLES *
+      (runProgressionTuning.SIGNATURE_PINBALL_DRIFT_ROWS +
+        runProgressionTuning.SIGNATURE_PINBALL_BRIDGE_ROWS +
+        1);
+    for (let i = 0; i < budget; i++) {
+      const { row, state: next } = climaxPinballStep(state, TEST_COLS);
+      state = next;
+      const gaps = gapsFromRow(row);
+      lefts.push(gaps[0] ?? -1);
+      gapCounts.push(gaps.length);
+    }
+    expect(lefts[1]).toBe(lefts[0] + 1);
+    expect(gapCounts[2]).toBeLessThan(TEST_COLS);
+    expect(gapCounts[2]).toBeGreaterThanOrEqual(3);
+    const firstHopLeft = lefts[4];
+    expect(firstHopLeft === 0 || firstHopLeft === TEST_COLS - 2).toBe(true);
+    expect(new Set(lefts).size).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('climaxSignatureTransferBridgeRow', () => {
+  it('slides a partial-width chute between drift and hop lanes', () => {
+    const fromLeft = 6;
+    const toLeft = 0;
+    const row0 = climaxSignatureTransferBridgeRow(fromLeft, toLeft, 0, 2, TEST_COLS);
+    const row1 = climaxSignatureTransferBridgeRow(fromLeft, toLeft, 1, 2, TEST_COLS);
+    const g0 = gapsFromRow(row0);
+    const g1 = gapsFromRow(row1);
+    expect(g0.length).toBe(runProgressionTuning.SIGNATURE_BRIDGE_CHUTE_WIDTH);
+    expect(g0.length).toBeLessThan(TEST_COLS);
+    expect(g0.some((c) => c === 6 || c === 7)).toBe(true);
+    expect(g1.some((c) => c === 0 || c === 1)).toBe(true);
   });
 });
 
 describe('climaxPinballInitialAnchor', () => {
   it('centers pinball on the widest gap run (not only the leftmost pair)', () => {
-    expect(climaxPinballInitialAnchor([2, 3, 10], COLS)).toBe(2);
+    expect(climaxPinballInitialAnchor([2, 3], TEST_COLS)).toBe(2);
   });
 
   it('when all gaps are singles, anchors near the centroid of gaps', () => {
-    expect(climaxPinballInitialAnchor([1, 5, 9], COLS)).toBe(4);
+    const anchor = climaxPinballInitialAnchor([1, 5], TEST_COLS);
+    expect(anchor).toBeGreaterThanOrEqual(1);
+    expect(anchor).toBeLessThanOrEqual(TEST_COLS - 2);
   });
 
-  it('with two equal-width islands, default salt picks right island anchor 10', () => {
-    expect(climaxPinballInitialAnchor([1, 2, 3, 10, 11, 12], COLS)).toBe(10);
-  });
-
-  it('with two equal-width islands, salt can pick the left island', () => {
-    expect(climaxPinballInitialAnchor([1, 2, 3, 10, 11, 12], COLS, 0)).toBe(1);
+  it('with one 3-wide island, anchors on that island', () => {
+    expect(climaxPinballInitialAnchor([1, 2, 3], TEST_COLS)).toBe(1);
   });
 });

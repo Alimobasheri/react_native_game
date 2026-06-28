@@ -40,9 +40,9 @@ import {
 } from '@/Layout';
 import {
   gapShiftRunwayDupRowsFromTotalRows,
+  pathSegmentClimaxFalseWallSoloRows,
   pathSegmentClimaxFalseWallTotalRows,
   pathSegmentClimaxPinballSegmentRows,
-  pathSegmentFlowChuteRowsBeforeChicane,
   pathSegmentReleaseRestZoneRows,
   pathSegmentTensionFunnelDurationRows,
 } from '@/config/gapDifficultyRamp';
@@ -80,7 +80,20 @@ import {
   TemplateContextComponentName,
 } from '@/Game/ecs-components/TemplateContextComponent';
 import { createJsonLevelRowPathTemplate } from '@/Game/templates/obstacles/jsonLevelRowPathTemplate';
-import { mixU32, intMod, randomU32 } from '@/Game/path/deterministicMix';
+import { mixU32 } from '@/Game/path/deterministicMix';
+import { runProgressionTuning } from '@/config/runProgression';
+import {
+  clearFlowOpeningCtx,
+  generateFlowOpeningRowGaps,
+} from '@/Game/path/flowOpeningRows';
+import type { OpeningArchetype, ClimaxPreference, SignaturePattern } from '@/Game/path/runBlueprint';
+import { resolvePacingRunContext, type PacingRunContext } from '@/Game/path/cyclePersonality';
+import {
+  macroCycleIndex1Based,
+  resolveSignaturePattern,
+  signaturePinballRowBudget,
+  signaturePinballCycleRowCount,
+} from '@/Game/path/signatureCadence';
 import {
   generateGapsDeterministic,
   generateMultiPathGapsDeterministic,
@@ -100,14 +113,6 @@ import {
 import { releaseCatharticRestZoneGaps } from '@/Game/path/releaseGenerators';
 import type { MacroPhase } from '@/Game/path/macroPacing';
 import {
-  CHICANE_DEFAULT_BLOCK_N,
-  type ChicaneState,
-  createChicaneStateFromEntryCenter,
-  extractTripleGapCenter,
-  flowChicaneNextRow,
-  flowChuteNextRow,
-} from '@/Game/path/flowGenerators';
-import {
   tensionFunnelRow,
   tensionGapCenterFromPrevGaps,
   tensionParadoxSplitRow,
@@ -115,6 +120,7 @@ import {
 import {
   climaxFalseWallRow,
   createClimaxPinballRollState,
+  createSignaturePinballHopState,
   climaxPinballStep,
   type ClimaxPinballState,
 } from '@/Game/path/climaxGenerators';
@@ -123,6 +129,7 @@ import {
   maybeLogObstacleRowGeneration,
   maybeLogPlayerActiveObstacleRowTemplate,
 } from '@/Game/path/obstacleRowGenDiag';
+import { logSignatureBossDebug } from '@/Game/debug/signatureBossDebug';
 import { smilyLevelJson } from '@/Game/templates/obstacles/smily';
 import { jellyfishLevelJson } from '@/Game/templates/obstacles/jellyfish';
 import { mickyLevelJson } from '@/Game/templates/obstacles/micky';
@@ -228,14 +235,14 @@ function spawnObstacleRowEntity(args: {
 
   const prevRowData = prevRowEntity
     ? (ecs.components[ObstacleRowComponentName].get(prevRowEntity) as
-        | ObstacleRowComponentData
-        | undefined)
+      | ObstacleRowComponentData
+      | undefined)
     : undefined;
   const prevBelowGaps =
     prevRowData?.prevRowEntity != null
       ? (ecs.components[ObstacleRowComponentName].get(
-          prevRowData.prevRowEntity
-        ) as ObstacleRowComponentData | undefined)?.gaps ?? null
+        prevRowData.prevRowEntity
+      ) as ObstacleRowComponentData | undefined)?.gaps ?? null
       : null;
 
   const layerArgs = {
@@ -341,6 +348,29 @@ const bumpTotalRowsGenerated = (ecs: ECS, managerEntity: Entity) => {
   );
 };
 
+const readPacingRunContextFromComponents = (
+  components: Record<string, any>
+): PacingRunContext | undefined => {
+  'worklet';
+  const session = getGameSession(components);
+  return resolvePacingRunContext(
+    session?.runBlueprint,
+    session?.runAttemptIndex ?? 0
+  );
+};
+
+const readPacingMacroPhase = (
+  components: Record<string, any>,
+  managerEntity: Entity
+): MacroPhase => {
+  'worklet';
+  const mgr = components[ObstaclesManagerComponentName]?.get(
+    managerEntity
+  ) as ObstaclesManagerComponentData | undefined;
+  const tr = mgr?.totalRowsGenerated ?? 0;
+  const pacingCtx = readPacingRunContextFromComponents(components);
+  return pacingPhaseToMacroPhase(pacingPhaseAtTotalRows(tr, pacingCtx));
+};
 
 /**
  * After each full macro cycle, re-roll `pathRunId` so multipath / proc rows don't repeat the same
@@ -360,7 +390,7 @@ const bumpPathRunIdAfterCompletedMacroCycle = (
   if (mgr?.storyLockedProceduralSegment) {
     return;
   }
-  const cycle = getPacingCycleState(tr);
+  const cycle = getPacingCycleState(tr, readPacingRunContextFromComponents(components));
   if (tr <= 0 || cycle.rowInCycle !== 0 || cycle.cycleStartTotalRows !== tr) {
     return;
   }
@@ -369,21 +399,10 @@ const bumpPathRunIdAfterCompletedMacroCycle = (
     TemplateContextComponentName,
     (data) => {
       const c = data.ctx as Record<string, unknown>;
-      c.pathRunId = randomU32();
+      const base = (c.baseRunSeed as number) ?? (c.pathRunId as number) ?? 0;
+      c.pathRunId = mixU32(base >>> 0, cycle.cycleStartTotalRows >>> 0, 0x6379636c);
     }
   );
-};
-
-const readPacingMacroPhase = (
-  components: Record<string, any>,
-  managerEntity: Entity
-): MacroPhase => {
-  'worklet';
-  const mgr = components[ObstaclesManagerComponentName]?.get(
-    managerEntity
-  ) as ObstaclesManagerComponentData | undefined;
-  const tr = mgr?.totalRowsGenerated ?? 0;
-  return pacingPhaseToMacroPhase(pacingPhaseAtTotalRows(tr));
 };
 
 function sortGapsCopy(gaps: readonly number[] | undefined | null): number[] {
@@ -414,6 +433,19 @@ function gapsEqual(
  * Declared after `spawnObstacleRowEntity` / `bumpTotalRowsGenerated` so the
  * Reanimated UI worklet closure sees defined callees (no TDZ / missing symbol at runtime).
  */
+function signatureRunwayDupMinFromTemplateCtx(
+  templateCtx: TemplateCtx
+): number | undefined {
+  'worklet';
+  const kind = (templateCtx as Record<string, unknown>).lastSignatureSpawnKind as
+    | string
+    | undefined;
+  if (kind === 'chute' || kind === 'hop') {
+    return runProgressionTuning.SIGNATURE_TRANSFER_RUNWAY_DUP_MIN;
+  }
+  return undefined;
+}
+
 function appendGapShiftRunwayRows(args: {
   ecs: ECS;
   sceneEntity: Entity;
@@ -430,12 +462,17 @@ function appendGapShiftRunwayRows(args: {
   obstacleDimension: ObstacleBlockDimensions;
   /** Same basis as `proceduralStreamSalt` for this spawn — rows generated before the new band row. */
   runwayDupRowsBasisRows: number;
+  /** When set, never stack fewer runway dup rows than this (signature chute / SNAP). */
+  runwayDupMin?: number;
 }): Entity {
   'worklet';
-  const dupCount = gapShiftRunwayDupRowsFromTotalRows(
+  let dupCount = gapShiftRunwayDupRowsFromTotalRows(
     args.runwayDupRowsBasisRows,
     mixU32(args.runwayDupRowsBasisRows >>> 0, args.rowIndexForDiag, 0x72756e77)
   );
+  if (typeof args.runwayDupMin === 'number' && args.runwayDupMin > dupCount) {
+    dupCount = args.runwayDupMin;
+  }
   if (dupCount <= 0) return args.newRowEntity;
   if (!args.prevRowBeforeNew) return args.newRowEntity;
   if (gapsEqual(args.prevRowBeforeNew.gaps, args.newRowData.gaps)) {
@@ -494,10 +531,7 @@ const createObstacleRow: RowPathTemplate['getRow'] = (_ctx, params) => {
   let gaps: number[];
 
   if (macroPhase !== 'flow') {
-    tctx.flowMode = undefined;
-    tctx.flowChuteRowCount = undefined;
-    tctx.flowChuteRowsTarget = undefined;
-    tctx.chicaneState = undefined;
+    clearFlowOpeningCtx(tctx);
     gaps = generateGapsDeterministic(
       !prevRow ? [] : prevRow.gaps,
       rowLength,
@@ -512,39 +546,17 @@ const createObstacleRow: RowPathTemplate['getRow'] = (_ctx, params) => {
       prevRow && prevRow.gaps?.length
         ? rowFromGaps(prevRow.gaps, rowLength)
         : null;
-
-    if (tctx.flowMode === 'chicane' && tctx.chicaneState) {
-      const st = tctx.chicaneState as ChicaneState;
-      const { row, state } = flowChicaneNextRow(
-        lastSw,
-        st,
-        rowLength,
-        CHICANE_DEFAULT_BLOCK_N
-      );
-      tctx.chicaneState = state;
-      gaps = gapsFromRow(row);
-    } else {
-      if (tctx.flowChuteRowsTarget === undefined) {
-        const pacingSnap = getPacingCycleState(stream);
-        tctx.flowChuteRowsTarget = pathSegmentFlowChuteRowsBeforeChicane(
-          stream,
-          mixU32(pathRunId >>> 0, stream >>> 0, 0x666c6f77),
-          pacingSnap.flowRows
-        );
-      }
-      const chuteRow = flowChuteNextRow(lastSw, rowLength);
-      gaps = gapsFromRow(chuteRow);
-      const n = ((tctx.flowChuteRowCount as number) ?? 0) + 1;
-      tctx.flowChuteRowCount = n;
-      const chuteCap = (tctx.flowChuteRowsTarget as number) ?? 20;
-      if (n >= chuteCap) {
-        tctx.flowMode = 'chicane';
-        tctx.chicaneState = createChicaneStateFromEntryCenter(
-          extractTripleGapCenter(chuteRow, rowLength) ?? Math.floor(rowLength / 2),
-          rowLength
-        );
-      }
-    }
+    const archetype = (tctx.openingArchetype as OpeningArchetype) ?? 'warmChute';
+    const baseSeed = (tctx.baseRunSeed as number) ?? pathRunId;
+    gaps = generateFlowOpeningRowGaps(
+      tctx,
+      lastSw,
+      rowLength,
+      stream,
+      pathRunId,
+      archetype,
+      baseSeed
+    );
   }
   gaps = finalizeGapsForObstacleRow(prevRow?.gaps, gaps, rowLength);
   const y = spawnObstacleRowY(prevRow, initialY, obstacleDimension.height);
@@ -579,7 +591,14 @@ const baseMultiPathGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
   const macroPhase = effectiveMacroPhaseForProceduralRow(params);
   const stream = params.proceduralStreamSalt ?? 0;
   const xctx = _ctx as Record<string, unknown>;
-  const pacingSnap = getPacingCycleState(stream);
+  // Live session blueprint — template ctx can be stale if seeded before beginGameplay.
+  const sessionForPacing = getGameSession(ecs.components);
+  const pacingCtx = resolvePacingRunContext(
+    sessionForPacing?.runBlueprint,
+    sessionForPacing?.runAttemptIndex ?? 0
+  );
+  const climaxPreference = (xctx.climaxPreference as ClimaxPreference | undefined) ?? 'mixed';
+  const pacingSnap = getPacingCycleState(stream, pacingCtx);
 
   if (macroPhase !== 'tension') {
     xctx.tensionStage = undefined;
@@ -595,13 +614,29 @@ const baseMultiPathGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
     xctx.climaxPinballSegmentTargetRows = undefined;
     xctx.climaxFalseSubRow = undefined;
     xctx.climaxFalseWallTotalRows = undefined;
+    xctx.signaturePattern = undefined;
+    xctx.signatureRowsEmitted = undefined;
+    xctx.signatureRowBudget = undefined;
+    xctx.signaturePinballState = undefined;
   }
   if (macroPhase !== 'release') {
     xctx.releaseRestZoneRowsEmitted = undefined;
     xctx.releaseRestZoneTargetRows = undefined;
   }
+  if (macroPhase !== 'flow') {
+    clearFlowOpeningCtx(xctx);
+  }
 
   let gaps: number[];
+  let pendingSignatureBossStartLog: string | undefined;
+  let pendingSignatureRowLog:
+    | {
+      rowInBlock: number;
+      sigBudget: number;
+      stepLabel: string;
+      isEnd: boolean;
+    }
+    | undefined;
 
   if (macroPhase === 'tension') {
     if (!xctx.tensionStage) {
@@ -676,64 +711,183 @@ const baseMultiPathGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
     }
 
   } else if (macroPhase === 'climax') {
-    if (!xctx.climaxStage) {
-      if (storySeg === 'falseWall') {
-        xctx.climaxStage = 'falseWall';
-        xctx.climaxFalseSubRow = 0;
-        xctx.climaxFalseWallTotalRows = pathSegmentClimaxFalseWallTotalRows(
-          stream,
-          mixU32(pathRunId >>> 0, stream >>> 0, 0x666c7731),
-          pacingSnap.climaxRows
-        );
-      } else if (storySeg === 'climaxMultipath') {
-        xctx.climaxStage = 'free';
-      } else {
-        xctx.climaxStage = 'pinball';
-        xctx.climaxPinballRows = 0;
-        xctx.climaxPinballSegmentTargetRows = pathSegmentClimaxPinballSegmentRows(
-          stream,
-          mixU32(pathRunId >>> 0, stream >>> 0, 0x706e6231),
-          pacingSnap.climaxRows
-        );
-        xctx.climaxPinballState = createClimaxPinballRollState(
-          !prevRow ? [] : prevRow.gaps,
-          rowLength,
-          mixU32(pathRunId >>> 0, stream >>> 0, 0x706e6230)
-        );
+    const signatureSliceFromCtx = (ctx: PacingRunContext | undefined) =>
+      ctx
+        ? {
+          runSeed: ctx.blueprintRunSeed >>> 0,
+          signaturePatternPool: ctx.signaturePatternPool,
+          firstSignatureAtCycle: ctx.firstSignatureAtCycle,
+          signatureEveryNCycles: ctx.signatureEveryNCycles,
+        }
+        : undefined;
+
+    if (
+      !xctx.climaxStage &&
+      !xctx.signaturePattern &&
+      !storySeg &&
+      signatureSliceFromCtx(pacingCtx)
+    ) {
+      const cycleIndex = macroCycleIndex1Based(stream, pacingCtx);
+      const consumedCycle = xctx.signatureConsumedCycleIndex as number | undefined;
+      if (consumedCycle !== cycleIndex) {
+        const sigSlice = signatureSliceFromCtx(pacingCtx)!;
+        const pattern = resolveSignaturePattern(sigSlice, cycleIndex);
+        if (pattern === 'pinballHop') {
+          const budget = signaturePinballRowBudget();
+          xctx.signatureConsumedCycleIndex = cycleIndex;
+          xctx.signaturePattern = pattern;
+          xctx.signatureRowsEmitted = 0;
+          xctx.signatureRowBudget = budget;
+          xctx.signaturePinballState = createSignaturePinballHopState(
+            !prevRow ? [] : prevRow.gaps,
+            rowLength,
+            mixU32(pathRunId >>> 0, stream >>> 0, 0x73696770)
+          );
+          pendingSignatureBossStartLog = `[SignatureBoss] START pinballHop | macroCycle=${cycleIndex} | totalRows=${stream} | budget=${budget} rows (tap-tap-chute×${runProgressionTuning.SIGNATURE_PINBALL_BRIDGE_ROWS}-SNAP × ${runProgressionTuning.SIGNATURE_PINBALL_HOP_CYCLES})`;
+        }
       }
     }
 
-    if (xctx.climaxStage === 'pinball') {
-      const rows = (xctx.climaxPinballRows as number) ?? 0;
-      const pinCap = (xctx.climaxPinballSegmentTargetRows as number) ?? 8;
-      if (rows < pinCap) {
-        const st = xctx.climaxPinballState as ClimaxPinballState;
-        const { row, state } = climaxPinballStep(st, rowLength);
-        xctx.climaxPinballState = state;
-        xctx.climaxPinballRows = rows + 1;
+    const sigPattern = xctx.signaturePattern as SignaturePattern | undefined;
+    const sigEmitted = (xctx.signatureRowsEmitted as number) ?? 0;
+    const sigBudget = (xctx.signatureRowBudget as number) ?? 0;
+    const inSignatureBlock =
+      sigPattern === 'pinballHop' && sigEmitted < sigBudget && xctx.signaturePinballState;
+
+    if (inSignatureBlock) {
+      const st = xctx.signaturePinballState as ClimaxPinballState;
+      const { row, state } = climaxPinballStep(st, rowLength);
+      xctx.signaturePinballState = state;
+      xctx.signatureRowsEmitted = sigEmitted + 1;
+      gaps = gapsFromRow(row);
+      const rowInBlock = sigEmitted + 1;
+      const cycleLen = signaturePinballCycleRowCount();
+      const stepInCycle = ((rowInBlock - 1) % cycleLen) + 1;
+      const driftRows = runProgressionTuning.SIGNATURE_PINBALL_DRIFT_ROWS;
+      const bridgeRows = runProgressionTuning.SIGNATURE_PINBALL_BRIDGE_ROWS;
+      let stepLabel: string;
+      if (stepInCycle <= driftRows) {
+        stepLabel = `drift ${stepInCycle}`;
+        xctx.lastSignatureSpawnKind = 'drift';
+      } else if (stepInCycle <= driftRows + bridgeRows) {
+        const chuteStep = stepInCycle - driftRows;
+        stepLabel = `chute ${chuteStep}/${bridgeRows}`;
+        xctx.lastSignatureSpawnKind = 'chute';
+      } else {
+        stepLabel = 'HOP (SNAP)';
+        xctx.lastSignatureSpawnKind = 'hop';
+      }
+      pendingSignatureRowLog = {
+        rowInBlock,
+        sigBudget,
+        stepLabel,
+        isEnd: sigEmitted + 1 >= sigBudget,
+      };
+      if (sigEmitted + 1 >= sigBudget) {
+        xctx.signaturePattern = undefined;
+        xctx.signaturePinballState = undefined;
+        xctx.signatureRowBudget = undefined;
+      }
+    } else {
+      xctx.lastSignatureSpawnKind = undefined;
+    if (!xctx.climaxStage) {
+        if (storySeg === 'falseWall') {
+          xctx.climaxStage = 'falseWall';
+          xctx.climaxFalseSubRow = 0;
+          xctx.climaxFalseWallTotalRows = pathSegmentClimaxFalseWallTotalRows(
+            stream,
+            mixU32(pathRunId >>> 0, stream >>> 0, 0x666c7731),
+            pacingSnap.climaxRows
+          );
+        } else if (storySeg === 'climaxMultipath') {
+          xctx.climaxStage = 'free';
+        } else if (climaxPreference === 'falseWall') {
+          xctx.climaxStage = 'falseWall';
+          xctx.climaxFalseSubRow = 0;
+          xctx.climaxFalseWallTotalRows = pathSegmentClimaxFalseWallSoloRows(
+            stream,
+            mixU32(pathRunId >>> 0, stream >>> 0, 0x666c7731),
+            pacingSnap.climaxRows
+          );
+        } else {
+          xctx.climaxStage = 'pinball';
+          xctx.climaxPinballRows = 0;
+          xctx.climaxPinballSegmentTargetRows = pathSegmentClimaxPinballSegmentRows(
+            stream,
+            mixU32(pathRunId >>> 0, stream >>> 0, 0x706e6231),
+            pacingSnap.climaxRows
+          );
+          xctx.climaxPinballState = createClimaxPinballRollState(
+            !prevRow ? [] : prevRow.gaps,
+            rowLength,
+            mixU32(pathRunId >>> 0, stream >>> 0, 0x706e6230)
+          );
+        }
+      }
+
+      if (xctx.climaxStage === 'pinball') {
+        const rows = (xctx.climaxPinballRows as number) ?? 0;
+        const pinCap = (xctx.climaxPinballSegmentTargetRows as number) ?? 8;
+        if (rows < pinCap) {
+          const st = xctx.climaxPinballState as ClimaxPinballState;
+          const { row, state } = climaxPinballStep(st, rowLength);
+          xctx.climaxPinballState = state;
+          xctx.climaxPinballRows = rows + 1;
+          gaps = gapsFromRow(row);
+          if (rows + 1 >= pinCap) {
+            if (storySeg === 'pinball') {
+              xctx.climaxPinballRows = 0;
+              xctx.climaxPinballSegmentTargetRows = pathSegmentClimaxPinballSegmentRows(
+                stream,
+                mixU32(pathRunId >>> 0, stream >>> 0, 0x706e6232),
+                pacingSnap.climaxRows
+              );
+              xctx.climaxPinballState = createClimaxPinballRollState(
+                !prevRow ? [] : prevRow.gaps,
+                rowLength,
+                mixU32(pathRunId >>> 0, stream >>> 0, 0x706e6232)
+              );
+            } else if (climaxPreference === 'mixed') {
+              xctx.climaxStage = 'falseWall';
+              xctx.climaxFalseSubRow = 0;
+              xctx.climaxFalseWallTotalRows = pathSegmentClimaxFalseWallTotalRows(
+                stream,
+                mixU32(pathRunId >>> 0, stream >>> 0, 0x666c7733),
+                pacingSnap.climaxRows,
+                pinCap
+              );
+            } else {
+              xctx.climaxStage = 'free';
+            }
+          }
+        } else {
+          gaps = generateMultiPathGapsDeterministic(
+            !prevRow ? [] : prevRow.gaps,
+            rowLength,
+            rowIndex,
+            pathRunId,
+            macroPhase,
+            stream,
+            stream
+          );
+        }
+      } else if (xctx.climaxStage === 'falseWall') {
+        const sub = (xctx.climaxFalseSubRow as number) ?? 0;
+        const fwTotal = (xctx.climaxFalseWallTotalRows as number) ?? FALSE_WALL_MIN_PHASE_ROWS_SINGLE_SEGMENT;
+        const falseWallLayoutSalt = mixU32(pathRunId >>> 0, stream >>> 0, 0x666c7741);
+        const row = climaxFalseWallRow(sub, rowLength, fwTotal, falseWallLayoutSalt);
         gaps = gapsFromRow(row);
-        if (rows + 1 >= pinCap) {
-          if (storySeg === 'pinball') {
-            xctx.climaxPinballRows = 0;
-            xctx.climaxPinballSegmentTargetRows = pathSegmentClimaxPinballSegmentRows(
-              stream,
-              mixU32(pathRunId >>> 0, stream >>> 0, 0x706e6232),
-              pacingSnap.climaxRows
-            );
-            xctx.climaxPinballState = createClimaxPinballRollState(
-              !prevRow ? [] : prevRow.gaps,
-              rowLength,
-              mixU32(pathRunId >>> 0, stream >>> 0, 0x706e6232)
-            );
-          } else {
-            xctx.climaxStage = 'falseWall';
+        xctx.climaxFalseSubRow = sub + 1;
+        if (sub + 1 >= fwTotal) {
+          if (storySeg === 'falseWall') {
             xctx.climaxFalseSubRow = 0;
             xctx.climaxFalseWallTotalRows = pathSegmentClimaxFalseWallTotalRows(
               stream,
-              mixU32(pathRunId >>> 0, stream >>> 0, 0x666c7733),
-              pacingSnap.climaxRows,
-              pinCap
+              mixU32(pathRunId >>> 0, stream >>> 0, 0x666c7732),
+              pacingSnap.climaxRows
             );
+          } else {
+            xctx.climaxStage = 'free';
           }
         }
       } else {
@@ -747,35 +901,6 @@ const baseMultiPathGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
           stream
         );
       }
-    } else if (xctx.climaxStage === 'falseWall') {
-      const sub = (xctx.climaxFalseSubRow as number) ?? 0;
-      const fwTotal = (xctx.climaxFalseWallTotalRows as number) ?? FALSE_WALL_MIN_PHASE_ROWS_SINGLE_SEGMENT;
-      const falseWallLayoutSalt = mixU32(pathRunId >>> 0, stream >>> 0, 0x666c7741);
-      const row = climaxFalseWallRow(sub, rowLength, fwTotal, falseWallLayoutSalt);
-      gaps = gapsFromRow(row);
-      xctx.climaxFalseSubRow = sub + 1;
-      if (sub + 1 >= fwTotal) {
-        if (storySeg === 'falseWall') {
-          xctx.climaxFalseSubRow = 0;
-          xctx.climaxFalseWallTotalRows = pathSegmentClimaxFalseWallTotalRows(
-            stream,
-            mixU32(pathRunId >>> 0, stream >>> 0, 0x666c7732),
-            pacingSnap.climaxRows
-          );
-        } else {
-          xctx.climaxStage = 'free';
-        }
-      }
-    } else {
-      gaps = generateMultiPathGapsDeterministic(
-        !prevRow ? [] : prevRow.gaps,
-        rowLength,
-        rowIndex,
-        pathRunId,
-        macroPhase,
-        stream,
-        stream
-      );
     }
 
   } else if (macroPhase === 'release') {
@@ -816,6 +941,26 @@ const baseMultiPathGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
         );
       }
     }
+  } else if (
+    macroPhase === 'flow' &&
+    !storySeg &&
+    stream < runProgressionTuning.OPENING_ARCHETYPE_MAX_ROWS
+  ) {
+    const lastSw =
+      prevRow && prevRow.gaps?.length
+        ? rowFromGaps(prevRow.gaps, rowLength)
+        : null;
+    const archetype = (xctx.openingArchetype as OpeningArchetype) ?? 'warmChute';
+    const baseSeed = (xctx.baseRunSeed as number) ?? pathRunId;
+    gaps = generateFlowOpeningRowGaps(
+      xctx,
+      lastSw,
+      rowLength,
+      stream,
+      pathRunId,
+      archetype,
+      baseSeed
+    );
   } else {
     gaps = generateMultiPathGapsDeterministic(
       !prevRow ? [] : prevRow.gaps,
@@ -828,6 +973,20 @@ const baseMultiPathGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
     );
   }
   gaps = finalizeGapsForObstacleRow(prevRow?.gaps, gaps, rowLength);
+  if (pendingSignatureBossStartLog) {
+    logSignatureBossDebug(pendingSignatureBossStartLog);
+  }
+  if (pendingSignatureRowLog) {
+    const { rowInBlock, sigBudget, stepLabel, isEnd } = pendingSignatureRowLog;
+    logSignatureBossDebug(
+      `[SignatureBoss] row ${rowInBlock}/${sigBudget} | ${stepLabel} | gaps=[${gaps.join(',')}]`
+    );
+    if (isEnd) {
+      logSignatureBossDebug(
+        `[SignatureBoss] END → normal CLIMAX (climaxPreference=${climaxPreference})`
+      );
+    }
+  }
   const y = spawnObstacleRowY(prevRow, initialY, obstacleDimension.height);
   return spawnObstacleRowEntity({
     ecs,
@@ -998,9 +1157,22 @@ function selectTemplate(args: {
       ? currentTemplateContextEntity
       : getOrCreateTemplateContextEntity(ecs);
 
-  const nextRunId = randomU32();
+  const session = getGameSession(components);
+  const nextRunId = (session?.runSeed ?? 0) >>> 0;
+  const openingArchetype = session?.runBlueprint?.openingArchetype ?? 'warmChute';
+  const cyclePersonality = session?.runBlueprint?.cyclePersonality ?? 'flowHeavy';
+  const climaxPreference = session?.runBlueprint?.climaxPreference ?? 'mixed';
+  const pacingRunContext = resolvePacingRunContext(
+    session?.runBlueprint,
+    session?.runAttemptIndex ?? 0
+  );
   const ctx: TemplateCtx = template.createCtx ? template.createCtx() : {};
   (ctx as Record<string, unknown>).pathRunId = nextRunId;
+  (ctx as Record<string, unknown>).baseRunSeed = nextRunId;
+  (ctx as Record<string, unknown>).openingArchetype = openingArchetype;
+  (ctx as Record<string, unknown>).cyclePersonality = cyclePersonality;
+  (ctx as Record<string, unknown>).climaxPreference = climaxPreference;
+  (ctx as Record<string, unknown>).pacingRunContext = pacingRunContext;
 
   if (template.init) {
     template.init(ctx, initArgs);
@@ -1237,8 +1409,10 @@ export const ObstacleSystem: System = {
       }
     }
     const trForPacing = managerData.totalRowsGenerated ?? 0;
+    const pacingCtxForRelease = readPacingRunContextFromComponents(components);
     const inReleaseRestZone =
-      pacingPhaseToMacroPhase(pacingPhaseAtTotalRows(trForPacing)) === 'release';
+      pacingPhaseToMacroPhase(pacingPhaseAtTotalRows(trForPacing, pacingCtxForRelease)) ===
+      'release';
 
     ecs.updateComponent<WaterComponentData>(waterEntity, WaterComponentName, (waterData) => {
       waterData.releaseRestZoneActive = inReleaseRestZone;
@@ -1354,6 +1528,7 @@ export const ObstacleSystem: System = {
           rowLength: LAYOUT_CONSTANTS.COLUMNS,
           obstacleDimension,
           runwayDupRowsBasisRows: proceduralStreamSalt,
+          runwayDupMin: signatureRunwayDupMinFromTemplateCtx(activeCtx),
         });
         bumpTotalRowsGenerated(ecs, managerEntity);
         bumpPathRunIdAfterCompletedMacroCycle(ecs, components, managerEntity, activeCtxEntity);
@@ -1494,6 +1669,7 @@ export const ObstacleSystem: System = {
             rowLength: LAYOUT_CONSTANTS.COLUMNS,
             obstacleDimension,
             runwayDupRowsBasisRows: proceduralStreamSalt,
+            runwayDupMin: signatureRunwayDupMinFromTemplateCtx(selected.ctx),
           });
           bumpTotalRowsGenerated(ecs, managerEntity);
           bumpPathRunIdAfterCompletedMacroCycle(ecs, components, managerEntity, selected.ctxEntity);
@@ -1558,6 +1734,7 @@ export const ObstacleSystem: System = {
             rowLength: LAYOUT_CONSTANTS.COLUMNS,
             obstacleDimension,
             runwayDupRowsBasisRows: proceduralStreamSalt,
+            runwayDupMin: signatureRunwayDupMinFromTemplateCtx(ctx),
           });
 
           bumpTotalRowsGenerated(ecs, managerEntity);

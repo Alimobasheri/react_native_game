@@ -11,6 +11,7 @@
  */
 
 import { intMod, mixU32, unitFloatFromU32 } from '@/Game/path/deterministicMix';
+import { runProgressionTuning } from '@/config/runProgression';
 import { FALSE_WALL_MIN_PHASE_ROWS_SINGLE_SEGMENT } from '@/Layout';
 
 export const gapDifficultyRampTuning = {
@@ -206,12 +207,17 @@ export type PacingCyclePhaseRowCounts = {
 
 /** Row counts for one macro cycle that **starts** at `cycleStartTotalRows` (spawn counter basis). */
 export function pacingCycleLayoutFromCycleStart(
-  cycleStartTotalRows: number
+  cycleStartTotalRows: number,
+  runSeed = 0
 ): PacingCyclePhaseRowCounts {
   'worklet';
   const d = gapDifficulty01FromTotalRows(cycleStartTotalRows);
   const t = gapDifficultyRampTuning;
   const s = Math.floor(Math.max(0, cycleStartTotalRows));
+  const seedMix = s === 0 ? (runSeed >>> 0) : 0;
+
+  const phasePickSalt = (tag: number): number =>
+    s === 0 ? mixU32(s >>> 0, seedMix, tag >>> 0) : mixU32(s >>> 0, tag >>> 0, 0xf00d);
 
   const flowRows = Math.max(
     t.FLOW_PHASE_ROWS_HARD_MIN,
@@ -221,7 +227,7 @@ export function pacingCycleLayoutFromCycleStart(
       t.FLOW_PHASE_ROWS_START_MAX,
       t.FLOW_PHASE_ROWS_END_MIN,
       t.FLOW_PHASE_ROWS_END_MAX,
-      mixU32(s >>> 0, 0x50414301, 0xf00d)
+      phasePickSalt(0x50414301)
     )
   );
 
@@ -233,7 +239,7 @@ export function pacingCycleLayoutFromCycleStart(
       t.TENSION_PHASE_ROWS_START_MAX,
       t.TENSION_PHASE_ROWS_END_MIN,
       t.TENSION_PHASE_ROWS_END_MAX,
-      mixU32(s >>> 0, 0x50414302, 0xf00d)
+      phasePickSalt(0x50414302)
     )
   );
 
@@ -245,7 +251,7 @@ export function pacingCycleLayoutFromCycleStart(
       t.CLIMAX_PHASE_ROWS_START_MAX,
       t.CLIMAX_PHASE_ROWS_END_MIN,
       t.CLIMAX_PHASE_ROWS_END_MAX,
-      mixU32(s >>> 0, 0x50414303, 0xf00d)
+      phasePickSalt(0x50414303)
     )
   );
 
@@ -257,7 +263,7 @@ export function pacingCycleLayoutFromCycleStart(
       t.RELEASE_PHASE_ROWS_START_MAX,
       t.RELEASE_PHASE_ROWS_END_MIN,
       t.RELEASE_PHASE_ROWS_END_MAX,
-      mixU32(s >>> 0, 0x50414304, 0xf00d)
+      phasePickSalt(0x50414304)
     )
   );
 
@@ -452,6 +458,36 @@ export function pathSegmentClimaxFalseWallTotalRows(
     v = Math.min(v, maxByBudget);
   }
   return Math.max(FALSE_WALL_MIN_PHASE_ROWS_SINGLE_SEGMENT, v);
+}
+
+/** False wall as sole CLIMAX opener — scaled segment (no pinball deduction). */
+export function pathSegmentClimaxFalseWallSoloRows(
+  totalRowsGenerated: number,
+  varianceU32: number,
+  climaxPhaseRowBudget?: number,
+  multiplier?: number
+): number {
+  'worklet';
+  const mult =
+    multiplier ?? runProgressionTuning.CLIMAX_FALSE_WALL_SOLO_MULTIPLIER;
+  const tail = runProgressionTuning.CLIMAX_FALSE_WALL_SOLO_TAIL_ROWS;
+  const base = pathSegmentClimaxFalseWallTotalRows(
+    totalRowsGenerated,
+    varianceU32,
+    climaxPhaseRowBudget
+  );
+  const scaled = Math.max(
+    FALSE_WALL_MIN_PHASE_ROWS_SINGLE_SEGMENT,
+    Math.floor(base * mult)
+  );
+  if (climaxPhaseRowBudget != null && Number.isFinite(climaxPhaseRowBudget)) {
+    const cap = Math.max(
+      FALSE_WALL_MIN_PHASE_ROWS_SINGLE_SEGMENT,
+      Math.floor(climaxPhaseRowBudget) - tail
+    );
+    return Math.min(scaled, cap);
+  }
+  return scaled;
 }
 
 export function pathSegmentFlowChuteRowsBeforeChicane(

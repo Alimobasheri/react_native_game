@@ -118,7 +118,7 @@ Update these in `WaterShaderSystem` via `ecs.updateComponent(Render...)`.
 
 ### C) Row-gap conversion
 
-Given columns count `C`, and gap indexes in row:
+Given columns count `C` (= `LAYOUT_CONSTANTS.COLUMNS` from `src/Layout.ts`; currently **8**), and gap indexes in row:
 
 - `gapStartCol = min(gaps)`
 - `gapEndCol = max(gaps)`

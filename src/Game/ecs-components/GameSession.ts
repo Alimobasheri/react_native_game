@@ -1,4 +1,5 @@
 import { Component } from '@/containers/ReactNativeSkiaGameEngine/services-ecs';
+import type { RunBlueprint } from '@/Game/path/runBlueprint';
 
 export const GameSessionComponentName = 'GameSession';
 
@@ -37,6 +38,14 @@ export type GameSessionComponentData = {
   gameOverFinalScore: number;
   /** True when the last run beat the stored best score. */
   gameOverIsNewBest: boolean;
+  /** u32 master seed for this app session — set once at entity create. */
+  sessionSeed: number;
+  /** 0 = never started; 1 = first run of session. */
+  runAttemptIndex: number;
+  /** Master seed for current run (mirrors runBlueprint.runSeed). */
+  runSeed: number;
+  /** Per-run identity roll — Phase 2+ consumes for generator routing. */
+  runBlueprint: RunBlueprint | undefined;
 };
 
 export const createGameSessionComponent = (
@@ -46,6 +55,8 @@ export const createGameSessionComponent = (
   }
 ): Component<GameSessionComponentData> => {
   'worklet';
+  const sessionSeed =
+    (data.sessionSeed ?? data.overlayIntroStartMs ?? Date.now()) >>> 0;
   return {
     name: GameSessionComponentName,
     data: {
@@ -68,6 +79,10 @@ export const createGameSessionComponent = (
       gameOverScoreAnimStartMs: data.gameOverScoreAnimStartMs ?? 0,
       gameOverFinalScore: data.gameOverFinalScore ?? 0,
       gameOverIsNewBest: data.gameOverIsNewBest ?? false,
+      sessionSeed,
+      runAttemptIndex: data.runAttemptIndex ?? 0,
+      runSeed: data.runSeed ?? 0,
+      runBlueprint: data.runBlueprint,
     },
   };
 };

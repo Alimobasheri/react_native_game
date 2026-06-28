@@ -58,7 +58,13 @@ Imagine a **phone held vertically**:
 
 ## GRID AND OBSTACLE MODEL (PRECISE)
 
-- The container width is divided into **15 columns** (fixed in current layout constants).
+### Grid SSOT
+
+**Single source of truth:** `src/Layout.ts` → `LAYOUT_CONSTANTS.COLUMNS` (currently **8**). All infinite-run procedural generation, collision, and obstacle spawning use this value. Do **not** hardcode column counts in design docs or generators — import from `Layout.ts` or `swimmerGrid.ts` (`SWIMMER_COLUMNS`).
+
+**Separate from gameplay grid:** handcrafted JSON silhouette templates under `src/Game/templates/obstacles/` may still use a wider art grid (legacy 15-col art). That is art authoring data, not the live infinite-run column count. See T-011 in `docs/game-design/run-level-progression.md`.
+
+- The container width is divided into **`LAYOUT_CONSTANTS.COLUMNS` columns** (currently **8**; see `src/Layout.ts`).
 - Each **obstacle cell** is **one column wide** and **one row tall** (block or empty).
 - A **row** has:
   - **Blocks:** solid columns (Matter bodies; lethal to navigation in the sense of blocking and pinning).
@@ -215,7 +221,7 @@ When brainstorming, **label** ideas as **prototype-aligned**, **needs new system
 ## YOUR MISSION AS THE DESIGNER LLM
 
 1. **Internalize** the layout, loop, pillars, and fail state so you can **describe scenes** the player sees **beat-by-beat**.
-2. When the human asks for ideas, **ground** them in: **one-touch input**, **15-column grid**, **multi-path fairness**, **water-linked pressure**, **rest rhythm**, **readable hazards**.
+2. When the human asks for ideas, **ground** them in: **one-touch input**, **`Layout.ts` column grid** (currently 8 cols), **multi-path fairness**, **water-linked pressure**, **rest rhythm**, **readable hazards**.
 3. **Challenge** proposals that would break readability, fairness, or session clarity; offer **alternatives**.
 4. Ask **target audience**, **session length**, and **emotional tone** when missing—those choices cascade into everything else.
 

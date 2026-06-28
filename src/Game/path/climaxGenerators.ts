@@ -3,6 +3,7 @@
  * Worklet-safe.
  */
 
+import { runProgressionTuning } from '@/config/runProgression';
 import { FALSE_WALL_MIN_CAVERN_ROWS_BEFORE_SQUEEZE, FALSE_WALL_MIN_PHASE_ROWS_SINGLE_SEGMENT } from '@/Layout';
 import { intMod, mixU32 } from './deterministicMix';
 import { gapsFromRow, rowFromGaps, type SwimmerRow } from './swimmerGrid';
@@ -19,7 +20,7 @@ export const CLIMAX_PINBALL_SEGMENT_ROWS = 8;
 /** Default false-wall phase row count (one micro-segment at minimum runway length). */
 export const CLIMAX_FALSE_WALL_ROWS = FALSE_WALL_MIN_PHASE_ROWS_SINGLE_SEGMENT;
 
-/** Cavern open band (inclusive) for 15-column layout. */
+/** Cavern open band (inclusive); clamped to `columnCount`. Values predate 8-col grid — see Layout.ts. */
 export const CLIMAX_FALSE_CAVERN_LO = 2;
 export const CLIMAX_FALSE_CAVERN_HI = 12;
 
@@ -35,6 +36,8 @@ export type ClimaxPinballState = {
   patternSeed: number;
   /** Signed hop offset before seam repair vs previous drift column. */
   hopMag: number;
+  /** When set, drift steps use this pattern instead of random seed deltas (signature boss). */
+  signatureDriftPattern?: readonly number[];
 };
 
 function intervalsOverlap(a0: number, a1: number, b0: number, b1: number): boolean {
@@ -71,6 +74,103 @@ export function climaxPinballRepairHopOverlap(
   return p0;
 }
 
+/** Far-left / far-right SNAP for signature boss — always jumps to the opposite band. */
+export function climaxSignatureSnapHopLeft(
+  prevLeft: number,
+  columnCount: number
+): number {
+  'worklet';
+  const maxL = Math.max(0, columnCount - 2);
+  const mid = Math.floor(maxL / 2);
+  const prev = climaxClampTwoWideLeft(prevLeft, columnCount);
+  if (prev >= mid) {
+    return climaxClampTwoWideLeft(0, columnCount);
+  }
+  return climaxClampTwoWideLeft(maxL, columnCount);
+}
+
+function clampChuteLeft(left: number, chuteWidth: number, columnCount: number): number {
+  'worklet';
+  const w = Math.max(2, Math.min(columnCount, chuteWidth));
+  const maxL = Math.max(0, columnCount - w);
+  return Math.max(0, Math.min(maxL, Math.round(left)));
+}
+
+/** Overlap [lo, hi] with chute [left, left+chuteWidth-1]. Nudge left until overlap or clamp. */
+function chuteLeftOverlappingBand(
+  left: number,
+  chuteWidth: number,
+  bandLo: number,
+  bandHi: number,
+  columnCount: number
+): number {
+  'worklet';
+  let L = clampChuteLeft(left, chuteWidth, columnCount);
+  const w = Math.max(2, Math.min(columnCount, chuteWidth));
+  const hi = L + w - 1;
+  if (L <= bandHi && hi >= bandLo) {
+    return L;
+  }
+  const tryLeft = clampChuteLeft(bandLo, w, columnCount);
+  if (tryLeft + w - 1 >= bandLo) {
+    return tryLeft;
+  }
+  return clampChuteLeft(bandHi - w + 1, w, columnCount);
+}
+
+/**
+ * Pinball transfer chute — wide corridor sliding from drift lane toward SNAP target.
+ * Side pillars remain (unlike false-wall full-width bridge rows).
+ */
+export function climaxSignatureTransferBridgeRow(
+  fromLeft: number,
+  hopTargetLeft: number,
+  bridgeStepIndex: number,
+  bridgeRowCount: number,
+  columnCount: number
+): SwimmerRow {
+  'worklet';
+  const chuteW = Math.max(
+    2,
+    Math.min(
+      columnCount - 1,
+      Math.floor(runProgressionTuning.SIGNATURE_BRIDGE_CHUTE_WIDTH)
+    )
+  );
+  const fromL = climaxClampTwoWideLeft(fromLeft, columnCount);
+  const toL = climaxClampTwoWideLeft(hopTargetLeft, columnCount);
+  const fromLo = fromL;
+  const fromHi = fromL + 1;
+  const toLo = toL;
+  const toHi = toL + 1;
+  const fromCenter = fromLo + 0.5;
+  const toCenter = toLo + 0.5;
+  const steps = Math.max(1, Math.floor(bridgeRowCount));
+  const step = Math.max(0, Math.min(steps - 1, Math.floor(bridgeStepIndex)));
+  const t = steps <= 1 ? 1 : (step + 1) / steps;
+  const center = fromCenter + (toCenter - fromCenter) * t;
+  let left = Math.round(center - (chuteW - 1) / 2);
+  left = chuteLeftOverlappingBand(left, chuteW, fromLo, fromHi, columnCount);
+  if (step === steps - 1) {
+    left = chuteLeftOverlappingBand(left, chuteW, toLo, toHi, columnCount);
+  }
+  const gaps: number[] = [];
+  for (let c = left; c < left + chuteW && c < columnCount; c++) {
+    gaps.push(c);
+  }
+  return rowFromGaps(gaps, columnCount);
+}
+
+/** Full-width passable row (all columns) — bridge between lane hops / false-wall segments. TODO(T-008): consecutive empty rows feel wrong; redesign bridge. */
+export function climaxFalseWallFullWidthGapRow(columnCount: number): SwimmerRow {
+  'worklet';
+  const gaps: number[] = [];
+  for (let c = 0; c < columnCount; c++) {
+    gaps.push(c);
+  }
+  return rowFromGaps(gaps, columnCount);
+}
+
 /**
  * Per-drift-step lateral move in columns: −1, 0, or +1 (keeps row-to-row seam overlap for a 2-wide gap).
  */
@@ -104,8 +204,15 @@ export function climaxPinballStep(
   const hopMag =
     typeof state.hopMag === 'number' && Number.isFinite(state.hopMag) ? state.hopMag : -5;
   const anchor = climaxClampTwoWideLeft(state.anchorLeft, columnCount);
-  const cycleLen = driftCount + 1;
+  const signatureCycle = !!state.signatureDriftPattern;
+  const bridgeRows = signatureCycle
+    ? Math.max(0, Math.floor(runProgressionTuning.SIGNATURE_PINBALL_BRIDGE_ROWS))
+    : 0;
+  const cycleLen = driftCount + 1 + bridgeRows;
   const sm = ((state.stepMod % cycleLen) + cycleLen) % cycleLen;
+  const isBridgeStep =
+    signatureCycle && bridgeRows > 0 && sm >= driftCount && sm < driftCount + bridgeRows;
+  const isHopStep = sm >= driftCount + bridgeRows;
 
   let left: number;
   let nextWander: number;
@@ -115,15 +222,47 @@ export function climaxPinballStep(
       left = anchor;
       nextWander = left;
     } else {
-      const d = climaxPinballDriftDeltaFromSeed(patternSeed, sm - 1);
+      const pattern = state.signatureDriftPattern;
+      const d =
+        pattern && pattern.length > 0
+          ? (pattern[Math.min(sm, pattern.length - 1)] ?? 0)
+          : climaxPinballDriftDeltaFromSeed(patternSeed, sm - 1);
       nextWander = climaxClampTwoWideLeft(wander + d, columnCount);
       left = nextWander;
     }
-  } else {
+  } else if (isBridgeStep) {
+    const bridgeStepIndex = sm - driftCount;
+    const hopTarget = climaxSignatureSnapHopLeft(wander, columnCount);
+    const row = climaxSignatureTransferBridgeRow(
+      wander,
+      hopTarget,
+      bridgeStepIndex,
+      bridgeRows,
+      columnCount
+    );
+    const nextMod = (sm + 1) % cycleLen;
+    return {
+      row,
+      state: {
+        stepMod: nextMod,
+        anchorLeft: anchor,
+        wanderLeft: wander,
+        driftCount,
+        patternSeed,
+        hopMag,
+        signatureDriftPattern: state.signatureDriftPattern,
+      },
+    };
+  } else if (isHopStep) {
     const prevLeft = wander;
-    const rawHop = prevLeft + hopMag;
-    left = climaxPinballRepairHopOverlap(rawHop, prevLeft, columnCount);
-    nextWander = left;
+    if (state.signatureDriftPattern) {
+      left = climaxSignatureSnapHopLeft(prevLeft, columnCount);
+      nextWander = left;
+    } else {
+      const rawHop = prevLeft + hopMag;
+      left = climaxPinballRepairHopOverlap(rawHop, prevLeft, columnCount);
+      nextWander = left;
+    }
   }
 
   const row = rowFromGaps([left, left + 1], columnCount);
@@ -140,6 +279,7 @@ export function climaxPinballStep(
       driftCount,
       patternSeed,
       hopMag,
+      signatureDriftPattern: state.signatureDriftPattern,
     },
   };
 }
@@ -291,14 +431,29 @@ export function createClimaxPinballRollState(
   };
 }
 
-/** Full-width passable row (all columns) — bridge between false-wall micro-segments. */
-export function climaxFalseWallFullWidthGapRow(columnCount: number): SwimmerRow {
+/** Fixed-drift rhythm pinball state for signature `pinballHop` boss block. */
+export function createSignaturePinballHopState(
+  prevGaps: number[],
+  columnCount: number,
+  salt: number
+): ClimaxPinballState {
   'worklet';
-  const gaps: number[] = [];
-  for (let c = 0; c < columnCount; c++) {
-    gaps.push(c);
-  }
-  return rowFromGaps(gaps, columnCount);
+  const t = runProgressionTuning;
+  const driftCount = Math.max(1, t.SIGNATURE_PINBALL_DRIFT_ROWS);
+  const hopMag = t.SIGNATURE_PINBALL_HOP_MAG;
+  const pattern = t.SIGNATURE_PINBALL_DRIFT_PATTERN;
+  const anchorSalt = mixU32(salt >>> 0, 0x73696770, 0x616e63);
+  const anchorLeft = climaxPinballInitialAnchor(prevGaps, columnCount, anchorSalt);
+  const w0 = climaxClampTwoWideLeft(anchorLeft, columnCount);
+  return {
+    stepMod: 0,
+    anchorLeft: w0,
+    wanderLeft: w0,
+    driftCount,
+    patternSeed: mixU32(salt >>> 0, 0x73696770, 0x647266),
+    hopMag,
+    signatureDriftPattern: pattern,
+  };
 }
 
 function climaxFalseWallCavernRow(columnCount: number): SwimmerRow {

@@ -5,8 +5,10 @@ import {
   pacingRowInCycle,
   runEmbeddedPacingValidations,
   validateSeam,
+  type PacingRunContext,
 } from '@/Game/path/pacingDirector';
 import { pacingCycleLayoutFromCycleStart } from '@/config/gapDifficultyRamp';
+import { resolveCycleLayout } from '@/Game/path/cyclePersonality';
 import type { SwimmerRow } from '@/Game/path/swimmerGrid';
 
 beforeAll(() => {
@@ -102,5 +104,37 @@ describe('PacingDirector phases (dynamic cycles)', () => {
     expect(getPacingCycleState(L0).rowInCycle).toBe(0);
     expect(getPacingCycleState(L0 + L1 - 1).rowInCycle).toBe(L1 - 1);
     expect(getPacingCycleState(L0 + L1).rowInCycle).toBe(0);
+  });
+});
+
+describe('PacingDirector with cycle personality ctx', () => {
+  const flowHeavyCtx: PacingRunContext = {
+    runSeed: 4242,
+    cyclePersonality: 'flowHeavy',
+    climaxPreference: 'mixed',
+  };
+
+  const layout0 = resolveCycleLayout(0, flowHeavyCtx);
+  const baseAtSeed = pacingCycleLayoutFromCycleStart(0, flowHeavyCtx.runSeed);
+  const C =
+    layout0.flowRows + layout0.tensionRows + layout0.climaxRows + layout0.releaseRows;
+  const lastFlow = layout0.flowRows - 1;
+  const firstTension = layout0.flowRows;
+  const lastClimax = layout0.flowRows + layout0.tensionRows + layout0.climaxRows - 1;
+  const firstRelease = layout0.flowRows + layout0.tensionRows + layout0.climaxRows;
+
+  it('flowHeavy extends FLOW and preserves phase boundaries', () => {
+    expect(layout0.flowRows).toBeGreaterThan(baseAtSeed.flowRows);
+    expect(layout0.tensionRows).toBeLessThan(baseAtSeed.tensionRows);
+    expect(pacingPhaseAtTotalRows(lastFlow, flowHeavyCtx)).toBe('FLOW');
+    expect(pacingPhaseAtTotalRows(firstTension, flowHeavyCtx)).toBe('TENSION');
+    expect(pacingPhaseAtTotalRows(lastClimax, flowHeavyCtx)).toBe('CLIMAX');
+    expect(pacingPhaseAtTotalRows(firstRelease, flowHeavyCtx)).toBe('RELEASE');
+    expect(pacingPhaseAtTotalRows(C, flowHeavyCtx)).toBe('FLOW');
+  });
+
+  it('getPacingCycleState uses personality-adjusted cycle 1 length', () => {
+    expect(getPacingCycleState(0, flowHeavyCtx).cycleTotalRows).toBe(C);
+    expect(getPacingCycleState(lastFlow, flowHeavyCtx).rowInCycle).toBe(lastFlow);
   });
 });

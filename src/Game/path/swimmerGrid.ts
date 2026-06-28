@@ -190,12 +190,16 @@ export function repairGapsVerticalSeamIfNeeded(
 export function finalizeGapsForObstacleRow(
   prevGaps: readonly number[] | undefined,
   gaps: readonly number[] | undefined,
-  columnCount: number
+  columnCount: number,
+  options?: { skipSeamRepair?: boolean }
 ): number[] {
   'worklet';
   let g = normalizeGapColumns(gaps, columnCount);
   if (g.length === 0) {
     g = [Math.max(0, Math.min(columnCount - 1, Math.floor(columnCount / 2)))];
+  }
+  if (options?.skipSeamRepair) {
+    return g;
   }
   const prev = normalizeGapColumns(prevGaps, columnCount);
   if (prev.length) {

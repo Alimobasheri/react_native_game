@@ -52,6 +52,8 @@ import {
 import { getWaterSurfaceRestY, LAYOUT_CONSTANTS } from '@/Layout';
 import { RestartGameplayRequestType } from '@/Game/session/restartGameplayEvents';
 import { clearSwimmerWaterFx } from '@/Game/water/swimmerWaterFxLifecycle';
+import { assignBlueprintForNewRun } from '@/Game/path/runBlueprint';
+import { resolvePacingRunContext } from '@/Game/path/cyclePersonality';
 
 const SWIMMER_START_ABOVE_SURFACE_PX = 10;
 const REMOVE_ENTITY_BATCH_REQUEST = 'RemoveEntityBatchRequest';
@@ -84,6 +86,17 @@ const restartGameplay = (
     sessionEntity
   ) as GameSessionComponentData | undefined;
   if (!session) return;
+
+  const blueprintAssignment = assignBlueprintForNewRun(session, 'retry');
+  ecs.updateComponent<GameSessionComponentData>(
+    sessionEntity,
+    GameSessionComponentName,
+    (s) => {
+      s.runAttemptIndex = blueprintAssignment.runAttemptIndex;
+      s.runSeed = blueprintAssignment.runSeed;
+      s.runBlueprint = blueprintAssignment.runBlueprint;
+    }
+  );
 
   const sceneEntity = findSceneEntityByKey(components, sceneKey);
   if (typeof sceneEntity === 'number') {
@@ -140,8 +153,18 @@ const restartGameplay = (
       TemplateContextComponentName,
       (tc) => {
         tc.templateName = '';
-        tc.ctx = {};
-        tc.runId = Math.floor(Math.random() * 1_000_000_000);
+        tc.ctx = {
+          pathRunId: blueprintAssignment.runSeed,
+          baseRunSeed: blueprintAssignment.runSeed,
+          openingArchetype: blueprintAssignment.runBlueprint.openingArchetype,
+          cyclePersonality: blueprintAssignment.runBlueprint.cyclePersonality,
+          climaxPreference: blueprintAssignment.runBlueprint.climaxPreference,
+          pacingRunContext: resolvePacingRunContext(
+            blueprintAssignment.runBlueprint,
+            blueprintAssignment.runAttemptIndex
+          ),
+        };
+        tc.runId = blueprintAssignment.runSeed;
       }
     );
   }

@@ -7,14 +7,15 @@ import {
   tensionParadoxSplitRow,
 } from '@/Game/path/tensionGenerators';
 import { gapsFromRow, hasVerticalSeam } from '@/Game/path/swimmerGrid';
+import { TEST_COLS } from '@/Game/path/__tests__/testGrid';
 
-const COLS = 15;
+const CENTER = Math.floor(TEST_COLS / 2);
 
 describe('tensionFunnelRow', () => {
   it('terminates at exactly width 1 on the last funnel row (step 5)', () => {
     const lastStep = TENSION_FUNNEL_DURATION_ROWS - 1;
     expect(tensionFunnelWidthAtStep(lastStep)).toBe(1);
-    const row = tensionFunnelRow(lastStep, 7, COLS);
+    const row = tensionFunnelRow(lastStep, CENTER, TEST_COLS);
     expect(gapsFromRow(row).length).toBe(1);
   });
 
@@ -28,12 +29,11 @@ describe('tensionFunnelRow', () => {
 });
 
 describe('tensionParadoxSplitRow', () => {
-  it('leaves a solid wall (1) at the prior central column C between the two tracks', () => {
-    expect(tensionParadoxHasWallAtPriorCenter(7, COLS)).toBe(true);
-    const row = tensionParadoxSplitRow(7, COLS);
-    expect(row[7]).toBe(1);
-    expect(row[4]).toBe(0);
-    expect(row[9]).toBe(0);
+  it('leaves a solid wall at the prior central column C between the two tracks', () => {
+    expect(tensionParadoxHasWallAtPriorCenter(CENTER, TEST_COLS)).toBe(true);
+    const row = tensionParadoxSplitRow(CENTER, TEST_COLS);
+    expect(row[CENTER]).toBe(1);
+    expect(gapsFromRow(row).length).toBeGreaterThan(0);
   });
 
   it('always has at least one passable column on very narrow grids', () => {
@@ -46,14 +46,13 @@ describe('tensionParadoxSplitRow', () => {
   });
 
   it('shifts the fork so the funnel exit column stays passable vs the last funnel row', () => {
-    const center = 7;
-    const lastFunnel = tensionFunnelRow(TENSION_FUNNEL_DURATION_ROWS - 1, center, COLS);
+    const lastFunnel = tensionFunnelRow(TENSION_FUNNEL_DURATION_ROWS - 1, CENTER, TEST_COLS);
     const exitGaps = gapsFromRow(lastFunnel);
-    expect(exitGaps).toEqual([center]);
-    const base = tensionParadoxBaseGapColumns(center, COLS);
-    expect(base.includes(center)).toBe(false);
-    const row = tensionParadoxSplitRow(center, COLS, exitGaps);
+    expect(exitGaps).toEqual([CENTER]);
+    const base = tensionParadoxBaseGapColumns(CENTER, TEST_COLS);
+    expect(base.includes(CENTER)).toBe(false);
+    const row = tensionParadoxSplitRow(CENTER, TEST_COLS, exitGaps);
     expect(hasVerticalSeam(lastFunnel, row)).toBe(true);
-    expect(gapsFromRow(row).includes(center)).toBe(true);
+    expect(gapsFromRow(row).includes(CENTER)).toBe(true);
   });
 });

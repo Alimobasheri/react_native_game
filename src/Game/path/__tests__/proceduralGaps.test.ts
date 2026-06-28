@@ -1,6 +1,7 @@
 import { multipathGapWidthParamsFromTotalRows } from '@/config/gapDifficultyRamp';
 import { generateMultiPathGapsDeterministic } from '@/Game/path/proceduralGaps';
 import { groupGapsToRanges } from '@/Game/water/gapRanges';
+import { TEST_COLS } from '@/Game/path/__tests__/testGrid';
 
 describe('multipathGapWidthParamsFromTotalRows (fraction-based)', () => {
   it('keeps 9-column flow readable (early vs late)', () => {
@@ -16,8 +17,8 @@ describe('multipathGapWidthParamsFromTotalRows (fraction-based)', () => {
     expect(late.maxW).toBeLessThanOrEqual(3);
   });
 
-  it('does not degenerate on 15 columns', () => {
-    const rowLength = 15;
+  it('does not degenerate on production column count (Layout.ts)', () => {
+    const rowLength = TEST_COLS;
     const seed = 0;
     const early = multipathGapWidthParamsFromTotalRows(0, rowLength, seed);
     expect(early.minW).toBeGreaterThanOrEqual(3);
