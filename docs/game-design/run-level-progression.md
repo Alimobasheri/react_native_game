@@ -737,7 +737,7 @@ Signature block = **4 cycles** (**20 generator rows**) → then normal `climaxPr
 
 **Highest-ROI next (not more gap mutators):**
 
-1. **T-005 — Chapter framing** — Water tint pulse / subtle label before signature CLIMAX so the pinballHop block *reads* as a boss act, not another lane shift. Cheap retention win vs new generators.
+1. **[player-experience-roadmap.md](./player-experience-roadmap.md)** — skill feedback (CLOSE!, TAP, combo), coins, unlockable world skins. Replaces T-005 “phase label” HUD framing.
 2. **Playtest pass on Phase 5** — Confirm 300/700/1000 thresholds feel fair; watch whether breather + attempt memory reads as “the game helped me” vs “too easy.” Tune only `runProgression.ts` numbers.
 3. **T-003 follow-up** — Log death `generator` tags in dev builds for 20–30 runs; then add *one* generator penalty if data supports it (e.g. pinball CLIMAX weight down after 3× pinball deaths).
 4. **T-008** — False-wall empty-band rows (visual fairness polish, not variety).
@@ -761,8 +761,9 @@ Signature block = **4 cycles** (**20 generator rows**) → then normal `climaxPr
 
 ## Related Docs
 
+- **[player-experience-roadmap.md](./player-experience-roadmap.md)** — **primary creative blueprint** (skill juice, worlds, coins, art phases) — supersedes T-005 “chapter labels” approach
 - `src/docs/game-designer-llm-context.md` — full game context for LLM sessions
 - `src/config/gapDifficultyRamp.ts` — in-run difficulty ramp tuning
 - `src/Game/path/pacingDirector.ts` — macro cycle director
 
-**Next agent:** Phases 1–5 complete. Start with [Post-Phase 5](#post-phase-5--founder-notes--next-tracks) — framing (T-005) and playtest tuning before new geometry.
+**Next agent:** Phases 1–5 complete. Start with [player-experience-roadmap.md](./player-experience-roadmap.md) Phase 1 (skill feedback), not engine phase labels on HUD.
