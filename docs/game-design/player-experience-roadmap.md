@@ -264,11 +264,11 @@ Not hidden collectibles — props in wall parallax as player rises:
 | Key | Copy | When | Status |
 |-----|------|------|--------|
 | `ceiling_brush` | CLOSE! → CHEATED DEATH! (tiers) | Ceiling underside brush without pin | **Shipped** — `ceilingDodgeDetection.ts` |
-| `shift_commit` | NICE! / SMOOTH! | Clean gap shift across rows | **Shipped** |
-| `zigzag_chain` | ZIG-ZAG! / ZIG-ZAG KING! | Alternating gap shifts | **Shipped** |
+| `shift_commit` | NICE! / SMOOTH! | Lane cluster center shifted ≥1 col (not tap drift in wide chute) | **Shipped** |
+| `zigzag_chain` | ZIG-ZAG! / ZIG-ZAG KING! | ≥3 same-direction geometry shifts, then hard opposite break | **Shipped** |
 | `pinhole_flare_snap` | SWEEP! / CRAZY! / INSANE! | Pinhole → flare → snap transfer | **Shipped** |
-| `slalom_block` | SLALOM! / MAJESTIC! | Chicane branch shifts | **Shipped** |
-| `cross_sweep` | SWEEP! / MAJESTIC! | Net cross-screen sweep | **Shipped** |
+| `slalom_block` | SLALOM! / MAJESTIC! | Chicane block break (center jump ≥2 cols) | **Shipped** |
+| `cross_sweep` | SURFING! / MAJESTIC! | Monotonic cross-lane geometry travel | **Shipped** |
 | `funnel_thread` | TIGHT! | Funnel exit at W≤2 | **Shipped** |
 | `fork_clean` | FORKED! | Paradox split lane pick | **Shipped** |
 | `tap_coach` | TAP | Repeat while pinned | **Shipped** |
@@ -645,9 +645,9 @@ The shipped blueprint system remains **geometry scheduler only**:
 
 ---
 
-## 15. Layer A skill feedback — implementation reference (shipped Wave 1)
+## 15. Layer A skill feedback — implementation reference (Wave 2)
 
-**Status:** Wave 1 shipped (2026-06-29). Skill-moment detectors replace clearance-band ignition. Config: `src/config/skillFeedback.ts`.
+**Status:** Wave 2 shipped (2026-06-29). Survival skill praise — path merit + cross hygiene; difficulty-scaled soft gates; per-frame contact stitch. Config: `src/config/skillFeedback.ts`.
 
 ### 15.1 — Copy inventory (§7 gameplay flashes)
 
@@ -657,6 +657,10 @@ The shipped blueprint system remains **geometry scheduler only**:
 | `shift_commit` | NICE! / SMOOTH! | Shipped | `steerPraiseDetection.ts` |
 | `zigzag_chain` | ZIG-ZAG! / ZIG-ZAG KING! | Shipped | `steerPraiseDetection.ts` |
 | `pinhole_flare_snap` | SWEEP! / CRAZY! / INSANE! | Shipped | `snapTransferDetection.ts` |
+| `cross_sweep` | SURFING! / MAJESTIC! | Shipped | `steerPraiseDetection.ts` |
+| `slalom_block` | SLALOM! / MAJESTIC! | Shipped | `steerPraiseDetection.ts` |
+| `funnel_thread` | TIGHT! | Shipped | `steerPraiseDetection.ts` |
+| `fork_clean` | FORKED! | Shipped | `steerPraiseDetection.ts` |
 | `tap_coach` | TAP | Shipped | `tapCoachDetection.ts` |
 | `tap_saved` | SAVED! | Shipped | `tapCoachDetection.ts` |
 | `combo_2` / `combo_3` | ×2 / ×3 | Shipped (tap HUD, separate) | `ScoreHudSystem` |
@@ -664,43 +668,63 @@ The shipped blueprint system remains **geometry scheduler only**:
 | `paddle_hit` | +100 | Not shipped | Phase 6 |
 | _(bonus flyout)_ | +N | Shipped — clearance scales bonus only | `praiseBonus.ts` |
 
-### 15.2 — Architecture (shipped)
+| _(bonus flyout)_ | +N | Shipped — clearance + hygiene scale bonus only | `praiseBonus.ts` |
+
+### 15.2 — Architecture (Wave 2)
 
 ```
-src/config/skillFeedback.ts          — copy, tiers, thresholds, bonus weights
+src/config/skillFeedback.ts          — copy, tiers, pathGates, survivalRamp, hygiene, bonus weights
 src/config/gameplayFeedback.ts       — flash VFX layout only
 src/Game/feedback/
-  gapTopology.ts                     — gap width/center/overlap
-  rowCrossHistory.ts                 — ring buffer + runway-dup dedupe
-  snapTransferDetection.ts           — pinhole → flare → snap
-  steerPraiseDetection.ts            — shift, zigzag, slalom, sweep, funnel, fork
+  gapTopology.ts                     — laneClusterTopology (full cluster, not swimmer-col)
+  gapPathAnalysis.ts                 — run-then-break, monotonic travel, chicane break
+  skillSurvivalGates.ts              — resolveSkillGates, evaluateCrossQualified (Wave 2)
+  hygieneScoring.ts                  — per-frame stitch sampler, computeHygiene01 (Wave 2)
+  rowCrossEval.ts                    — buildRowCrossSnapshot (contact + crossQualified)
+  rowCrossHistory.ts                 — raw-gap dedupe + ring buffer
+  snapTransferDetection.ts           — pinhole → flare → snap (crossQualified gate)
+  steerPraiseDetection.ts            — path merit + hygiene tier upgrade
   ceilingDodgeDetection.ts           — ceiling brush without pin
   tapCoachDetection.ts               — TAP repeat + SAVED!
-  praiseBonus.ts                     — +N (clearance never picks copy)
-  praiseRouter.ts                    — priority, cooldowns, caps
+  praiseBonus.ts                     — +N (clearance + hygiene01; never picks copy)
+  praiseRouter.ts                    — priority, cooldowns (steer cooldown scales with diff)
   praiseEmitter.ts                   — flash slot activation
-src/systems/GameplayFeedbackSystem.ts — orchestrator
+src/systems/GameplayFeedbackSystem.ts — per-frame stitch + orchestrator
 ```
 
-**Ignition rule:** skill moment (geometry + collision + row cross). `clearance01` → +N multiplier only.
+**Ignition rule (Wave 2):** path geometry match + soft `crossQualified` on payoff row. Base tier always if both pass; higher tiers need speed/diff **and** `hygiene01 ≥ tierUpgradeMin`. Messy hard runs still get SURFING!/ZIG-ZAG!; clean runs get MAJESTIC!/ZIG-ZAG KING! + bigger +N. **Wide static chute + tap drift → silence.** **Payoff row pinned → no steer/snap.**
+
+### 15.2a — Architecture (Wave 1.1 baseline)
+
+```
+src/config/skillFeedback.ts          — copy, tiers, pathGates, bonus weights
+src/Game/feedback/gapPathAnalysis.ts
+src/Game/feedback/gapTopology.ts
+src/Game/feedback/rowCrossEval.ts
+… (see Wave 2 block above for full tree)
+```
+
+**Wave 1.1 rule:** strict `cleanCross` AND path geometry. Superseded by Wave 2 soft cross gate for steer/snap only.
 
 ### 15.3 — State catalog (shipped)
 
-| State ID | Copy | Detector | Status |
-|----------|------|----------|--------|
-| `ceiling_brush` | CLOSE! … CHEATED DEATH! | `ceilingDodgeDetection.ts` | Shipped |
-| `shift_commit` | NICE! / SMOOTH! | `steerPraiseDetection.ts` | Shipped |
-| `zigzag_chain` | ZIG-ZAG! / ZIG-ZAG KING! | `steerPraiseDetection.ts` | Shipped |
-| `pinhole_flare_snap` | SWEEP! / CRAZY! / INSANE! | `snapTransferDetection.ts` | Shipped |
-| `slalom_block` | SLALOM! / MAJESTIC! | `steerPraiseDetection.ts` | Shipped |
-| `cross_sweep` | SWEEP! / MAJESTIC! | `steerPraiseDetection.ts` | Shipped |
-| `funnel_thread` | TIGHT! | `steerPraiseDetection.ts` | Shipped |
-| `fork_clean` | FORKED! | `steerPraiseDetection.ts` | Shipped |
+| State ID | Copy | Detector | Trigger (path-based) |
+|----------|------|----------|----------------------|
+| `ceiling_brush` | CLOSE! … CHEATED DEATH! | `ceilingDodgeDetection.ts` | Ceiling brush enter, not pinned |
+| `shift_commit` | NICE! / SMOOTH! | `steerPraiseDetection.ts` | Lane center shifted ≥1 col; not wide-open both rows |
+| `zigzag_chain` | ZIG-ZAG! / ZIG-ZAG KING! | `steerPraiseDetection.ts` | ≥3 same-sign geometry steps, opposite break ≥2 |
+| `pinhole_flare_snap` | SWEEP! / CRAZY! / INSANE! | `snapTransferDetection.ts` | Pinhole W≤1 → flare W≥3 → snap ≥2 cols |
+| `slalom_block` | SLALOM! / MAJESTIC! | `steerPraiseDetection.ts` | Chicane branch + block break ≥2 cols |
+| `cross_sweep` | SURFING! / MAJESTIC! | `steerPraiseDetection.ts` | Monotonic lane travel ≥4 cols over ≥3 rows |
+| `funnel_thread` | TIGHT! | `steerPraiseDetection.ts` | Funnel branch + lane W≤2 |
+| `fork_clean` | FORKED! | `steerPraiseDetection.ts` | Paradox split branch + crossQualified |
 | `ceiling_pin_active` | TAP | `tapCoachDetection.ts` | Shipped |
 | `ceiling_pin_escape` | SAVED! | `tapCoachDetection.ts` | Shipped |
 | `tap_streak_tier` | ×2 / ×3 | `ScoreHudSystem` | Shipped (separate) |
 | `rest_corridor_*` | GREAT! / PERFECT! | — | Phase 2 |
 | `pinball_paddle_hit` | +100 | — | Phase 6 |
+
+**Wave 2 cross gate:** `crossQualified` replaces hard `cleanCross` for steer/snap. `cleanCross` retained for hygiene scoring. Tier 0 on messy survival; tier 1+ needs `hygiene01 ≥ 0.72`.
 
 ### 15.4 — Remaining waves
 
@@ -710,7 +734,7 @@ src/systems/GameplayFeedbackSystem.ts — orchestrator
 
 ### 15.5 — Tests
 
-`npm test -- --watchAll=false src/Game/feedback/__tests__` — 50+ unit tests on pure detectors.
+`npm test -- --watchAll=false src/Game/feedback/__tests__` — 87+ unit tests on pure detectors + survival scenarios.
 
 ---
 
@@ -722,6 +746,8 @@ src/systems/GameplayFeedbackSystem.ts — orchestrator
 | 2026-06-28 | P1 partial — skill feedback MVP shipped (see `docs/visual-design/logs/phase1-skill-feedback-handoff.md`) |
 | 2026-06-29 | §15 full Layer A handoff; combo HUD polish; RNTGE text shadows |
 | 2026-06-29 | Wave 1 skill-moment praise shipped — `skillFeedback.ts` + detectors; clearance → +N only |
+| 2026-06-29 | Wave 1.1 path-based steer praise — lane cluster topology, SURFING! copy, `gapPathAnalysis.ts` |
+| 2026-06-29 | Wave 2 survival skill praise — crossQualified, hygiene tier/+N, per-frame stitch, `survivalRamp` |
 
 ---
 

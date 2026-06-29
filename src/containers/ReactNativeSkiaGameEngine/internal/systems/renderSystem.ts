@@ -721,7 +721,7 @@ const createAndCacheEntityPicture = (
       canvas,
       entityId,
       renderData,
-      textComponent
+      { ...textComponent, textShadow: undefined }
     );
     if (!text) return null;
   } else {

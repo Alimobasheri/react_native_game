@@ -64,4 +64,26 @@ describe('computePraiseBonus', () => {
       computePraiseBonus(tapEvent, 0.2, 300, 0.5, skillFeedbackTuning, 0.5)
     ).toBe(0);
   });
+
+  it('increases bonus with higher hygiene01', () => {
+    const lowHygiene = computePraiseBonus(
+      baseEvent,
+      0.5,
+      200,
+      0.5,
+      skillFeedbackTuning,
+      0.5,
+      0.2
+    );
+    const highHygiene = computePraiseBonus(
+      baseEvent,
+      0.5,
+      200,
+      0.5,
+      skillFeedbackTuning,
+      0.5,
+      0.95
+    );
+    expect(highHygiene).toBeGreaterThan(lowHygiene);
+  });
 });

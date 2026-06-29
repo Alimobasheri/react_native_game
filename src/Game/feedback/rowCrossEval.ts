@@ -1,12 +1,22 @@
 import { LAYOUT_CONSTANTS } from '@/Layout';
+import { normalizeGapColumns } from '@/Game/path/swimmerGrid';
 import {
   isSwimmerColInGap,
-  topologyForSwimmerColumn,
+  laneClusterTopology,
 } from '@/Game/feedback/gapTopology';
+import {
+  evaluateCleanCrossStrict,
+  evaluateCrossQualified,
+  type ResolvedSkillGates,
+} from '@/Game/feedback/skillSurvivalGates';
 import type { SkillFeedbackTuning } from '@/config/skillFeedback';
-import type { RowCrossSnapshot } from '@/Game/feedback/skillFeedbackTypes';
+import type {
+  RowCrossContact,
+  RowCrossSnapshot,
+} from '@/Game/feedback/skillFeedbackTypes';
 
-export const swimmerWorldXToColumn = (
+/** Fractional column index — sub-column resolution for high-speed steer stitching. */
+export const swimmerWorldXToColumnFrac = (
   swimmerX: number,
   containerCenterX: number,
   containerWidth: number,
@@ -15,8 +25,20 @@ export const swimmerWorldXToColumn = (
   'worklet';
   const left = containerCenterX - containerWidth / 2;
   const columnWidth = containerWidth / columnCount;
-  const col = Math.floor((swimmerX - left) / columnWidth);
+  const col = (swimmerX - left) / Math.max(1e-6, columnWidth);
   return Math.max(0, Math.min(columnCount - 1, col));
+};
+
+export const swimmerWorldXToColumn = (
+  swimmerX: number,
+  containerCenterX: number,
+  containerWidth: number,
+  columnCount: number = LAYOUT_CONSTANTS.COLUMNS
+): number => {
+  'worklet';
+  return Math.floor(
+    swimmerWorldXToColumnFrac(swimmerX, containerCenterX, containerWidth, columnCount)
+  );
 };
 
 export const evaluateCleanCross = (
@@ -28,46 +50,74 @@ export const evaluateCleanCross = (
   tuning: SkillFeedbackTuning
 ): boolean => {
   'worklet';
-  if (isPinned) return false;
   const forgiveness = tuning.cleanCross.adjacentColumnForgiveness;
-  if (isSwimmerColInGap(gaps, swimmerCol, 0)) {
-    return true;
-  }
-  if (
-    tuning.cleanCross.allowForgivingSideScrape &&
-    isSideBlocked &&
-    isSwimmerColInGap(gaps, swimmerCol, forgiveness)
-  ) {
-    return true;
-  }
-  return false;
+  return evaluateCleanCrossStrict(
+    gaps,
+    swimmerCol,
+    isPinned,
+    isSideBlocked,
+    tuning,
+    forgiveness
+  );
+};
+
+export type BuildRowCrossExtras = {
+  ceilingBrush: boolean;
+  colliding: boolean;
+  clearance01: number;
 };
 
 export const buildRowCrossSnapshot = (
   gaps: readonly number[],
   columnCount: number,
   swimmerCol: number,
+  swimmerColFrac: number,
   branchKey: string,
   crossedAtMs: number,
   isPinned: boolean,
   isSideBlocked: boolean,
-  tuning: SkillFeedbackTuning
+  tuning: SkillFeedbackTuning,
+  gates: ResolvedSkillGates,
+  history: readonly RowCrossSnapshot[],
+  extras: BuildRowCrossExtras
 ): RowCrossSnapshot => {
   'worklet';
-  const topology = topologyForSwimmerColumn(gaps, columnCount, swimmerCol);
+  const rawGaps = normalizeGapColumns(gaps, columnCount);
+  const topology = laneClusterTopology(gaps, columnCount, swimmerCol);
+  const contact: RowCrossContact = {
+    sideBlocked: isSideBlocked,
+    ceilingBrush: extras.ceilingBrush,
+    colliding: extras.colliding,
+    pinned: isPinned,
+    clearance01: Math.max(0, Math.min(1, extras.clearance01)),
+  };
+  const cleanCross = evaluateCleanCrossStrict(
+    gaps,
+    swimmerCol,
+    isPinned,
+    isSideBlocked,
+    tuning,
+    tuning.cleanCross.adjacentColumnForgiveness
+  );
+  const crossQualified = evaluateCrossQualified(
+    gaps,
+    swimmerCol,
+    isPinned,
+    isSideBlocked,
+    gates,
+    history,
+    tuning
+  );
   return {
+    rawGaps,
     topology,
     branchKey,
     crossedAtMs,
     swimmerCol,
-    cleanCross: evaluateCleanCross(
-      gaps,
-      columnCount,
-      swimmerCol,
-      isPinned,
-      isSideBlocked,
-      tuning
-    ),
+    swimmerColFrac,
+    cleanCross,
+    contact,
+    crossQualified,
   };
 };
 

@@ -4,7 +4,13 @@ import {
   gapsOverlap,
   type GapTopology,
 } from '@/Game/feedback/gapTopology';
-import type { RowCrossSnapshot, SkillPraiseEvent } from '@/Game/feedback/skillFeedbackTypes';
+import { swimmerColDeltaAbs, swimmerSteerSpanCols } from '@/Game/feedback/gapPathAnalysis';
+import { computeHygiene01 } from '@/Game/feedback/hygieneScoring';
+import type {
+  RowCrossSnapshot,
+  SkillPraiseEvent,
+  StitchSampler,
+} from '@/Game/feedback/skillFeedbackTypes';
 
 export type SnapTransferContext = {
   history: readonly RowCrossSnapshot[];
@@ -14,80 +20,93 @@ export type SnapTransferContext = {
   anchorX: number;
   anchorY: number;
   tuning: SkillFeedbackTuning;
+  stitchSampler: StitchSampler;
 };
 
-const pickSnapTier = (
+const pickSnapTierWithHygiene = (
   tiers: SkillFeedbackTuning['families']['snap_transfer']['tiers'],
   speedNorm: number,
   difficulty01: number,
-  hadPinhole: boolean
+  hadPinhole: boolean,
+  hygiene01: number,
+  tierUpgradeMin: number
 ): { tierIndex: number; tier: (typeof tiers)[number] } | null => {
   'worklet';
-  let best: { tierIndex: number; tier: (typeof tiers)[number] } | null = null;
-  for (let i = 0; i < tiers.length; i++) {
+  if (tiers.length === 0) return null;
+
+  let best: { tierIndex: number; tier: (typeof tiers)[number] } = {
+    tierIndex: 0,
+    tier: tiers[0],
+  };
+
+  for (let i = 1; i < tiers.length; i++) {
     const tier = tiers[i];
     const speedMin = tier.speedMin ?? 0;
     const diffMin = tier.diffMin ?? 0;
     if (speedNorm < speedMin || difficulty01 < diffMin) continue;
     if (tier.requirePinhole && !hadPinhole) continue;
+    if (hygiene01 < tierUpgradeMin) continue;
     best = { tierIndex: i, tier };
   }
-  if (best) return best;
-  if (tiers.length > 0) {
-    return { tierIndex: 0, tier: tiers[0] };
-  }
-  return null;
+
+  return best;
 };
 
 const findPinholeFlareSnap = (
   history: readonly RowCrossSnapshot[],
-  currentTopology: GapTopology,
-  cfg: SkillFeedbackTuning['families']['snap_transfer']
-): { pinhole: GapTopology; flare: GapTopology } | null => {
+  current: RowCrossSnapshot,
+  cfg: SkillFeedbackTuning['families']['snap_transfer'],
+  sampler: StitchSampler
+): { pinhole: GapTopology; flare: GapTopology; pinholeRow: RowCrossSnapshot } | null => {
   'worklet';
+  const currentTopology = current.topology;
   if (!currentTopology.gaps.length) return null;
-  const entries = history.length > 0 ? history : [];
-  const all = entries.concat([
-    {
-      topology: currentTopology,
-      branchKey: '',
-      crossedAtMs: 0,
-      swimmerCol: 0,
-      cleanCross: true,
-    },
-  ]);
+  const all = history.concat([current]);
   if (all.length < 2) return null;
 
-  const current = all[all.length - 1].topology;
+  const currentTopo = all[all.length - 1].topology;
   let flare: GapTopology | null = null;
+  let flareRow: RowCrossSnapshot | null = null;
   let pinhole: GapTopology | null = null;
+  let pinholeRow: RowCrossSnapshot | null = null;
 
   for (let f = all.length - 2; f >= 0; f--) {
     const topo = all[f].topology;
     if (topo.width >= cfg.flareMinWidth) {
       flare = topo;
+      flareRow = all[f];
       break;
     }
   }
-  if (!flare) return null;
+  if (!flare || !flareRow) return null;
 
   for (let p = all.length - 2; p >= 0; p--) {
     const topo = all[p].topology;
     if (topo.width <= cfg.pinholeMaxWidth) {
       if (gapsOverlap(topo.gaps, flare.gaps)) {
         pinhole = topo;
+        pinholeRow = all[p];
         break;
       }
     }
   }
-  if (!pinhole || !flare) return null;
+  if (!pinhole || !pinholeRow) return null;
 
-  const deltaCenter = Math.abs(centerDeltaCols(current, flare));
-  const deltaLeft = Math.abs(current.left - flare.left);
-  const snapDelta = Math.max(deltaCenter, deltaLeft);
-  if (snapDelta < cfg.snapMinCenterDeltaCols) return null;
+  const deltaCenter = Math.abs(centerDeltaCols(currentTopo, flare));
+  const deltaLeft = Math.abs(currentTopo.left - flare.left);
+  const topologySnapDelta = Math.max(deltaCenter, deltaLeft);
+  const swimmerSnapDelta = Math.max(
+    swimmerColDeltaAbs(current, pinholeRow),
+    swimmerSteerSpanCols(sampler)
+  );
+  if (
+    topologySnapDelta < cfg.snapMinCenterDeltaCols ||
+    swimmerSnapDelta < cfg.snapMinCenterDeltaCols
+  ) {
+    return null;
+  }
 
-  return { pinhole, flare };
+  return { pinhole, flare, pinholeRow };
 };
 
 export const detectSnapTransfer = (
@@ -95,16 +114,33 @@ export const detectSnapTransfer = (
 ): SkillPraiseEvent | null => {
   'worklet';
   const cfg = ctx.tuning.families.snap_transfer;
-  if (!cfg.enabled || !ctx.current.cleanCross) return null;
+  if (!cfg.enabled) return null;
+  if (ctx.current.contact.pinned || !ctx.current.crossQualified) return null;
 
-  const match = findPinholeFlareSnap(ctx.history, ctx.current.topology, cfg);
+  const match = findPinholeFlareSnap(
+    ctx.history,
+    ctx.current,
+    cfg,
+    ctx.stitchSampler
+  );
   if (!match) return null;
 
-  const picked = pickSnapTier(
+  const lookback = cfg.lookbackUniqueRows + 1;
+  const hygiene01 = computeHygiene01(
+    ctx.history.concat([ctx.current]),
+    lookback,
+    ctx.stitchSampler,
+    ctx.tuning
+  );
+  const tierUpgradeMin = ctx.tuning.hygiene.tierUpgradeMin;
+
+  const picked = pickSnapTierWithHygiene(
     cfg.tiers,
     ctx.speedNorm,
     ctx.difficulty01,
-    true
+    true,
+    hygiene01,
+    tierUpgradeMin
   );
   if (!picked) return null;
 
@@ -118,5 +154,6 @@ export const detectSnapTransfer = (
     priority: cfg.priority,
     anchorX: ctx.anchorX,
     anchorY: ctx.anchorY,
+    hygiene01,
   };
 };

@@ -18,10 +18,16 @@ export type SteerPatternTuning = {
   enabled: boolean;
   priority: number;
   minCenterDeltaCols?: number;
+  /** Zig-zag: consecutive same-sign geometry steps before break. */
+  minRunLength?: number;
+  /** @deprecated Use minRunLength */
   minChainLength?: number;
+  breakMinDelta?: number;
   minNetCenterDelta?: number;
+  minRowSpan?: number;
   maxLookbackRows?: number;
   maxGapWidth?: number;
+  chicaneShiftMin?: number;
   branchKeyContains?: string;
   tiers: SkillTierGate[];
 };
@@ -30,6 +36,44 @@ export const skillFeedbackTuning = {
   ENABLED: true,
   HISTORY_BUFFER_SIZE: 8,
   SKIP_STEER_ON_IDENTICAL_GAPS: true,
+
+  pathGates: {
+    /** Ignore gap-center steps smaller than this (column units). */
+    minStepDelta: 0.5,
+    /** Suppress shift_commit / cross_sweep when both lanes are at least this wide. */
+    wideOpenLaneWidth: 6,
+  },
+
+  /** Difficulty-scaled survival praise gates (Wave 2). */
+  survivalRamp: {
+    adjacentForgivenessEasy: 0,
+    adjacentForgivenessHard: 2,
+    forgiveWithoutSideBlockAboveDiff: 0.55,
+    zigzagBreakMinDeltaEasy: 2,
+    zigzagBreakMinDeltaHard: 1,
+    surfMinNetDeltaEasy: 4,
+    surfMinNetDeltaHard: 3,
+    surfMinRowSpanEasy: 3,
+    surfMinRowSpanHard: 2,
+    minStepDeltaEasy: 0.5,
+    minStepDeltaHard: 0.25,
+    steerCooldownMsEasy: 500,
+    steerCooldownMsHard: 250,
+    maxDirtyRowsInWindowEasy: 0,
+    maxDirtyRowsInWindowHard: 2,
+    /** Min horizontal travel (column units) to count as player steer — lower at high speed/diff. */
+    swimmerSteerMinSpanEasy: 1,
+    swimmerSteerMinSpanHard: 0.72,
+  },
+
+  hygiene: {
+    tierUpgradeMin: 0.72,
+    sideBlockedPenalty: 0.08,
+    ceilingBrushPenalty: 0.06,
+    collidingPenalty: 0.05,
+    pinnedInWindowDisqualify: true,
+    bonusHygieneWeight: 0.25,
+  },
 
   families: {
     snap_transfer: {
@@ -81,7 +125,7 @@ export const skillFeedbackTuning = {
       enabled: true,
       priority: 60,
       cooldownMs: 500,
-      maxPerRun: 30,
+      maxPerRun: Number.POSITIVE_INFINITY,
       patterns: {
         shift_commit: {
           momentId: 'shift_commit',
@@ -97,7 +141,8 @@ export const skillFeedbackTuning = {
           momentId: 'zigzag_chain',
           enabled: true,
           priority: 70,
-          minChainLength: 3,
+          minRunLength: 3,
+          breakMinDelta: 2,
           tiers: [
             { copy: 'ZIG-ZAG!', bonusMin: 12, bonusMax: 22 },
             {
@@ -113,7 +158,7 @@ export const skillFeedbackTuning = {
           momentId: 'slalom_block',
           enabled: true,
           priority: 65,
-          minChainLength: 3,
+          chicaneShiftMin: 2,
           branchKeyContains: 'chicane',
           tiers: [
             { copy: 'SLALOM!', bonusMin: 12, bonusMax: 24 },
@@ -130,10 +175,11 @@ export const skillFeedbackTuning = {
           momentId: 'cross_sweep',
           enabled: true,
           priority: 55,
+          minRowSpan: 3,
           minNetCenterDelta: 4,
           maxLookbackRows: 6,
           tiers: [
-            { copy: 'SWEEP!', bonusMin: 14, bonusMax: 26 },
+            { copy: 'SURFING!', bonusMin: 14, bonusMax: 26 },
             {
               copy: 'MAJESTIC!',
               speedMin: 0.6,

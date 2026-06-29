@@ -8,7 +8,7 @@ export const appendRowCrossSnapshot = (
 ): RowCrossSnapshot[] => {
   'worklet';
   const last = history.length > 0 ? history[history.length - 1] : undefined;
-  if (last && gapsEqual(last.topology.gaps, snapshot.topology.gaps)) {
+  if (last && gapsEqual(last.rawGaps, snapshot.rawGaps)) {
     return history;
   }
   const next = history.concat([snapshot]);
@@ -18,23 +18,26 @@ export const appendRowCrossSnapshot = (
   return next.slice(next.length - maxSize);
 };
 
-export const lastHistoryTopology = (
+export const lastHistorySnapshot = (
   history: readonly RowCrossSnapshot[]
 ): RowCrossSnapshot | undefined => {
   'worklet';
   return history.length > 0 ? history[history.length - 1] : undefined;
 };
 
+/** @deprecated Use lastHistorySnapshot */
+export const lastHistoryTopology = lastHistorySnapshot;
+
 export const shouldSkipSteerOnIdenticalGaps = (
   history: readonly RowCrossSnapshot[],
-  currentGaps: readonly number[],
+  currentRawGaps: readonly number[],
   skipEnabled: boolean
 ): boolean => {
   'worklet';
   if (!skipEnabled) return false;
-  const last = lastHistoryTopology(history);
+  const last = lastHistorySnapshot(history);
   if (!last) return false;
-  return gapsEqual(last.topology.gaps, currentGaps);
+  return gapsEqual(last.rawGaps, currentRawGaps);
 };
 
 export const recentPinholeInHistory = (

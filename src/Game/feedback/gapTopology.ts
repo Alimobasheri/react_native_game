@@ -60,22 +60,9 @@ export const topologyFromGaps = (
   return { gaps: normalized, width, center, left, right };
 };
 
-/** Cluster containing swimmer column for multipath rows. */
-export const topologyForSwimmerColumn = (
-  gaps: readonly number[],
-  columnCount: number,
-  swimmerCol: number
-): GapTopology => {
+const contiguousGapRuns = (normalized: readonly number[]): number[][] => {
   'worklet';
-  const normalized = normalizeGapColumns(gaps, columnCount);
-  if (normalized.length === 0) {
-    return topologyFromGaps(gaps, columnCount);
-  }
-  if (normalized.includes(swimmerCol)) {
-    return topologyFromGaps([swimmerCol], columnCount);
-  }
-  let bestCluster: number[] = normalized;
-  let bestDist = Number.POSITIVE_INFINITY;
+  if (normalized.length === 0) return [];
   const runs: number[][] = [];
   let run: number[] = [normalized[0]];
   for (let i = 1; i < normalized.length; i++) {
@@ -87,6 +74,34 @@ export const topologyForSwimmerColumn = (
     }
   }
   runs.push(run);
+  return runs;
+};
+
+/**
+ * Lane cluster topology for path-based skill praise.
+ * Returns the full contiguous gap cluster the swimmer is in (or nearest cluster if outside).
+ */
+export const laneClusterTopology = (
+  gaps: readonly number[],
+  columnCount: number,
+  swimmerCol: number
+): GapTopology => {
+  'worklet';
+  const normalized = normalizeGapColumns(gaps, columnCount);
+  if (normalized.length === 0) {
+    return topologyFromGaps(gaps, columnCount);
+  }
+
+  const runs = contiguousGapRuns(normalized);
+  for (let r = 0; r < runs.length; r++) {
+    const cluster = runs[r];
+    if (cluster.includes(swimmerCol)) {
+      return topologyFromGaps(cluster, columnCount);
+    }
+  }
+
+  let bestCluster: number[] = runs[0];
+  let bestDist = Number.POSITIVE_INFINITY;
   for (let r = 0; r < runs.length; r++) {
     const cluster = runs[r];
     const clusterCenter = (cluster[0] + cluster[cluster.length - 1]) / 2;
@@ -98,6 +113,9 @@ export const topologyForSwimmerColumn = (
   }
   return topologyFromGaps(bestCluster, columnCount);
 };
+
+/** @deprecated Use laneClusterTopology — kept for imports during migration. */
+export const topologyForSwimmerColumn = laneClusterTopology;
 
 export const isSwimmerColInGap = (
   gaps: readonly number[],

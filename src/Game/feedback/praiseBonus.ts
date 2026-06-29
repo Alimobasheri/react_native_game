@@ -20,7 +20,8 @@ export const computePraiseBonus = (
   raisingSpeed: number,
   difficulty01: number,
   tuning: SkillFeedbackTuning,
-  roll01: number
+  roll01: number,
+  hygiene01: number = 1
 ): number => {
   'worklet';
   if (event.bonusMax <= 0 && event.bonusMin <= 0) return 0;
@@ -32,12 +33,14 @@ export const computePraiseBonus = (
     raisingSpeed / Math.max(1, tuning.speedNormMax)
   );
   const diff = Math.max(0, Math.min(1, difficulty01));
+  const hygiene = Math.max(0, Math.min(1, hygiene01));
 
   const mult =
     1 +
     tightness * tuning.bonus.clearanceWeight +
     speedNorm * tuning.bonus.speedWeight +
-    diff * tuning.bonus.difficultyWeight;
+    diff * tuning.bonus.difficultyWeight +
+    hygiene * tuning.hygiene.bonusHygieneWeight;
 
   return Math.max(0, Math.round(base * mult));
 };

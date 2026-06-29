@@ -2,7 +2,7 @@ import {
   centerDeltaCols,
   gapsEqual,
   gapsOverlap,
-  topologyForSwimmerColumn,
+  laneClusterTopology,
   topologyFromGaps,
 } from '../gapTopology';
 
@@ -56,14 +56,24 @@ describe('gapsEqual', () => {
   });
 });
 
-describe('topologyForSwimmerColumn', () => {
+describe('laneClusterTopology', () => {
   it('picks cluster nearest swimmer on paradox fork when outside gap', () => {
-    const t = topologyForSwimmerColumn([1, 5, 6, 7], COLS, 4);
+    const t = laneClusterTopology([1, 5, 6, 7], COLS, 4);
     expect(t.gaps).toEqual([5, 6, 7]);
   });
 
-  it('uses swimmer column when inside gap', () => {
-    const t = topologyForSwimmerColumn([1, 5, 6, 7], COLS, 6);
-    expect(t.gaps).toEqual([6]);
+  it('returns full cluster when swimmer is inside gap', () => {
+    const t = laneClusterTopology([1, 5, 6, 7], COLS, 6);
+    expect(t.gaps).toEqual([5, 6, 7]);
+    expect(t.width).toBe(3);
+    expect(t.center).toBe(6);
+  });
+
+  it('keeps stable center when swimmer moves within wide chute', () => {
+    const wide = [2, 3, 4, 5, 6];
+    const left = laneClusterTopology(wide, COLS, 2);
+    const right = laneClusterTopology(wide, COLS, 5);
+    expect(left.center).toBe(right.center);
+    expect(left.gaps).toEqual(wide);
   });
 });

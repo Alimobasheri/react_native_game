@@ -57,6 +57,11 @@ import { updateTapCoachDetection } from '@/Game/feedback/tapCoachDetection';
 import { computePraiseBonus } from '@/Game/feedback/praiseBonus';
 import { routeSkillPraiseEvents } from '@/Game/feedback/praiseRouter';
 import {
+  resetContactWindow,
+  updateContactWindow,
+} from '@/Game/feedback/hygieneScoring';
+import { resolveSkillGates } from '@/Game/feedback/skillSurvivalGates';
+import {
   deterministicRoll01,
   emitPraiseToSlots,
 } from '@/Game/feedback/praiseEmitter';
@@ -68,6 +73,7 @@ import {
   buildRowCrossSnapshot,
   normalizeSpeed01,
   swimmerWorldXToColumn,
+  swimmerWorldXToColumnFrac,
 } from '@/Game/feedback/rowCrossEval';
 import { GAMEPLAY_FLASH_COLORS } from '@/Game/feedback/gameplayFeedbackVisuals';
 import { layoutGameplayFeedback } from '@/Game/ui/gameplayFeedbackLayout';
@@ -151,6 +157,29 @@ export const GameplayFeedbackSystem: System = {
 
       const candidates: SkillPraiseEvent[] = [];
 
+      skillFeedback = {
+        ...skillFeedback,
+        contactWindow: updateContactWindow(skillFeedback.contactWindow, {
+          sideBlocked: swimmerData.isSideBlocked === true,
+          ceilingBrush: swimmerData.ceilingBrushThisFrame === true,
+          colliding: swimmerData.isCollidingWithObstacle === true,
+          pinned: swimmerData.isPinnedFromAbove === true,
+          clearance01,
+          swimmerColFrac: swimmerWorldXToColumnFrac(
+            swimmerData.x,
+            swimmerData.containerCenterX,
+            swimmerData.containerWidth,
+            columnCount
+          ),
+        }),
+      };
+
+      const gates = resolveSkillGates(
+        difficulty01,
+        speedNorm,
+        skillFeedbackTuning
+      );
+
       const tapResult = updateTapCoachDetection({
         isPinned: swimmerData.isPinnedFromAbove === true,
         swimmerX: swimmerData.x,
@@ -206,20 +235,34 @@ export const GameplayFeedbackSystem: System = {
             swimmerData.containerWidth,
             columnCount
           );
+          const swimmerColFrac = swimmerWorldXToColumnFrac(
+            swimmerData.x,
+            swimmerData.containerCenterX,
+            swimmerData.containerWidth,
+            columnCount
+          );
           const snapshot = buildRowCrossSnapshot(
             rowData.gaps,
             columnCount,
             swimmerCol,
+            swimmerColFrac,
             rowData.spawnDiagBranchKey ?? '',
             nowMs,
             swimmerData.isPinnedFromAbove === true,
             swimmerData.isSideBlocked === true,
-            skillFeedbackTuning
+            skillFeedbackTuning,
+            gates,
+            skillFeedback.rowHistory,
+            {
+              ceilingBrush: swimmerData.ceilingBrushThisFrame === true,
+              colliding: swimmerData.isCollidingWithObstacle === true,
+              clearance01,
+            }
           );
 
           const skipSteer = shouldSkipSteerOnIdenticalGaps(
             skillFeedback.rowHistory,
-            snapshot.topology.gaps,
+            snapshot.rawGaps,
             skillFeedbackTuning.SKIP_STEER_ON_IDENTICAL_GAPS
           );
 
@@ -232,6 +275,7 @@ export const GameplayFeedbackSystem: System = {
               anchorX,
               anchorY,
               tuning: skillFeedbackTuning,
+              stitchSampler: skillFeedback.contactWindow.stitchSampler,
             });
             if (snapEvent) {
               candidates.push(snapEvent);
@@ -245,20 +289,22 @@ export const GameplayFeedbackSystem: System = {
               anchorX,
               anchorY,
               tuning: skillFeedbackTuning,
+              stitchSampler: skillFeedback.contactWindow.stitchSampler,
+              gates,
             });
             if (steerEvent) {
               candidates.push(steerEvent);
             }
-
-            skillFeedback = {
-              ...skillFeedback,
-              rowHistory: appendRowCrossSnapshot(
-                skillFeedback.rowHistory,
-                snapshot,
-                skillFeedbackTuning.HISTORY_BUFFER_SIZE
-              ),
-            };
           }
+
+          skillFeedback = {
+            ...skillFeedback,
+            rowHistory: appendRowCrossSnapshot(
+              skillFeedback.rowHistory,
+              snapshot,
+              skillFeedbackTuning.HISTORY_BUFFER_SIZE
+            ),
+          };
 
           skillFeedback = {
             ...skillFeedback,
@@ -272,8 +318,21 @@ export const GameplayFeedbackSystem: System = {
         state: skillFeedback,
         nowMs,
         tuning: skillFeedbackTuning,
+        steerCooldownMsOverride: gates.steerCooldownMs,
       });
       skillFeedback = routed.state;
+
+      if (
+        routed.events.some(
+          (e) =>
+            e.familyId === 'steer_clean' || e.familyId === 'snap_transfer'
+        )
+      ) {
+        skillFeedback = {
+          ...skillFeedback,
+          contactWindow: resetContactWindow(),
+        };
+      }
 
       if (routed.events.length > 0) {
         const bonuses: number[] = [];
@@ -289,7 +348,8 @@ export const GameplayFeedbackSystem: System = {
             raisingSpeed,
             difficulty01,
             skillFeedbackTuning,
-            roll
+            roll,
+            event.hygiene01 ?? 1
           );
           bonuses.push(bonus);
           totalBonus += bonus;

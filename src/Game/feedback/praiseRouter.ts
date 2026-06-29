@@ -6,11 +6,14 @@ export type RouterContext = {
   state: SkillFeedbackState;
   nowMs: number;
   tuning: SkillFeedbackTuning;
+  /** Wave 2: difficulty-scaled steer cooldown override. */
+  steerCooldownMsOverride?: number;
 };
 
 const familyCooldownMs = (
   familyId: SkillFamilyId,
-  tuning: SkillFeedbackTuning
+  tuning: SkillFeedbackTuning,
+  steerCooldownMsOverride?: number
 ): number => {
   'worklet';
   switch (familyId) {
@@ -19,7 +22,7 @@ const familyCooldownMs = (
     case 'ceiling_dodge':
       return tuning.families.ceiling_dodge.cooldownMs;
     case 'steer_clean':
-      return tuning.families.steer_clean.cooldownMs;
+      return steerCooldownMsOverride ?? tuning.families.steer_clean.cooldownMs;
     case 'pin_coach':
       return tuning.families.pin_coach.savedCooldownMs;
     default:
@@ -50,12 +53,16 @@ const isFamilyOnCooldown = (
   familyId: SkillFamilyId,
   state: SkillFeedbackState,
   nowMs: number,
-  tuning: SkillFeedbackTuning
+  tuning: SkillFeedbackTuning,
+  steerCooldownMsOverride?: number
 ): boolean => {
   'worklet';
   const last = state.familyCooldowns[familyId] ?? 0;
   if (last <= 0) return false;
-  return nowMs - last < familyCooldownMs(familyId, tuning);
+  return (
+    nowMs - last <
+    familyCooldownMs(familyId, tuning, steerCooldownMsOverride)
+  );
 };
 
 const isFamilyCapped = (
@@ -94,7 +101,13 @@ export const routeSkillPraiseEvents = (
     if (isFamilyCapped(c.familyId, ctx.state, ctx.tuning)) continue;
     if (
       c.momentId !== 'pin_saved' &&
-      isFamilyOnCooldown(c.familyId, ctx.state, ctx.nowMs, ctx.tuning)
+      isFamilyOnCooldown(
+        c.familyId,
+        ctx.state,
+        ctx.nowMs,
+        ctx.tuning,
+        ctx.steerCooldownMsOverride
+      )
     ) {
       continue;
     }
