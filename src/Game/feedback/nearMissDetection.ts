@@ -68,15 +68,21 @@ export const updateNearMissState = (
   };
 };
 
-export const pickNearMissCopy = (
-  roll01: number,
-  niceWeight: number,
+export const pickNearMissCopyByClearance = (
+  clearance01: number,
+  closeMax: number,
+  niceMax: number,
   closeCopy: string,
   niceCopy: string
 ): string => {
   'worklet';
-  const w = Math.max(0, Math.min(1, niceWeight));
-  return roll01 < w ? niceCopy : closeCopy;
+  if (clearance01 < closeMax) {
+    return closeCopy;
+  }
+  if (clearance01 < niceMax) {
+    return niceCopy;
+  }
+  return closeCopy;
 };
 
 export const rollNearMissBonus = (

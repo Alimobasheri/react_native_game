@@ -24,6 +24,8 @@
 
 ## Not done
 
+**→ Full Layer A redesign (CLOSE/NICE, TAP/SAVED, GREAT/PERFECT, paddle): see [player-experience-roadmap.md §15](../../game-design/player-experience-roadmap.md#15-layer-a-skill-feedback--full-implementation-handoff)**
+
 **A. TAP / SAVED! coaching**  
 - Symptom: no `TAP` flashes or `SAVED!` on ceiling escape  
 - Files: extend `GameplayFeedbackSystem` or new `tapCoachDetection.ts`; pin + cramped state from `Swimmer.isPinnedFromAbove`, `clearance01`  

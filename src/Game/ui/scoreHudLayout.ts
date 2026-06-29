@@ -1,5 +1,6 @@
 import { refRect, refSize, type SafeAreaInsets } from '@/Game/ui/refLayout';
 import { SWIMMER_UI_ASPECT } from '@/assets/swimmerUi';
+import { scoreHudTuning } from '@/config/scoreHudTuning';
 
 export type ScoreHudLayoutBox = {
   x: number;
@@ -34,11 +35,6 @@ export const SCORE_HUD_REF = {
   newBestFont: 30,
   newBestOffsetY: -12,
   newBestHeight: 36,
-  comboBadgeWidth: 72,
-  comboBadgeHeight: 40,
-  comboBadgeFont: 34,
-  comboBadgeOffsetX: -8,
-  comboBadgeOffsetY: 4,
 } as const;
 
 export type ScoreHudLayout = {
@@ -49,6 +45,7 @@ export type ScoreHudLayout = {
   bestValue: ScoreHudLayoutBox;
   newBest: ScoreHudLayoutBox;
   comboBadge: ScoreHudLayoutBox;
+  comboStreakLabel: ScoreHudLayoutBox;
   borderRadius: number;
   fonts: {
     value: number;
@@ -56,6 +53,7 @@ export type ScoreHudLayout = {
     bestValue: number;
     newBest: number;
     comboBadge: number;
+    comboStreakLabel: number;
   };
 };
 
@@ -130,13 +128,24 @@ export function layoutScoreHud(
     refSize(SCORE_HUD_REF.newBestHeight, screenW, screenH)
   );
 
-  const comboW = refSize(SCORE_HUD_REF.comboBadgeWidth, screenW, screenH);
-  const comboH = refSize(SCORE_HUD_REF.comboBadgeHeight, screenW, screenH);
+  const comboW = refSize(scoreHudTuning.COMBO_BADGE_WIDTH, screenW, screenH);
+  const comboH = refSize(scoreHudTuning.COMBO_BADGE_HEIGHT, screenW, screenH);
+  const comboGap = refSize(scoreHudTuning.COMBO_PANEL_GAP, screenW, screenH);
   const comboBadge = box(
-    value.x + value.width - comboW + SCORE_HUD_REF.comboBadgeOffsetX * s,
-    value.y + SCORE_HUD_REF.comboBadgeOffsetY * s,
+    panel.x + panel.width + comboGap,
+    value.y,
     comboW,
     comboH
+  );
+
+  const streakGap = refSize(scoreHudTuning.COMBO_STREAK_LABEL_GAP, screenW, screenH);
+  const streakH = refSize(scoreHudTuning.COMBO_STREAK_LABEL_HEIGHT, screenW, screenH);
+  const streakW = refSize(scoreHudTuning.COMBO_STREAK_LABEL_WIDTH, screenW, screenH);
+  const comboStreakLabel = box(
+    comboBadge.centerX - streakW / 2,
+    comboBadge.y + comboH + streakGap,
+    streakW,
+    streakH
   );
 
   return {
@@ -147,13 +156,19 @@ export function layoutScoreHud(
     bestValue,
     newBest,
     comboBadge,
+    comboStreakLabel,
     borderRadius: refSize(SCORE_HUD_REF.panelBorderRadius, screenW, screenH),
     fonts: {
       value: refSize(SCORE_HUD_REF.scoreFont, screenW, screenH),
       bestLabel: refSize(SCORE_HUD_REF.bestLabelFont, screenW, screenH),
       bestValue: refSize(SCORE_HUD_REF.bestValueFont, screenW, screenH),
       newBest: refSize(SCORE_HUD_REF.newBestFont, screenW, screenH),
-      comboBadge: refSize(SCORE_HUD_REF.comboBadgeFont, screenW, screenH),
+      comboBadge: refSize(scoreHudTuning.COMBO_BADGE_FONT, screenW, screenH),
+      comboStreakLabel: refSize(
+        scoreHudTuning.COMBO_STREAK_LABEL_FONT,
+        screenW,
+        screenH
+      ),
     },
   };
 }

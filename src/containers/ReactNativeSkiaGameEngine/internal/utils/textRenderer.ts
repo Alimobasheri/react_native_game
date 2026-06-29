@@ -3,19 +3,35 @@ import {
   SkParagraphStyle,
   SkTextStyle,
   SkTypeface,
-  FontStyle,
-  SkFont,
   SkTypefaceFontProvider,
   SkCanvas,
+  SkParagraph,
 } from '@shopify/react-native-skia';
-import { TextComponentData } from '../components/text';
+import {
+  TextComponentData,
+  TextShadowData,
+} from '../components/text';
 import { Entity } from '../../services-ecs/entity';
 import { RenderComponentData } from '../components/render';
 
+export const textShadowBleedPadding = (shadow?: TextShadowData): number => {
+  'worklet';
+  if (!shadow) {
+    return 0;
+  }
+  return (
+    shadow.blur * 3 +
+    Math.abs(shadow.dx ?? 0) +
+    Math.abs(shadow.dy ?? 0)
+  );
+};
+
 function shallowTextPropsHash(tc: TextComponentData) {
   'worklet';
-  // hashed string to decide invalidation
-  // include everything that affects layout/appearance
+  const shadow = tc.textShadow;
+  const shadowKey = shadow
+    ? `${shadow.dx ?? 0}|${shadow.dy ?? 0}|${shadow.blur}|${shadow.color}|${shadow.shadowOnly ?? true}`
+    : '';
   return [
     tc.text,
     tc.fontAssetId,
@@ -29,27 +45,8 @@ function shallowTextPropsHash(tc: TextComponentData) {
     tc.strokeColor,
     tc.strokeWidth,
     tc.locale,
+    shadowKey,
   ].join('|');
-}
-
-/**
- * Imperatively creates and registers a typeface to be used by ParagraphBuilder.
- */
-function createAndRegisterFontMgr(
-  typeface: SkTypeface,
-  familyName: string
-): SkTypefaceFontProvider {
-  'worklet';
-
-  // Create the Font Provider (this type should expose registration methods)
-  const fontMgr = Skia.TypefaceFontProvider.Make();
-
-  // Use 'registerFont' instead of 'registerTypeface' as the more robust/common alternative
-  // The official API often prefers "registerFont" when working with TypefaceFontProvider
-  // The first argument is the typeface, the second is the family name string.
-  fontMgr.registerFont(typeface, familyName);
-
-  return fontMgr;
 }
 
 /**
@@ -72,20 +69,15 @@ export function resolveTypeface(fontAssetId?: string): SkTypeface | undefined {
 export function buildParagraphForText(textComponent: TextComponentData) {
   'worklet';
   const {
-    text,
     fontAssetId,
     fontSize,
     color,
     align,
-    maxWidth,
     lineHeight,
     letterSpacing,
-    locale,
     decoration,
-    wrap,
   } = textComponent;
 
-  // Typeface
   const typeface = resolveTypeface(fontAssetId);
   if (!typeface) {
     console.warn('Typeface not resolved for ID:', textComponent.fontAssetId);
@@ -93,10 +85,7 @@ export function buildParagraphForText(textComponent: TextComponentData) {
   }
 
   const fontFamilyName = textComponent.fontAssetId;
-
-  // --- 1. Create and Register FontMgr (Imperative) ---
   const fontMgr = Skia.TypefaceFontProvider.Make();
-  // Use registerFont to register the typeface with the unique family name
   fontMgr.registerFont(typeface, fontFamilyName);
 
   const SkparagraphStyle: SkParagraphStyle = {
@@ -104,7 +93,6 @@ export function buildParagraphForText(textComponent: TextComponentData) {
     ellipsis: textComponent.ellipsis || '...',
   };
 
-  // SkTextStyle
   const SktextStyle: SkTextStyle = {
     fontFamilies: [fontFamilyName],
     fontSize: fontSize,
@@ -118,46 +106,77 @@ export function buildParagraphForText(textComponent: TextComponentData) {
   }
 
   const builder = Skia.ParagraphBuilder.Make(SkparagraphStyle, fontMgr);
-
   builder.pushStyle(SktextStyle);
   builder.addText(textComponent.text || '');
 
   const paragraph = builder.build();
-
-  // 2. Compute Layout on the SKParagraph object
   const layoutWidth = textComponent.maxWidth || Number.MAX_SAFE_INTEGER;
-  paragraph.layout(layoutWidth); // <- 'layout' called on the paragraph object
+  paragraph.layout(layoutWidth);
 
-  // 3. Get Dimensions from the SKParagraph object
-  const width = paragraph.getMaxIntrinsicWidth(); // <- 'getMaxIntrinsicWidth' called on the paragraph object
-  const height = paragraph.getHeight();
-
-  // 4. Return Results
   return {
     paragraph,
     width: paragraph.getMaxIntrinsicWidth(),
     height: paragraph.getHeight(),
   };
-}
+};
+
+export const paintParagraphAt = (
+  canvas: SkCanvas,
+  paragraph: SkParagraph,
+  x: number,
+  y: number,
+  textShadow?: TextShadowData
+): void => {
+  'worklet';
+  if (!textShadow) {
+    paragraph.paint(canvas, x, y);
+    return;
+  }
+
+  const dx = textShadow.dx ?? 0;
+  const dy = textShadow.dy ?? 0;
+  const sigma = textShadow.blur;
+  const shadowColor = Skia.Color(textShadow.color);
+  const shadowOnly = textShadow.shadowOnly !== false;
+
+  const shadowPaint = Skia.Paint();
+  shadowPaint.setAntiAlias(true);
+  shadowPaint.setImageFilter(
+    Skia.ImageFilter.MakeDropShadowOnly(
+      dx,
+      dy,
+      sigma,
+      sigma,
+      shadowColor,
+      null
+    )
+  );
+
+  canvas.save();
+  canvas.translate(x, y);
+  canvas.saveLayer(shadowPaint);
+  paragraph.paint(canvas, 0, 0);
+  canvas.restore();
+  if (shadowOnly) {
+    paragraph.paint(canvas, 0, 0);
+  }
+  canvas.restore();
+};
 
 /**
  * Render text for entity into the canvas (Skia Canvas).
- *
- * canvas: the render context the renderSystem provides (Skia Canvas or draw context).
- * entityId: entity identifier
- * renderComponent: the RenderComponent for transform info
- * textComponent: the TextComponent
  */
 export function renderTextForEntity(
   canvas: SkCanvas,
   entityId: Entity,
   renderComponent: RenderComponentData,
-  textComponent: TextComponentData
+  textComponent: TextComponentData,
+  originX = 0,
+  originY = 0
 ) {
   'worklet';
   if (!textComponent || !renderComponent || !canvas) return;
 
-  // Prepare cache entry
   const cache = (global._RNTGE_.textCache = global._RNTGE_.textCache || {});
   const key = entityId;
 
@@ -181,7 +200,13 @@ export function renderTextForEntity(
         lastHash: newHash,
       };
       textComponent.isDirty = false;
-      built.paragraph.paint(canvas, 0, 0);
+      paintParagraphAt(
+        canvas,
+        built.paragraph,
+        originX,
+        originY,
+        textComponent.textShadow
+      );
       return cache[key];
     } catch (e) {
       console.warn(
@@ -191,9 +216,14 @@ export function renderTextForEntity(
       );
       return null;
     }
-  } else {
-    // Use cached paragraph
-    paragraphEntry.paragraph.paint(canvas, 0, 0);
-    return paragraphEntry;
   }
+
+  paintParagraphAt(
+    canvas,
+    paragraphEntry.paragraph,
+    originX,
+    originY,
+    textComponent.textShadow
+  );
+  return paragraphEntry;
 }

@@ -826,6 +826,10 @@ export const renderSystem: System = {
       for (let i = 0; i < renderQueue.length; i++) {
         const entity = renderQueue[i].entity;
         const renderData = renderQueue[i].renderData as RenderComponentData;
+        const textComponent = components[TextComponentName]?.get(entity) as
+          | TextComponentData
+          | undefined;
+        const textDirty = textComponent?.isDirty === true;
 
         const body: IBodyDefinition | undefined =
           components[MatterBodyComponentName]?.get(entity);
@@ -901,7 +905,7 @@ export const renderSystem: System = {
           } else {
             let entityPicture = pictureCache[entity] as SkPicture;
 
-            if (renderData.isDirty || !entityPicture || hasSpriteAnimation) {
+            if (renderData.isDirty || !entityPicture || hasSpriteAnimation || textDirty) {
               const newEntityPicture = createAndCacheEntityPicture(
                 components,
                 entity

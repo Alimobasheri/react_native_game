@@ -37,7 +37,7 @@ import {
 } from '@/Game/feedback/feedbackFlashAnim';
 import {
   createDefaultNearMissState,
-  pickNearMissCopy,
+  pickNearMissCopyByClearance,
   rollNearMissBonus,
   updateNearMissState,
 } from '@/Game/feedback/nearMissDetection';
@@ -157,11 +157,11 @@ export const GameplayFeedbackSystem: System = {
         const anchorY = swimmerData.y - layout.anchorAboveSwimmerPx;
         const rollSeed =
           nowMs * 0.001 + clearance01 * 100 + nearMiss.firesThisRun;
-        const rollA = deterministicRoll01(rollSeed);
         const rollB = deterministicRoll01(rollSeed + 17.31);
-        const word = pickNearMissCopy(
-          rollA,
-          gameplayFeedbackTuning.NICE_ALT_WEIGHT,
+        const word = pickNearMissCopyByClearance(
+          clearance01,
+          gameplayFeedbackTuning.CLOSE_CLEARANCE_BAND_MAX,
+          gameplayFeedbackTuning.NEAR_PIN_CLEARANCE01,
           gameplayFeedbackCopy.NEAR_MISS,
           gameplayFeedbackCopy.NEAR_MISS_ALT
         );
@@ -280,7 +280,7 @@ export const GameplayFeedbackSystem: System = {
         r.shape = { type: ShapeTypes.Circle, radius };
         r.fillColor = GAMEPLAY_FLASH_COLORS.sparkFill;
         r.strokeColor = GAMEPLAY_FLASH_COLORS.sparkStroke;
-        r.lineWidth = 2;
+        r.lineWidth = gameplayFeedbackTuning.SPARK_STROKE_WIDTH;
       }
       if (r.shape.type === ShapeTypes.Rectangle) {
         r.shape = {

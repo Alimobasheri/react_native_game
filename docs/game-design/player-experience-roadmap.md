@@ -261,18 +261,21 @@ Not hidden collectibles — props in wall parallax as player rises:
 
 ### Gameplay flashes (Layer A)
 
-| Key | Copy | When |
-|-----|------|------|
-| `near_miss` | CLOSE! | Tight clearance |
-| `near_miss_alt` | NICE! | rotate 30% |
-| `tap_coach` | TAP | Each flash under ceiling pin |
-| `tap_saved` | SAVED! | Escaped pin |
-| `rest_enter` | GREAT! | Rest corridor mid |
-| `rest_perfect` | PERFECT! | All corridor coins |
-| `combo_2` | ×2 | HUD badge |
-| `combo_3` | ×3 | HUD badge |
-| `paddle_hit` | +100 | Pinball zip |
-| `new_best` | NEW BEST! | Already on HUD — keep |
+| Key | Copy | When | Status |
+|-----|------|------|--------|
+| `near_miss` | CLOSE! | Tight gap thread / scrape | **Interim** — clearance band; redesign §15 Wave 1 |
+| `near_miss_alt` | NICE! | Good steer, softer near-pin | **Interim** — clearance band; redesign §15 Wave 1 |
+| `tap_coach` | TAP | Each flash under ceiling pin | **Not shipped** — §15 Wave 1 |
+| `tap_saved` | SAVED! | Escaped pin | **Not shipped** — §15 Wave 1 |
+| `rest_enter` | GREAT! | Rest corridor mid | **Not shipped** — §15 Wave 3 (Phase 2) |
+| `rest_perfect` | PERFECT! | All corridor coins | **Not shipped** — §15 Wave 3 (Phase 2) |
+| `combo_2` | ×2 | HUD badge — tap streak | **Shipped** (tap-tier); clean-gap §15 Wave 2 |
+| `combo_3` | ×3 | HUD badge — tap streak | **Shipped** (tap-tier); clean-gap §15 Wave 2 |
+| `paddle_hit` | +100 | Pinball zip | **Not shipped** — §15 Wave 4 (Phase 6) |
+| `new_best` | NEW BEST! | Beat personal best | **Shipped** (`ScoreHudSystem`) |
+| _(bonus flyout)_ | +N | Near-miss bonus | **Shipped** (`GameplayFeedbackSystem`) |
+
+Trigger definitions for all Layer A copy: **[§15](#15-layer-a-skill-feedback--full-implementation-handoff)**.
 
 ### Game over / meta
 
@@ -338,10 +341,10 @@ P0 Audit ──► P1 Skill juice ──► P2 Rest + coins ──► P3 World m
 
 **Ship on device:**
 
-- [x] `CLOSE!` / `NICE!` on near-pin (clearance threshold tune from `NEAR_PIN_CLEARANCE01`)
+- [x] `CLOSE!` / `NICE!` on near-pin — **interim clearance-band MVP; full redesign in [§15](#15-layer-a-skill-feedback--full-implementation-handoff) Wave 1**
 - [x] Floating `+N` flyout into score (small amounts — 10–25)
-- [ ] `TAP` triple-flash when under block lip in narrow slot + `SAVED!` on escape — **deferred** (see handoff)
-- [x] `×2` / `×3` combo badge (**tap-tier** `visualStrokeTier` MVP — not clean-gap yet)
+- [ ] `TAP` triple-flash when under block lip in narrow slot + `SAVED!` on escape — **not shipped; [§15](#15-layer-a-skill-feedback--full-implementation-handoff) Wave 1**
+- [x] `×2` / `×3` combo badge (**tap-tier** `visualStrokeTier` MVP — clean-gap combo [§15](#15-layer-a-skill-feedback--full-implementation-handoff) Wave 2)
 - [x] Death line on game over panel (generator → player copy from §7; suffix toggle in `deathCopy.ts`)
 
 **Art / style:**
@@ -351,8 +354,9 @@ P0 Audit ──► P1 Skill juice ──► P2 Rest + coins ──► P3 World m
 
 **Follow-up session (not blocking P2):**
 
-- [ ] **Clean gap combo** — HUD badge from gap-thread skill, not tap tier only; 20-run playtest script
-- [ ] **TAP / SAVED!** coaching under ceiling pin
+- [ ] **Clean gap combo** — [§15](#15-layer-a-skill-feedback--full-implementation-handoff) Wave 2
+- [ ] **TAP / SAVED!** coaching — [§15](#15-layer-a-skill-feedback--full-implementation-handoff) Wave 1
+- [ ] **Near-miss redesign** — skill-moment detectors replace clearance band — [§15](#15-layer-a-skill-feedback--full-implementation-handoff) Wave 1
 
 **Engine touchpoints (implementer hints):**
 
@@ -627,11 +631,182 @@ The shipped blueprint system remains **geometry scheduler only**:
 
 ## 14. Next actions (start here)
 
-1. **Founder:** sign off Phase 1 scope (§8 Phase 1) — confirm copy deck words.
-2. **Art:** coin pickup + CLOSE spark sprite OR commit to pure Skia shapes for P1.
-3. **Implement:** `GameplayFeedbackSystem` + death line on game over.
-4. **Parallel:** Mud Flood polish pass for parallax if current art is placeholder.
-5. **After P1 playtest:** tune economy numbers in §8 Phase 2 before coding shop.
+1. **Founder:** use **[§15](#15-layer-a-skill-feedback--full-implementation-handoff)** to plan Wave 1 (CLOSE/NICE redesign + TAP/SAVED).
+2. **Device pass:** verify combo HUD polish (×2 pulse, Tap Streak label, text shadows).
+3. **After Wave 1:** tune economy numbers in §8 Phase 2 before coding shop + GREAT!/PERFECT!
+
+---
+
+## 15. Layer A skill feedback — full implementation handoff
+
+**Purpose:** Single entry point for the next major conversation — plan all skill-moment states, copy, detectors, tests, then execute in waves.  
+**Do not implement from this section in passing** — use the Wave 1 prompt at [§15.7](#157--future-session-prompt).
+
+### 15.1 — Copy inventory (§7 gameplay flashes)
+
+| Key | Copy | Roadmap phase | On device today | Handoff wave |
+|-----|------|---------------|-----------------|--------------|
+| `near_miss` | CLOSE! | P1 | Interim (clearance band) | **Wave 1** — redesign |
+| `near_miss_alt` | NICE! | P1 | Interim (clearance band) | **Wave 1** — redesign |
+| `tap_coach` | TAP | P1 | **Not shipped** | **Wave 1** |
+| `tap_saved` | SAVED! | P1 | **Not shipped** | **Wave 1** |
+| `combo_2` / `combo_3` | ×2 / ×3 | P1 | Shipped (tap-tier HUD) | **Wave 2** — clean-gap combo |
+| `rest_enter` | GREAT! | P2 | **Not shipped** | **Wave 3** (with coins) |
+| `rest_perfect` | PERFECT! | P2 | **Not shipped** | **Wave 3** (with coins) |
+| `paddle_hit` | +100 | P6 | **Not shipped** | **Wave 4** (set-piece) |
+| `new_best` | NEW BEST! | P1 | Shipped | Done |
+| _(bonus flyout)_ | +N | P1 | Shipped | Done — tune with Wave 1 |
+
+**Wave 1 = finish P1 skill feedback.** Waves 2–4 cross-link to §8 Phase 2/6 but document triggers here so one conversation owns all Layer A text logic.
+
+### 15.2 — What shipped (interim) + known issues
+
+**Near-miss (CLOSE!/NICE!):**
+- Clearance-band MVP: edge-enter on smoothed `clearance01 < 0.35`; CLOSE if `< 0.2`, else NICE
+- Issues: CLOSE! rare; one flash per squeeze; clearance ≠ block proximity during rotate/slide; conflicts with original §7 intent (skill moments, not gap width alone)
+
+**TAP / SAVED! (not shipped):**
+- Physics exists (`isPinnedFromAbove`, pinned escape in `swimmerHyperCasualPhysics.ts`) but no flash wiring
+- §7 intent: repeat `TAP` under ceiling lip; `SAVED!` on escape
+
+**×2 / ×3:**
+- Tap streak only (`visualStrokeTier`); not gap-thread skill; "Tap Streak!" label on HUD
+
+**GREAT! / PERFECT!:**
+- RELEASE geometry exists (`releaseGenerators.ts`); no row-entry detector or flash
+
+**+100 paddle:**
+- Signature `pinballHop` geometry exists; no paddle flash
+
+### 15.3 — Design intent (team discussion)
+
+| Role | Guideline |
+|------|-----------|
+| **Creative Director** | Praise **felt skill moments**, not one physics number. Player answers "why did the game say that?" in one glance. |
+| **Design** | Clearance may still scale **+N bonus** or danger foam — separate from **which word** fires. Max 2 words per flash (L-008). |
+| **Engineering** | One overlay (`GameplayFeedbackSystem` + flash pool); per-state detectors emit events; worklet-safe; tutorial gate unchanged. |
+| **Art/VFX** | Shared Fredoka flash style; spark ring per state optional (Phase 4 world routing later). |
+| **QA** | Matrix test every copy key × scenario; no flashes in tutorial / start / game over. |
+| **Production** | Execute **Wave 1 first** (P1 exit criteria). |
+
+### 15.4 — Full state catalog (all Layer A triggers)
+
+Founder sign-off required before coding each row.
+
+| State ID | Copy key | Player moment | Signals today | Detector (proposed) | Priority |
+|----------|----------|---------------|---------------|---------------------|----------|
+| `gap_thread_tight` | `near_miss` | Brutal gap thread / scrape | `clearance01`, gap px, lateral vx | `gapSkillDetection.ts` | P1 |
+| `gap_thread_soft` | `near_miss_alt` | Good steer, not brutal | same + angle delta | same module, softer band OR rotate-aware | P1 |
+| `lane_shift_rotate` | `near_miss` or alt | Rotating through shifting lane | angle, direction change, block edge dist | extend gap detector — **not gap width only** | P1 |
+| `wall_scrape` | `near_miss` | Side block graze while rising | collision contact side, vx | lateral scrape helper | P1 optional |
+| `ceiling_pin_active` | `tap_coach` | Under block lip, need taps | `isPinnedFromAbove`, cramped clearance | `tapCoachDetection.ts` — **repeat flash** while pinned | P1 |
+| `ceiling_pin_escape` | `tap_saved` | Cleared pin | pin false edge + min travel | edge on pin exit | P1 |
+| `tap_streak_tier` | `combo_2`/`combo_3` | Rapid same-dir taps | `visualStrokeTier` | existing `ScoreHudSystem` | Done |
+| `clean_gap_streak` | `combo_2`/`combo_3` | Tight gaps in a row | gap thread counter (new) | `cleanGapCombo.ts` — Wave 2 | P1 follow-up |
+| `rest_corridor_enter` | `rest_enter` | RELEASE row mid-run | blueprint row type RELEASE | `restCorridorDetection.ts` | P2 |
+| `rest_corridor_perfect` | `rest_perfect` | All corridor coins collected | coin tally vs spawn count | coin system + rest detector | P2 |
+| `pinball_paddle_hit` | `paddle_hit` | Timed tap on signature beat | pinball generator + tap window | set-piece system | P6 |
+| `open_water` | _(none)_ | Wide channel | high clearance | suppress all above | — |
+
+**TAP coaching — decide in Wave 1 conversation:**
+- Triple-flash cadence (ms between TAP pops)
+- Anchor: swimmer head vs block lip
+- Stop when player taps or escapes
+- Gate: `tutorialOpacity > 0` (`gameplayFeedbackGates.ts`)
+
+**SAVED! — decide in Wave 1 conversation:**
+- Fire once on pin exit; cooldown vs new pin session
+- Bonus +N or copy-only?
+
+### 15.5 — Shared architecture (execution target)
+
+```
+src/config/gameplayFeedback.ts       — all copy + tuning per state
+src/Game/feedback/
+  skillFeedbackTypes.ts            — SkillFeedbackEvent { stateId, copyKey, bonus?, anchor }
+  gapSkillDetection.ts             — Wave 1 CLOSE/NICE
+  tapCoachDetection.ts             — Wave 1 TAP/SAVED
+  restCorridorDetection.ts         — Wave 3 GREAT/PERFECT
+  cleanGapCombo.ts                 — Wave 2 HUD combo
+  gameplayFeedbackGates.ts         — unchanged
+src/systems/GameplayFeedbackSystem.ts — route events → flash pool
+src/components/GameplayFeedbackView/  — pool size may need bump for concurrent TAP
+```
+
+**Engine signals map:**
+- `Swimmer.locomotion.clearance01` — smoothed (`swimmerVisualLocomotion.ts`)
+- `Swimmer.isPinnedFromAbove` — `swimmerBlockCollision.ts`
+- `visualStrokeTier` / `rapidTapStreak` — tap combo (`swimmerTapInput.ts`)
+- `SwimmerWaterContactFxSystem` — clearance for danger foam
+- `sampleHorizontalClearancePx` / `gapWidthAtSwimmerX` — raw gap metrics
+- `PINNED_ESCAPE_MIN_TAP_TRAVEL` — `swimmerTuning.ts` for SAVED! threshold
+
+### 15.6 — Structured TODO (by wave)
+
+**Wave 1 — Finish P1 skill flashes (recommended first sprint)**
+
+- [ ] **D-001** Founder sign-off: state catalog §15.4 + update §7 "When" column
+- [ ] **D-002** CLOSE vs NICE: skill-moment rules (not clearance band alone)
+- [ ] **D-003** TAP: repeat cadence, anchor, stop conditions
+- [ ] **D-004** SAVED!: one-shot vs bonus; copy-only or +score
+- [ ] **E-001** `SkillFeedbackEvent` type + config copy map
+- [ ] **E-002** `gapSkillDetection.ts` — replace `pickNearMissCopyByClearance`
+- [ ] **E-003** `tapCoachDetection.ts` — pinned + cramped; wire TAP repeat
+- [ ] **E-004** SAVED! on pin exit — `PINNED_ESCAPE_MIN_TAP_TRAVEL` threshold
+- [ ] **E-005** Extend flash pool if TAP concurrent with CLOSE
+- [ ] **E-006** Dev debug overlay: active state + signals
+- [ ] **A-001** TAP flash: smaller/different color? or same as CLOSE
+- [ ] **QA-001** Unit tests per detector
+- [ ] **QA-002** Scenario matrix: 12 runs (gap, pin, open water, tutorial)
+
+**Wave 2 — Clean gap combo (P1 follow-up)**
+
+- [ ] **D-005** ×2/×3 from gap thread vs tap streak — replace, merge, or both?
+- [ ] **E-007** `cleanGapCombo.ts` + wire `ScoreHudSystem`
+- [ ] **QA-003** Combo resets on sloppy steer (manual)
+
+**Wave 3 — Rest corridor flashes (Phase 2 — with coins)**
+
+- [ ] **D-006** GREAT! trigger: row entry vs midpoint
+- [ ] **D-007** PERFECT!: all coins vs speed threshold
+- [ ] **E-008** `restCorridorDetection.ts` + RELEASE row hook
+- [ ] **E-009** Coin pickup tally for PERFECT
+- [ ] **A-002** Rest light pocket VFX (Mud Flood default)
+
+**Wave 4 — Set-piece (Phase 6)**
+
+- [ ] **E-010** `paddle_hit` +100 flyout on pinball tap window
+- [ ] **A-003** Per-world paddle art (Phase 4/6)
+
+### 15.7 — Future session prompt
+
+Copy-paste into a new Cursor session:
+
+```text
+Read docs/game-design/player-experience-roadmap.md §15 (Layer A skill feedback handoff)
+and docs/visual-design/logs/phase1-skill-feedback-handoff.md.
+
+Goal: Plan and execute Wave 1 — replace interim clearance-band CLOSE!/NICE! with
+skill-moment detectors; ship TAP (repeat) and SAVED! ceiling-pin coaching.
+
+Do NOT start Wave 3 (GREAT/PERFECT/coins) until Wave 1 passes QA matrix.
+
+Already on device:
+- GameplayFeedbackSystem + flash pool (+N flyout)
+- Interim clearance near-miss (to be replaced)
+- ×2/×3 tap-tier HUD + Tap Streak label (pulse + text shadow)
+- Death line, NEW BEST!, gameplayFeedbackGates
+
+Deliver: gapSkillDetection + tapCoachDetection, tests, §7 table updated,
+founder device pass on §15.6 Wave 1 checklist.
+```
+
+### 15.8 — Roadmap cross-links
+
+- Phase 1 §8: CLOSE!/NICE! **interim — Wave 1**; TAP/SAVED **§15 Wave 1**
+- Phase 1 follow-up: clean gap combo → **Wave 2**
+- Phase 2: GREAT!/PERFECT! → **Wave 3** (with coin economy)
+- Phase 6: paddle +100 → **Wave 4**
 
 ---
 
@@ -641,6 +816,7 @@ The shipped blueprint system remains **geometry scheduler only**:
 |------|--------|
 | 2026-06-28 | v1 — initial roadmap from founder creative sessions |
 | 2026-06-28 | P1 partial — skill feedback MVP shipped (see `docs/visual-design/logs/phase1-skill-feedback-handoff.md`) |
+| 2026-06-29 | §15 full Layer A handoff; combo HUD polish; RNTGE text shadows |
 
 ---
 

@@ -28,6 +28,8 @@ import { layoutScoreHud } from '@/Game/ui/scoreHudLayout';
 import { SCORE_HUD_COLORS, SCORE_HUD_PANEL_OPACITY } from '@/Game/ui/scoreHudVisuals';
 import { refSize } from '@/Game/ui/refLayout';
 import { COLOR_REWARD_YELLOW, COLOR_TEXT_WHITE } from '@/Game/ui/swimmerTheme';
+import { gameplayFeedbackCopy } from '@/config/gameplayFeedback';
+import { scoreHudTuning } from '@/config/scoreHudTuning';
 import { Skia } from '@shopify/react-native-skia';
 
 const ENTRANCE_MS = 220;
@@ -67,6 +69,27 @@ const computeNewBestT = (startMs: number, nowMs: number): number => {
   'worklet';
   if (startMs <= 0) return 1;
   return Math.min(1, (nowMs - startMs) / NEW_BEST_MS);
+};
+
+const computeComboPulseWave = (nowMs: number): number => {
+  'worklet';
+  const period = scoreHudTuning.COMBO_PULSE_PERIOD_MS;
+  const t = (nowMs % period) / period;
+  return (Math.sin(t * Math.PI * 2) + 1) / 2;
+};
+
+const computeComboPulseScale = (nowMs: number): number => {
+  'worklet';
+  const wave = computeComboPulseWave(nowMs);
+  const peak = scoreHudTuning.COMBO_PULSE_SCALE_PEAK;
+  return 1 + (peak - 1) * wave;
+};
+
+const computeComboPulseOpacity = (nowMs: number): number => {
+  'worklet';
+  const wave = computeComboPulseWave(nowMs);
+  const min = scoreHudTuning.COMBO_PULSE_OPACITY_MIN;
+  return min + (1 - min) * wave;
 };
 
 const lerpDisplayedInteger = (
@@ -283,7 +306,10 @@ export const ScoreHudSystem: System = {
     }
     const comboLabel = comboTier >= 3 ? '×3' : comboTier === 2 ? '×2' : '';
     const comboVisible = showHud && comboTier >= 2;
-    const comboScale = computePopScale(comboPopStartMs, nowMs, POP_MS, 1.15);
+    const comboPopScale = computePopScale(comboPopStartMs, nowMs, POP_MS, 1.15);
+    const comboPulseScale = comboVisible ? computeComboPulseScale(nowMs) : 1;
+    const comboScale = comboPopScale * comboPulseScale;
+    const comboPulseOpacity = comboVisible ? computeComboPulseOpacity(nowMs) : 1;
 
     const tagStore = components[ScoreHudTagComponentName];
     if (!tagStore) return;
@@ -303,17 +329,19 @@ export const ScoreHudSystem: System = {
       const isPanel = hudTag.role === 'panel';
       const isNewBest = hudTag.role === 'newBest';
       const isComboBadge = hudTag.role === 'comboBadge';
+      const isComboStreakLabel = hudTag.role === 'comboStreakLabel';
+      const isComboElement = isComboBadge || isComboStreakLabel;
       const roleScale = isValue
         ? valuePopScale
         : isCrown
           ? stackScale
           : isPanel
             ? panelScale
-            : isComboBadge
+            : isComboElement
               ? comboScale
               : 1;
 
-      const scalesShape = isCrown || isValue || isPanel || isComboBadge;
+      const scalesShape = isCrown || isValue || isPanel || isComboElement;
       const w = hudTag.baseWidth * (scalesShape ? roleScale : 1);
       const h = hudTag.baseHeight * (scalesShape ? roleScale : 1);
       const offsetX =
@@ -334,13 +362,15 @@ export const ScoreHudSystem: System = {
         showHud &&
         hudOpacity > 0.01 &&
         (!isNewBest || newBestVisible) &&
-        (!isComboBadge || comboVisible);
+        (!isComboElement || comboVisible);
 
       const elementOpacity = isNewBest
         ? hudOpacity * newBestOpacity
         : isPanel
           ? hudOpacity * SCORE_HUD_PANEL_OPACITY
-          : hudOpacity;
+          : isComboElement
+            ? hudOpacity * comboPulseOpacity
+            : hudOpacity;
 
       ecs.updateComponent<RenderComponentData>(
         entityId,
@@ -439,6 +469,20 @@ export const ScoreHudSystem: System = {
             t.isDirty = true;
           }
           t.fontSize = layout.fonts.comboBadge * comboScale;
+          t.isDirty = true;
+        });
+        return;
+      }
+
+      if (isComboStreakLabel && textData) {
+        ecs.updateComponent<TextComponentData>(entityId, TextComponentName, (t) => {
+          t.opacity = elementOpacity;
+          const label = gameplayFeedbackCopy.TAP_STREAK_LABEL;
+          if (t.text !== label) {
+            t.text = label;
+            t.isDirty = true;
+          }
+          t.fontSize = layout.fonts.comboStreakLabel * comboScale;
           t.isDirty = true;
         });
       }

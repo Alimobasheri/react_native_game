@@ -40,7 +40,7 @@ export const layoutGameplayFeedback = (
     anchorAboveSwimmerPx,
     bonusOffsetX,
     bonusOffsetY,
-    sparkRadius: fontSize * 0.55,
+    sparkRadius: fontSize * gameplayFeedbackTuning.SPARK_RADIUS_FONT_MULT,
     flashWidth: fontSize * 4,
     flashHeight: fontSize * 1.4,
   };

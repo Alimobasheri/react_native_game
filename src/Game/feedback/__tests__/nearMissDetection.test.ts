@@ -1,7 +1,7 @@
 import {
   createDefaultNearMissState,
   isNearPinClearance,
-  pickNearMissCopy,
+  pickNearMissCopyByClearance,
   rollNearMissBonus,
   updateNearMissState,
 } from '../nearMissDetection';
@@ -105,13 +105,26 @@ describe('updateNearMissState', () => {
   });
 });
 
-describe('pickNearMissCopy', () => {
-  it('picks CLOSE! when roll is above nice weight', () => {
-    expect(pickNearMissCopy(0.5, 0.3, 'CLOSE!', 'NICE!')).toBe('CLOSE!');
+describe('pickNearMissCopyByClearance', () => {
+  const closeMax = 0.2;
+  const niceMax = 0.35;
+
+  it('picks CLOSE! when clearance is below close band', () => {
+    expect(
+      pickNearMissCopyByClearance(0.15, closeMax, niceMax, 'CLOSE!', 'NICE!')
+    ).toBe('CLOSE!');
   });
 
-  it('picks NICE! when roll is below nice weight', () => {
-    expect(pickNearMissCopy(0.1, 0.3, 'CLOSE!', 'NICE!')).toBe('NICE!');
+  it('picks NICE! when clearance is in soft near-pin band', () => {
+    expect(
+      pickNearMissCopyByClearance(0.28, closeMax, niceMax, 'CLOSE!', 'NICE!')
+    ).toBe('NICE!');
+  });
+
+  it('falls back to CLOSE! at or above nice band', () => {
+    expect(
+      pickNearMissCopyByClearance(0.4, closeMax, niceMax, 'CLOSE!', 'NICE!')
+    ).toBe('CLOSE!');
   });
 });
 

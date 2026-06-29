@@ -9,7 +9,8 @@ export type ScoreHudRole =
   | 'bestLabel'
   | 'bestValue'
   | 'newBest'
-  | 'comboBadge';
+  | 'comboBadge'
+  | 'comboStreakLabel';
 
 export type ScoreHudTagComponentData = {
   role: ScoreHudRole;

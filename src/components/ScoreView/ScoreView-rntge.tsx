@@ -21,6 +21,8 @@ import {
   COLOR_REWARD_YELLOW,
   COLOR_TEXT_WHITE,
 } from '@/Game/ui/swimmerTheme';
+import { gameplayFeedbackCopy } from '@/config/gameplayFeedback';
+import { scoreHudTuning } from '@/config/scoreHudTuning';
 import type { SafeAreaInsets } from '@/Game/ui/refLayout';
 import { Skia, TextAlign } from '@shopify/react-native-skia';
 import { FC, useMemo } from 'react';
@@ -279,6 +281,7 @@ export const ScoreView: FC<ScoreViewProps> = ({
         strokeWidth: 2.5,
         align: TextAlign.Center,
         maxWidth: badge.width,
+        textShadow: scoreHudTuning.COMBO_TEXT_SHADOW,
       }),
       createRenderComponent({
         shape: {
@@ -294,6 +297,44 @@ export const ScoreView: FC<ScoreViewProps> = ({
     ];
   }, [dimensions?.height, dimensions?.width, safeAreaInsets]);
 
+  const comboStreakLabelComponents = useMemo(() => {
+    const screenW = dimensions?.width ?? 400;
+    const screenH = dimensions?.height ?? 800;
+    const layout = layoutScoreHud(screenW, screenH, safeAreaInsets);
+    const label = layout.comboStreakLabel;
+    return [
+      createScoreHudTagComponent({
+        role: 'comboStreakLabel',
+        baseX: label.x,
+        baseY: label.y,
+        baseWidth: label.width,
+        baseHeight: label.height,
+      }),
+      createTextComponent({
+        text: gameplayFeedbackCopy.TAP_STREAK_LABEL,
+        fontAssetId: 'Fredoka',
+        fontSize: layout.fonts.comboStreakLabel,
+        color: Skia.Color(COLOR_TEXT_WHITE),
+        strokeColor: COLOR_CAVE_DEEP,
+        strokeWidth: 2,
+        align: TextAlign.Center,
+        maxWidth: label.width,
+        textShadow: scoreHudTuning.COMBO_TEXT_SHADOW,
+      }),
+      createRenderComponent({
+        shape: {
+          type: ShapeTypes.Rectangle,
+          width: label.width,
+          height: label.height,
+        },
+        position: { x: label.x, y: label.y },
+        visible: false,
+        zIndex: 4,
+        renderLayer: SwimmerRenderLayer.Hud,
+      }),
+    ];
+  }, [dimensions?.height, dimensions?.width, safeAreaInsets]);
+
   useAddEntity({ components: panelComponents });
   useAddEntity({ components: crownComponents });
   useAddEntity({ components: valueComponents });
@@ -301,6 +342,7 @@ export const ScoreView: FC<ScoreViewProps> = ({
   useAddEntity({ components: bestValueComponents });
   useAddEntity({ components: newBestComponents });
   useAddEntity({ components: comboBadgeComponents });
+  useAddEntity({ components: comboStreakLabelComponents });
   useAddSystem({ system: ScoreSystem });
   useAddSystem({ system: ScoreHudSystem });
 
