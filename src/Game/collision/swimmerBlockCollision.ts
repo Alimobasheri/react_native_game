@@ -71,6 +71,8 @@ export type ResolveSwimmerResult = {
   /** When horizontal motion was stopped: -1 = left, 1 = right. */
   sideBlockedDirection: -1 | 0 | 1;
   isColliding: boolean;
+  /** Underside ceiling contact without ending pinned — skill brush signal. */
+  ceilingBrushContact: boolean;
   pinnedCeilingMinX?: number;
   pinnedCeilingMaxX?: number;
 };
@@ -399,6 +401,62 @@ function isPinnedUnderBlock(
   }
 
   return true;
+}
+
+const CEILING_BRUSH_EPSILON = SKIN_EPSILON * 4;
+
+/**
+ * Forgiving underside proximity — brush credit without full pin latch.
+ */
+function isCeilingUndersideBrush(
+  swimmerX: number,
+  swimmerY: number,
+  swimmerHalfWidth: number,
+  swimmerHalfHeight: number,
+  block: AABB,
+  rowDeltaY = 0
+): boolean {
+  'worklet';
+  if (isPinnedUnderBlock(swimmerX, swimmerY, swimmerHalfWidth, swimmerHalfHeight, block, rowDeltaY)) {
+    return false;
+  }
+  const swimmerTopY = swimmerY - swimmerHalfHeight;
+  const swimmerBottomY = swimmerY + swimmerHalfHeight;
+  const swimmerLeftX = swimmerX - swimmerHalfWidth;
+  const swimmerRightX = swimmerX + swimmerHalfWidth;
+  const blockBottomY = block.maxY;
+  const blockTopY = block.minY;
+
+  if (!isSwimmerUnderBlockColumn(swimmerX, block)) {
+    return false;
+  }
+
+  const horizontalOverlap =
+    swimmerLeftX < block.maxX + CEILING_BRUSH_EPSILON &&
+    swimmerRightX > block.minX - CEILING_BRUSH_EPSILON;
+  if (!horizontalOverlap) {
+    return false;
+  }
+
+  const topToBlockBottom = swimmerTopY - blockBottomY;
+  const descendingSlack = Math.max(0, rowDeltaY);
+  if (Math.abs(topToBlockBottom) > CEILING_BRUSH_EPSILON + descendingSlack * 0.35) {
+    return false;
+  }
+
+  if (blockTopY <= swimmerTopY + SKIN_EPSILON) {
+    return false;
+  }
+
+  const overlapW =
+    Math.min(swimmerRightX, block.maxX) - Math.max(swimmerLeftX, block.minX);
+  const overlapH =
+    Math.min(swimmerBottomY, block.maxY) - Math.max(swimmerTopY, block.minY);
+  if (overlapH > overlapW * 1.35) {
+    return false;
+  }
+
+  return swimmerY >= blockBottomY - CEILING_BRUSH_EPSILON;
 }
 
 /** Ceiling block at the column where the swimmer was pinned this frame. */
@@ -1035,6 +1093,25 @@ function resolveSwimmerAgainstRowsStep(
     clearSideBlockIfEscaped(x - startX, horizontalDelta);
   }
 
+  let ceilingBrushContact = false;
+  if (!isPinnedFromAbove) {
+    for (let i = 0; i < solids.length; i++) {
+      if (
+        isCeilingUndersideBrush(
+          x,
+          y,
+          upHalfW,
+          upHalfH,
+          solids[i],
+          rowDeltaY
+        )
+      ) {
+        ceilingBrushContact = true;
+        break;
+      }
+    }
+  }
+
   return {
     x,
     y,
@@ -1042,6 +1119,7 @@ function resolveSwimmerAgainstRowsStep(
     isSideBlocked,
     sideBlockedDirection,
     isColliding,
+    ceilingBrushContact,
     pinnedCeilingMinX: pinState.ceilingMinX,
     pinnedCeilingMaxX: pinState.ceilingMaxX,
   };
@@ -1083,6 +1161,7 @@ export function resolveSwimmerAgainstRows(
   let isSideBlocked = false;
   let sideBlockedDirection: -1 | 0 | 1 = 0;
   let isColliding = false;
+  let ceilingBrushContact = false;
   let pinnedCeilingMinX = input.pinnedCeilingMinX;
   let pinnedCeilingMaxX = input.pinnedCeilingMaxX;
   const invSteps = 1 / steps;
@@ -1107,6 +1186,7 @@ export function resolveSwimmerAgainstRows(
       sideBlockedDirection = stepResult.sideBlockedDirection;
     }
     isColliding = isColliding || stepResult.isColliding;
+    ceilingBrushContact = ceilingBrushContact || stepResult.ceilingBrushContact;
     if (stepResult.pinnedCeilingMinX !== undefined) {
       pinnedCeilingMinX = stepResult.pinnedCeilingMinX;
     }
@@ -1199,6 +1279,7 @@ export function resolveSwimmerAgainstRows(
     isSideBlocked,
     sideBlockedDirection,
     isColliding,
+    ceilingBrushContact: !isPinnedFromAbove && ceilingBrushContact,
     pinnedCeilingMinX,
     pinnedCeilingMaxX,
   };

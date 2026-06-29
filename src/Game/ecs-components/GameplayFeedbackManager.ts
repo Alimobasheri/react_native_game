@@ -1,6 +1,9 @@
 import { Component } from '@/containers/ReactNativeSkiaGameEngine/services-ecs';
-import type { NearMissState } from '@/Game/feedback/nearMissDetection';
-import { createDefaultNearMissState } from '@/Game/feedback/nearMissDetection';
+import {
+  createDefaultSkillFeedbackState,
+  type SkillFeedbackState,
+} from '@/Game/feedback/skillFeedbackTypes';
+import { gameplayFeedbackTuning } from '@/config/gameplayFeedback';
 
 export const GameplayFeedbackManagerComponentName = 'GameplayFeedbackManager';
 
@@ -17,7 +20,7 @@ export type FeedbackFlashSlot = {
 };
 
 export type GameplayFeedbackManagerData = {
-  nearMiss: NearMissState;
+  skillFeedback: SkillFeedbackState;
   slots: FeedbackFlashSlot[];
 };
 
@@ -25,11 +28,12 @@ export const createDefaultFeedbackSlots = (
   count: number
 ): FeedbackFlashSlot[] => {
   'worklet';
+  const wordCount = gameplayFeedbackTuning.WORD_SLOT_COUNT;
   const slots: FeedbackFlashSlot[] = [];
   for (let i = 0; i < count; i++) {
     slots.push({
       active: false,
-      kind: i < 2 ? 'word' : 'bonus',
+      kind: i < wordCount ? 'word' : 'bonus',
       text: '',
       startMs: 0,
       anchorX: 0,
@@ -41,13 +45,13 @@ export const createDefaultFeedbackSlots = (
 };
 
 export const createGameplayFeedbackManagerComponent = (
-  slotCount: number = 4
+  slotCount: number = gameplayFeedbackTuning.FLASH_POOL_SIZE
 ): Component<GameplayFeedbackManagerData> => {
   'worklet';
   return {
     name: GameplayFeedbackManagerComponentName,
     data: {
-      nearMiss: createDefaultNearMissState(),
+      skillFeedback: createDefaultSkillFeedbackState(),
       slots: createDefaultFeedbackSlots(slotCount),
     },
   };

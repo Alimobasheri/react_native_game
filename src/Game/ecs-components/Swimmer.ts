@@ -132,6 +132,8 @@ export type SwimmerComponentData = {
   isInInitialPhase: boolean;
   isCollidingWithObstacle: boolean;
   isPinnedFromAbove?: boolean;
+  /** True when underside brush contact occurred this frame without pin. */
+  ceilingBrushThisFrame?: boolean;
   /** Ceiling column bounds while pinned — stable slide-out reference across frames. */
   pinnedCeilingMinX?: number;
   pinnedCeilingMaxX?: number;

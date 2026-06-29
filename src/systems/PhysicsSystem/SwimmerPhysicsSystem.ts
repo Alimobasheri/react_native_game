@@ -1099,6 +1099,7 @@ export const SwimmerPhysicsSystem: System = {
           swimmer.waterSurfaceY = curveSurfaceY;
           swimmer.isCollidingWithObstacle = isCollidingWithObstacle;
           swimmer.isPinnedFromAbove = isBlockedFromAbove;
+          swimmer.ceilingBrushThisFrame = collisionResult.ceilingBrushContact;
           swimmer.pinnedCeilingMinX = isBlockedFromAbove
             ? collisionResult.pinnedCeilingMinX
             : undefined;

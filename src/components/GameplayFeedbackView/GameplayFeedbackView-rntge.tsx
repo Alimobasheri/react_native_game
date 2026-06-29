@@ -21,7 +21,7 @@ import { Skia, TextAlign } from '@shopify/react-native-skia';
 import { FC, useMemo } from 'react';
 import type { FeedbackFlashKind } from '@/Game/ecs-components/GameplayFeedbackManager';
 
-const WORD_SLOT_COUNT = 2;
+const WORD_SLOT_COUNT = gameplayFeedbackTuning.WORD_SLOT_COUNT;
 
 const FlashSlotEntity: FC<{
   slotIndex: number;

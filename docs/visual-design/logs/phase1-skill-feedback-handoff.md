@@ -1,7 +1,7 @@
 # Phase 1 skill feedback — handoff
 
-**Updated:** 2026-06-28  
-**Scope:** Player-experience-roadmap P1 partial (CLOSE!, +N, combo badge, death line)
+**Updated:** 2026-06-29  
+**Scope:** Player-experience-roadmap P1 — skill-moment praise system (Wave 1 shipped)
 
 ---
 
@@ -9,77 +9,59 @@
 
 | Area | Path / value |
 |------|----------------|
-| Tuning | `src/config/gameplayFeedback.ts` — `ENABLED`, `NEAR_PIN_CLEARANCE01: 0.35`, cooldown `900`, bonus `10–25`, `NICE_ALT_WEIGHT: 0.3` |
-| Death copy | `src/config/deathCopy.ts` — `SHOW_GENERATOR_SUFFIX: true` (set `false` for cause-only) |
-| Pure logic | `src/Game/feedback/*` — near-miss, flash anim, gates, death line |
-| System | `src/systems/GameplayFeedbackSystem.ts` |
+| Skill tuning | `src/config/skillFeedback.ts` — all copy, tiers, thresholds, bonus weights |
+| Flash VFX | `src/config/gameplayFeedback.ts` — layout only; 3 word + 2 bonus slots |
+| Detectors | `src/Game/feedback/` — gapTopology, rowCrossHistory, snapTransfer, steerPraise, ceilingDodge, tapCoach, praiseBonus, praiseRouter, praiseEmitter |
+| Collision signal | `swimmerBlockCollision.ts` — `ceilingBrushContact`; `Swimmer.ceilingBrushThisFrame` |
+| System | `src/systems/GameplayFeedbackSystem.ts` — row-cross orchestration |
 | View | `src/components/GameplayFeedbackView/GameplayFeedbackView-rntge.tsx` |
-| Combo HUD | `ScoreHudSystem` + `comboBadge` role — reads `visualStrokeTier` (tap combo) |
-| Death subtitle | `GameOverScreenSystem` + `session.lastDeathContext` |
-| Tests | `src/Game/feedback/__tests__/` — 30 tests green |
-| Story mount | `Swimmer.stories.tsx` — `GameplayFeedbackView` + component registration |
-| Restart reset | `RestartGameplaySystem` — `resetGameplayFeedbackManager` |
+| Combo HUD | `ScoreHudSystem` — tap ×2/×3 (separate from steer praise) |
+| Death copy | `src/config/deathCopy.ts` |
+| Tests | `src/Game/feedback/__tests__/` — 50+ unit tests |
+| Restart reset | `resetGameplayFeedbackManager` |
 
 ---
 
-## Not done
+## Ignition rules (locked)
 
-**→ Full Layer A redesign (CLOSE/NICE, TAP/SAVED, GREAT/PERFECT, paddle): see [player-experience-roadmap.md §15](../../game-design/player-experience-roadmap.md#15-layer-a-skill-feedback--full-implementation-handoff)**
+- **Copy fires on skill moments** — row-cross geometry, ceiling brush, pin coach.
+- **`clearance01` scales +N only** — never selects copy.
+- **Runway dup rows** — identical `gaps` skips steer/snap eval.
+- **Tap streak HUD** — unchanged; not merged with steer praise.
 
-**A. TAP / SAVED! coaching**  
-- Symptom: no `TAP` flashes or `SAVED!` on ceiling escape  
-- Files: extend `GameplayFeedbackSystem` or new `tapCoachDetection.ts`; pin + cramped state from `Swimmer.isPinnedFromAbove`, `clearance01`  
-- Constraint: block while `computeTutorialOpacity > 0`
+---
 
-**B. Clean gap combo (replace or augment tap-tier badge)**  
-- Symptom: ×2/×3 reflects rapid same-direction taps, not tight gap threading  
-- Files: new detector in `src/Game/feedback/cleanGapCombo.ts`; wire `ScoreHudSystem`  
-- Constraint: do not tie to blueprint weights
+## Not done (next)
 
-**C. Device tuning pass**  
-- Tune `gameplayFeedback.ts` cooldown/bonus after 10 founder runs  
-- Verify combo badge hides when `visualStrokeTier` resets
-
-**D. Spark art**  
-- Optional sprite; Skia circle ring works (`SHOW_SPARK_RING`)
+- **Phase 2:** GREAT!/PERFECT! + coins (`restCorridorDetection.ts`)
+- **Optional:** clean-gap combo HUD (founder deferred)
+- **Device tuning:** `skillFeedback.ts` tiers/cooldowns after 10 founder runs
 
 ---
 
 ## Key paths
 
 ```
+src/config/skillFeedback.ts
 src/config/gameplayFeedback.ts
-src/config/deathCopy.ts
 src/Game/feedback/
 src/systems/GameplayFeedbackSystem.ts
 src/components/GameplayFeedbackView/GameplayFeedbackView-rntge.tsx
-src/systems/ScoreHudSystem.ts
-docs/game-design/player-experience-roadmap.md
+docs/game-design/player-experience-roadmap.md §7 §15
 ```
 
 ---
 
 ## Constraints
 
-- Game code only — no `RNTGE.tsx` edits  
-- Fredoka Bold for gameplay flashes (not Montserrat)  
-- Death line never shows engine phase names (`flow`, `climax`, etc.)  
-- Generator suffix: `deathCopyTuning.SHOW_GENERATOR_SUFFIX`
+- Game code only — no `RNTGE.tsx` edits
+- Fredoka Bold for gameplay flashes
+- Tutorial gate: `gameplayFeedbackGates.ts`
 
 ---
 
-## Future prompt
+## Verify
 
-```text
-Read docs/visual-design/logs/phase1-skill-feedback-handoff.md and docs/game-design/player-experience-roadmap.md Phase 1 follow-up.
-
-Task: Ship TAP/SAVED coaching and/or clean-gap combo badge (founder picks A or B first).
-
-Done already:
-- CLOSE!/NICE! + real +N score via GameplayFeedbackSystem
-- Death subtitle from lastDeathContext
-- ×2/×3 tap-tier combo on ScoreHud
-- 30 unit tests in src/Game/feedback/__tests__/
-
-Implement: items A and/or B from Not done section; add tests; tune on device.
+```bash
+npm test -- --watchAll=false src/Game/feedback/__tests__
 ```

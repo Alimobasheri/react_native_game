@@ -1,21 +1,10 @@
 /**
- * Gameplay skill-feedback tuning — Layer A flashes (Phase 1).
+ * Gameplay flash VFX layout — Layer A presentation (Phase 1).
+ * Skill-moment copy and detection: see skillFeedback.ts.
  * Worklet-safe: plain constants only.
  */
 
 export const gameplayFeedbackTuning = {
-  /** Master kill switch for near-miss flashes and bonuses. */
-  ENABLED: true,
-  /** clearance01 below this counts as near-pin (matches swimmerWaterFxTuning). */
-  NEAR_PIN_CLEARANCE01: 0.35,
-  /** clearance01 below this → CLOSE!; between this and NEAR_PIN → NICE! */
-  CLOSE_CLEARANCE_BAND_MAX: 0.2,
-  /** Minimum ms between near-miss events. */
-  NEAR_MISS_COOLDOWN_MS: 500,
-  /** Max near-miss bonus events per run. */
-  NEAR_MISS_MAX_PER_RUN: 20,
-  NEAR_MISS_BONUS_MIN: 10,
-  NEAR_MISS_BONUS_MAX: 25,
   /** Flash float-up + fade duration. */
   FLASH_DURATION_MS: 400,
   /** Reference-space vertical drift (scaled at runtime). */
@@ -23,8 +12,10 @@ export const gameplayFeedbackTuning = {
   /** Reference-space font size (scaled at runtime). */
   FLASH_FONT_REF_PX: 42,
   FLASH_STROKE_WIDTH: 2.5,
-  /** Concurrent word/bonus flash slots. */
-  FLASH_POOL_SIZE: 4,
+  /** Concurrent flash slots: 3 word + 2 bonus. */
+  FLASH_POOL_SIZE: 5,
+  WORD_SLOT_COUNT: 3,
+  BONUS_SLOT_COUNT: 2,
   /** Skia circle behind word flash. */
   SHOW_SPARK_RING: true,
   SPARK_RADIUS_FONT_MULT: 0.85,
@@ -37,7 +28,5 @@ export const gameplayFeedbackTuning = {
 } as const;
 
 export const gameplayFeedbackCopy = {
-  NEAR_MISS: 'CLOSE!',
-  NEAR_MISS_ALT: 'NICE!',
   TAP_STREAK_LABEL: 'Tap Streak!',
 } as const;
