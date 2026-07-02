@@ -63,7 +63,9 @@ import {
   SwimmerDirectionalSplashEventType,
   SwimmerPinnedSplashEventType,
   SwimmerPivotSplashEventType,
+  SwimmerWallBumpEventType,
 } from '@/Game/characters/swimmerLocomotionEvents';
+import { skillFeedbackTuning } from '@/config/skillFeedback';
 import {
   sampleApproachRowClearancePx,
   sampleHorizontalClearancePx,
@@ -1020,12 +1022,14 @@ export const SwimmerPhysicsSystem: System = {
         Math.sign(appliedDx) === Math.sign(proposedDeltaX) &&
         Math.abs(appliedDx) >= Math.abs(proposedDeltaX) * 0.25;
 
+      let movementBlockedThisFrame = false;
+      const blockedDir = collisionResult.sideBlockedDirection;
+
       if (
         !tapImpulseAppliedThisFrame &&
         !escapedOrMovedFreely &&
-        collisionResult.sideBlockedDirection !== 0
+        blockedDir !== 0
       ) {
-        const blockedDir = collisionResult.sideBlockedDirection;
         const movementBlocked =
           Math.sign(proposedDeltaX) === blockedDir &&
           Math.abs(appliedDx) < Math.abs(proposedDeltaX) * 0.2;
@@ -1033,7 +1037,32 @@ export const SwimmerPhysicsSystem: System = {
           movementBlocked &&
           Math.sign(swimmerVelocityX) === blockedDir
         ) {
+          movementBlockedThisFrame = true;
+          const impactSpeed = Math.abs(swimmerVelocityX);
           swimmerVelocityX = 0;
+
+          if (!isBlockedFromAbove) {
+            const nowMs = Date.now();
+            const shiftCfg =
+              skillFeedbackTuning.families.steer_clean.patterns.shift_commit;
+            const debounceMs = shiftCfg.wallBumpDebounceMs ?? 120;
+            const squashSec = shiftCfg.wallBumpSquashDurationSec ?? 0.12;
+            const lastBumpMs = locomotion.lastWallBumpMs ?? 0;
+            if (nowMs - lastBumpMs >= debounceMs) {
+              locomotion.lastWallBumpMs = nowMs;
+              locomotion.wallBumpSquashTimer = squashSec;
+              eventQueue.addEvent({
+                type: SwimmerWallBumpEventType,
+                payload: {
+                  entityId: swimmerEntity,
+                  x: finalX,
+                  y: finalY,
+                  direction: blockedDir,
+                  impactSpeed,
+                },
+              });
+            }
+          }
         }
       }
 
@@ -1107,6 +1136,8 @@ export const SwimmerPhysicsSystem: System = {
             ? collisionResult.pinnedCeilingMaxX
             : undefined;
           swimmer.isSideBlocked = collisionResult.isSideBlocked;
+          swimmer.movementBlockedThisFrame = movementBlockedThisFrame;
+          swimmer.sideBlockedDirection = blockedDir;
           swimmer.isInInitialPhase = swimmerComponent.isInInitialPhase;
           swimmer.column = swimmerComponent.column;
           swimmer.useColumnControl = swimmerComponent.useColumnControl;

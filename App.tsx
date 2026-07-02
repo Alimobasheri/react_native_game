@@ -29,8 +29,8 @@ function App() {
           raisingSpeed={300}
           waterShaderOpacity={0.5}
           sideWallContainerOverlapPx={sideWallTuning.CONTAINER_OVERLAP_PX}
-          lockedTemplateName={''}
-          storyLockedProceduralSegment={''}
+          lockedTemplateName={'directed'}
+          storyLockedProceduralSegment={'pinball'}
           lifeDebugMode={0}
           internalIntensity={0.55}
         />

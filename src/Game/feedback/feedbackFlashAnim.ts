@@ -18,25 +18,36 @@ export const computeFlashTransform = (
   anchorX: number,
   anchorY: number,
   durationMs: number,
-  risePx: number
+  risePx: number,
+  stackIndex = 0,
+  stackGapPx = 0
 ): FlashTransform => {
   'worklet';
+  const stackOffset = stackIndex * stackGapPx;
+  const baseAnchorY = anchorY - stackOffset;
+
   if (startMs <= 0 || durationMs <= 0) {
-    return { x: anchorX, y: anchorY, opacity: 0, scale: 1, active: false };
+    return { x: anchorX, y: baseAnchorY, opacity: 0, scale: 1, active: false };
   }
 
   const elapsed = nowMs - startMs;
   if (elapsed < 0) {
-    return { x: anchorX, y: anchorY, opacity: 0, scale: 1, active: false };
+    return { x: anchorX, y: baseAnchorY, opacity: 0, scale: 1, active: false };
   }
 
   const t = elapsed / durationMs;
   if (t >= 1) {
-    return { x: anchorX, y: anchorY - risePx, opacity: 0, scale: 1, active: false };
+    return {
+      x: anchorX,
+      y: baseAnchorY - risePx,
+      opacity: 0,
+      scale: 1,
+      active: false,
+    };
   }
 
   const riseT = easeOutCubic(t);
-  const y = anchorY - risePx * riseT;
+  const y = baseAnchorY - risePx * riseT;
 
   let opacity = 1;
   if (t > 0.7) {
@@ -64,16 +75,21 @@ export const computeBonusFlashTransform = (
   durationMs: number,
   risePx: number,
   offsetX: number,
-  offsetY: number
+  offsetY: number,
+  stackIndex = 0,
+  stackGapPx = 0
 ): FlashTransform => {
   'worklet';
+  const stackOffset = stackIndex * stackGapPx;
   const base = computeFlashTransform(
     startMs,
     nowMs,
     anchorX + offsetX,
-    anchorY + offsetY,
+    anchorY + offsetY - stackOffset,
     durationMs,
-    risePx * 0.85
+    risePx * 0.85,
+    0,
+    0
   );
   return base;
 };

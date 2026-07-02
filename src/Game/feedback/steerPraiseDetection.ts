@@ -1,24 +1,25 @@
 import type { SkillFeedbackTuning, SkillTierGate } from '@/config/skillFeedback';
-import { centerDeltaCols } from '@/Game/feedback/gapTopology';
 import {
-  cumulativeSwimmerColTravel,
   detectChicaneBlockBreak,
   detectMonotonicTravel,
-  detectRunThenBreak,
   detectSwimmerMonotonicTravel,
-  detectSwimmerRunThenBreak,
   hasSwimmerSteerProof,
   isWideOpenLane,
-  swimmerColDeltaAbs,
-  swimmerSteerSpanCols,
 } from '@/Game/feedback/gapPathAnalysis';
 import { computeHygiene01 } from '@/Game/feedback/hygieneScoring';
+import {
+  createDefaultPassageFlowSampler,
+  evaluateShiftCommitReject,
+  passageIsClean,
+} from '@/Game/feedback/passageFlowScoring';
 import {
   resolveSkillGates,
   type ResolvedSkillGates,
 } from '@/Game/feedback/skillSurvivalGates';
 import type {
+  PassageFlowSampler,
   RowCrossSnapshot,
+  ShiftCommitRejectReason,
   SkillPraiseEvent,
   StitchSampler,
 } from '@/Game/feedback/skillFeedbackTypes';
@@ -32,7 +33,68 @@ export type SteerPraiseContext = {
   anchorY: number;
   tuning: SkillFeedbackTuning;
   stitchSampler: StitchSampler;
+  passageSampler?: PassageFlowSampler;
   gates?: ResolvedSkillGates;
+};
+
+export type ShiftCommitEvalResult = {
+  event: SkillPraiseEvent | null;
+  rejectReason: ShiftCommitRejectReason | null;
+};
+
+const pickShiftCommitTier = (
+  tiers: SkillTierGate[],
+  speedNorm: number,
+  difficulty01: number,
+  passageSampler: PassageFlowSampler,
+  smoothRequiresCleanPassage: boolean
+): { tierIndex: number; tier: SkillTierGate } | null => {
+  'worklet';
+  if (tiers.length === 0) return null;
+
+  const tier0 = { tierIndex: 0, tier: tiers[0] };
+  if (tiers.length === 1) {
+    return tier0;
+  }
+
+  let best = tier0;
+  for (let i = 1; i < tiers.length; i++) {
+    const tier = tiers[i];
+    const speedMin = tier.speedMin ?? 0;
+    const diffMin = tier.diffMin ?? 0;
+    if (speedNorm < speedMin || difficulty01 < diffMin) {
+      continue;
+    }
+    if (smoothRequiresCleanPassage && !passageIsClean(passageSampler)) {
+      continue;
+    }
+    best = { tierIndex: i, tier };
+  }
+
+  return best;
+};
+
+const makeSteerEvent = (
+  momentId: SkillPraiseEvent['momentId'],
+  patternPriority: number,
+  familyPriority: number,
+  picked: { tierIndex: number; tier: SkillTierGate },
+  ctx: SteerPraiseContext,
+  hygiene01: number
+): SkillPraiseEvent => {
+  'worklet';
+  return {
+    familyId: 'steer_clean',
+    momentId,
+    copy: picked.tier.copy,
+    tierIndex: picked.tierIndex,
+    bonusMin: picked.tier.bonusMin,
+    bonusMax: picked.tier.bonusMax,
+    priority: familyPriority + patternPriority,
+    anchorX: ctx.anchorX,
+    anchorY: ctx.anchorY,
+    hygiene01,
+  };
 };
 
 const pickSteerTierWithHygiene = (
@@ -62,26 +124,69 @@ const pickSteerTierWithHygiene = (
   return best;
 };
 
-const makeSteerEvent = (
-  momentId: SkillPraiseEvent['momentId'],
-  patternPriority: number,
-  familyPriority: number,
-  picked: { tierIndex: number; tier: SkillTierGate },
-  ctx: SteerPraiseContext,
-  hygiene01: number
-): SkillPraiseEvent => {
+const resolvePassageSampler = (
+  ctx: SteerPraiseContext
+): PassageFlowSampler => {
   'worklet';
+  return ctx.passageSampler ?? createDefaultPassageFlowSampler();
+};
+
+export const evaluateShiftCommit = (
+  ctx: SteerPraiseContext
+): ShiftCommitEvalResult => {
+  'worklet';
+  const family = ctx.tuning.families.steer_clean;
+  const shiftPattern = family.patterns.shift_commit;
+  const passageSampler = resolvePassageSampler(ctx);
+  const gates =
+    ctx.gates ??
+    resolveSkillGates(ctx.difficulty01, ctx.speedNorm, ctx.tuning);
+
+  const rejectReason = evaluateShiftCommitReject({
+    history: ctx.history,
+    current: ctx.current,
+    passageSampler,
+    gates,
+    tuning: ctx.tuning,
+    patternEnabled: shiftPattern?.enabled === true && family.enabled,
+  });
+
+  if (rejectReason !== null) {
+    return { event: null, rejectReason };
+  }
+
+  const lookback = shiftPattern?.maxLookbackRows ?? 2;
+  const fullHistory = ctx.history.concat([ctx.current]);
+  const hygiene01 = computeHygiene01(
+    fullHistory,
+    lookback,
+    ctx.stitchSampler,
+    ctx.tuning
+  );
+  const smoothRequiresCleanPassage =
+    shiftPattern?.smoothRequiresCleanPassage !== false;
+  const picked = pickShiftCommitTier(
+    shiftPattern!.tiers,
+    ctx.speedNorm,
+    ctx.difficulty01,
+    passageSampler,
+    smoothRequiresCleanPassage
+  );
+
+  if (!picked) {
+    return { event: null, rejectReason: null };
+  }
+
   return {
-    familyId: 'steer_clean',
-    momentId,
-    copy: picked.tier.copy,
-    tierIndex: picked.tierIndex,
-    bonusMin: picked.tier.bonusMin,
-    bonusMax: picked.tier.bonusMax,
-    priority: familyPriority + patternPriority,
-    anchorX: ctx.anchorX,
-    anchorY: ctx.anchorY,
-    hygiene01,
+    event: makeSteerEvent(
+      'shift_commit',
+      shiftPattern!.priority,
+      family.priority,
+      picked,
+      ctx,
+      hygiene01
+    ),
+    rejectReason: null,
   };
 };
 
@@ -114,105 +219,9 @@ export const detectSteerPraise = (
   const candidates: SkillPraiseEvent[] = [];
   const patterns = family.patterns;
 
-  if (prev) {
-    const shiftPattern = patterns.shift_commit;
-    if (shiftPattern?.enabled) {
-      const centerDelta = Math.abs(
-        centerDeltaCols(ctx.current.topology, prev.topology)
-      );
-      const swimmerDelta = swimmerColDeltaAbs(ctx.current, prev);
-      const bothWideOpen =
-        isWideOpenLane(prev.topology, wideOpenWidth) &&
-        isWideOpenLane(ctx.current.topology, wideOpenWidth);
-      const shiftMin = shiftPattern.minCenterDeltaCols ?? 1;
-      const topologyShift = centerDelta >= shiftMin;
-      const scrapeSteerShift =
-        !topologyShift &&
-        swimmerDelta > Math.ceil(minSteerSpan) &&
-        (prev.contact.sideBlocked || ctx.current.contact.sideBlocked);
-      if (
-        !bothWideOpen &&
-        hasSwimmerSteerProof(prev, ctx.current, sampler, minSteerSpan) &&
-        (topologyShift || scrapeSteerShift)
-      ) {
-        const lookback = shiftPattern.maxLookbackRows ?? 2;
-        const hygiene01 = computeHygiene01(
-          fullHistory,
-          lookback,
-          ctx.stitchSampler,
-          ctx.tuning
-        );
-        const picked = pickSteerTierWithHygiene(
-          shiftPattern.tiers,
-          ctx.speedNorm,
-          ctx.difficulty01,
-          hygiene01,
-          tierUpgradeMin
-        );
-        if (picked) {
-          candidates.push(
-            makeSteerEvent(
-              'shift_commit',
-              shiftPattern.priority,
-              family.priority,
-              picked,
-              ctx,
-              hygiene01
-            )
-          );
-        }
-      }
-    }
-  }
-
-  const zigzag = patterns.zigzag_chain;
-  if (zigzag?.enabled) {
-    const minRun = zigzag.minRunLength ?? zigzag.minChainLength ?? 3;
-    const breakMin = gates.zigzagBreakMinDelta;
-    if (
-      detectRunThenBreak(
-        fullHistory,
-        minRun,
-        breakMin,
-        minStepDelta,
-        sampler,
-        minSteerSpan
-      ) ||
-      detectSwimmerRunThenBreak(
-        fullHistory,
-        minRun,
-        Math.max(1, Math.ceil(breakMin)),
-        sampler,
-        minSteerSpan
-      )
-    ) {
-      const lookback = zigzag.maxLookbackRows ?? minRun + 2;
-      const hygiene01 = computeHygiene01(
-        fullHistory,
-        lookback,
-        ctx.stitchSampler,
-        ctx.tuning
-      );
-      const picked = pickSteerTierWithHygiene(
-        zigzag.tiers,
-        ctx.speedNorm,
-        ctx.difficulty01,
-        hygiene01,
-        tierUpgradeMin
-      );
-      if (picked) {
-        candidates.push(
-          makeSteerEvent(
-            'zigzag_chain',
-            zigzag.priority,
-            family.priority,
-            picked,
-            ctx,
-            hygiene01
-          )
-        );
-      }
-    }
+  const shiftResult = evaluateShiftCommit(ctx);
+  if (shiftResult.event) {
+    candidates.push(shiftResult.event);
   }
 
   const slalom = patterns.slalom_block;
@@ -301,53 +310,6 @@ export const detectSteerPraise = (
           makeSteerEvent(
             'cross_sweep',
             sweep.priority,
-            family.priority,
-            picked,
-            ctx,
-            hygiene01
-          )
-        );
-      }
-    }
-  }
-
-  const funnel = patterns.funnel_thread;
-  if (
-    funnel?.enabled &&
-    ctx.current.branchKey.includes(funnel.branchKeyContains ?? 'funnel') &&
-    ctx.current.topology.width <= (funnel.maxGapWidth ?? 2)
-  ) {
-    const recentSteer =
-      (prev && hasSwimmerSteerProof(prev, ctx.current, sampler, minSteerSpan)) ||
-      cumulativeSwimmerColTravel(fullHistory.slice(-3)) >= 1 ||
-      swimmerSteerSpanCols(sampler) >= minSteerSpan;
-    const hadSqueeze =
-      ctx.current.contact.sideBlocked ||
-      ctx.current.contact.ceilingBrush ||
-      ctx.stitchSampler.sideBlockedSeen ||
-      ctx.stitchSampler.ceilingBrushSeen;
-    if (!recentSteer && !hadSqueeze) {
-      // Funnel segment alone is not skill — need steer or wall squeeze.
-    } else {
-      const lookback = funnel.maxLookbackRows ?? 2;
-      const hygiene01 = computeHygiene01(
-        fullHistory,
-        lookback,
-        ctx.stitchSampler,
-        ctx.tuning
-      );
-      const picked = pickSteerTierWithHygiene(
-        funnel.tiers,
-        ctx.speedNorm,
-        ctx.difficulty01,
-        hygiene01,
-        tierUpgradeMin
-      );
-      if (picked) {
-        candidates.push(
-          makeSteerEvent(
-            'funnel_thread',
-            funnel.priority,
             family.priority,
             picked,
             ctx,

@@ -1,5 +1,10 @@
 import type { SkillFeedbackTuning } from '@/config/skillFeedback';
 import {
+  resetPassageFlowSampler,
+  updatePassageFlowSampler,
+  type PassageFlowFrameSample,
+} from '@/Game/feedback/passageFlowScoring';
+import {
   createDefaultContactWindowState,
   type ContactWindowState,
   type RowCrossSnapshot,
@@ -13,6 +18,7 @@ export type ContactFrameSample = {
   pinned: boolean;
   clearance01: number;
   swimmerColFrac: number;
+  movementBlocked?: boolean;
 };
 
 export const resetContactWindow = (): ContactWindowState => {
@@ -48,9 +54,17 @@ export const updateContactWindow = (
   sample: ContactFrameSample
 ): ContactWindowState => {
   'worklet';
+  const passageSample: PassageFlowFrameSample = {
+    pinned: sample.pinned,
+    movementBlocked: sample.movementBlocked === true,
+    sideBlocked: sample.sideBlocked,
+    colliding: sample.colliding,
+    swimmerColFrac: sample.swimmerColFrac,
+  };
   return {
     ...window,
     stitchSampler: updateStitchSampler(window.stitchSampler, sample),
+    passageFlow: updatePassageFlowSampler(window.passageFlow, passageSample),
   };
 };
 

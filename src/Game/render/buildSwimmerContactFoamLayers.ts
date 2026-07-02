@@ -759,6 +759,17 @@ export function buildSwimmerContactFoamLayers(
         fillColor,
         surfaceCtx
       );
+    } else if (kind === 'wallBump') {
+      buildPivotBurstParticles(
+        layers,
+        foamSeed,
+        foamAge,
+        life01,
+        strength,
+        direction,
+        fillColor,
+        surfaceCtx
+      );
     }
   }
 

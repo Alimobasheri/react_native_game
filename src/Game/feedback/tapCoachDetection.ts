@@ -1,4 +1,5 @@
 import type { SkillFeedbackTuning } from '@/config/skillFeedback';
+import { resolveLatchGraceMs } from '@/Game/feedback/skillSurvivalGates';
 import type { SkillPraiseEvent, TapCoachState } from '@/Game/feedback/skillFeedbackTypes';
 
 export type TapCoachContext = {
@@ -11,6 +12,8 @@ export type TapCoachContext = {
   anchorY: number;
   tuning: SkillFeedbackTuning;
   minEscapeTravelPx: number;
+  speedNorm: number;
+  difficulty01: number;
 };
 
 export const updateTapCoachDetection = (
@@ -20,11 +23,17 @@ export const updateTapCoachDetection = (
   const cfg = ctx.tuning.families.pin_coach;
   const events: SkillPraiseEvent[] = [];
   let state = { ...ctx.state };
+  const latchGraceMs = resolveLatchGraceMs(
+    ctx.difficulty01,
+    ctx.speedNorm,
+    ctx.tuning
+  );
 
   if (ctx.isPinned) {
     if (!state.wasPinned) {
       state.pinSessionStartX = ctx.swimmerX;
       state.pinAnchorX = ctx.anchorX;
+      state.pinEnterMs = ctx.nowMs;
     }
     state.wasPinned = true;
 
@@ -53,8 +62,15 @@ export const updateTapCoachDetection = (
     const travel = Math.abs(ctx.swimmerX - startX);
     const savedElapsed =
       state.lastSavedMs > 0 ? ctx.nowMs - state.lastSavedMs : cfg.savedCooldownMs;
+    const pinDuration =
+      state.pinEnterMs > 0 ? ctx.nowMs - state.pinEnterMs : latchGraceMs;
+    const latchedLongEnough = pinDuration >= latchGraceMs;
 
-    if (travel >= ctx.minEscapeTravelPx && savedElapsed >= cfg.savedCooldownMs) {
+    if (
+      latchedLongEnough &&
+      travel >= ctx.minEscapeTravelPx &&
+      savedElapsed >= cfg.savedCooldownMs
+    ) {
       state.lastSavedMs = ctx.nowMs;
       events.push({
         familyId: 'pin_coach',
@@ -71,6 +87,7 @@ export const updateTapCoachDetection = (
     state.wasPinned = false;
     state.pinSessionStartX = undefined;
     state.pinAnchorX = undefined;
+    state.pinEnterMs = 0;
   }
 
   return { state, events };

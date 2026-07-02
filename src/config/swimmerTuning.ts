@@ -9,7 +9,7 @@ export const swimmerPhysicsTuning = {
   SWIMMER_HEIGHT_TO_WIDTH_RATIO: 2.1,
 
   MAX_HORIZONTAL_SPEED: 520,
-  PINNED_VELOCITY_DAMPING: 0.85,
+  PINNED_VELOCITY_DAMPING: 0.93,
   /** Floor for pinned escape tap travel target (fraction of column width). */
   PINNED_ESCAPE_MIN_TAP_TRAVEL_COLUMN_FRACTION: 0.45,
   /** Extra slide past ceiling column edge to clear pin (fraction of column width). */
@@ -19,13 +19,13 @@ export const swimmerPhysicsTuning = {
   /** Per-tap kinematic nudge while pinned when velocity slide is blocked (fraction of column). */
   PINNED_TAP_VISIBLE_NUDGE_COLUMN_FRACTION: 0.1,
   /** Water-current pull scale on a pinned escape tap frame (keep impulse). */
-  PINNED_TAP_WATER_CURRENT_SCALE: 0.08,
+  PINNED_TAP_WATER_CURRENT_SCALE: 0.00,
   TAP_IMPULSE_MULTIPLIER_MIN: 1,
   TAP_IMPULSE_MULTIPLIER_MAX: 3.5,
-  MAX_WATER_CURRENT_SPEED: 200,
-  WATER_CURRENT_RESPONSE_PER_SECOND: 5,
-  WATER_CURRENT_SURGE_BOOST: 1.2,
-  SURFACE_FOLLOW_RESPONSE_PER_SECOND: 24,
+  MAX_WATER_CURRENT_SPEED: 400,
+  WATER_CURRENT_RESPONSE_PER_SECOND: 10,
+  WATER_CURRENT_SURGE_BOOST: 2.4,
+  SURFACE_FOLLOW_RESPONSE_PER_SECOND: 48,
   /** Fraction of full swimmer height placed below the computed surface crest. */
   SURFACE_SUBMERGENCE_RATIO: 0.1,
   SURFACE_BOB_BLEND: 1.2,
@@ -69,12 +69,12 @@ export const waterPhysicsTuning = {
   /** Pixels/s² added to baseSpeed once the session ramp hands off to WaterPhysicsSystem. */
   WATER_SPEED_ACCELERATION_PER_SECOND: 2.2,
   WATER_SPEED_MAX: 400,
-  FLOW_ACCEL_PER_SECOND: 6.8,
-  FLOW_IMPULSE_ON_ROW_CHANGE: 3.2,
-  FLOW_IMPULSE_BLEND_PER_SECOND: 3.4,
-  FLOW_DRAG_PER_SECOND: 0.09,
-  FLOW_OFFSET_SCALE: 6.8,
-  FLOW_OFFSET_RETURN_PER_SECOND: 1.8,
+  FLOW_ACCEL_PER_SECOND: 12,
+  FLOW_IMPULSE_ON_ROW_CHANGE: 6.4,
+  FLOW_IMPULSE_BLEND_PER_SECOND: 36.8,
+  FLOW_DRAG_PER_SECOND: 0.07,
+  FLOW_OFFSET_SCALE: 13.6,
+  FLOW_OFFSET_RETURN_PER_SECOND: 3.6,
   GAP_BLEND_SPEED_PER_SECOND: 5.4,
   SURGE_RISE_PER_SECOND: 2.1,
   SURGE_DECAY_PER_SECOND: 0.09,

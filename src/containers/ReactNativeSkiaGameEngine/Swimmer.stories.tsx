@@ -63,6 +63,8 @@ import { RunResultComponentName } from '@/Game/ecs-components/RunResult';
 import { GameOverScoreComponentName } from '@/Game/ecs-components/GameOverScore';
 import { ScoreView } from '@/components/ScoreView/ScoreView-rntge';
 import { GameplayFeedbackView } from '@/components/GameplayFeedbackView/GameplayFeedbackView-rntge';
+import { SkillFeedbackDiagButton } from '@/components/SkillFeedbackDiagButton/SkillFeedbackDiagButton-rntge';
+import { skillFeedbackDiagTuning } from '@/Game/debug/skillFeedbackDiag';
 import { ObstacleRowComponentName } from '@/Game/ecs-components/ObstacleRowComponent';
 import { BlockFoamComponentName } from '@/Game/ecs-components/BlockFoam';
 import { WaterSurfaceFoamComponentName } from '@/Game/ecs-components/WaterSurfaceFoam';
@@ -387,6 +389,16 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                     }}
                   />
                   <GameplayFeedbackView />
+                  {skillFeedbackDiagTuning.SHOW_BUTTON && (
+                    <SkillFeedbackDiagButton
+                      safeAreaInsets={{
+                        top: insets.top,
+                        bottom: insets.bottom,
+                        left: insets.left,
+                        right: insets.right,
+                      }}
+                    />
+                  )}
                 </Content>
               </Scene>
               <StartScene

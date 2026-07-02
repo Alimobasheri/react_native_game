@@ -46,14 +46,17 @@ export const updateSwimmerEntityVisuals = (
   visualPhase: VisualStrokePhase,
   isPinned: boolean,
   options: SwimmerEntityVisualOptions = {},
-  breathEnvelope?: number
+  breathEnvelope?: number,
+  wallBumpActive = false
 ): SwimmerEntityVisualResult => {
   'worklet';
-  const deformationState: DeformationState = visualPhaseToDeformationState(
-    visualPhase,
-    telemetry.state,
-    isPinned
-  );
+  const deformationState: DeformationState = wallBumpActive
+    ? 'WALL_BUMP'
+    : visualPhaseToDeformationState(
+        visualPhase,
+        telemetry.state,
+        isPinned
+      );
 
   const deformationResult = updateProceduralDeformation(
     deformation,

@@ -8,7 +8,7 @@ import { swimmerDeformationTuning } from '@/config/swimmerDeformationTuning';
 
 export type { DeformationScale, DeformationScaleSink, ProceduralDeformationResult };
 
-export type DeformationState = MovementState | 'PINNED';
+export type DeformationState = MovementState | 'PINNED' | 'WALL_BUMP';
 
 const resolveTargetScales = (
   state: DeformationState,
@@ -37,6 +37,13 @@ const resolveTargetScales = (
     return {
       scaleX: tuning.PIVOT_BRAKE_SCALE_X,
       scaleY: tuning.PIVOT_BRAKE_SCALE_Y,
+    };
+  }
+
+  if (state === 'WALL_BUMP') {
+    return {
+      scaleX: tuning.WALL_BUMP_SCALE_X,
+      scaleY: tuning.WALL_BUMP_SCALE_Y,
     };
   }
 

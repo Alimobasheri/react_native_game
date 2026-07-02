@@ -4,6 +4,8 @@
 **Scope:** How each **run** (tap Start → play → die → retry) feels different from the last.  
 **Out of scope:** New core mechanics, biome rule-twists, character gameplay modifiers, monetization, handcrafted level mode.
 
+**Speed / timing within a run:** Macro FLOW/TENSION/CLIMAX/RELEASE phases here supply **geometry**; discrete **water speed tiers** per phase are defined in [passage-timing-roadmap.md](./passage-timing-roadmap.md) (PT-002, PT-009). Do not add per-frame speed ramp without updating that doc.
+
 ---
 
 ## Problem

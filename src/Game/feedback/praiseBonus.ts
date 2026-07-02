@@ -27,17 +27,17 @@ export const computePraiseBonus = (
   if (event.bonusMax <= 0 && event.bonusMin <= 0) return 0;
 
   const base = rollBonusInRange(event.bonusMin, event.bonusMax, roll01);
-  const tightness = 1 - Math.max(0, Math.min(1, clearance01));
   const speedNorm = Math.min(
     1,
     raisingSpeed / Math.max(1, tuning.speedNormMax)
   );
   const diff = Math.max(0, Math.min(1, difficulty01));
   const hygiene = Math.max(0, Math.min(1, hygiene01));
+  const ignoreClearance = event.bonusIgnoreClearance === true;
 
   const mult =
     1 +
-    tightness * tuning.bonus.clearanceWeight +
+    (ignoreClearance ? 0 : (1 - Math.max(0, Math.min(1, clearance01))) * tuning.bonus.clearanceWeight) +
     speedNorm * tuning.bonus.speedWeight +
     diff * tuning.bonus.difficultyWeight +
     hygiene * tuning.hygiene.bonusHygieneWeight;

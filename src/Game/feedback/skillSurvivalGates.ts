@@ -13,12 +13,28 @@ export type ResolvedSkillGates = {
   steerCooldownMs: number;
   maxDirtyRowsInWindow: number;
   swimmerSteerMinSpanCols: number;
+  latchGraceMs: number;
 };
 
 export const lerpSkillGate = (easy: number, hard: number, t: number): number => {
   'worklet';
   const clamped = Math.max(0, Math.min(1, t));
   return easy + (hard - easy) * clamped;
+};
+
+/** Brief pin below this duration at high intensity → Near Miss, not SAVED. */
+export const resolveLatchGraceMs = (
+  difficulty01: number,
+  speedNorm: number,
+  tuning: SkillFeedbackTuning
+): number => {
+  'worklet';
+  const ramp = tuning.survivalRamp;
+  const diffT = Math.max(0, Math.min(1, difficulty01));
+  const speedT = Math.max(0, Math.min(1, speedNorm));
+  const intensity = Math.max(diffT, speedT);
+  const base = lerpSkillGate(ramp.latchGraceMsEasy, ramp.latchGraceMsHard, intensity);
+  return Math.round(base * (1 + speedT * 0.15));
 };
 
 export const resolveSkillGates = (
@@ -64,6 +80,7 @@ export const resolveSkillGates = (
       ramp.swimmerSteerMinSpanHard,
       intensity
     ),
+    latchGraceMs: resolveLatchGraceMs(diffT, speedT, tuning),
   };
 };
 

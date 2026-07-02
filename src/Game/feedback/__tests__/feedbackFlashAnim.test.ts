@@ -20,6 +20,12 @@ describe('computeFlashTransform', () => {
     expect(late.y).toBeLessThan(early.y);
   });
 
+  it('stackIndex offsets word position upward', () => {
+    const base = computeFlashTransform(start, start + 100, 100, 200, duration, rise, 0, 0);
+    const stacked = computeFlashTransform(start, start + 100, 100, 200, duration, rise, 1, 36);
+    expect(stacked.y).toBeLessThan(base.y);
+  });
+
   it('is inactive after duration', () => {
     const t = computeFlashTransform(start, start + duration + 1, 100, 200, duration, rise);
     expect(t.active).toBe(false);

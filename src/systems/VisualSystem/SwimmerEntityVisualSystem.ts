@@ -138,6 +138,11 @@ export const SwimmerEntityVisualSystem: System = {
       }
 
       const locomotion = swimmer.locomotion;
+      const wallBumpTimer = locomotion.wallBumpSquashTimer ?? 0;
+      const wallBumpActive = wallBumpTimer > 0;
+      if (wallBumpActive) {
+        locomotion.wallBumpSquashTimer = Math.max(0, wallBumpTimer - deltaSeconds);
+      }
       const skin = getSwimmerSkin(swimmer.skinId);
       const baseWidth = swimmer.meshBaseWidth ?? render.shape.width;
       const baseHeight = swimmer.meshBaseHeight ?? render.shape.height;
@@ -230,7 +235,8 @@ export const SwimmerEntityVisualSystem: System = {
                 skin.accessoryAnchorYRatio)
               : skin.accessoryAnchorYRatio,
         },
-        breathEnvelope
+        breathEnvelope,
+        wallBumpActive
       );
 
       const nextWidth = baseWidth * visualResult.scaleX;

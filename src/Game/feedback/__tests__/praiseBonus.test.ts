@@ -6,15 +6,28 @@ import {
 import type { SkillPraiseEvent } from '../skillFeedbackTypes';
 
 const baseEvent: SkillPraiseEvent = {
-  familyId: 'ceiling_dodge',
-  momentId: 'ceiling_brush',
-  copy: 'CLOSE!',
+  familyId: 'steer_clean',
+  momentId: 'shift_commit',
+  copy: 'NICE!',
+  tierIndex: 0,
+  bonusMin: 10,
+  bonusMax: 20,
+  priority: 110,
+  anchorX: 0,
+  anchorY: 0,
+};
+
+const nearMissEvent: SkillPraiseEvent = {
+  familyId: 'near_miss',
+  momentId: 'near_miss',
+  copy: 'Near Miss!',
   tierIndex: 0,
   bonusMin: 10,
   bonusMax: 20,
   priority: 80,
   anchorX: 0,
   anchorY: 0,
+  bonusIgnoreClearance: true,
 };
 
 describe('rollBonusInRange', () => {
@@ -48,8 +61,24 @@ describe('computePraiseBonus', () => {
     expect(tight).toBeGreaterThan(open);
   });
 
-  it('does not change copy — bonus only', () => {
-    expect(baseEvent.copy).toBe('CLOSE!');
+  it('ignores clearance for near miss events', () => {
+    const tight = computePraiseBonus(
+      nearMissEvent,
+      0.05,
+      200,
+      0.5,
+      skillFeedbackTuning,
+      0.5
+    );
+    const open = computePraiseBonus(
+      nearMissEvent,
+      0.95,
+      200,
+      0.5,
+      skillFeedbackTuning,
+      0.5
+    );
+    expect(tight).toBe(open);
   });
 
   it('returns 0 for zero bonus events', () => {

@@ -3,12 +3,16 @@
  * Worklet-safe: plain constants only. Copy and thresholds are data-driven.
  */
 
+import { tapInputTuning } from '@/config/swimmerTuning';
+
 export type SkillTierGate = {
   copy: string;
   speedMin?: number;
   diffMin?: number;
   requirePinhole?: boolean;
   requirePinholeContext?: boolean;
+  /** Zig-zag tap king tier — min alternation streak. */
+  minStreak?: number;
   bonusMin: number;
   bonusMax: number;
 };
@@ -29,6 +33,11 @@ export type SteerPatternTuning = {
   maxGapWidth?: number;
   chicaneShiftMin?: number;
   branchKeyContains?: string;
+  passageWindow?: 'per_row';
+  flowDisqualifiers?: readonly ('pinned' | 'hard_block')[];
+  smoothRequiresCleanPassage?: boolean;
+  wallBumpDebounceMs?: number;
+  wallBumpSquashDurationSec?: number;
   tiers: SkillTierGate[];
 };
 
@@ -62,8 +71,11 @@ export const skillFeedbackTuning = {
     maxDirtyRowsInWindowEasy: 0,
     maxDirtyRowsInWindowHard: 2,
     /** Min horizontal travel (column units) to count as player steer — lower at high speed/diff. */
-    swimmerSteerMinSpanEasy: 1,
-    swimmerSteerMinSpanHard: 0.72,
+    swimmerSteerMinSpanEasy: 0,
+    swimmerSteerMinSpanHard: 0,
+    /** Brief pin below this ms at high diff → Near Miss, not SAVED. */
+    latchGraceMsEasy: 80,
+    latchGraceMsHard: 180,
   },
 
   hygiene: {
@@ -98,26 +110,42 @@ export const skillFeedbackTuning = {
         },
       ] as SkillTierGate[],
     },
-    ceiling_dodge: {
+    near_miss: {
       enabled: true,
       priority: 80,
       cooldownMs: 600,
       maxPerRun: 24,
+      tapWindowMs: tapInputTuning.RAPID_TAP_WINDOW_MS,
+      bonusIgnoreClearance: true,
       tiers: [
-        { copy: 'CLOSE!', bonusMin: 10, bonusMax: 20 },
-        { copy: 'TOO CLOSE!', speedMin: 0.5, diffMin: 0.35, bonusMin: 15, bonusMax: 28 },
+        { copy: 'Near Miss!', bonusMin: 10, bonusMax: 20 },
+        { copy: 'Close One!', speedMin: 0.45, diffMin: 0.3, bonusMin: 15, bonusMax: 28 },
+        { copy: 'Too Close!', speedMin: 0.55, diffMin: 0.4, bonusMin: 18, bonusMax: 32 },
         {
-          copy: 'BY A HAIR!',
-          requirePinholeContext: true,
-          bonusMin: 18,
-          bonusMax: 32,
-        },
-        {
-          copy: 'CHEATED DEATH!',
+          copy: 'Cheated Death!',
           speedMin: 0.65,
           diffMin: 0.5,
           bonusMin: 25,
           bonusMax: 45,
+        },
+      ] as SkillTierGate[],
+    },
+    zigzag_tap: {
+      enabled: true,
+      priority: 68,
+      cooldownMs: 450,
+      maxPerRun: Number.POSITIVE_INFINITY,
+      minStreak: 3,
+      streakWindowMs: 400,
+      tiers: [
+        { copy: 'ZIG-ZAG!', bonusMin: 12, bonusMax: 22 },
+        {
+          copy: 'ZIG-ZAG KING!',
+          speedMin: 0.5,
+          diffMin: 0.35,
+          minStreak: 5,
+          bonusMin: 18,
+          bonusMax: 32,
         },
       ] as SkillTierGate[],
     },
@@ -132,6 +160,11 @@ export const skillFeedbackTuning = {
           enabled: true,
           priority: 50,
           minCenterDeltaCols: 1,
+          passageWindow: 'per_row' as const,
+          flowDisqualifiers: ['pinned', 'hard_block'] as const,
+          smoothRequiresCleanPassage: true,
+          wallBumpDebounceMs: 120,
+          wallBumpSquashDurationSec: 0.12,
           tiers: [
             { copy: 'NICE!', bonusMin: 8, bonusMax: 18 },
             { copy: 'SMOOTH!', speedMin: 0.45, diffMin: 0.3, bonusMin: 12, bonusMax: 22 },
@@ -139,7 +172,7 @@ export const skillFeedbackTuning = {
         },
         zigzag_chain: {
           momentId: 'zigzag_chain',
-          enabled: true,
+          enabled: false,
           priority: 70,
           minRunLength: 3,
           breakMinDelta: 2,
@@ -188,14 +221,6 @@ export const skillFeedbackTuning = {
               bonusMax: 38,
             },
           ],
-        },
-        funnel_thread: {
-          momentId: 'funnel_thread',
-          enabled: true,
-          priority: 45,
-          maxGapWidth: 2,
-          branchKeyContains: 'funnel',
-          tiers: [{ copy: 'TIGHT!', bonusMin: 10, bonusMax: 20 }],
         },
         fork_clean: {
           momentId: 'fork_clean',

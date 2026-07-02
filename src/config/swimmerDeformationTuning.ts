@@ -13,6 +13,9 @@ export const swimmerDeformationTuning = {
   /** PIVOT_BRAKE — forward shovel compression. */
   PIVOT_BRAKE_SCALE_X: 1.06,
   PIVOT_BRAKE_SCALE_Y: 0.95,
+  /** WALL_BUMP — brief side-impact squash (render-only). */
+  WALL_BUMP_SCALE_X: 1.04,
+  WALL_BUMP_SCALE_Y: 0.96,
   /** PINNED / game-over — comedic squash. */
   PINNED_SCALE_X: 1.35,
   PINNED_SCALE_Y: 0.6,

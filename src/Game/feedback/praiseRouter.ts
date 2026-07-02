@@ -1,6 +1,19 @@
 import type { SkillFamilyId, SkillPraiseEvent, SkillFeedbackState } from '@/Game/feedback/skillFeedbackTypes';
 import type { SkillFeedbackTuning } from '@/config/skillFeedback';
 
+export type RouterDropReason =
+  | 'family_capped'
+  | 'family_cooldown'
+  | 'blocked_by_saved'
+  | 'duplicate_moment'
+  | 'max_word_slots';
+
+export type RouterDrop = {
+  momentId: SkillPraiseEvent['momentId'];
+  familyId: SkillFamilyId;
+  reason: RouterDropReason;
+};
+
 export type RouterContext = {
   candidates: SkillPraiseEvent[];
   state: SkillFeedbackState;
@@ -9,6 +22,8 @@ export type RouterContext = {
   /** Wave 2: difficulty-scaled steer cooldown override. */
   steerCooldownMsOverride?: number;
 };
+
+const MAX_WORD_EVENTS = 2;
 
 const familyCooldownMs = (
   familyId: SkillFamilyId,
@@ -19,8 +34,10 @@ const familyCooldownMs = (
   switch (familyId) {
     case 'snap_transfer':
       return tuning.families.snap_transfer.cooldownMs;
-    case 'ceiling_dodge':
-      return tuning.families.ceiling_dodge.cooldownMs;
+    case 'near_miss':
+      return tuning.families.near_miss.cooldownMs;
+    case 'zigzag_tap':
+      return tuning.families.zigzag_tap.cooldownMs;
     case 'steer_clean':
       return steerCooldownMsOverride ?? tuning.families.steer_clean.cooldownMs;
     case 'pin_coach':
@@ -38,8 +55,10 @@ const familyMaxPerRun = (
   switch (familyId) {
     case 'snap_transfer':
       return tuning.families.snap_transfer.maxPerRun;
-    case 'ceiling_dodge':
-      return tuning.families.ceiling_dodge.maxPerRun;
+    case 'near_miss':
+      return tuning.families.near_miss.maxPerRun;
+    case 'zigzag_tap':
+      return tuning.families.zigzag_tap.maxPerRun;
     case 'steer_clean':
       return tuning.families.steer_clean.maxPerRun;
     case 'pin_coach':
@@ -75,12 +94,41 @@ const isFamilyCapped = (
   return count >= familyMaxPerRun(familyId, tuning);
 };
 
+const getIneligibilityReason = (
+  c: SkillPraiseEvent,
+  ctx: RouterContext
+): RouterDropReason | null => {
+  'worklet';
+  if (isFamilyCapped(c.familyId, ctx.state, ctx.tuning)) {
+    return 'family_capped';
+  }
+  if (
+    c.momentId !== 'pin_saved' &&
+    isFamilyOnCooldown(
+      c.familyId,
+      ctx.state,
+      ctx.nowMs,
+      ctx.tuning,
+      ctx.steerCooldownMsOverride
+    )
+  ) {
+    return 'family_cooldown';
+  }
+  return null;
+};
+
 export const routeSkillPraiseEvents = (
   ctx: RouterContext
-): { events: SkillPraiseEvent[]; state: SkillFeedbackState } => {
+): {
+  events: SkillPraiseEvent[];
+  state: SkillFeedbackState;
+  dropped: RouterDrop[];
+} => {
   'worklet';
+  const dropped: RouterDrop[] = [];
+
   if (ctx.candidates.length === 0) {
-    return { events: [], state: ctx.state };
+    return { events: [], state: ctx.state, dropped };
   }
 
   const tapEvents: SkillPraiseEvent[] = [];
@@ -95,37 +143,71 @@ export const routeSkillPraiseEvents = (
     }
   }
 
-  let bestWord: SkillPraiseEvent | null = null;
+  const eligibleWords: SkillPraiseEvent[] = [];
   for (let i = 0; i < wordEvents.length; i++) {
     const c = wordEvents[i];
-    if (isFamilyCapped(c.familyId, ctx.state, ctx.tuning)) continue;
-    if (
-      c.momentId !== 'pin_saved' &&
-      isFamilyOnCooldown(
-        c.familyId,
-        ctx.state,
-        ctx.nowMs,
-        ctx.tuning,
-        ctx.steerCooldownMsOverride
-      )
-    ) {
+    const reason = getIneligibilityReason(c, ctx);
+    if (reason) {
+      dropped.push({ momentId: c.momentId, familyId: c.familyId, reason });
+    } else {
+      eligibleWords.push(c);
+    }
+  }
+
+  eligibleWords.sort((a, b) => b.priority - a.priority);
+
+  const hasSaved = eligibleWords.some((e) => e.momentId === 'pin_saved');
+  const selectedWords: SkillPraiseEvent[] = [];
+  const seenMomentIds: SkillPraiseEvent['momentId'][] = [];
+
+  for (let i = 0; i < eligibleWords.length; i++) {
+    const c = eligibleWords[i];
+    if (hasSaved && c.momentId === 'near_miss') {
+      dropped.push({
+        momentId: c.momentId,
+        familyId: c.familyId,
+        reason: 'blocked_by_saved',
+      });
       continue;
     }
-    if (!bestWord || c.priority > bestWord.priority) {
-      bestWord = c;
+    let duplicate = false;
+    for (let j = 0; j < seenMomentIds.length; j++) {
+      if (seenMomentIds[j] === c.momentId) {
+        duplicate = true;
+        break;
+      }
     }
+    if (duplicate) {
+      dropped.push({
+        momentId: c.momentId,
+        familyId: c.familyId,
+        reason: 'duplicate_moment',
+      });
+      continue;
+    }
+    if (selectedWords.length >= MAX_WORD_EVENTS) {
+      dropped.push({
+        momentId: c.momentId,
+        familyId: c.familyId,
+        reason: 'max_word_slots',
+      });
+      continue;
+    }
+    selectedWords.push(c);
+    seenMomentIds.push(c.momentId);
   }
 
   const out: SkillPraiseEvent[] = [];
   if (tapEvents.length > 0) {
     out.push(tapEvents[tapEvents.length - 1]);
   }
-  if (bestWord) {
-    out.push(bestWord);
+  for (let i = 0; i < selectedWords.length; i++) {
+    out.push(selectedWords[i]);
   }
 
   let state = ctx.state;
-  if (bestWord) {
+  for (let i = 0; i < selectedWords.length; i++) {
+    const bestWord = selectedWords[i];
     const familyId = bestWord.familyId;
     state = {
       ...state,
@@ -140,5 +222,5 @@ export const routeSkillPraiseEvents = (
     };
   }
 
-  return { events: out, state };
+  return { events: out, state, dropped };
 };

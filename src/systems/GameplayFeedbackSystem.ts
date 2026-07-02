@@ -50,10 +50,12 @@ import {
   computeBonusFlashTransform,
   computeFlashTransform,
 } from '@/Game/feedback/feedbackFlashAnim';
-import { updateCeilingDodgeDetection } from '@/Game/feedback/ceilingDodgeDetection';
+import { updateNearMissDetection } from '@/Game/feedback/nearMissDetection';
 import { detectSnapTransfer } from '@/Game/feedback/snapTransferDetection';
-import { detectSteerPraise } from '@/Game/feedback/steerPraiseDetection';
+import { detectSteerPraise, evaluateShiftCommit } from '@/Game/feedback/steerPraiseDetection';
+import { resetPassageFlowSampler } from '@/Game/feedback/passageFlowScoring';
 import { updateTapCoachDetection } from '@/Game/feedback/tapCoachDetection';
+import { updateZigzagTapDetection } from '@/Game/feedback/zigzagTapDetection';
 import { computePraiseBonus } from '@/Game/feedback/praiseBonus';
 import { routeSkillPraiseEvents } from '@/Game/feedback/praiseRouter';
 import {
@@ -81,6 +83,17 @@ import {
   createDefaultSkillFeedbackState,
   type SkillPraiseEvent,
 } from '@/Game/feedback/skillFeedbackTypes';
+import {
+  appendDiagRing,
+  compactCandidatesFromEvents,
+  compactContact,
+  compactPassageFlow,
+  compactStitch,
+  computeRowHygiene01,
+  copyStringsFromEvents,
+  skillFeedbackDiagTuning,
+  type SkillFeedbackDiagEntry,
+} from '@/Game/debug/skillFeedbackDiag';
 import { Skia, TextAlign } from '@shopify/react-native-skia';
 
 const deactivateSlot = (slots: FeedbackFlashSlot[], index: number): FeedbackFlashSlot[] => {
@@ -93,6 +106,7 @@ const deactivateSlot = (slots: FeedbackFlashSlot[], index: number): FeedbackFlas
     active: false,
     text: '',
     startMs: 0,
+    stackIndex: 0,
   };
   return next;
 };
@@ -130,7 +144,16 @@ export const GameplayFeedbackSystem: System = {
 
     let slots = manager.slots;
     let skillFeedback = manager.skillFeedback;
+    let diagRing = manager.diagRing ?? [];
     const wordSlotCount = gameplayFeedbackTuning.WORD_SLOT_COUNT;
+    const diagEnabled = skillFeedbackDiagTuning.ENABLED;
+    let rowCrossDraft: Omit<
+      Extract<SkillFeedbackDiagEntry, { kind: 'row_cross' }>,
+      'kind' | 'candidates' | 'routed' | 'dropped'
+    > | null = null;
+    let shiftCommitReject:
+      | import('@/Game/feedback/skillFeedbackTypes').ShiftCommitRejectReason
+      | undefined;
 
     if (juiceActive && swimmerData) {
       const waterData = firstDataFromStore(
@@ -155,6 +178,10 @@ export const GameplayFeedbackSystem: System = {
       const minEscapeTravelPx =
         columnWidth * swimmerPhysicsTuning.PINNED_ESCAPE_MIN_TAP_TRAVEL_COLUMN_FRACTION;
 
+      const locomotion = swimmerData.locomotion;
+      const lastTapTimeMs = locomotion.lastTapTimeMs;
+      const lastTapDirection = locomotion.lastTapDirection;
+
       const candidates: SkillPraiseEvent[] = [];
 
       skillFeedback = {
@@ -165,6 +192,7 @@ export const GameplayFeedbackSystem: System = {
           colliding: swimmerData.isCollidingWithObstacle === true,
           pinned: swimmerData.isPinnedFromAbove === true,
           clearance01,
+          movementBlocked: swimmerData.movementBlockedThisFrame === true,
           swimmerColFrac: swimmerWorldXToColumnFrac(
             swimmerData.x,
             swimmerData.containerCenterX,
@@ -190,6 +218,8 @@ export const GameplayFeedbackSystem: System = {
         anchorY,
         tuning: skillFeedbackTuning,
         minEscapeTravelPx,
+        speedNorm,
+        difficulty01,
       });
       skillFeedback = {
         ...skillFeedback,
@@ -199,24 +229,45 @@ export const GameplayFeedbackSystem: System = {
         candidates.push(tapResult.events[i]);
       }
 
-      const ceilingResult = updateCeilingDodgeDetection({
-        brushing: swimmerData.ceilingBrushThisFrame === true,
+      const nearMissResult = updateNearMissDetection({
+        ceilingBrush: swimmerData.ceilingBrushThisFrame === true,
         isPinned: swimmerData.isPinnedFromAbove === true,
-        state: skillFeedback.ceilingDodge,
+        stitchSampler: skillFeedback.contactWindow.stitchSampler,
+        lastTapTimeMs,
+        lastTapDirection,
+        state: skillFeedback.nearMiss,
         nowMs,
         speedNorm,
         difficulty01,
-        rowHistory: skillFeedback.rowHistory,
         anchorX,
         anchorY,
         tuning: skillFeedbackTuning,
       });
       skillFeedback = {
         ...skillFeedback,
-        ceilingDodge: ceilingResult.state,
+        nearMiss: nearMissResult.state,
       };
-      if (ceilingResult.event) {
-        candidates.push(ceilingResult.event);
+      if (nearMissResult.event) {
+        candidates.push(nearMissResult.event);
+      }
+
+      const zigzagResult = updateZigzagTapDetection({
+        lastTapTimeMs,
+        lastTapDirection,
+        state: skillFeedback.zigzagTap,
+        nowMs,
+        speedNorm,
+        difficulty01,
+        anchorX,
+        anchorY,
+        tuning: skillFeedbackTuning,
+      });
+      skillFeedback = {
+        ...skillFeedback,
+        zigzagTap: zigzagResult.state,
+      };
+      if (zigzagResult.event) {
+        candidates.push(zigzagResult.event);
       }
 
       const centerRowEntity = waterData?.centerRowEntity;
@@ -266,6 +317,34 @@ export const GameplayFeedbackSystem: System = {
             skillFeedbackTuning.SKIP_STEER_ON_IDENTICAL_GAPS
           );
 
+          if (diagEnabled) {
+            rowCrossDraft = {
+              tMs: nowMs,
+              totalRows,
+              difficulty01,
+              speedNorm,
+              raisingSpeed,
+              branchKey: snapshot.branchKey,
+              gaps: snapshot.rawGaps.slice(),
+              swimmerCol,
+              swimmerColFrac,
+              crossQualified: snapshot.crossQualified,
+              cleanCross: snapshot.cleanCross,
+              contact: compactContact(snapshot.contact),
+              hygiene01: computeRowHygiene01(
+                skillFeedback.rowHistory,
+                skillFeedback.contactWindow.stitchSampler
+              ),
+              stitch: compactStitch(skillFeedback.contactWindow.stitchSampler),
+              passageFlow: compactPassageFlow(
+                skillFeedback.contactWindow.passageFlow
+              ),
+              skipSteerIdenticalGaps: skipSteer,
+            };
+          }
+
+          const passageSampler = skillFeedback.contactWindow.passageFlow;
+
           if (!skipSteer) {
             const snapEvent = detectSnapTransfer({
               history: skillFeedback.rowHistory,
@@ -281,7 +360,7 @@ export const GameplayFeedbackSystem: System = {
               candidates.push(snapEvent);
             }
 
-            const steerEvent = detectSteerPraise({
+            const steerCtx = {
               history: skillFeedback.rowHistory,
               current: snapshot,
               speedNorm,
@@ -290,15 +369,27 @@ export const GameplayFeedbackSystem: System = {
               anchorY,
               tuning: skillFeedbackTuning,
               stitchSampler: skillFeedback.contactWindow.stitchSampler,
+              passageSampler,
               gates,
-            });
+            };
+            const shiftEval = evaluateShiftCommit(steerCtx);
+            if (diagEnabled) {
+              shiftCommitReject = shiftEval.rejectReason ?? undefined;
+            }
+            const steerEvent = detectSteerPraise(steerCtx);
             if (steerEvent) {
               candidates.push(steerEvent);
             }
+          } else if (diagEnabled) {
+            shiftCommitReject = undefined;
           }
 
           skillFeedback = {
             ...skillFeedback,
+            contactWindow: {
+              ...skillFeedback.contactWindow,
+              passageFlow: resetPassageFlowSampler(),
+            },
             rowHistory: appendRowCrossSnapshot(
               skillFeedback.rowHistory,
               snapshot,
@@ -321,6 +412,46 @@ export const GameplayFeedbackSystem: System = {
         steerCooldownMsOverride: gates.steerCooldownMs,
       });
       skillFeedback = routed.state;
+
+      if (diagEnabled && rowCrossDraft) {
+        const compactCandidates = compactCandidatesFromEvents(candidates);
+        const compactRouted = compactCandidatesFromEvents(routed.events);
+        diagRing = appendDiagRing(diagRing, {
+          kind: 'row_cross',
+          tMs: rowCrossDraft.tMs,
+          totalRows: rowCrossDraft.totalRows,
+          difficulty01: rowCrossDraft.difficulty01,
+          speedNorm: rowCrossDraft.speedNorm,
+          raisingSpeed: rowCrossDraft.raisingSpeed,
+          branchKey: rowCrossDraft.branchKey,
+          gaps: rowCrossDraft.gaps,
+          swimmerCol: rowCrossDraft.swimmerCol,
+          swimmerColFrac: rowCrossDraft.swimmerColFrac,
+          crossQualified: rowCrossDraft.crossQualified,
+          cleanCross: rowCrossDraft.cleanCross,
+          contact: rowCrossDraft.contact,
+          hygiene01: rowCrossDraft.hygiene01,
+          stitch: rowCrossDraft.stitch,
+          passageFlow: rowCrossDraft.passageFlow,
+          skipSteerIdenticalGaps: rowCrossDraft.skipSteerIdenticalGaps,
+          shiftCommitReject,
+          candidates: compactCandidates,
+          routed: compactRouted,
+          dropped: routed.dropped,
+        });
+      } else if (diagEnabled && candidates.length > 0) {
+        const compactCandidates = compactCandidatesFromEvents(candidates);
+        const compactRouted = compactCandidatesFromEvents(routed.events);
+        diagRing = appendDiagRing(diagRing, {
+          kind: 'praise_frame',
+          tMs: nowMs,
+          pinned: swimmerData.isPinnedFromAbove === true,
+          ceilingBrush: swimmerData.ceilingBrushThisFrame === true,
+          candidates: compactCandidates,
+          routed: compactRouted,
+          dropped: routed.dropped,
+        });
+      }
 
       if (
         routed.events.some(
@@ -362,6 +493,16 @@ export const GameplayFeedbackSystem: System = {
           nowMs,
           wordSlotCount
         );
+
+        if (diagEnabled) {
+          diagRing = appendDiagRing(diagRing, {
+            kind: 'fired',
+            tMs: nowMs,
+            copies: copyStringsFromEvents(routed.events),
+            bonuses,
+            totalBonus,
+          });
+        }
 
         if (totalBonus > 0) {
           const scoreEntities = ecs.getEntitiesWithComponents([ScoreComponentName]);
@@ -407,7 +548,9 @@ export const GameplayFeedbackSystem: System = {
                 gameplayFeedbackTuning.FLASH_DURATION_MS,
                 layout.risePx,
                 layout.bonusOffsetX,
-                layout.bonusOffsetY
+                layout.bonusOffsetY,
+                slot.stackIndex,
+                layout.stackGapPx
               )
             : computeFlashTransform(
                 slot.startMs,
@@ -415,7 +558,9 @@ export const GameplayFeedbackSystem: System = {
                 slot.anchorX,
                 slot.anchorY,
                 gameplayFeedbackTuning.FLASH_DURATION_MS,
-                layout.risePx
+                layout.risePx,
+                slot.stackIndex,
+                layout.stackGapPx
               )
           : {
               x: 0,
@@ -480,13 +625,15 @@ export const GameplayFeedbackSystem: System = {
 
     const slotsChanged = slots !== manager.slots;
     const skillChanged = skillFeedback !== manager.skillFeedback;
-    if (slotsChanged || skillChanged) {
+    const diagChanged = diagRing !== manager.diagRing;
+    if (slotsChanged || skillChanged || diagChanged) {
       ecs.updateComponent<GameplayFeedbackManagerData>(
         managerEntity,
         GameplayFeedbackManagerComponentName,
         (m) => {
           m.skillFeedback = skillFeedback;
           m.slots = slots;
+          m.diagRing = diagRing;
         }
       );
     }
@@ -498,9 +645,11 @@ export const resetGameplayFeedbackManager = (
 ): void => {
   'worklet';
   manager.skillFeedback = createDefaultSkillFeedbackState();
+  manager.diagRing = [];
   for (let i = 0; i < manager.slots.length; i++) {
     manager.slots[i].active = false;
     manager.slots[i].text = '';
     manager.slots[i].startMs = 0;
+    manager.slots[i].stackIndex = 0;
   }
 };

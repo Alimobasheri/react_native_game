@@ -2,19 +2,19 @@ import type { GapTopology } from '@/Game/feedback/gapTopology';
 
 export type SkillFamilyId =
   | 'snap_transfer'
-  | 'ceiling_dodge'
+  | 'near_miss'
+  | 'zigzag_tap'
   | 'steer_clean'
   | 'pin_coach';
 
 export type SkillMomentId =
   | 'pinhole_flare_snap'
   | 'shift_commit'
-  | 'zigzag_chain'
   | 'slalom_block'
   | 'cross_sweep'
-  | 'funnel_thread'
   | 'fork_clean'
-  | 'ceiling_brush'
+  | 'near_miss'
+  | 'zigzag_tap'
   | 'tap_coach'
   | 'pin_saved';
 
@@ -55,6 +55,8 @@ export type SkillPraiseEvent = {
   refreshExistingTap?: boolean;
   /** Wave 2: cross-hygiene score for tier upgrade and +N scaling. */
   hygiene01?: number;
+  /** When true, clearance01 does not scale +N bonus. */
+  bonusIgnoreClearance?: boolean;
 };
 
 export type StitchSampler = {
@@ -68,9 +70,30 @@ export type StitchSampler = {
   maxSwimmerColFracSeen: number;
 };
 
+/** Per-row passage window for shift_commit (NICE!) — reset each row cross. */
+export type PassageFlowSampler = {
+  pinnedSeen: boolean;
+  hardBlockSeen: boolean;
+  softScrapeSeen: boolean;
+  minSwimmerColFracSeen: number;
+  maxSwimmerColFracSeen: number;
+};
+
+export type ShiftCommitRejectReason =
+  | 'no_prev_row'
+  | 'no_topology_shift'
+  | 'wide_open'
+  | 'no_steer_proof'
+  | 'flow_pinned'
+  | 'flow_hard_block'
+  | 'pattern_disabled'
+  | 'payoff_pinned'
+  | 'not_cross_qualified';
+
 export type ContactWindowState = {
   rowsSinceReset: number;
   stitchSampler: StitchSampler;
+  passageFlow: PassageFlowSampler;
 };
 
 export type TapCoachState = {
@@ -79,12 +102,26 @@ export type TapCoachState = {
   pinAnchorX?: number;
   lastSavedMs: number;
   pinSessionStartX?: number;
+  pinEnterMs: number;
 };
 
-export type CeilingDodgeState = {
-  wasBrushing: boolean;
+export type NearMissState = {
+  inThreat: boolean;
+  threatStartMs: number;
+  latchedInThreat: boolean;
+  pinEnterMs: number;
+  lastQualifyingTapMs: number;
+  lastQualifyingTapDir?: -1 | 1;
   lastFireMs: number;
   firesThisRun: number;
+};
+
+export type ZigzagTapState = {
+  streak: number;
+  lastTapDir?: -1 | 1;
+  lastTapMs: number;
+  lastProcessedTapMs: number;
+  lastFireMs: number;
 };
 
 export type SkillFeedbackState = {
@@ -92,7 +129,8 @@ export type SkillFeedbackState = {
   rowHistory: RowCrossSnapshot[];
   contactWindow: ContactWindowState;
   tapCoach: TapCoachState;
-  ceilingDodge: CeilingDodgeState;
+  nearMiss: NearMissState;
+  zigzagTap: ZigzagTapState;
   familyCooldowns: Partial<Record<SkillFamilyId, number>>;
   familyFireCounts: Partial<Record<SkillFamilyId, number>>;
 };
@@ -111,11 +149,23 @@ export const createDefaultStitchSampler = (): StitchSampler => {
   };
 };
 
+export const createDefaultPassageFlowSampler = (): PassageFlowSampler => {
+  'worklet';
+  return {
+    pinnedSeen: false,
+    hardBlockSeen: false,
+    softScrapeSeen: false,
+    minSwimmerColFracSeen: 1,
+    maxSwimmerColFracSeen: 0,
+  };
+};
+
 export const createDefaultContactWindowState = (): ContactWindowState => {
   'worklet';
   return {
     rowsSinceReset: 0,
     stitchSampler: createDefaultStitchSampler(),
+    passageFlow: createDefaultPassageFlowSampler(),
   };
 };
 
@@ -125,15 +175,30 @@ export const createDefaultTapCoachState = (): TapCoachState => {
     wasPinned: false,
     lastTapFlashMs: 0,
     lastSavedMs: 0,
+    pinEnterMs: 0,
   };
 };
 
-export const createDefaultCeilingDodgeState = (): CeilingDodgeState => {
+export const createDefaultNearMissState = (): NearMissState => {
   'worklet';
   return {
-    wasBrushing: false,
+    inThreat: false,
+    threatStartMs: 0,
+    latchedInThreat: false,
+    pinEnterMs: 0,
+    lastQualifyingTapMs: 0,
     lastFireMs: 0,
     firesThisRun: 0,
+  };
+};
+
+export const createDefaultZigzagTapState = (): ZigzagTapState => {
+  'worklet';
+  return {
+    streak: 0,
+    lastTapMs: 0,
+    lastProcessedTapMs: 0,
+    lastFireMs: 0,
   };
 };
 
@@ -143,7 +208,8 @@ export const createDefaultSkillFeedbackState = (): SkillFeedbackState => {
     rowHistory: [],
     contactWindow: createDefaultContactWindowState(),
     tapCoach: createDefaultTapCoachState(),
-    ceilingDodge: createDefaultCeilingDodgeState(),
+    nearMiss: createDefaultNearMissState(),
+    zigzagTap: createDefaultZigzagTapState(),
     familyCooldowns: {},
     familyFireCounts: {},
   };

@@ -105,3 +105,19 @@ export type SwimmerReviveSplashEvent = {
   type: typeof SwimmerReviveSplashEventType;
   payload: SwimmerReviveSplashPayload;
 };
+
+export const SwimmerWallBumpEventType = 'SwimmerWallBumpEvent';
+
+export type SwimmerWallBumpPayload = {
+  entityId: number;
+  x: number;
+  y: number;
+  /** Travel direction that hit the wall. */
+  direction: -1 | 1;
+  impactSpeed: number;
+};
+
+export type SwimmerWallBumpEvent = {
+  type: typeof SwimmerWallBumpEventType;
+  payload: SwimmerWallBumpPayload;
+};

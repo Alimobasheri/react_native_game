@@ -4,6 +4,7 @@ import {
   type SkillFeedbackState,
 } from '@/Game/feedback/skillFeedbackTypes';
 import { gameplayFeedbackTuning } from '@/config/gameplayFeedback';
+import type { SkillFeedbackDiagEntry } from '@/Game/debug/skillFeedbackDiag';
 
 export const GameplayFeedbackManagerComponentName = 'GameplayFeedbackManager';
 
@@ -16,12 +17,16 @@ export type FeedbackFlashSlot = {
   startMs: number;
   anchorX: number;
   anchorY: number;
+  /** 0 = newest word closest to swimmer; higher = stacked above. */
+  stackIndex: number;
   entityId: number;
 };
 
 export type GameplayFeedbackManagerData = {
   skillFeedback: SkillFeedbackState;
   slots: FeedbackFlashSlot[];
+  /** Dev: ring buffer of recent praise diagnostic events. */
+  diagRing: SkillFeedbackDiagEntry[];
 };
 
 export const createDefaultFeedbackSlots = (
@@ -38,6 +43,7 @@ export const createDefaultFeedbackSlots = (
       startMs: 0,
       anchorX: 0,
       anchorY: 0,
+      stackIndex: 0,
       entityId: -1,
     });
   }
@@ -53,6 +59,7 @@ export const createGameplayFeedbackManagerComponent = (
     data: {
       skillFeedback: createDefaultSkillFeedbackState(),
       slots: createDefaultFeedbackSlots(slotCount),
+      diagRing: [],
     },
   };
 };

@@ -34,6 +34,22 @@ export const findActiveWordSlotByText = (
   return -1;
 };
 
+const bumpActiveWordStacks = (
+  slots: FeedbackFlashSlot[],
+  wordSlotCount: number
+): FeedbackFlashSlot[] => {
+  'worklet';
+  const next = slots.slice();
+  for (let i = 0; i < wordSlotCount && i < next.length; i++) {
+    const slot = next[i];
+    if (slot.active && slot.kind === 'word') {
+      const bumped = Math.min(2, slot.stackIndex + 1);
+      next[i] = { ...slot, stackIndex: bumped };
+    }
+  }
+  return next;
+};
+
 export const activateFlashSlot = (
   slots: FeedbackFlashSlot[],
   index: number,
@@ -41,7 +57,8 @@ export const activateFlashSlot = (
   text: string,
   startMs: number,
   anchorX: number,
-  anchorY: number
+  anchorY: number,
+  stackIndex = 0
 ): FeedbackFlashSlot[] => {
   'worklet';
   const next = slots.slice();
@@ -55,6 +72,7 @@ export const activateFlashSlot = (
     startMs,
     anchorX,
     anchorY,
+    stackIndex,
   };
   return next;
 };
@@ -75,10 +93,16 @@ export const emitPraiseToSlots = (
     if (event.refreshExistingTap) {
       wordIdx = findActiveWordSlotByText(next, event.copy, wordSlotCount);
     }
+    if (wordIdx < 0 && event.momentId !== 'tap_coach') {
+      next = bumpActiveWordStacks(next, wordSlotCount);
+    }
     if (wordIdx < 0) {
       wordIdx = findInactiveSlot(next, 'word', wordSlotCount);
     }
     if (wordIdx >= 0) {
+      const stackIndex = event.refreshExistingTap
+        ? next[wordIdx]?.stackIndex ?? 0
+        : 0;
       next = activateFlashSlot(
         next,
         wordIdx,
@@ -86,7 +110,8 @@ export const emitPraiseToSlots = (
         event.copy,
         nowMs,
         event.anchorX,
-        event.anchorY
+        event.anchorY,
+        stackIndex
       );
     }
     if (bonus > 0) {
@@ -99,7 +124,8 @@ export const emitPraiseToSlots = (
           `+${bonus}`,
           nowMs,
           event.anchorX,
-          event.anchorY
+          event.anchorY,
+          0
         );
       }
     }

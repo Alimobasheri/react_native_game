@@ -23,10 +23,12 @@ import {
   SwimmerDirectionalSplashEventType,
   SwimmerPinnedSplashEventType,
   SwimmerPivotSplashEventType,
+  SwimmerWallBumpEventType,
   type SwimmerAnticipationDentPayload,
   type SwimmerDirectionalSplashPayload,
   type SwimmerPinnedSplashPayload,
   type SwimmerPivotSplashPayload,
+  type SwimmerWallBumpPayload,
 } from '@/Game/characters/swimmerLocomotionEvents';
 import { SwimmerRenderLayer } from '@/Game/render/swimmerRenderLayers';
 import { swimmerVisualTuning } from '@/config/swimmerVisualTuning';
@@ -844,6 +846,24 @@ export const SwimmerWaterContactFxSystem: System = {
           kind: 'pinnedBurst',
           direction: 0,
           strength: Math.max(strength, swimmerWaterFxTuning.preset.pinnedBurst.strength),
+        });
+      } else if (event.type === SwimmerWallBumpEventType) {
+        const payload = event.payload as SwimmerWallBumpPayload;
+        const bumpSwimmer = swimmerStoreForEvents?.get(payload.entityId);
+        if (bumpSwimmer && !swimmerTouchesWater(bumpSwimmer)) {
+          continue;
+        }
+        const strength = Math.min(
+          1.1,
+          (payload.impactSpeed / 280) *
+            swimmerWaterFxTuning.preset.wallBump.strength
+        );
+        spawnFoamBurst(ecs, ctx, sceneEntity, {
+          maxAge: swimmerWaterFxTuning.preset.wallBump.maxAge,
+          swimmerX: payload.x,
+          kind: 'wallBump',
+          direction: payload.direction,
+          strength: Math.max(strength, 0.35),
         });
       }
     }

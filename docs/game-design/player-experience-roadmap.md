@@ -1,13 +1,16 @@
 # Player Experience Roadmap — Blueprint & Master Plan
 
-**Status:** Draft v1 (2026-06-28) — **primary creative blueprint** for post–geometry work  
+**Status:** Draft v1.1 (2026-07-02) — **primary creative blueprint** for post–geometry work  
 **Audience:** Founder, artists, implementers, future agent sessions  
 **Purpose:** Turn the shipped infinite-run **engine** into a game players **feel, collect, and return to** — without new core verbs or endless single-world sessions.
+
+**Skill / timing / physics refactor:** **[passage-timing-roadmap.md](./passage-timing-roadmap.md)** is the **authoritative implementation blueprint** for passage-defined skills, speed tiers, flow streak, and trail feedback. Continue Layer A skill work from that doc; this file owns meta phases, worlds, coins, and copy deck **voice** — not timing detector semantics.
 
 **Companion docs (do not duplicate — link and extend):**
 
 | Doc | Owns |
 |-----|------|
+| **[passage-timing-roadmap.md](./passage-timing-roadmap.md)** | Passage timing tiers, speed steps, flow streak, trail/bounce, rhythm schema, detector refactor — **implementation SSOT** |
 | [run-level-progression.md](./run-level-progression.md) | Run blueprint, opening archetypes, milestone **geometry** pools, attempt memory — **backend scheduler** |
 | [../visual-design/swimmer-ai-context.md](../visual-design/swimmer-ai-context.md) | Art AI prompts, layer rules, export sizes |
 | [../containers/ReactNativeSkiaGameEngine/swimmer.styles.md](../../src/containers/ReactNativeSkiaGameEngine/swimmer.styles.md) | **Chunky Underground Aqua Rush** style bible |
@@ -18,11 +21,12 @@
 
 ## 0. How to use this document
 
-1. **Pick a phase** from [§8 Roadmap](#8-implementation-roadmap-phases) — only one “hero” phase in flight at a time unless tasks are explicitly parallel (art vs code).
-2. **Check locked decisions** in [§2](#2-locked-design-decisions) before brainstorming — don’t re-litigate.
-3. **Park new ideas** in [§12 Brainstorm parking lot](#12-brainstorm-parking-lot) — never block a phase on unprioritized creativity.
-4. **Ship player-visible slices** — each phase ends with something you can feel on device in under 5 minutes.
-5. **Update phase checkboxes** and add a short handoff log under `docs/visual-design/logs/` when a phase ships (see [ai-handoff-protocol.md](../visual-design/ai-handoff-protocol.md)).
+1. **Skill / timing / physics work** → start at [passage-timing-roadmap.md](./passage-timing-roadmap.md) §9 tracks (not §8 phases below).
+2. **Pick a phase** from [§8 Roadmap](#8-implementation-roadmap-phases) — only one “hero” phase in flight at a time unless tasks are explicitly parallel (art vs code).
+3. **Check locked decisions** in [§2](#2-locked-design-decisions) **and** passage-timing PT-001…PT-015 before brainstorming — don’t re-litigate.
+4. **Park new ideas** in [§12 Brainstorm parking lot](#12-brainstorm-parking-lot) — never block a phase on unprioritized creativity.
+5. **Ship player-visible slices** — each phase ends with something you can feel on device in under 5 minutes.
+6. **Update phase checkboxes** and add a short handoff log under `docs/visual-design/logs/` when a phase ships (see [ai-handoff-protocol.md](../visual-design/ai-handoff-protocol.md)).
 
 ---
 
@@ -66,6 +70,7 @@ Title → equip world → Start → 3–8 min run → die → coins + praise sum
 | **L-008** | **Copy: max 1–2 words on gameplay flashes** | Hyper-casual read time &lt; 0.5s |
 | **L-009** | **Orange / warm blocks = danger** in default world; other worlds may recolor but must stay **instantly readable** | Style bible hierarchy |
 | **L-010** | **Geometry vocabulary plateau** — no new gap mutators for “variety” | See run-level-progression T-013 |
+| **L-011** | **Passage timing is authoritative** — perfect / acceptable / failed at gap-shift seams; flow streak replaces tap combo as primary in-run reward | See [passage-timing-roadmap.md](./passage-timing-roadmap.md) PT-001…PT-015 |
 
 ---
 
@@ -102,7 +107,7 @@ Title → equip world → Start → 3–8 min run → die → coins + praise sum
 |---------------|----------------------|-----------------|
 | Near-pin clearance | CLOSE! + spark + small +score flyout | No |
 | Cramped ceiling escape | TAP TAP TAP flashes → SAVED! | No |
-| Clean streak | ×2 / ×3 badge on HUD | No |
+| Clean streak | ×2 / ×3 badge on HUD → **flow streak** trail + HUD (passage-timing Track 3) | No |
 | Wide rest corridor (RELEASE geometry) | Light pocket, coins, GREAT! | No |
 | Score band within run | Vignette eases slightly; water highlights bump | No |
 | Signature pinball block | Glowing paddles, zip arc, +score (Phase 5+) | No |
@@ -263,27 +268,28 @@ Not hidden collectibles — props in wall parallax as player rises:
 
 | Key | Copy | When | Status |
 |-----|------|------|--------|
-| `ceiling_brush` | CLOSE! → CHEATED DEATH! (tiers) | Ceiling underside brush without pin | **Shipped** — `ceilingDodgeDetection.ts` |
-| `shift_commit` | NICE! / SMOOTH! | Lane cluster center shifted ≥1 col (not tap drift in wide chute) | **Shipped** |
-| `zigzag_chain` | ZIG-ZAG! / ZIG-ZAG KING! | ≥3 same-direction geometry shifts, then hard opposite break | **Shipped** |
+| `near_miss` | Near Miss! → Cheated Death! (tiers) | Recent tap escapes ceiling pin threat before latch (or brief pin below grace) | **Shipped** — `nearMissDetection.ts` |
+| `shift_commit` | NICE! / SMOOTH! | Clean steer through gap shift — no brush/side/pin in stitch window | **Shipped** |
+| `zigzag_tap` | ZIG-ZAG! / ZIG-ZAG KING! | Alternating tap-direction streak (path-agnostic) | **Shipped** — **deprecate** → `zigzag_passage` per [passage-timing-roadmap](./passage-timing-roadmap.md) PT-007 |
+| `zigzag_passage` | ZIG-ZAG! / ZIG-ZAG KING! | Alternating gap-shift on pinball/chicane paths only | **Not shipped** — passage-timing Track 3 |
+| `flow_streak_*` | ON FIRE! / UNSTOPPABLE! (tiers) | Consecutive **perfect** passages; trail persists | **Not shipped** — passage-timing Track 3 |
 | `pinhole_flare_snap` | SWEEP! / CRAZY! / INSANE! | Pinhole → flare → snap transfer | **Shipped** |
 | `slalom_block` | SLALOM! / MAJESTIC! | Chicane block break (center jump ≥2 cols) | **Shipped** |
 | `cross_sweep` | SURFING! / MAJESTIC! | Monotonic cross-lane geometry travel | **Shipped** |
-| `funnel_thread` | TIGHT! | Funnel exit at W≤2 | **Shipped** |
 | `fork_clean` | FORKED! | Paradox split lane pick | **Shipped** |
 | `tap_coach` | TAP | Repeat while pinned | **Shipped** |
-| `tap_saved` | SAVED! | Pin escape after min travel | **Shipped** |
+| `tap_saved` | SAVED! | Pin escape after min travel **and** latch ≥ grace ms | **Shipped** |
 | `rest_enter` | GREAT! | Rest corridor mid | **Not shipped** — Wave 3 (Phase 2) |
 | `rest_perfect` | PERFECT! | All corridor coins | **Not shipped** — Wave 3 (Phase 2) |
-| `combo_2` | ×2 | HUD badge — tap streak | **Shipped** (separate from steer praise) |
-| `combo_3` | ×3 | HUD badge — tap streak | **Shipped** (separate from steer praise) |
+| `combo_2` | ×2 | HUD badge — tap streak | **Shipped** — **replace** with flow streak HUD (passage-timing PT-004) |
+| `combo_3` | ×3 | HUD badge — tap streak | **Shipped** — **replace** with flow streak HUD (passage-timing PT-004) |
 | `paddle_hit` | +100 | Pinball zip | **Not shipped** — Wave 4 (Phase 6) |
 | `new_best` | NEW BEST! | Beat personal best | **Shipped** (`ScoreHudSystem`) |
 | _(bonus flyout)_ | +N | Skill-moment bonus; **clearance scales +N only** | **Shipped** |
 
-**Rule:** `clearance01` never selects copy — only inflates +N. All copy/thresholds in `src/config/skillFeedback.ts`.
+**Rule:** `clearance01` never selects copy — only inflates +N. Praise copy/thresholds: `src/config/skillFeedback.ts`; passage timing / flow streak: `src/config/passageTiming.ts`, `src/config/flowStreak.ts` (see [passage-timing-roadmap](./passage-timing-roadmap.md) §11).
 
-Trigger definitions for all Layer A copy: **[§15](#15-layer-a-skill-feedback--full-implementation-handoff)**.
+Trigger definitions for shipped Layer A copy: **[§15](#15-layer-a-skill-feedback--full-implementation-handoff)**. Target semantics: **passage-timing-roadmap §6–7**.
 
 ### Game over / meta
 
@@ -312,15 +318,20 @@ Trigger definitions for all Layer A copy: **[§15](#15-layer-a-skill-feedback--f
 **Dependency graph:**
 
 ```
-P0 Audit ──► P1 Skill juice ──► P2 Rest + coins ──► P3 World meta
-                                                      │
-                      P4 Per-world reactive ◄───────────┘
+P0 Audit ──► P1 Skill juice (Wave 3 ✅) ──► Passage Timing T1–3 ──► P2 Rest + coins
+         │                                 [passage-timing-roadmap §9]
+         │                                         │
+         └─────────────────────────────────────────┼──► P3 World meta
+                                                   │
+                      P4 Per-world reactive ◄──────┘
                               │
                       P5 Items (optional)
                               │
                       P6 Set-piece skin + polish
                               │
                       P7 Live tuning + content drops
+                              │
+                      Passage Timing T4 (rhythm schema) — after T1–3 feel good
 ```
 
 ### Phase 0 — Audit & scaffolding ✅ prerequisite
@@ -339,54 +350,61 @@ P0 Audit ──► P1 Skill juice ──► P2 Rest + coins ──► P3 World m
 | Coin currency + persist | ⬜ | New — Phase 2 |
 | Floating feedback overlay system | ✅ | `GameplayFeedbackSystem.ts` + `GameplayFeedbackView-rntge.tsx` |
 
-**Exit:** checklist above marked; pick Phase 1.
+**Exit:** checklist above marked; **start Passage Timing Track 1** ([passage-timing-roadmap](./passage-timing-roadmap.md) §9).
 
 ---
 
-### Phase 1 — Skill feedback MVP (Layer A core)
+### Phase 1 — Skill feedback MVP (Layer A core) ✅ Wave 3 shipped
 
 **Player promise:** *The game talks when I play well or barely survive.*
 
-**Ship on device:**
+**Ship on device (Wave 3 — complete):**
 
-- [x] `CLOSE!` tiered ceiling dodge — `ceilingDodgeDetection.ts` (not clearance-band)
+- [x] Near Miss! tap-gated ceiling escape — `nearMissDetection.ts` (replaces brush-edge CLOSE!)
 - [x] Floating `+N` flyout — clearance scales bonus only (`praiseBonus.ts`)
 - [x] `TAP` repeat + `SAVED!` on ceiling pin escape — `tapCoachDetection.ts`
 - [x] Steer praise — NICE!, ZIG-ZAG KING!, SWEEP!, CRAZY!, etc. — `steerPraiseDetection.ts` + `snapTransferDetection.ts`
 - [x] `×2` / `×3` combo badge (**tap-tier** — separate from steer praise)
 - [x] Death line on game over panel (generator → player copy from §7; suffix toggle in `deathCopy.ts`)
 
-**Art / style:**
+**Next — Passage Timing (supersedes P1 follow-ups):** implement [passage-timing-roadmap](./passage-timing-roadmap.md) **Tracks 1–3** before Phase 2 economy. Wave 3 detectors remain; **semantics** evolve to perfect / acceptable / failed + flow streak.
 
-- [x] Flash text style: **Fredoka Bold**, white + yellow stroke, 0.4s float-up fade
-- [x] Spark: Skia circle ring (config `SHOW_SPARK_RING`)
+| Track | Goal | Blocks |
+|-------|------|--------|
+| **Track 1** | Pin strict, bounce on fail, speed tier hold | honest body before more juice |
+| **Track 2** | `PassageTimingTier` + segment FSM | authoritative praise |
+| **Track 3** | Flow streak, trail VFX, HUD, zigzag_passage | replaces tap combo |
 
-**Follow-up session (not blocking P2):**
+**Deferred from old P1 follow-up:**
 
-- [ ] **Clean gap combo** — optional; tap ×2/×3 stays separate per founder
-- [ ] Device tuning pass on `src/config/skillFeedback.ts` after 10 founder runs
+- ~~Clean gap combo (tap ×2/×3)~~ → **flow streak** (PT-004)
+- ~~Device tune `skillFeedback.ts` only~~ → tune `passageTiming.ts` + `flowStreak.ts` after Track 2
 
-**Engine touchpoints (implementer hints):**
+**Engine touchpoints (passage-timing — see full map in [passage-timing-roadmap §4](./passage-timing-roadmap.md#4-current-system-inventory-as-shipped-baseline)):**
 
-- Clearance: `SwimmerWaterContactFxSystem` / swimmer clearance helpers
-- Tap coach: pin detection in `SwimmerPhysicsSystem`
-- Overlay: new `GameplayFeedbackSystem` or extend HUD — **worklet-safe**
+- Timing orchestrator: `GameplayFeedbackSystem.ts` → `passageSegment.ts` (new)
+- Physics: `SwimmerPhysicsSystem.ts`, `WaterPhysicsSystem.ts`, `SpeedTierSystem.ts` (new)
+- Trail: `SwimmerWaterContactFxSystem.ts` / `FlowTrailVisualSystem` (new)
+- Config: `passageTiming.ts`, `flowStreak.ts` (new)
 
-**Tests / QA:**
+**Tests / QA (Wave 3 — done):**
 
 - [x] Near-miss doesn’t fire in open water (unit: `nearMissDetection.test.ts`)
 - [x] TAP doesn’t fire on first run tutorial overlay (gate: `gameplayFeedbackGates.test.ts`)
-- [ ] Combo resets on sloppy steer (manual — tap tier resets in `swimmerTapInput.ts`; verify on device)
 
-**Exit:** founder plays 10 runs and can **feel** praise — not just score ticking.
+**Exit (Wave 3):** ✅ shipped.
 
-**Estimate:** 1 focused implementation sprint.
+**Exit (Passage Timing Tracks 1–3):** passage-timing-roadmap §9 device matrix D1–D8.
 
 ---
 
 ### Phase 2 — Rest corridors + coin economy
 
 **Player promise:** *Hard squeeze → bright payoff hallway → coins toward next world.*
+
+**Prerequisite:** Passage Timing **Track 1** speed tiers + RELEASE hold (so GREAT! lands in stable chapter).
+
+**Passage-timing tie-in:** Flow streak **preserves** on REST — trail **dims** only (PT-011); no GREAT! streak break.
 
 **Ship on device:**
 
@@ -639,36 +657,35 @@ The shipped blueprint system remains **geometry scheduler only**:
 
 ## 14. Next actions (start here)
 
-1. **Founder device pass:** tune `src/config/skillFeedback.ts` after 10 runs (bonus tiers, cooldowns).
-2. **Phase 2:** economy numbers + GREAT!/PERFECT! + coins (Wave 3).
-3. **Optional:** clean-gap combo HUD (founder deferred — tap streak stays separate).
+1. **Passage Timing Track 1:** pin strict + speed tier hold + bounce hook — [passage-timing-roadmap §9](./passage-timing-roadmap.md#9-implementation-tracks-ordered).
+2. **Phase 2** (after Tracks 1–2): economy + GREAT!/PERFECT! + coins.
+3. **Deferred:** TAP coach gate policy (PT-014) — founder device pass when convenient.
 
 ---
 
-## 15. Layer A skill feedback — implementation reference (Wave 2)
+## 15. Layer A skill feedback — implementation reference (Wave 3)
 
-**Status:** Wave 2 shipped (2026-06-29). Survival skill praise — path merit + cross hygiene; difficulty-scaled soft gates; per-frame contact stitch. Config: `src/config/skillFeedback.ts`.
+**Status:** Wave 3 shipped (2026-06-30). **Semantics evolving** per [passage-timing-roadmap.md](./passage-timing-roadmap.md) — detectors below remain on device until Tracks 2–3 cut over.
+
+**Target architecture (post Track 2):** see passage-timing-roadmap §5 — `PassageSegment` FSM + `PassageTimingTier` drives praise, trail, and flow streak.
 
 ### 15.1 — Copy inventory (§7 gameplay flashes)
 
 | Key | Copy | On device | Module |
 |-----|------|-----------|--------|
-| `ceiling_brush` | CLOSE! … CHEATED DEATH! | Shipped | `ceilingDodgeDetection.ts` |
+| `near_miss` | Near Miss! … Cheated Death! | Shipped | `nearMissDetection.ts` |
 | `shift_commit` | NICE! / SMOOTH! | Shipped | `steerPraiseDetection.ts` |
-| `zigzag_chain` | ZIG-ZAG! / ZIG-ZAG KING! | Shipped | `steerPraiseDetection.ts` |
+| `zigzag_tap` | ZIG-ZAG! / ZIG-ZAG KING! | Shipped | `zigzagTapDetection.ts` |
 | `pinhole_flare_snap` | SWEEP! / CRAZY! / INSANE! | Shipped | `snapTransferDetection.ts` |
 | `cross_sweep` | SURFING! / MAJESTIC! | Shipped | `steerPraiseDetection.ts` |
 | `slalom_block` | SLALOM! / MAJESTIC! | Shipped | `steerPraiseDetection.ts` |
-| `funnel_thread` | TIGHT! | Shipped | `steerPraiseDetection.ts` |
 | `fork_clean` | FORKED! | Shipped | `steerPraiseDetection.ts` |
 | `tap_coach` | TAP | Shipped | `tapCoachDetection.ts` |
-| `tap_saved` | SAVED! | Shipped | `tapCoachDetection.ts` |
+| `tap_saved` | SAVED! | Shipped | `tapCoachDetection.ts` (latch ≥ grace) |
 | `combo_2` / `combo_3` | ×2 / ×3 | Shipped (tap HUD, separate) | `ScoreHudSystem` |
 | `rest_enter` / `rest_perfect` | GREAT! / PERFECT! | Not shipped | Phase 2 |
 | `paddle_hit` | +100 | Not shipped | Phase 6 |
-| _(bonus flyout)_ | +N | Shipped — clearance scales bonus only | `praiseBonus.ts` |
-
-| _(bonus flyout)_ | +N | Shipped — clearance + hygiene scale bonus only | `praiseBonus.ts` |
+| _(bonus flyout)_ | +N | Shipped — clearance + hygiene; near miss ignores clearance | `praiseBonus.ts` |
 
 ### 15.2 — Architecture (Wave 2)
 
@@ -684,8 +701,9 @@ src/Game/feedback/
   rowCrossHistory.ts                 — raw-gap dedupe + ring buffer
   snapTransferDetection.ts           — pinhole → flare → snap (crossQualified gate)
   steerPraiseDetection.ts            — path merit + hygiene tier upgrade
-  ceilingDodgeDetection.ts           — ceiling brush without pin
-  tapCoachDetection.ts               — TAP repeat + SAVED!
+  nearMissDetection.ts                 — tap-gated pin threat escape
+  zigzagTapDetection.ts                — alternating tap streak
+  tapCoachDetection.ts               — TAP repeat + SAVED! (latch grace)
   praiseBonus.ts                     — +N (clearance + hygiene01; never picks copy)
   praiseRouter.ts                    — priority, cooldowns (steer cooldown scales with diff)
   praiseEmitter.ts                   — flash slot activation
@@ -710,13 +728,12 @@ src/Game/feedback/rowCrossEval.ts
 
 | State ID | Copy | Detector | Trigger (path-based) |
 |----------|------|----------|----------------------|
-| `ceiling_brush` | CLOSE! … CHEATED DEATH! | `ceilingDodgeDetection.ts` | Ceiling brush enter, not pinned |
-| `shift_commit` | NICE! / SMOOTH! | `steerPraiseDetection.ts` | Lane center shifted ≥1 col; not wide-open both rows |
-| `zigzag_chain` | ZIG-ZAG! / ZIG-ZAG KING! | `steerPraiseDetection.ts` | ≥3 same-sign geometry steps, opposite break ≥2 |
+| `near_miss` | Near Miss! … Cheated Death! | `nearMissDetection.ts` | Tap in threat window; threat ends; not real latch |
+| `shift_commit` | NICE! / SMOOTH! | `steerPraiseDetection.ts` | Gap shift + clean stitch + steer proof |
+| `zigzag_tap` | ZIG-ZAG! / ZIG-ZAG KING! | `zigzagTapDetection.ts` | Alternating tap streak |
 | `pinhole_flare_snap` | SWEEP! / CRAZY! / INSANE! | `snapTransferDetection.ts` | Pinhole W≤1 → flare W≥3 → snap ≥2 cols |
 | `slalom_block` | SLALOM! / MAJESTIC! | `steerPraiseDetection.ts` | Chicane branch + block break ≥2 cols |
 | `cross_sweep` | SURFING! / MAJESTIC! | `steerPraiseDetection.ts` | Monotonic lane travel ≥4 cols over ≥3 rows |
-| `funnel_thread` | TIGHT! | `steerPraiseDetection.ts` | Funnel branch + lane W≤2 |
 | `fork_clean` | FORKED! | `steerPraiseDetection.ts` | Paradox split branch + crossQualified |
 | `ceiling_pin_active` | TAP | `tapCoachDetection.ts` | Shipped |
 | `ceiling_pin_escape` | SAVED! | `tapCoachDetection.ts` | Shipped |
@@ -734,7 +751,7 @@ src/Game/feedback/rowCrossEval.ts
 
 ### 15.5 — Tests
 
-`npm test -- --watchAll=false src/Game/feedback/__tests__` — 87+ unit tests on pure detectors + survival scenarios.
+`npm test -- --watchAll=false src/Game/feedback/__tests__` — 113 unit tests on pure detectors + survival scenarios.
 
 ---
 
@@ -747,7 +764,8 @@ src/Game/feedback/rowCrossEval.ts
 | 2026-06-29 | §15 full Layer A handoff; combo HUD polish; RNTGE text shadows |
 | 2026-06-29 | Wave 1 skill-moment praise shipped — `skillFeedback.ts` + detectors; clearance → +N only |
 | 2026-06-29 | Wave 1.1 path-based steer praise — lane cluster topology, SURFING! copy, `gapPathAnalysis.ts` |
-| 2026-06-29 | Wave 2 survival skill praise — crossQualified, hygiene tier/+N, per-frame stitch, `survivalRamp` |
+| 2026-06-30 | Wave 3 — Near Miss tap-gate; clean NICE!; tap zig-zag; dual word stack; TIGHT! removed |
+| 2026-07-02 | v1.1 — L-011 passage timing; link [passage-timing-roadmap.md](./passage-timing-roadmap.md); P1 complete → Tracks 1–3; copy deck deprecations; PT-011…PT-015 locked |
 
 ---
 

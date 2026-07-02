@@ -7,6 +7,7 @@ export type SwimmerContactFoamKind =
   | 'wake'
   | 'pivotFan'
   | 'pinnedBurst'
+  | 'wallBump'
   | 'dangerEdge';
 
 /** Subtle gooey merge so dense collar micro-blobs read as soft foam, not beads. */
@@ -200,6 +201,13 @@ export const swimmerWaterFxTuning = {
       halfWidthNorm: 0.062,
       strength: 1.35,
       maxAge: 0.55,
+      blobCount: 0,
+      spineCount: 0,
+    },
+    wallBump: {
+      halfWidthNorm: 0.038,
+      strength: 0.72,
+      maxAge: 0.18,
       blobCount: 0,
       spineCount: 0,
     },

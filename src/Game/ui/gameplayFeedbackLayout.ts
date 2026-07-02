@@ -10,6 +10,7 @@ export type GameplayFeedbackLayout = {
   sparkRadius: number;
   flashWidth: number;
   flashHeight: number;
+  stackGapPx: number;
 };
 
 export const layoutGameplayFeedback = (
@@ -34,6 +35,11 @@ export const layoutGameplayFeedback = (
     screenW,
     screenH
   );
+  const stackGapPx = refSize(
+    gameplayFeedbackTuning.WORD_STACK_GAP_REF_PX,
+    screenW,
+    screenH
+  );
   return {
     fontSize,
     risePx,
@@ -43,5 +49,6 @@ export const layoutGameplayFeedback = (
     sparkRadius: fontSize * gameplayFeedbackTuning.SPARK_RADIUS_FONT_MULT,
     flashWidth: fontSize * 4,
     flashHeight: fontSize * 1.4,
+    stackGapPx,
   };
 };

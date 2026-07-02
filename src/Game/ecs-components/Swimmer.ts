@@ -115,6 +115,10 @@ export type SwimmerLocomotionData = {
   previousVisualPhase?: VisualStrokePhase;
   /** Lagging spring for horizontal strand bias (-1..1). */
   swayBiasState?: SwayBiasSpringState;
+  /** Render-only squash after hard wall bump (seconds). */
+  wallBumpSquashTimer?: number;
+  /** Debounce wall bump VFX (epoch ms). */
+  lastWallBumpMs?: number;
 };
 
 export type SwimmerComponentData = {
@@ -139,6 +143,10 @@ export type SwimmerComponentData = {
   pinnedCeilingMaxX?: number;
   /** True when horizontal motion was blocked by a side solid this frame. */
   isSideBlocked?: boolean;
+  /** True when tap/motion intent was stopped by a side solid this frame. */
+  movementBlockedThisFrame?: boolean;
+  /** Direction blocked when side-blocked (-1 left, 1 right). */
+  sideBlockedDirection?: -1 | 0 | 1;
   fallingVelocityY: number;
   useColumnControl?: boolean;
   column?: number;

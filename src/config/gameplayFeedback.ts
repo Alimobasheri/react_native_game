@@ -25,6 +25,8 @@ export const gameplayFeedbackTuning = {
   BONUS_OFFSET_Y_REF_PX: -44,
   /** Vertical offset above swimmer for flash anchor (reference px). */
   ANCHOR_ABOVE_SWIMMER_REF_PX: 56,
+  /** Vertical gap between stacked concurrent word flashes (reference px). */
+  WORD_STACK_GAP_REF_PX: 36,
 } as const;
 
 export const gameplayFeedbackCopy = {

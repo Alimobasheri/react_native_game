@@ -1,6 +1,13 @@
 import { skillFeedbackTuning } from '@/config/skillFeedback';
 import { topologyFromGaps } from '../gapTopology';
-import { detectSteerPraise } from '../steerPraiseDetection';
+import {
+  createDefaultPassageFlowSampler,
+  updatePassageFlowSampler,
+} from '../passageFlowScoring';
+import {
+  detectSteerPraise,
+  evaluateShiftCommit,
+} from '../steerPraiseDetection';
 import {
   createDefaultStitchSampler,
   defaultRowCrossContact,
@@ -9,6 +16,7 @@ import {
 
 const COLS = 8;
 const defaultSampler = createDefaultStitchSampler();
+const defaultPassage = createDefaultPassageFlowSampler();
 
 const snap = (
   gaps: number[],
@@ -36,6 +44,7 @@ const ctxBase = {
   anchorY: 0,
   tuning: skillFeedbackTuning,
   stitchSampler: defaultSampler,
+  passageSampler: defaultPassage,
 };
 
 describe('detectSteerPraise', () => {
@@ -46,6 +55,61 @@ describe('detectSteerPraise', () => {
       ...ctxBase,
       history,
       current,
+    });
+    expect(event?.momentId).toBe('shift_commit');
+    expect(event?.copy).toBe('NICE!');
+  });
+
+  it('fires NICE! with soft scrape in passage (rim graze OK)', () => {
+    const history = [snap([4, 5], 'directed|climax|pinball', true, 5)];
+    const current = snap([3, 4], 'directed|climax|pinball', true, 4);
+    let passage = createDefaultPassageFlowSampler();
+    passage = updatePassageFlowSampler(passage, {
+      pinned: false,
+      movementBlocked: false,
+      sideBlocked: true,
+      colliding: true,
+      swimmerColFrac: 4.2,
+    });
+    const event = detectSteerPraise({
+      ...ctxBase,
+      history,
+      current,
+      passageSampler: passage,
+    });
+    expect(event?.momentId).toBe('shift_commit');
+    expect(event?.copy).toBe('NICE!');
+  });
+
+  it('does not fire NICE! when passage had hard block', () => {
+    const history = [snap([4, 5], '', true, 5)];
+    const current = snap([3, 4], '', true, 4);
+    const shift = evaluateShiftCommit({
+      ...ctxBase,
+      history,
+      current,
+      passageSampler: {
+        ...createDefaultPassageFlowSampler(),
+        hardBlockSeen: true,
+      },
+    });
+    expect(shift.event).toBeNull();
+    expect(shift.rejectReason).toBe('flow_hard_block');
+  });
+
+  it('fires NICE! when global stitch dirty but passage clean', () => {
+    const history = [snap([4, 5], '', true, 5)];
+    const current = snap([3, 4], '', true, 4);
+    const event = detectSteerPraise({
+      ...ctxBase,
+      history,
+      current,
+      stitchSampler: {
+        ...defaultSampler,
+        sideBlockedSeen: true,
+        collidingSeen: true,
+      },
+      passageSampler: defaultPassage,
     });
     expect(event?.momentId).toBe('shift_commit');
     expect(event?.copy).toBe('NICE!');
@@ -74,35 +138,40 @@ describe('detectSteerPraise', () => {
     expect(event).toBeNull();
   });
 
-  it('fires ZIG-ZAG! on run-then-break with swimmer steering', () => {
-    const history = [
-      snap([2], '', true, 2),
-      snap([3], '', true, 3),
-      snap([4], '', true, 4),
-      snap([5], '', true, 5),
-    ];
-    const current = snap([2], '', true, 2);
+  it('still fires NICE! when global stitch has ceiling brush', () => {
+    const history = [snap([2, 3, 4], '', true, 3)];
+    const current = snap([5, 6, 7], '', true, 6);
     const event = detectSteerPraise({
       ...ctxBase,
       history,
       current,
+      stitchSampler: {
+        ...defaultSampler,
+        ceilingBrushSeen: true,
+      },
     });
-    expect(event?.momentId).toBe('zigzag_chain');
-    expect(event?.copy).toBe('ZIG-ZAG!');
+    expect(event?.momentId).toBe('shift_commit');
+    expect(event?.copy).toBe('NICE!');
   });
 
-  it('does not fire ZIG-ZAG! when gaps drift but swimmer never steers', () => {
-    const history = [
-      snap([2], '', true, 3),
-      snap([3], '', true, 3),
-      snap([4], '', true, 3),
-      snap([5], '', true, 3),
-    ];
-    const current = snap([2], '', true, 3);
+  it('does not fire NICE! on wall scrape without topology shift', () => {
+    const history = [snap([2, 3], '', true, 2)];
+    const current = snap(
+      [2, 3],
+      '',
+      true,
+      4,
+      true,
+      defaultRowCrossContact({ sideBlocked: true })
+    );
     const event = detectSteerPraise({
       ...ctxBase,
       history,
       current,
+      passageSampler: {
+        ...createDefaultPassageFlowSampler(),
+        hardBlockSeen: true,
+      },
     });
     expect(event).toBeNull();
   });
@@ -143,36 +212,6 @@ describe('detectSteerPraise', () => {
       current: snap([5, 6, 7], 'baseMulti|tension|paradoxSplit'),
     });
     expect(event?.momentId).toBe('fork_clean');
-  });
-
-  it('does not fire TIGHT! on funnel pass-through without squeeze or steer', () => {
-    const event = detectSteerPraise({
-      ...ctxBase,
-      history: [snap([2, 3], 'flow|funnel', true, 3)],
-      current: snap([3], 'flow|funnel', true, 3),
-    });
-    expect(event).toBeNull();
-  });
-
-  it('fires TIGHT! on funnel when wall squeeze is active', () => {
-    const event = detectSteerPraise({
-      ...ctxBase,
-      history: [snap([2, 3], 'flow|funnel', true, 2)],
-      current: snap(
-        [3],
-        'flow|funnel',
-        true,
-        3,
-        true,
-        defaultRowCrossContact({ sideBlocked: true })
-      ),
-      stitchSampler: {
-        ...defaultSampler,
-        sideBlockedSeen: true,
-      },
-    });
-    expect(event?.momentId).toBe('funnel_thread');
-    expect(event?.copy).toBe('TIGHT!');
   });
 
   it('messy cross-lane surf qualifies at tier 0 with low hygiene', () => {
