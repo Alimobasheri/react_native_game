@@ -133,6 +133,20 @@ export type ZigzagTapState = {
   lastFireMs: number;
 };
 
+export type FlowStreakBreakReason =
+  | 'acceptable'
+  | 'failed'
+  | 'pinned'
+  | 'hard_block';
+
+/** Active streak multiplier: 0 = off, 2+ = displayed ×N and bonus mult. */
+export type FlowStreakState = {
+  count: number;
+  lastPerfectMs: number;
+  lastBreakMs: number;
+  lastBreakReason?: FlowStreakBreakReason;
+};
+
 export type SkillFeedbackState = {
   lastCenterRowEntity?: number;
   rowHistory: RowCrossSnapshot[];
@@ -140,6 +154,7 @@ export type SkillFeedbackState = {
   tapCoach: TapCoachState;
   nearMiss: NearMissState;
   zigzagTap: ZigzagTapState;
+  flowStreak: FlowStreakState;
   familyCooldowns: Partial<Record<SkillFamilyId, number>>;
   familyFireCounts: Partial<Record<SkillFamilyId, number>>;
 };
@@ -211,6 +226,15 @@ export const createDefaultZigzagTapState = (): ZigzagTapState => {
   };
 };
 
+export const createDefaultFlowStreakState = (): FlowStreakState => {
+  'worklet';
+  return {
+    count: 0,
+    lastPerfectMs: 0,
+    lastBreakMs: 0,
+  };
+};
+
 export const createDefaultSkillFeedbackState = (): SkillFeedbackState => {
   'worklet';
   return {
@@ -219,6 +243,7 @@ export const createDefaultSkillFeedbackState = (): SkillFeedbackState => {
     tapCoach: createDefaultTapCoachState(),
     nearMiss: createDefaultNearMissState(),
     zigzagTap: createDefaultZigzagTapState(),
+    flowStreak: createDefaultFlowStreakState(),
     familyCooldowns: {},
     familyFireCounts: {},
   };

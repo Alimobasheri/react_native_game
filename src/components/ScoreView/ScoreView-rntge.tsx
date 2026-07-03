@@ -299,7 +299,7 @@ export const ScoreView: FC = () => {
         baseHeight: label.height,
       }),
       createTextComponent({
-        text: gameplayFeedbackCopy.TAP_STREAK_LABEL,
+        text: gameplayFeedbackCopy.FLOW_STREAK_LABEL,
         fontAssetId: 'Fredoka',
         fontSize: layout.fonts.comboStreakLabel,
         color: Skia.Color(COLOR_TEXT_WHITE),

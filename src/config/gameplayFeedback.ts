@@ -30,5 +30,5 @@ export const gameplayFeedbackTuning = {
 } as const;
 
 export const gameplayFeedbackCopy = {
-  TAP_STREAK_LABEL: 'Tap Streak!',
+  FLOW_STREAK_LABEL: 'Flow Streak',
 } as const;

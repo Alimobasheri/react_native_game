@@ -1,4 +1,5 @@
 import type { SkillFeedbackTuning } from '@/config/skillFeedback';
+import { flowStreakBonusMultiplier } from '@/config/flowStreak';
 import type { SkillPraiseEvent } from '@/Game/feedback/skillFeedbackTypes';
 
 export const rollBonusInRange = (
@@ -21,7 +22,8 @@ export const computePraiseBonus = (
   difficulty01: number,
   tuning: SkillFeedbackTuning,
   roll01: number,
-  hygiene01: number = 1
+  hygiene01: number = 1,
+  flowStreakValue: number = 0
 ): number => {
   'worklet';
   if (event.bonusMax <= 0 && event.bonusMin <= 0) return 0;
@@ -42,7 +44,9 @@ export const computePraiseBonus = (
     diff * tuning.bonus.difficultyWeight +
     hygiene * tuning.hygiene.bonusHygieneWeight;
 
-  return Math.max(0, Math.round(base * mult));
+  const streakMult = flowStreakBonusMultiplier(flowStreakValue);
+
+  return Math.max(0, Math.round(base * mult * streakMult));
 };
 
 /** Clearance must never influence copy — only bonus magnitude. */

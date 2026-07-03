@@ -17,7 +17,12 @@ import {
   ScoreHudTagComponentData,
   ScoreHudTagComponentName,
 } from '@/Game/ecs-components/ScoreHudTag';
+import {
+  GameplayFeedbackManagerComponentName,
+  type GameplayFeedbackManagerData,
+} from '@/Game/ecs-components/GameplayFeedbackManager';
 import { SwimmerComponentName, SwimmerComponentData } from '@/Game/ecs-components/Swimmer';
+import { flowStreakHudLabel, isFlowStreakHudVisible } from '@/config/flowStreak';
 import { firstDataFromStore } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/query';
 import { getGameSession, isStartReady, isGameOverPhase } from '@/Game/session/gameSessionQuery';
 import {
@@ -272,38 +277,41 @@ export const ScoreHudSystem: System = {
           : 1;
     const newBestYOffset = -refSize(20, screenW, screenH) * newBestT;
 
-    const comboTier = swimmerData?.locomotion.visualStrokeTier ?? 1;
+    const feedbackManager = firstDataFromStore(
+      components[GameplayFeedbackManagerComponentName]
+    ) as GameplayFeedbackManagerData | undefined;
+    const streakValue = feedbackManager?.skillFeedback.flowStreak?.count ?? 0;
     let comboPopStartMs = hud.comboPopStartMs;
     let lastComboTier = hud.lastComboTier;
-    if (showHud && comboTier >= 2 && comboTier > lastComboTier) {
+    if (showHud && isFlowStreakHudVisible(streakValue) && streakValue > lastComboTier) {
       comboPopStartMs = nowMs;
-      lastComboTier = comboTier;
+      lastComboTier = streakValue;
       if (scoreEntity !== undefined) {
         ecs.updateComponent<ScoreComponentData>(
           scoreEntity,
           ScoreComponentName,
           (s) => {
             s.hud.comboPopStartMs = nowMs;
-            s.hud.lastComboTier = comboTier;
+            s.hud.lastComboTier = streakValue;
           }
         );
-        hud = { ...hud, comboPopStartMs: nowMs, lastComboTier: comboTier };
+        hud = { ...hud, comboPopStartMs: nowMs, lastComboTier: streakValue };
       }
-    } else if (comboTier < 2 && lastComboTier !== comboTier) {
-      lastComboTier = comboTier;
+    } else if (!isFlowStreakHudVisible(streakValue) && lastComboTier !== 0) {
+      lastComboTier = 0;
       if (scoreEntity !== undefined) {
         ecs.updateComponent<ScoreComponentData>(
           scoreEntity,
           ScoreComponentName,
           (s) => {
-            s.hud.lastComboTier = comboTier;
+            s.hud.lastComboTier = 0;
           }
         );
-        hud = { ...hud, lastComboTier: comboTier };
+        hud = { ...hud, lastComboTier: 0 };
       }
     }
-    const comboLabel = comboTier >= 3 ? '×3' : comboTier === 2 ? '×2' : '';
-    const comboVisible = showHud && comboTier >= 2;
+    const comboLabel = flowStreakHudLabel(streakValue);
+    const comboVisible = showHud && isFlowStreakHudVisible(streakValue);
     const comboPopScale = computePopScale(comboPopStartMs, nowMs, POP_MS, 1.15);
     const comboPulseScale = comboVisible ? computeComboPulseScale(nowMs) : 1;
     const comboScale = comboPopScale * comboPulseScale;
@@ -475,7 +483,7 @@ export const ScoreHudSystem: System = {
       if (isComboStreakLabel && textData) {
         ecs.updateComponent<TextComponentData>(entityId, TextComponentName, (t) => {
           t.opacity = elementOpacity;
-          const label = gameplayFeedbackCopy.TAP_STREAK_LABEL;
+          const label = gameplayFeedbackCopy.FLOW_STREAK_LABEL;
           if (t.text !== label) {
             t.text = label;
             t.isDirty = true;

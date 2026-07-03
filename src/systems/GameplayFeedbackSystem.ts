@@ -58,6 +58,13 @@ import { resetPassageFlowSampler } from '@/Game/feedback/passageFlowScoring';
 import { updateTapCoachDetection } from '@/Game/feedback/tapCoachDetection';
 import { updateZigzagTapDetection } from '@/Game/feedback/zigzagTapDetection';
 import { computePraiseBonus } from '@/Game/feedback/praiseBonus';
+import {
+  breakFlowStreakOnContact,
+  evaluateSeamPassageTier,
+  flowStreakDeltaFromUpdate,
+  isGapShiftSeam,
+  updateFlowStreakOnSeamCross,
+} from '@/Game/feedback/flowStreak';
 import { routeSkillPraiseEvents } from '@/Game/feedback/praiseRouter';
 import {
   resetContactWindow,
@@ -82,6 +89,7 @@ import { GAMEPLAY_FLASH_COLORS } from '@/Game/feedback/gameplayFeedbackVisuals';
 import { layoutGameplayFeedback } from '@/Game/ui/gameplayFeedbackLayout';
 import {
   createDefaultSkillFeedbackState,
+  createDefaultFlowStreakState,
   type SkillPraiseEvent,
 } from '@/Game/feedback/skillFeedbackTypes';
 import {
@@ -146,6 +154,12 @@ export const GameplayFeedbackSystem: System = {
 
     let slots = manager.slots;
     let skillFeedback = manager.skillFeedback;
+    if (!skillFeedback.flowStreak) {
+      skillFeedback = {
+        ...skillFeedback,
+        flowStreak: createDefaultFlowStreakState(),
+      };
+    }
     let diagRing = manager.diagRing ?? [];
     const wordSlotCount = gameplayFeedbackTuning.WORD_SLOT_COUNT;
     const diagEnabled = skillFeedbackDiagTuning.ENABLED;
@@ -160,6 +174,9 @@ export const GameplayFeedbackSystem: System = {
       | import('@/Game/feedback/skillFeedbackTypes').PassageTimingTier
       | null
       | undefined;
+    let seamEvaluated = false;
+    let flowStreakDelta: -1 | 0 | 1 = 0;
+    let flowStreakCountAfterCross = 0;
 
     if (juiceActive && swimmerData) {
       const waterData = firstDataFromStore(
@@ -210,6 +227,16 @@ export const GameplayFeedbackSystem: System = {
             columnCount
           ),
         }),
+      };
+
+      skillFeedback = {
+        ...skillFeedback,
+        flowStreak: breakFlowStreakOnContact(
+          skillFeedback.flowStreak,
+          swimmerData.isPinnedFromAbove === true,
+          swimmerData.movementBlockedThisFrame === true,
+          nowMs
+        ),
       };
 
       const gates = resolveSkillGates(
@@ -359,6 +386,42 @@ export const GameplayFeedbackSystem: System = {
 
           const passageSampler = skillFeedback.contactWindow.passageFlow;
 
+          const prevRow =
+            skillFeedback.rowHistory.length > 0
+              ? skillFeedback.rowHistory[skillFeedback.rowHistory.length - 1]
+              : undefined;
+          const wideOpenWidth = skillFeedbackTuning.pathGates.wideOpenLaneWidth;
+          const shiftMin =
+            skillFeedbackTuning.families.steer_clean.patterns.shift_commit
+              ?.minCenterDeltaCols ?? 1;
+          const timingEvalFrozen = isPassageTimingEvalFrozen(session, nowMs);
+
+          if (isGapShiftSeam(prevRow, snapshot, wideOpenWidth, shiftMin)) {
+            seamEvaluated = true;
+            const streakBefore = skillFeedback.flowStreak.count;
+            const seamTier = evaluateSeamPassageTier(
+              passageSampler,
+              snapshot.crossQualified,
+              timingEvalFrozen
+            );
+            const nextFlowStreak = updateFlowStreakOnSeamCross(
+              skillFeedback.flowStreak,
+              seamTier,
+              nowMs
+            );
+            flowStreakDelta = flowStreakDeltaFromUpdate(
+              streakBefore,
+              nextFlowStreak.count
+            );
+            flowStreakCountAfterCross = nextFlowStreak.count;
+            skillFeedback = {
+              ...skillFeedback,
+              flowStreak: nextFlowStreak,
+            };
+          } else {
+            flowStreakCountAfterCross = skillFeedback.flowStreak.count;
+          }
+
           if (!skipSteer) {
             const snapEvent = detectSnapTransfer({
               history: skillFeedback.rowHistory,
@@ -374,7 +437,7 @@ export const GameplayFeedbackSystem: System = {
               candidates.push(snapEvent);
             }
 
-            const timingEvalFrozen = isPassageTimingEvalFrozen(session, nowMs);
+            const timingEvalFrozenSeam = timingEvalFrozen;
             const steerCtx = {
               history: skillFeedback.rowHistory,
               current: snapshot,
@@ -386,7 +449,7 @@ export const GameplayFeedbackSystem: System = {
               stitchSampler: skillFeedback.contactWindow.stitchSampler,
               passageSampler,
               gates,
-              timingEvalFrozen,
+              timingEvalFrozen: timingEvalFrozenSeam,
             };
             const shiftEval = evaluateShiftCommit(steerCtx);
             if (diagEnabled) {
@@ -458,6 +521,9 @@ export const GameplayFeedbackSystem: System = {
           skipSteerIdenticalGaps: rowCrossDraft.skipSteerIdenticalGaps,
           shiftCommitReject,
           passageTimingTier: shiftPassageTimingTier,
+          flowStreakCount: flowStreakCountAfterCross,
+          flowStreakDelta,
+          seamEvaluated,
           candidates: compactCandidates,
           routed: compactRouted,
           dropped: routed.dropped,
@@ -503,7 +569,8 @@ export const GameplayFeedbackSystem: System = {
             difficulty01,
             skillFeedbackTuning,
             roll,
-            event.hygiene01 ?? 1
+            event.hygiene01 ?? 1,
+            skillFeedback.flowStreak.count
           );
           bonuses.push(bonus);
           totalBonus += bonus;

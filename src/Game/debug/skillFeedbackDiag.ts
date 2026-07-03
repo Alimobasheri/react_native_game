@@ -119,6 +119,9 @@ export type SkillFeedbackDiagEntry =
     skipSteerIdenticalGaps: boolean;
     shiftCommitReject?: ShiftCommitRejectReason;
     passageTimingTier?: PassageTimingTier | null;
+    flowStreakCount?: number;
+    flowStreakDelta?: -1 | 0 | 1;
+    seamEvaluated?: boolean;
     candidates: CompactCandidate[];
     routed: CompactCandidate[];
     dropped: CompactDrop[];

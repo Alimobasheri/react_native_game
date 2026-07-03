@@ -104,7 +104,7 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 | Praise bonus | `src/Game/feedback/praiseBonus.ts` | +N from clearance/hygiene/speed | **Scale** by flow streak multiplier |
 | Config | `src/config/skillFeedback.ts` | Families, tiers, hygiene, survival ramp | **Add** `flowStreak` block (Track 3); passage timing tiers need no separate config (PT-016) |
 | Flash VFX | `src/Game/feedback/feedbackFlashAnim.ts`, `gameplayFeedback.ts` | Fredoka float-up | **Keep** |
-| State store | `src/Game/ecs-components/GameplayFeedbackManager.ts` | `skillFeedback`, slots, diag ring | **Add** `flowStreak`, `trailPhase`, `passageSegment` |
+| State store | `src/Game/ecs-components/GameplayFeedbackManager.ts` | `skillFeedback`, slots, diag ring | **Add** `flowStreak` on `skillFeedback` ✅ Slice A |
 | Types | `src/Game/feedback/skillFeedbackTypes.ts` | Snapshots, samplers, states | **Add** `PassageSegmentState`, `FlowStreakState` — `PassageTimingTier` ✅ Slice A |
 | Diag | `src/Game/debug/skillFeedbackDiag.ts` | Ring buffer dump | **Extend** with timing tier + segment id |
 | Tests | `src/Game/feedback/__tests__/` (113+ tests) | Unit + `shiftCommitPassage.integration.test.ts` | **Expand** per §8 |
@@ -158,7 +158,7 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 | Water foam render | `buildWaterSurfaceFoamRenderLayers.ts` | speed-reactive foam | **Shine** on perfect |
 | Swimmer water FX tuning | `swimmerWaterFxTuning.ts` | `wallBump` burst preset | **Failed** timing burst |
 | Cave lighting | `swimmerCaveLightingTuning.ts` | vignette, lane lift | **Streak** local light bump (Layer A) |
-| Score HUD combo | `ScoreHudSystem.ts` | ×2/×3 from `visualStrokeTier` | **Replace** with flow streak HUD |
+| Score HUD combo | `ScoreHudSystem.ts` | ×2/×3 from `visualStrokeTier` | **Replace** with flow streak HUD ✅ Slice A |
 | HUD layout | `scoreHudLayout.ts`, `ScoreView-rntge.tsx` | combo badge entities | **Repurpose** for flow streak |
 
 ### 4.6 Gap-shift seam — physics authority (PT-016)
@@ -517,9 +517,18 @@ Track 4 Rhythm schema ◄─── (after 1–3 feel good) ─────┘
 | T2.5 Disable `zigzag_tap` | config + router | D6 no false zigzag ✅ Slice A |
 | T2.6 Extend tier gate to snap/steer families | `snapTransferDetection`, `steerPraiseDetection` | acceptable = silence on all passage skills |
 
-**Track 2 core (`shift_commit`) shipped** with Slice A. Next: T2.6 or **Track 3** flow streak.
+**Track 2 core (`shift_commit`) shipped** with Slice A. **Track 3 Slice A** shipped (flow streak state, HUD, bonus mult). Next: T2.6, T3.2 trail, or T3.4 zigzag_passage.
 
-**Estimate:** Track 3 — 1–2 sprints
+**Track 3 Slice A deferred (see [track3-slice-a-flow-streak-handoff.md](../visual-design/logs/track3-slice-a-flow-streak-handoff.md)):**
+- T2.6 — tier gate on snap/steer families (scrape silence)
+- T3.2 — trail VFX / comet wake
+- T3.4 — `zigzag_passage`
+- T3.5 — streak word escalation (20+ copy pool — founder decision pending)
+- PT-011 — REST corridor trail dim
+- Device matrix D1–D8 founder pass
+- Known inconsistency: scrape cross_sweep may still praise while seam streak broke
+
+**Estimate:** Track 3 remainder — 1 sprint
 
 ---
 
@@ -529,10 +538,10 @@ Track 4 Rhythm schema ◄─── (after 1–3 feel good) ─────┘
 
 | Task | Files | Exit |
 |------|-------|------|
-| T3.1 `flowStreak.ts` state machine | `GameplayFeedbackManager`, config | unit tests |
+| T3.1 `flowStreak.ts` state machine | `GameplayFeedbackManager`, config | unit tests ✅ Slice A |
 | T3.2 Trail VFX | water FX / new system | D1/D4 visible |
-| T3.3 Replace HUD combo | `ScoreHudSystem`, `ScoreView` — drop `visualStrokeTier` ×2/×3 | HUD shows flow streak only |
-| T3.3b Decouple tap streak from score | `swimmerTapInput`, `praiseBonus`, `ScoreHudSystem` — **keep** `rapidTapStreak` impulse always (PT-015) | tap mult affects steer only |
+| T3.3 Replace HUD combo | `ScoreHudSystem`, `ScoreView` — drop `visualStrokeTier` ×2/×3 | HUD shows flow streak only ✅ Slice A |
+| T3.3b Decouple tap streak from score | `swimmerTapInput`, `praiseBonus`, `ScoreHudSystem` — **keep** `rapidTapStreak` impulse always (PT-015) | tap mult affects steer only; HUD+bonus use flow streak ✅ Slice A |
 | T3.4 Re-enable `zigzag_chain` → `zigzagPassageDetection` | feedback + config | pinball only |
 | T3.5 Praise router escalation | `praiseRouter`, `flowStreak` config | D4 copy tiers |
 
@@ -606,6 +615,7 @@ Signed off — implement as **PT-011…PT-015** in §2.
 | 2026-07-02 | v1.1 — PT-011…PT-015 locked (founder sign-off on REST, acceptable silence, near miss, TAP coach, rapidTapStreak) |
 | 2026-07-03 | v1.2 — Stage speed model documented (`StageSpeedSystem` supersedes draft `SpeedTierSystem`); Track 2 Slice A shipped (`passageTimingEval`, `shift_commit` tier gate, `zigzag_tap` off) |
 | 2026-07-03 | v1.3 — **PT-016** physics-defined passage timing; rejected `gapBlend` config gates; removed `passageTiming.ts`; clarification [log](../visual-design/logs/track2-physics-passage-timing-clarification.md) |
+| 2026-07-03 | v1.4 — **Track 3 Slice A** — `flowStreak.ts`, uncapped HUD ×N (first perfect = ×2), praise bonus mult, diag fields; [handoff](../visual-design/logs/track3-slice-a-flow-streak-handoff.md) |
 
 ---
 

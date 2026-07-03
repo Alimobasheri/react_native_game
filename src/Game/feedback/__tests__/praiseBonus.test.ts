@@ -115,4 +115,19 @@ describe('computePraiseBonus', () => {
     );
     expect(highHygiene).toBeGreaterThan(lowHygiene);
   });
+
+  it('multiplies bonus by flow streak value', () => {
+    const fixedEvent = { ...baseEvent, bonusMin: 10, bonusMax: 10 };
+    const args = [fixedEvent, 0.5, 200, 0.5, skillFeedbackTuning, 0, 1] as const;
+    const inactive = computePraiseBonus(...args, 0);
+    const atTwo = computePraiseBonus(...args, 2);
+    const atFive = computePraiseBonus(...args, 5);
+    const atTwelve = computePraiseBonus(...args, 12);
+    expect(atTwo).toBeGreaterThan(inactive);
+    expect(atFive).toBeGreaterThan(atTwo);
+    expect(atTwelve).toBeGreaterThan(atFive);
+    expect(atTwo / inactive).toBeCloseTo(2, 0);
+    expect(atFive / inactive).toBeCloseTo(5, 0);
+    expect(atTwelve / inactive).toBeCloseTo(12, 0);
+  });
 });
