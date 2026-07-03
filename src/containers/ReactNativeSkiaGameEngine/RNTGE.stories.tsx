@@ -325,9 +325,7 @@ export const Basic: Story = {
                   <SwipeToPlay />
                 </Content>
               </Scene>
-              <GameOverScene
-                safeAreaInsets={{ top: 0, bottom: 0, left: 0, right: 0 }}
-              />
+              <GameOverScene />
             </Content>
           </ReactNativeTurboGameEngine>
         </View>

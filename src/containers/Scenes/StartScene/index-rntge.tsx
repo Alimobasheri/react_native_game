@@ -13,7 +13,6 @@ import {
   swimmerUiChipPanel,
   SWIMMER_UI_IMAGE,
 } from '@/assets/swimmerUi';
-import type { SafeAreaInsets } from '@/Game/ui/refLayout';
 import { FC } from 'react';
 import { BestScoreChip } from './BestScoreChip-rntge';
 import { PrimaryCTAButton } from './PrimaryCTAButton-rntge';
@@ -26,19 +25,15 @@ export type StartSceneProps = {
   gameTitle?: string;
   shopEnabled?: boolean;
   gameplayRaisingSpeed: number;
-  safeAreaInsets: SafeAreaInsets;
 };
 
 const StartOverlayContent: FC<StartSceneProps> = (props) => (
   <>
-    <StartTitleLogo insets={props.safeAreaInsets} />
-    <BestScoreChip insets={props.safeAreaInsets} />
-    <ShopButton
-      insets={props.safeAreaInsets}
-      enabled={props.shopEnabled ?? false}
-    />
-    <TapTutorialHint insets={props.safeAreaInsets} />
-    <PrimaryCTAButton insets={props.safeAreaInsets} />
+    <StartTitleLogo />
+    <BestScoreChip />
+    <ShopButton enabled={props.shopEnabled ?? false} />
+    <TapTutorialHint />
+    <PrimaryCTAButton />
   </>
 );
 
@@ -46,13 +41,11 @@ export const StartScene: FC<StartSceneProps> = ({
   gameTitle = 'FLOOD RUSH',
   shopEnabled = false,
   gameplayRaisingSpeed,
-  safeAreaInsets,
 }) => {
   const sceneProps = {
     gameTitle,
     shopEnabled,
     gameplayRaisingSpeed,
-    safeAreaInsets,
   };
 
   return (

@@ -1,6 +1,7 @@
 import {
   useAddEntity,
   useCanvasDimensions,
+  useRNTGESafeAreaInsets,
 } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs';
 import {
   createRenderComponent,
@@ -13,17 +14,15 @@ import {
   logSkillFeedbackDiagDump,
 } from '@/Game/debug/skillFeedbackDiag';
 import { SwimmerRenderLayer } from '@/Game/render/swimmerRenderLayers';
-import type { SafeAreaInsets } from '@/Game/ui/refLayout';
 import { Skia, TextAlign } from '@shopify/react-native-skia';
 import { FC, useMemo } from 'react';
 
 const BUTTON_W = 72;
 const BUTTON_H = 36;
 
-export const SkillFeedbackDiagButton: FC<{
-  safeAreaInsets: SafeAreaInsets;
-}> = ({ safeAreaInsets }) => {
+export const SkillFeedbackDiagButton: FC = () => {
   const dimensions = useCanvasDimensions();
+  const safeAreaInsets = useRNTGESafeAreaInsets();
 
   const components = useMemo(() => {
     const screenW = dimensions?.width ?? 400;

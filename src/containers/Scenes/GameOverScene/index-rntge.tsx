@@ -11,17 +11,12 @@ import {
   swimmerUiBtnBlue,
   swimmerUiBtnGolden,
 } from '@/assets/swimmerUi';
-import type { SafeAreaInsets } from '@/Game/ui/refLayout';
 import { FC } from 'react';
 import { GameOverDimLayer } from './GameOverDimLayer-rntge';
 import { GameOverOverlayController } from './GameOverOverlayController-rntge';
 import { GameOverPanel } from './GameOverPanel-rntge';
 
-export type GameOverSceneProps = {
-  safeAreaInsets: SafeAreaInsets;
-};
-
-export const GameOverScene: FC<GameOverSceneProps> = ({ safeAreaInsets }) => {
+export const GameOverScene: FC = () => {
   return (
     <Scene name="gameOver" zIndex={20} isActive={true}>
       <Preload>
@@ -53,9 +48,9 @@ export const GameOverScene: FC<GameOverSceneProps> = ({ safeAreaInsets }) => {
         />
       </Preload>
       <Content>
-        <GameOverOverlayController safeAreaInsets={safeAreaInsets}>
-          <GameOverDimLayer insets={safeAreaInsets} />
-          <GameOverPanel insets={safeAreaInsets} />
+        <GameOverOverlayController>
+          <GameOverDimLayer />
+          <GameOverPanel />
         </GameOverOverlayController>
       </Content>
     </Scene>

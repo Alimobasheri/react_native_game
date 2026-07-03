@@ -92,7 +92,7 @@ const anchorTextPosition = (
 export const StageOverlaySystem: System = {
   name: 'stageOverlaySystem',
   requiredComponents: [GameSessionComponentName],
-  process: ({ components, ecs, dimensions }) => {
+  process: ({ components, ecs, dimensions, safeAreaInsets }) => {
     'worklet';
 
     const sessionEntity = getGameSessionEntity(components);
@@ -109,7 +109,7 @@ export const StageOverlaySystem: System = {
     const nowMs = Date.now();
     const screenW = dimensions.value.width || 1;
     const screenH = dimensions.value.height || 1;
-    const layout = layoutStageOverlay(screenW, screenH, 0);
+    const layout = layoutStageOverlay(screenW, screenH, safeAreaInsets.value.top);
     const kind = session.stageOverlayKind ?? 'none';
     const burstOpacity = computeOverlayOpacity(
       kind,

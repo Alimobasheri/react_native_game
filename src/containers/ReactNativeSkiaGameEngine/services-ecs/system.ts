@@ -4,6 +4,7 @@ import { Entity } from './entity';
 import { ComponentStore } from './component';
 import { EventQueueContextType } from '../hooks-ecs/useEventQueue/useEventQueue';
 import { MutableRefObject } from 'react';
+import type { RNTGESafeAreaInsets } from '../internal/store';
 
 export enum SystemContext {
   JS = 'JS',
@@ -17,12 +18,14 @@ export type SystemProcessArgs = {
   deltaTime: number;
   ecs: ECS;
   dimensions: SharedValue<{ width: number; height: number }>;
+  safeAreaInsets: SharedValue<RNTGESafeAreaInsets>;
 };
 
 export interface RunSystemsArgs {
   eventQueue: EventQueueContextType;
   deltaTime: number;
   dimensions: SharedValue<{ width: number; height: number }>;
+  safeAreaInsets: SharedValue<RNTGESafeAreaInsets>;
 }
 
 export type System = {
@@ -80,6 +83,7 @@ export const createSystemManager = (
     eventQueue,
     deltaTime,
     dimensions,
+    safeAreaInsets,
   }: RunSystemsArgs) => {
     const ecs = global._RNTGE_.ecs;
     if (!ecs) return;
@@ -104,6 +108,7 @@ export const createSystemManager = (
         deltaTime,
         ecs,
         dimensions,
+        safeAreaInsets,
       });
     };
 

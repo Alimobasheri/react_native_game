@@ -2,6 +2,7 @@ import {
   useAddEntity,
   useAddSystem,
   useCanvasDimensions,
+  useRNTGESafeAreaInsets,
 } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs';
 import {
   createRenderComponent,
@@ -20,10 +21,11 @@ const StageOverlaySlot: FC<{
   role: StageOverlayRole;
 }> = ({ role }) => {
   const dimensions = useCanvasDimensions();
+  const safeAreaInsets = useRNTGESafeAreaInsets();
   const components = useMemo(() => {
     const screenW = dimensions?.width ?? 400;
     const screenH = dimensions?.height ?? 800;
-    const layout = layoutStageOverlay(screenW, screenH, 0);
+    const layout = layoutStageOverlay(screenW, screenH, safeAreaInsets.top);
     const isCenter = role === 'center';
     const isPersistent = role === 'persistentHud';
     const fontSize = isPersistent
@@ -75,7 +77,7 @@ const StageOverlaySlot: FC<{
         renderLayer: SwimmerRenderLayer.Hud,
       }),
     ];
-  }, [dimensions?.height, dimensions?.width, role]);
+  }, [dimensions?.height, dimensions?.width, role, safeAreaInsets.top]);
 
   useAddEntity({ components });
   return null;

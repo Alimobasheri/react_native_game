@@ -1,6 +1,7 @@
 import {
   useAddEntity,
   useCanvasDimensions,
+  useRNTGESafeAreaInsets,
 } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs';
 import {
   createRenderComponent,
@@ -8,7 +9,6 @@ import {
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import { createStartOverlayTagComponent } from '@/Game/ecs-components/StartOverlayTag';
 import { SWIMMER_UI_IMAGE, TITLE_LOGO_IMAGE_SHADOW } from '@/assets/swimmerUi';
-import type { SafeAreaInsets } from '@/Game/ui/refLayout';
 import { FC, useMemo } from 'react';
 import {
   layoutStartOverlay,
@@ -16,14 +16,15 @@ import {
   rectCenter,
 } from './startOverlayLayout';
 
-export const StartTitleLogo: FC<{ insets: SafeAreaInsets }> = ({ insets }) => {
+export const StartTitleLogo: FC = () => {
   const dimensions = useCanvasDimensions();
+  const safeAreaInsets = useRNTGESafeAreaInsets();
 
   const components = useMemo(() => {
     const layout = layoutStartOverlay(
       dimensions.width,
       dimensions.height,
-      insets
+      safeAreaInsets
     );
     const title = layout.title;
     return [
@@ -47,7 +48,7 @@ export const StartTitleLogo: FC<{ insets: SafeAreaInsets }> = ({ insets }) => {
         zIndex: OVERLAY_Z.title,
       }),
     ];
-  }, [dimensions.height, dimensions.width, insets]);
+  }, [dimensions.height, dimensions.width, safeAreaInsets]);
 
   useAddEntity({ components });
 

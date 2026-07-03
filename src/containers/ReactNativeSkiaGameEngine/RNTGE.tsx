@@ -1,5 +1,5 @@
 import { Canvas, SkPath, SkPicture } from '@shopify/react-native-skia';
-import { FC, PropsWithChildren, useCallback, useState } from 'react';
+import { FC, PropsWithChildren, useCallback, useLayoutEffect, useState } from 'react';
 import { useECS } from './hooks-ecs/useECS/useECS';
 import {
   FrameInfo,
@@ -50,6 +50,7 @@ import { touchSystem } from './internal/systems/touchSystem';
 import { TouchOverlay } from './components-rntge/Input/TouchOverlay';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
+import { useSafeAreaInsets as useRNSafeAreaInsets } from 'react-native-safe-area-context';
 import { loadSceneSystem } from './internal/systems/scene/loadSceneSystem';
 import { unLoadSceneSystem } from './internal/systems/scene/unloadSceneSystem';
 import { requestRemoveEntity } from './internal/systems/requestRemoveEntity';
@@ -65,7 +66,37 @@ export const ReactNativeTurboGameEngine: FC<
 > = ({ componentNames, children }) => {
   const setDimensions = useRNTGEStore((state) => state.setDimensions);
   const storeDimensions = useRNTGEStore((state) => state.dimensions);
+  const setSafeAreaInsets = useRNTGEStore((state) => state.setSafeAreaInsets);
   const dimensions = useSharedValue({ width: 0, height: 0 });
+  const safeAreaInsets = useSharedValue({
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+  });
+  const rnSafeAreaInsets = useRNSafeAreaInsets();
+
+  useLayoutEffect(() => {
+    safeAreaInsets.value = {
+      top: rnSafeAreaInsets.top,
+      bottom: rnSafeAreaInsets.bottom,
+      left: rnSafeAreaInsets.left,
+      right: rnSafeAreaInsets.right,
+    };
+    setSafeAreaInsets(
+      rnSafeAreaInsets.top,
+      rnSafeAreaInsets.bottom,
+      rnSafeAreaInsets.left,
+      rnSafeAreaInsets.right
+    );
+  }, [
+    rnSafeAreaInsets.top,
+    rnSafeAreaInsets.bottom,
+    rnSafeAreaInsets.left,
+    rnSafeAreaInsets.right,
+    safeAreaInsets,
+    setSafeAreaInsets,
+  ]);
   useDerivedValue(() => {
     'worklet';
     if (
@@ -182,6 +213,7 @@ export const ReactNativeTurboGameEngine: FC<
             eventQueue,
             deltaTime: frameInfo.timeSincePreviousFrame ?? 0,
             dimensions,
+            safeAreaInsets,
           });
         }
       }
@@ -190,6 +222,7 @@ export const ReactNativeTurboGameEngine: FC<
     [
       eventQueue,
       dimensions,
+      safeAreaInsets,
       initECS,
       initPhysics,
       defineComponents,

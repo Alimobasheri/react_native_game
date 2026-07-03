@@ -2,6 +2,7 @@ import {
   useCanvasDimensions,
   useAddEntity,
   useAddSystem,
+  useRNTGESafeAreaInsets,
 } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs';
 import {
   createRenderComponent,
@@ -23,25 +24,12 @@ import {
 } from '@/Game/ui/swimmerTheme';
 import { gameplayFeedbackCopy } from '@/config/gameplayFeedback';
 import { scoreHudTuning } from '@/config/scoreHudTuning';
-import type { SafeAreaInsets } from '@/Game/ui/refLayout';
 import { Skia, TextAlign } from '@shopify/react-native-skia';
 import { FC, useMemo } from 'react';
 
-export type ScoreViewProps = {
-  safeAreaInsets?: SafeAreaInsets;
-};
-
-const ZERO_INSETS: SafeAreaInsets = {
-  top: 0,
-  bottom: 0,
-  left: 0,
-  right: 0,
-};
-
-export const ScoreView: FC<ScoreViewProps> = ({
-  safeAreaInsets = ZERO_INSETS,
-}) => {
+export const ScoreView: FC = () => {
   const dimensions = useCanvasDimensions();
+  const safeAreaInsets = useRNTGESafeAreaInsets();
 
   const panelComponents = useMemo(() => {
     const screenW = dimensions?.width ?? 400;

@@ -1,6 +1,7 @@
 import {
   useAddEntity,
   useCanvasDimensions,
+  useRNTGESafeAreaInsets,
 } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs';
 import {
   createRenderComponent,
@@ -17,7 +18,7 @@ import { beginGameplay } from '@/Game/session/beginGameplay';
 import { getGameSessionEntity } from '@/Game/session/gameSessionQuery';
 import { COLOR_CAVE_DEEP, COLOR_TEXT_WHITE } from '@/Game/ui/swimmerTheme';
 import { SWIMMER_UI_IMAGE } from '@/assets/swimmerUi';
-import { refSize, type SafeAreaInsets } from '@/Game/ui/refLayout';
+import { refSize } from '@/Game/ui/refLayout';
 import { Skia, TextAlign } from '@shopify/react-native-skia';
 import { FC, useMemo } from 'react';
 import {
@@ -27,16 +28,15 @@ import {
   textPosition,
 } from './startOverlayLayout';
 
-export const PrimaryCTAButton: FC<{ insets: SafeAreaInsets }> = ({
-  insets,
-}) => {
+export const PrimaryCTAButton: FC = () => {
   const dimensions = useCanvasDimensions();
+  const safeAreaInsets = useRNTGESafeAreaInsets();
 
   const buttonComponents = useMemo(() => {
     const layout = layoutStartOverlay(
       dimensions.width,
       dimensions.height,
-      insets
+      safeAreaInsets
     );
     const btn = layout.cta;
     return [
@@ -86,13 +86,13 @@ export const PrimaryCTAButton: FC<{ insets: SafeAreaInsets }> = ({
         },
       }),
     ];
-  }, [dimensions.height, dimensions.width, insets]);
+  }, [dimensions.height, dimensions.width, safeAreaInsets]);
 
   const labelComponents = useMemo(() => {
     const layout = layoutStartOverlay(
       dimensions.width,
       dimensions.height,
-      insets
+      safeAreaInsets
     );
     const btn = layout.cta;
     const label = layout.ctaLabel;
@@ -127,7 +127,7 @@ export const PrimaryCTAButton: FC<{ insets: SafeAreaInsets }> = ({
         zIndex: OVERLAY_Z.cta + 1,
       }),
     ];
-  }, [dimensions.height, dimensions.width, insets]);
+  }, [dimensions.height, dimensions.width, safeAreaInsets]);
 
   useAddEntity({ components: buttonComponents });
   useAddEntity({ components: labelComponents });

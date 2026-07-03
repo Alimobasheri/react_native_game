@@ -383,25 +383,11 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                   />
 
                   {/* Score HUD — top-left during gameplay */}
-                  <ScoreView
-                    safeAreaInsets={{
-                      top: insets.top,
-                      bottom: insets.bottom,
-                      left: insets.left,
-                      right: insets.right,
-                    }}
-                  />
+                  <ScoreView />
                   <GameplayFeedbackView />
                   <StageOverlayView />
                   {skillFeedbackDiagTuning.SHOW_BUTTON && (
-                    <SkillFeedbackDiagButton
-                      safeAreaInsets={{
-                        top: insets.top,
-                        bottom: insets.bottom,
-                        left: insets.left,
-                        right: insets.right,
-                      }}
-                    />
+                    <SkillFeedbackDiagButton />
                   )}
                 </Content>
               </Scene>
@@ -409,21 +395,8 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                 gameTitle="FLOOD RUSH"
                 shopEnabled={false}
                 gameplayRaisingSpeed={args.raisingSpeed}
-                safeAreaInsets={{
-                  top: insets.top,
-                  bottom: insets.bottom,
-                  left: insets.left,
-                  right: insets.right,
-                }}
               />
-              <GameOverScene
-                safeAreaInsets={{
-                  top: insets.top,
-                  bottom: insets.bottom,
-                  left: insets.left,
-                  right: insets.right,
-                }}
-              />
+              <GameOverScene />
             </Content>
           </ReactNativeTurboGameEngine>
         </View>

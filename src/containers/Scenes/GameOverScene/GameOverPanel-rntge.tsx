@@ -1,6 +1,7 @@
 import {
   useAddEntity,
   useCanvasDimensions,
+  useRNTGESafeAreaInsets,
 } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs';
 import {
   createRenderComponent,
@@ -46,12 +47,13 @@ function useGameOverLayout(
   );
 }
 
-export const GameOverPanel: FC<{ insets: SafeAreaInsets }> = ({ insets }) => {
+export const GameOverPanel: FC = () => {
   const dimensions = useCanvasDimensions();
+  const safeAreaInsets = useRNTGESafeAreaInsets();
   const layout = useGameOverLayout(
     dimensions.width,
     dimensions.height,
-    insets
+    safeAreaInsets
   );
 
   const panelComponents = useMemo(() => {

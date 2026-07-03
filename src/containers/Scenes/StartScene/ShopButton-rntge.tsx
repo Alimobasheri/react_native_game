@@ -1,6 +1,7 @@
 import {
   useAddEntity,
   useCanvasDimensions,
+  useRNTGESafeAreaInsets,
 } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs';
 import {
   createRenderComponent,
@@ -9,7 +10,6 @@ import {
 import { createTapComponent } from '@/containers/ReactNativeSkiaGameEngine/internal/components/touch';
 import { createStartOverlayTagComponent } from '@/Game/ecs-components/StartOverlayTag';
 import { SWIMMER_UI_IMAGE } from '@/assets/swimmerUi';
-import type { SafeAreaInsets } from '@/Game/ui/refLayout';
 import { FC, useMemo } from 'react';
 import {
   layoutStartOverlay,
@@ -18,17 +18,17 @@ import {
 } from './startOverlayLayout';
 
 export const ShopButton: FC<{
-  insets: SafeAreaInsets;
   enabled: boolean;
-}> = ({ insets, enabled }) => {
+}> = ({ enabled }) => {
   const dimensions = useCanvasDimensions();
+  const safeAreaInsets = useRNTGESafeAreaInsets();
 
   const panelComponents = useMemo(() => {
     if (!enabled) return [];
     const layout = layoutStartOverlay(
       dimensions.width,
       dimensions.height,
-      insets
+      safeAreaInsets
     );
     const chip = layout.shop;
     return [
@@ -63,14 +63,14 @@ export const ShopButton: FC<{
         },
       }),
     ];
-  }, [dimensions.height, dimensions.width, enabled, insets]);
+  }, [dimensions.height, dimensions.width, enabled, safeAreaInsets]);
 
   const iconComponents = useMemo(() => {
     if (!enabled) return [];
     const layout = layoutStartOverlay(
       dimensions.width,
       dimensions.height,
-      insets
+      safeAreaInsets
     );
     const icon = layout.shopIcon;
     return [
@@ -93,7 +93,7 @@ export const ShopButton: FC<{
         zIndex: OVERLAY_Z.shop + 1,
       }),
     ];
-  }, [dimensions.height, dimensions.width, enabled, insets]);
+  }, [dimensions.height, dimensions.width, enabled, safeAreaInsets]);
 
   useAddEntity({ components: panelComponents });
   useAddEntity({ components: iconComponents });

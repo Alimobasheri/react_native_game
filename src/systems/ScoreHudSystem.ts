@@ -39,8 +39,6 @@ const MILESTONE_POP_MS = 220;
 const NEW_BEST_MS = 850;
 const MILESTONE_STEP = 10;
 
-const ZERO_INSETS = { top: 0, bottom: 0, left: 0, right: 0 };
-
 const computeEntranceT = (startMs: number, nowMs: number): number => {
   'worklet';
   if (startMs <= 0) return 1;
@@ -122,7 +120,7 @@ const resetHudAnim = (hud: ScoreHudAnimState): void => {
 export const ScoreHudSystem: System = {
   name: 'scoreHudSystem',
   requiredComponents: [ScoreHudTagComponentName],
-  process: ({ components, deltaTime, ecs, dimensions }) => {
+  process: ({ components, deltaTime, ecs, dimensions, safeAreaInsets }) => {
     'worklet';
 
     const session = getGameSession(components);
@@ -141,7 +139,7 @@ export const ScoreHudSystem: System = {
       !isStartReady(session) &&
       !isGameOverPhase(session);
 
-    const layout = layoutScoreHud(screenW, screenH, ZERO_INSETS);
+    const layout = layoutScoreHud(screenW, screenH, safeAreaInsets.value);
     const bestScoreLine = `${Math.floor(session?.bestScore ?? 0)}`;
 
     const scoreEntities = ecs.getEntitiesWithComponents([ScoreComponentName]);

@@ -3,14 +3,12 @@ import { createGameSessionComponent } from '@/Game/ecs-components/GameSession';
 import { loadRunProgressionStats } from '@/Game/persistence/runProgressionStorage';
 import { gameSessionTuning } from '@/config/swimmerTuning';
 import { StartScreenSystem } from '@/systems/StartScreenSystem';
-import type { SafeAreaInsets } from '@/Game/ui/refLayout';
 import { FC, ReactNode, useEffect, useMemo, useState } from 'react';
 
 export type ReadySceneControllerProps = {
   gameTitle: string;
   shopEnabled: boolean;
   gameplayRaisingSpeed: number;
-  safeAreaInsets: SafeAreaInsets;
   children?: ReactNode;
 };
 

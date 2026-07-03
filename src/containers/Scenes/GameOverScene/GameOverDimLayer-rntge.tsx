@@ -1,6 +1,7 @@
 import {
   useAddEntity,
   useCanvasDimensions,
+  useRNTGESafeAreaInsets,
 } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs';
 import {
   createRenderComponent,
@@ -11,7 +12,6 @@ import {
   GAME_OVER_DIM_OPACITY,
   GAME_OVER_PANEL_COLORS,
 } from '@/Game/ui/gameOverPanelVisuals';
-import type { SafeAreaInsets } from '@/Game/ui/refLayout';
 import { FC, useMemo } from 'react';
 import {
   GAME_OVER_OVERLAY_Z,
@@ -19,14 +19,15 @@ import {
   rectCenter,
 } from './gameOverOverlayLayout';
 
-export const GameOverDimLayer: FC<{ insets: SafeAreaInsets }> = ({ insets }) => {
+export const GameOverDimLayer: FC = () => {
   const dimensions = useCanvasDimensions();
+  const safeAreaInsets = useRNTGESafeAreaInsets();
 
   const components = useMemo(() => {
     const layout = layoutGameOverOverlay(
       dimensions.width,
       dimensions.height,
-      insets
+      safeAreaInsets
     );
     const dim = layout.dim;
     return [
@@ -50,7 +51,7 @@ export const GameOverDimLayer: FC<{ insets: SafeAreaInsets }> = ({ insets }) => 
         zIndex: GAME_OVER_OVERLAY_Z.dim,
       }),
     ];
-  }, [dimensions.height, dimensions.width, insets]);
+  }, [dimensions.height, dimensions.width, safeAreaInsets]);
 
   useAddEntity({ components });
   return null;

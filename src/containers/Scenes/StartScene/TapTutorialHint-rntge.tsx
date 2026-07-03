@@ -1,6 +1,7 @@
 import {
   useAddEntity,
   useCanvasDimensions,
+  useRNTGESafeAreaInsets,
 } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs';
 import {
   createRenderComponent,
@@ -14,7 +15,7 @@ import {
   SWIMMER_UI_IMAGE,
   TAP_CURSOR_SPRITE,
 } from '@/assets/swimmerUi';
-import { refSize, type SafeAreaInsets } from '@/Game/ui/refLayout';
+import { refSize } from '@/Game/ui/refLayout';
 import { Skia, TextAlign } from '@shopify/react-native-skia';
 import { FC, useMemo } from 'react';
 import {
@@ -24,14 +25,15 @@ import {
   textPosition,
 } from './startOverlayLayout';
 
-export const TapTutorialHint: FC<{ insets: SafeAreaInsets }> = ({ insets }) => {
+export const TapTutorialHint: FC = () => {
   const dimensions = useCanvasDimensions();
+  const safeAreaInsets = useRNTGESafeAreaInsets();
 
   const labelComponents = useMemo(() => {
     const layout = layoutStartOverlay(
       dimensions.width,
       dimensions.height,
-      insets
+      safeAreaInsets
     );
     const label = layout.tutorialText;
     return [
@@ -64,13 +66,13 @@ export const TapTutorialHint: FC<{ insets: SafeAreaInsets }> = ({ insets }) => {
         zIndex: OVERLAY_Z.tutorial,
       }),
     ];
-  }, [dimensions.height, dimensions.width, insets]);
+  }, [dimensions.height, dimensions.width, safeAreaInsets]);
 
   const cursorComponents = useMemo(() => {
     const layout = layoutStartOverlay(
       dimensions.width,
       dimensions.height,
-      insets
+      safeAreaInsets
     );
     const cursor = layout.tapCursor;
     return [
@@ -102,7 +104,7 @@ export const TapTutorialHint: FC<{ insets: SafeAreaInsets }> = ({ insets }) => {
         zIndex: OVERLAY_Z.tutorial + 1,
       }),
     ];
-  }, [dimensions.height, dimensions.width, insets]);
+  }, [dimensions.height, dimensions.width, safeAreaInsets]);
 
   useAddEntity({ components: labelComponents });
   useAddEntity({ components: cursorComponents });

@@ -1,11 +1,9 @@
 import { useAddSystem } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs';
 import { GameOverScreenSystem } from '@/systems/GameOverScreenSystem';
 import { RestartGameplaySystem } from '@/systems/RestartGameplaySystem';
-import type { SafeAreaInsets } from '@/Game/ui/refLayout';
 import { FC, ReactNode } from 'react';
 
 export type GameOverOverlayControllerProps = {
-  safeAreaInsets: SafeAreaInsets;
   children?: ReactNode;
 };
 

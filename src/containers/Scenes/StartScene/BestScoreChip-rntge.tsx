@@ -1,6 +1,7 @@
 import {
   useAddEntity,
   useCanvasDimensions,
+  useRNTGESafeAreaInsets,
 } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs';
 import {
   createRenderComponent,
@@ -13,7 +14,7 @@ import {
   COLOR_TEXT_WHITE,
 } from '@/Game/ui/swimmerTheme';
 import { SWIMMER_UI_IMAGE } from '@/assets/swimmerUi';
-import { refSize, type SafeAreaInsets } from '@/Game/ui/refLayout';
+import { refSize } from '@/Game/ui/refLayout';
 import { Skia, TextAlign } from '@shopify/react-native-skia';
 import { FC, useMemo } from 'react';
 import {
@@ -23,14 +24,15 @@ import {
   textPosition,
 } from './startOverlayLayout';
 
-export const BestScoreChip: FC<{ insets: SafeAreaInsets }> = ({ insets }) => {
+export const BestScoreChip: FC = () => {
   const dimensions = useCanvasDimensions();
+  const safeAreaInsets = useRNTGESafeAreaInsets();
 
   const panelComponents = useMemo(() => {
     const layout = layoutStartOverlay(
       dimensions.width,
       dimensions.height,
-      insets
+      safeAreaInsets
     );
     const chip = layout.best;
     return [
@@ -53,13 +55,13 @@ export const BestScoreChip: FC<{ insets: SafeAreaInsets }> = ({ insets }) => {
         zIndex: OVERLAY_Z.chip,
       }),
     ];
-  }, [dimensions.height, dimensions.width, insets]);
+  }, [dimensions.height, dimensions.width, safeAreaInsets]);
 
   const crownComponents = useMemo(() => {
     const layout = layoutStartOverlay(
       dimensions.width,
       dimensions.height,
-      insets
+      safeAreaInsets
     );
     const crown = layout.crown;
     return [
@@ -82,13 +84,13 @@ export const BestScoreChip: FC<{ insets: SafeAreaInsets }> = ({ insets }) => {
         zIndex: OVERLAY_Z.chip + 1,
       }),
     ];
-  }, [dimensions.height, dimensions.width, insets]);
+  }, [dimensions.height, dimensions.width, safeAreaInsets]);
 
   const labelComponents = useMemo(() => {
     const layout = layoutStartOverlay(
       dimensions.width,
       dimensions.height,
-      insets
+      safeAreaInsets
     );
     const label = layout.bestLabel;
     return [
@@ -119,13 +121,13 @@ export const BestScoreChip: FC<{ insets: SafeAreaInsets }> = ({ insets }) => {
         zIndex: OVERLAY_Z.chip + 2,
       }),
     ];
-  }, [dimensions.height, dimensions.width, insets]);
+  }, [dimensions.height, dimensions.width, safeAreaInsets]);
 
   const scoreComponents = useMemo(() => {
     const layout = layoutStartOverlay(
       dimensions.width,
       dimensions.height,
-      insets
+      safeAreaInsets
     );
     const score = layout.bestScore;
     return [
@@ -156,7 +158,7 @@ export const BestScoreChip: FC<{ insets: SafeAreaInsets }> = ({ insets }) => {
         zIndex: OVERLAY_Z.chip + 2,
       }),
     ];
-  }, [dimensions.height, dimensions.width, insets]);
+  }, [dimensions.height, dimensions.width, safeAreaInsets]);
 
   useAddEntity({ components: panelComponents });
   useAddEntity({ components: crownComponents });
