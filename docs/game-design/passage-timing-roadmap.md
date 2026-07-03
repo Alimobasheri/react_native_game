@@ -26,7 +26,7 @@
 
 ## 1. North star — product rule (locked)
 
-> **Perfect timing** = clean passage through a **gap-shift seam** at the current **speed tier**.  
+> **Perfect timing** = clean passage through a **gap-shift seam** at the current **stage speed**.  
 > **Acceptable timing** = survive the passage without hard block (may scrape).  
 > **Failed timing** = hard side block or pin before commit completes — body disruption, no trail, streak break.
 
@@ -47,7 +47,7 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 | ID | Decision | Rationale | Invalidates |
 |----|----------|-----------|-------------|
 | **PT-001** | Skills are **passage-defined** (gap-shift seams, path archetypes), not row-index events | Player learns habits per seam, not per arbitrary row tick | Row-only NICE! without passage context |
-| **PT-002** | **Speed is stepped per macro phase** within a cycle; constant inside each phase | Learnable timing windows (Dune/Flappy Dunk) | Continuous `raisingSpeed` acceleration during play |
+| **PT-002** | **Speed is constant per stage** (one full directed-path loop); macro phases drive **geometry only**; RELEASE eases speed as visual pre-ramp to next stage | Learnable timing windows per chapter (Dune/Flappy Dunk) | Continuous `raisingSpeed` acceleration during play; per-phase speed steps within a loop |
 | **PT-003** | **Perfect** requires `passageIsClean` + steer proof + gap-shift topology; **acceptable** allows soft scrape; **failed** = hard block or pin in passage window | Three-tier feedback matches player mental model | Hygiene-only tier without timing phase |
 | **PT-004** | **Flow streak** = consecutive **perfect** passages; persists until hard break | Dune ×2/×4 comet; movement skill not tap skill | Tap `rapidTapStreak` / HUD ×2/×3 as primary combo |
 | **PT-005** | **Trail VFX** on only while flow streak ≥ 1 (perfect ignition); escalates with streak | Stateful reward channel, not one-shot particles | Word flash alone as skill reward |
@@ -73,8 +73,8 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 | **Gap-shift seam** | Row boundary where lane cluster center moves ≥ `minStepDelta` cols | `centerDeltaCols()` in `gapTopology.ts` |
 | **Passage segment** | Approach runway → seam → exit settle between two row crosses | Evolves from `PassageFlowSampler` (per-row today) |
 | **Gap blend phase** | `Water.gapBlend` 0→1 while surface curve lerps between prev/curr gap | `waterPhysicsTuning.GAP_BLEND_SPEED_PER_SECOND` |
-| **Commit window** | Fraction of gap blend where tap/steer must complete for **perfect** | New: `computeGapTransitionT()` in `waterSurfaceProfile.ts` |
-| **Speed tier** | Discrete `raisingSpeed` band tied to macro phase | New config; replaces continuous ramp |
+| **Stage speed** | Constant `raisingSpeed` for one directed-path loop (`stageIndex`); RELEASE relax ramp | `stageProgression.ts` + `StageSpeedSystem.ts` |
+| **Commit window** | Fraction of gap blend where tap/steer must complete for **perfect** | `passageTiming.ts` → `commitWindowByStageIndex` |
 | **Flow streak** | Count of consecutive **perfect** passages | New state on `GameplayFeedbackManager` or `Swimmer` |
 | **Macro phase** | FLOW / TENSION / CLIMAX / RELEASE | `pacingDirector.ts` |
 | **Path archetype** | pinball, funnel, chicane, chute, release, paradox | `branchKey` on `ObstacleRow` / generators |
@@ -92,10 +92,10 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 | Row history | `src/Game/feedback/rowCrossHistory.ts` | Ring buffer, identical-gap skip | **Keep** |
 | Passage sampler (per-row) | `src/Game/feedback/passageFlowScoring.ts` | `pinnedSeen`, `hardBlockSeen`, `softScrapeSeen`, steer span | **Extend** to multi-row segment |
 | Stitch sampler | `src/Game/feedback/hygieneScoring.ts` | Per-frame scrape/pin/clearance across stitch window | **Keep** for hygiene; subordinate to timing tier |
-| Shift commit (NICE!) | `src/Game/feedback/steerPraiseDetection.ts` → `evaluateShiftCommit` | Topology shift + passage intact + steer proof | **Maps to perfect/acceptable** — needs timing phase gate |
+| Shift commit (NICE!) | `src/Game/feedback/steerPraiseDetection.ts` → `evaluateShiftCommit` | Topology shift + passage intact + steer proof | **`passageTimingEval` gates perfect vs acceptable** ✅ Slice A (`shift_commit` only) |
 | Steer patterns | `steerPraiseDetection.ts` → `detectSteerPraise` | slalom, cross_sweep, fork_clean | **Keep** — path-gated |
 | Snap transfer | `src/Game/feedback/snapTransferDetection.ts` | pinhole→flare→snap | **Keep** — pinball-adjacent |
-| Zigzag tap | `src/Game/feedback/zigzagTapDetection.ts` | 400ms alternating tap streak | **Deprecate** (PT-007) |
+| Zigzag tap | `src/Game/feedback/zigzagTapDetection.ts` | 400ms alternating tap streak | **Disabled** ✅ Slice A (PT-007); replace with `zigzag_passage` Track 3 |
 | Zigzag chain (geometry) | `skillFeedback.ts` → `zigzag_chain` `enabled: false` | Alternating center sign run | **Re-enable** with passage timing |
 | Near miss | `src/Game/feedback/nearMissDetection.ts` | Tap-gated pin threat escape | **Keep** — orthogonal survival praise |
 | Tap coach | `src/Game/feedback/tapCoachDetection.ts` | TAP / SAVED! | **Keep**; tighten pin strict mode in physics |
@@ -104,7 +104,7 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 | Config | `src/config/skillFeedback.ts` | Families, tiers, hygiene, survival ramp | **Add** `passageTiming`, `flowStreak` blocks |
 | Flash VFX | `src/Game/feedback/feedbackFlashAnim.ts`, `gameplayFeedback.ts` | Fredoka float-up | **Keep** |
 | State store | `src/Game/ecs-components/GameplayFeedbackManager.ts` | `skillFeedback`, slots, diag ring | **Add** `flowStreak`, `trailPhase`, `passageSegment` |
-| Types | `src/Game/feedback/skillFeedbackTypes.ts` | Snapshots, samplers, states | **Add** `PassageTimingTier`, `PassageSegmentState`, `FlowStreakState` |
+| Types | `src/Game/feedback/skillFeedbackTypes.ts` | Snapshots, samplers, states | **Add** `PassageSegmentState`, `FlowStreakState` — `PassageTimingTier` ✅ Slice A |
 | Diag | `src/Game/debug/skillFeedbackDiag.ts` | Ring buffer dump | **Extend** with timing tier + segment id |
 | Tests | `src/Game/feedback/__tests__/` (113+ tests) | Unit + `shiftCommitPassage.integration.test.ts` | **Expand** per §8 |
 
@@ -129,17 +129,18 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 | Piece | Location | What it does today | Change scope |
 |-------|----------|-------------------|--------------|
 | Session ramp | `beginGameplay.ts` → `computeRaisingSpeedForSession` | 400ms visual→gameplay ease on first tap | **Keep** for start only |
-| Continuous accel | `WaterPhysicsSystem.ts` | `raisingSpeed` lerps toward `baseSpeed * (1 + multiply * 0.1)` per frame | **Replace** with tier hold (PT-002) |
-| Water tuning | `swimmerTuning.ts` → `waterPhysicsTuning` | `WATER_SPEED_ACCELERATION_PER_SECOND: 2.2` | **Deprecate** continuous accel |
+| Stage speed hold | `StageSpeedSystem.ts` + `stageProgression.ts` | Constant `raisingSpeed` per `stageIndex` within FLOW/TENSION/CLIMAX; RELEASE relax accel toward next stage | **Shipped** Track 1 ✅ |
+| Water physics | `WaterPhysicsSystem.ts` | Gap blend, flow, calmness — no per-frame speed lerp | **Shipped** — speed owned by `StageSpeedSystem` |
+| Water tuning | `swimmerTuning.ts` → `waterPhysicsTuning` | `WATER_SPEED_ACCELERATION_PER_SECOND` | **Deprecated** (unused) |
 | Difficulty ramp | `gapDifficultyRamp.ts` | 500-row curve for gaps, runway, segment lengths | **Keep** for geometry; decouple from speed |
-| Obstacle movement | `ObstacleSystem.ts` | `raisingSpeed * deltaSeconds` row motion | **Consume** tier speed from session |
-| Speed norm for praise | `rowCrossEval.ts` → `normalizeSpeed01` | `raisingSpeed / speedNormMax` | **Map** to tier index, not raw speed |
+| Obstacle movement | `ObstacleSystem.ts` | `raisingSpeed * deltaSeconds` row motion | **Consume** stage speed from `Water` |
+| Speed norm for praise | `rowCrossEval.ts` → `normalizeSpeed01` | `raisingSpeed / speedNormMax` | **Keep**; commit windows key off `stageIndex` (Track 2+) |
 
 ### 4.4 Path generation & macro pacing
 
 | Piece | Location | What it does today | Rhythm fit |
 |-------|----------|-------------------|------------|
-| Pacing director | `src/Game/path/pacingDirector.ts` | FLOW/TENSION/CLIMAX/RELEASE row budgets | **Bind** speed tiers to phases |
+| Pacing director | `src/Game/path/pacingDirector.ts` | FLOW/TENSION/CLIMAX/RELEASE row budgets | **Geometry only** — speed owned by `stageIndex` |
 | Flow generators | `flowGenerators.ts` | chute, chicane | `L-R-L-R` chicane |
 | Tension generators | `tensionGenerators.ts` | funnel, paradox | grouped taps, fork |
 | Climax generators | `climaxGenerators.ts` | pinball hop, false wall | pinball = zigzag path |
@@ -178,13 +179,13 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ GENERATION (existing tokens + new RhythmSchema metadata)                 │
-│  pacingDirector → phase → speed tier Sₙ                                   │
+│  pacingDirector → macro phase → geometry generators                       │
 │  generators emit branchKey + rhythmBeatIndex on rows                      │
 └───────────────────────────────┬─────────────────────────────────────────┘
                                 ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│ PHYSICS (stepped speed, pin strict, bounce on failed)                    │
-│  WaterPhysicsSystem / SwimmerPhysicsSystem / hyperCasualPhysics           │
+│ PHYSICS (stage-constant speed, RELEASE ramp, pin strict, bounce)         │
+│  StageSpeedSystem / WaterPhysicsSystem / SwimmerPhysicsSystem             │
 └───────────────────────────────┬─────────────────────────────────────────┘
                                 ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -204,15 +205,16 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 
 | Module | Responsibility |
 |--------|----------------|
-| `src/config/passageTiming.ts` | Tier speeds, commit window fractions, bounce amplitudes, streak thresholds |
+| `src/config/passageTiming.ts` | Commit window fractions per `stageIndex` (gapBlend gate Track 2 Slice B) |
+| `src/config/stageProgression.ts` | Stage constant speed + RELEASE relax accel + per-stage increment |
 | `src/config/flowStreak.ts` | Copy ladder, trail colors, multiplier steps, REST dim rule (PT-011) |
 | `src/config/rhythmSchema.ts` | Beat pattern IDs, break rules, phase allowlists |
 | `src/Game/feedback/passageSegment.ts` | FSM: open/extend/close segment, emit timing tier |
-| `src/Game/feedback/passageTimingEval.ts` | perfect/acceptable/failed from sampler + gapBlend + topology |
+| `src/Game/feedback/passageTimingEval.ts` | perfect/acceptable/failed from sampler + gapBlend + topology ✅ Slice A |
 | `src/Game/feedback/flowStreak.ts` | streak increment/break, copy tier for router |
 | `src/Game/feedback/zigzagPassageDetection.ts` | Geometry zigzag on alternating Δcenter (replaces tap zigzag) |
 | `src/systems/FlowTrailVisualSystem.ts` (or extend water FX) | Trail persistence from streak state |
-| `src/systems/SpeedTierSystem.ts` | Apply Sₙ on phase boundary; visual pre-ramp in RELEASE tail |
+| `src/systems/PhysicsSystem/StageSpeedSystem.ts` | Constant speed per `stageIndex`; RELEASE relax ramp; step on RELEASE→FLOW ✅ Track 1 |
 
 ---
 
@@ -289,41 +291,38 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 
 ---
 
-### Pillar C — Stepped speed tiers (PT-002, PT-009)
+### Pillar C — Stage speed (PT-002, PT-009)
 
-**Philosophy:** Player internalizes **one speed per chapter**; RELEASE is exhale + visual pre-ramp; next FLOW step is predictable.
+**Philosophy:** Player internalizes **one water speed per stage** (full directed-path loop). Macro phases (FLOW/TENSION/CLIMAX) change geometry, not speed. RELEASE is exhale + **visible speed ramp** telegraphing the next stage; the snap on RELEASE→FLOW is predictable.
 
-| Macro phase | Proposed tier | `raisingSpeed` (tune start) | Notes |
-|-------------|---------------|----------------------------|-------|
-| FLOW | S1 | `baseSpeed` (e.g. 180–220) | teach seams |
-| TENSION | S2 | +15–20% | tighter commit |
-| CLIMAX | S3 | +25–35% | pinball/rhythm breaks |
-| RELEASE | S1 (hold) | same as prior or reset to S1 | coins, GREAT!, ramp VFX only |
+| Stage moment | `raisingSpeed` behavior | Player feel |
+|--------------|---------------------------|-------------|
+| FLOW / TENSION / CLIMAX | `computeStageConstantSpeed(base, stageIndex)` — flat hold | Steady timing chapter |
+| RELEASE enter | Relax accel (`STAGE_RELAX_ACCEL_PER_SECOND`) toward next stage target | Water speeds up — "next level is faster" |
+| RELEASE → FLOW boundary | `stageIndex++`; snap to new constant (+`STAGE_SPEED_INCREMENT` per stage) | New chapter speed |
 
-**Current systems to change:**
+**Shipped systems:**
 
-| File | Change |
-|------|--------|
-| `WaterPhysicsSystem.ts` | Remove per-frame `raisingSpeed` lerp toward accelerating target; set from tier |
-| `SpeedTierSystem.ts` (new) | On `pacingDirector` phase transition, step `Water.baseSpeed` + `raisingSpeed` |
-| `gapDifficultyRamp.ts` | **No** speed coupling — geometry only |
-| `skillFeedback.ts` `speedNorm` | Normalize per **tier index**, not raw px/s |
-| `skillSurvivalGates.ts` | Keep diff-based gates; add tier-based commit window |
-| `ObstacleSystem.ts` | Unchanged consumption of `water.raisingSpeed` |
-| RELEASE tail | Light/surge VFX ramp without speed change until next FLOW row |
+| File | Role |
+|------|------|
+| `stageProgression.ts` | `STAGE_SPEED_INCREMENT`, `STAGE_RELAX_ACCEL_PER_SECOND`, `computeStageConstantSpeed` |
+| `StageSpeedSystem.ts` | Applies hold + RELEASE ramp; steps on phase boundary |
+| `WaterPhysicsSystem.ts` | Gap/flow/calmness only — no speed lerp |
+| `gapDifficultyRamp.ts` | Geometry only — no speed coupling |
+| `passageTiming.ts` | Commit windows keyed by `stageIndex` (Track 2+) |
 
 **Validations:**
-- Time-per-row at S1 stable ±1% over 30s play
-- Step at RELEASE→FLOW only (log phase transitions in diag)
-- Blueprint/world equip does not alter tiers (L-003)
+- Time-per-row flat ±1% within FLOW/TENSION/CLIMAX of a stage
+- Speed step only on RELEASE→FLOW (`stageIndex` increment)
+- RELEASE shows visible ramp before next stage hold
 
 **Invalidations:**
-- `WATER_SPEED_ACCELERATION_PER_SECOND` continuous ramp during TENSION
-- Difficulty01 from row count **replacing** tier for timing windows (use both: tier = timing, diff = geometry width)
+- `WATER_SPEED_ACCELERATION_PER_SECOND` continuous ramp during play
+- Per-macro-phase speed steps within one loop (superseded by stage model)
 
 **Edge cases:**
-- Death restart mid-cycle — tier from `totalRowsGenerated` phase, not reset
-- Start session ramp — first 400ms exempt from perfect eval
+- Death restart mid-cycle — `stageIndex` from session, not reset
+- Start session ramp — first 400ms freezes perfect timing eval (Slice A)
 - Game over / start_ready — speed 0
 
 ---
@@ -471,7 +470,7 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 | D5 | RELEASE corridor | GREAT! (Phase 2), streak preserved (dim) |
 | D6 | Alt-tap on straight chute | no ZIG-ZAG |
 | D7 | Pin + water | no passive slide out without taps |
-| D8 | Phase step FLOW→TENSION | speed step once, diag logs tier |
+| D8 | RELEASE ramp then stage step | relax accel in RELEASE; snap +`stageIndex` on RELEASE→FLOW |
 
 ---
 
@@ -491,8 +490,8 @@ Track 4 Rhythm schema ◄─── (after 1–3 feel good) ─────┘
 |------|-------|------|
 | T1.1 Pin strict lateral | `SwimmerPhysicsSystem`, `swimmerTuning` | D7 pass ✅ |
 | T1.2 Bounce disruptor on failed | `SwimmerPhysicsSystem`, `passageTimingEval` hook | D3 visible bounce ✅ (physics hook; full timing gate Track 2) |
-| T1.3 Speed tier hold | `SpeedTierSystem`, `WaterPhysicsSystem`, `passageTiming.ts` | D8 pass ✅ |
-| T1.4 Remove continuous accel | `WaterPhysicsSystem`, `waterPhysicsTuning` | speed flat in FLOW ✅ |
+| T1.3 Stage speed hold | `StageSpeedSystem`, `stageProgression.ts`, `WaterPhysicsSystem` | D8 pass ✅ |
+| T1.4 Remove continuous accel | `WaterPhysicsSystem`, `waterPhysicsTuning` | speed flat within stage ✅ |
 
 **Estimate:** 1 sprint
 
@@ -505,10 +504,10 @@ Track 4 Rhythm schema ◄─── (after 1–3 feel good) ─────┘
 | Task | Files | Exit |
 |------|-------|------|
 | T2.1 `passageSegment.ts` FSM | new + `GameplayFeedbackSystem` | diag shows segment id |
-| T2.2 `passageTimingEval.ts` | new + `skillFeedbackTypes` | unit matrix green |
-| T2.3 Refactor `evaluateShiftCommit` | `steerPraiseDetection` | integration tests updated |
+| T2.2 `passageTimingEval.ts` | new + `skillFeedbackTypes` | unit matrix green ✅ Slice A |
+| T2.3 Refactor `evaluateShiftCommit` | `steerPraiseDetection` | integration tests updated ✅ Slice A |
 | T2.4 Gap blend commit window | read `Water.gapBlend` in feedback system | perfect requires window |
-| T2.5 Disable `zigzag_tap` | config + router | D6 no false zigzag |
+| T2.5 Disable `zigzag_tap` | config + router | D6 no false zigzag ✅ Slice A |
 
 **Estimate:** 1–2 sprints
 
@@ -565,10 +564,10 @@ Track 4 Rhythm schema ◄─── (after 1–3 feel good) ─────┘
 | Concern | File |
 |---------|------|
 | Praise copy/thresholds | `src/config/skillFeedback.ts` |
-| Passage timing windows | `src/config/passageTiming.ts` (**new**) |
+| Passage timing windows | `src/config/passageTiming.ts` — `commitWindowByStageIndex` |
+| Stage speed hold + RELEASE ramp | `src/config/stageProgression.ts` + `StageSpeedSystem.ts` |
 | Flow streak / trail | `src/config/flowStreak.ts` (**new**) |
 | Rhythm beats | `src/config/rhythmSchema.ts` (**new**) |
-| Speed tiers per phase | `src/config/passageTiming.ts` |
 | Physics pin/bounce | `src/config/swimmerTuning.ts` |
 | Flash layout | `src/config/gameplayFeedback.ts` |
 | Water shader runtime | `src/config/swimmerTuning.ts` → `waterPhysicsTuning` |
@@ -595,6 +594,7 @@ Signed off — implement as **PT-011…PT-015** in §2.
 |------|--------|
 | 2026-07-02 | v1 — initial master roadmap from passage-timing design session |
 | 2026-07-02 | v1.1 — PT-011…PT-015 locked (founder sign-off on REST, acceptable silence, near miss, TAP coach, rapidTapStreak) |
+| 2026-07-03 | v1.2 — Stage speed model documented (`StageSpeedSystem` supersedes draft `SpeedTierSystem`); Track 2 Slice A shipped (`passageTimingEval`, `shift_commit` tier gate, `zigzag_tap` off) |
 
 ---
 

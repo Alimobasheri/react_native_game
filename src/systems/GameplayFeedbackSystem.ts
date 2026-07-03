@@ -53,6 +53,7 @@ import {
 import { updateNearMissDetection } from '@/Game/feedback/nearMissDetection';
 import { detectSnapTransfer } from '@/Game/feedback/snapTransferDetection';
 import { detectSteerPraise, evaluateShiftCommit } from '@/Game/feedback/steerPraiseDetection';
+import { isPassageTimingEvalFrozen } from '@/Game/feedback/passageTimingEval';
 import { resetPassageFlowSampler } from '@/Game/feedback/passageFlowScoring';
 import { updateTapCoachDetection } from '@/Game/feedback/tapCoachDetection';
 import { updateZigzagTapDetection } from '@/Game/feedback/zigzagTapDetection';
@@ -154,6 +155,10 @@ export const GameplayFeedbackSystem: System = {
     > | null = null;
     let shiftCommitReject:
       | import('@/Game/feedback/skillFeedbackTypes').ShiftCommitRejectReason
+      | undefined;
+    let shiftPassageTimingTier:
+      | import('@/Game/feedback/skillFeedbackTypes').PassageTimingTier
+      | null
       | undefined;
 
     if (juiceActive && swimmerData) {
@@ -369,6 +374,7 @@ export const GameplayFeedbackSystem: System = {
               candidates.push(snapEvent);
             }
 
+            const timingEvalFrozen = isPassageTimingEvalFrozen(session, nowMs);
             const steerCtx = {
               history: skillFeedback.rowHistory,
               current: snapshot,
@@ -380,10 +386,12 @@ export const GameplayFeedbackSystem: System = {
               stitchSampler: skillFeedback.contactWindow.stitchSampler,
               passageSampler,
               gates,
+              timingEvalFrozen,
             };
             const shiftEval = evaluateShiftCommit(steerCtx);
             if (diagEnabled) {
               shiftCommitReject = shiftEval.rejectReason ?? undefined;
+              shiftPassageTimingTier = shiftEval.tier;
             }
             const steerEvent = detectSteerPraise(steerCtx);
             if (steerEvent) {
@@ -391,6 +399,7 @@ export const GameplayFeedbackSystem: System = {
             }
           } else if (diagEnabled) {
             shiftCommitReject = undefined;
+            shiftPassageTimingTier = undefined;
           }
 
           skillFeedback = {
@@ -448,6 +457,7 @@ export const GameplayFeedbackSystem: System = {
           passageFlow: rowCrossDraft.passageFlow,
           skipSteerIdenticalGaps: rowCrossDraft.skipSteerIdenticalGaps,
           shiftCommitReject,
+          passageTimingTier: shiftPassageTimingTier,
           candidates: compactCandidates,
           routed: compactRouted,
           dropped: routed.dropped,

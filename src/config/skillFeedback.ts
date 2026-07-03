@@ -129,7 +129,7 @@ export const skillFeedbackTuning = {
       ] as SkillTierGate[],
     },
     zigzag_tap: {
-      enabled: true,
+      enabled: false,
       priority: 68,
       cooldownMs: 450,
       maxPerRun: Number.POSITIVE_INFINITY,

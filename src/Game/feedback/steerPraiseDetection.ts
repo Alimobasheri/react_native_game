@@ -8,6 +8,9 @@ import {
 } from '@/Game/feedback/gapPathAnalysis';
 import { computeHygiene01 } from '@/Game/feedback/hygieneScoring';
 import {
+  evaluatePassageTimingTier,
+} from '@/Game/feedback/passageTimingEval';
+import {
   createDefaultPassageFlowSampler,
   evaluateShiftCommitReject,
   passageIsClean,
@@ -19,7 +22,7 @@ import {
 import type {
   PassageFlowSampler,
   RowCrossSnapshot,
-  ShiftCommitRejectReason,
+  ShiftCommitEvalResult,
   SkillPraiseEvent,
   StitchSampler,
 } from '@/Game/feedback/skillFeedbackTypes';
@@ -35,12 +38,10 @@ export type SteerPraiseContext = {
   stitchSampler: StitchSampler;
   passageSampler?: PassageFlowSampler;
   gates?: ResolvedSkillGates;
+  timingEvalFrozen?: boolean;
 };
 
-export type ShiftCommitEvalResult = {
-  event: SkillPraiseEvent | null;
-  rejectReason: ShiftCommitRejectReason | null;
-};
+export type { ShiftCommitEvalResult };
 
 const pickShiftCommitTier = (
   tiers: SkillTierGate[],
@@ -152,7 +153,24 @@ export const evaluateShiftCommit = (
   });
 
   if (rejectReason !== null) {
-    return { event: null, rejectReason };
+    const tier = evaluatePassageTimingTier({
+      passageSampler,
+      crossQualified: ctx.current.crossQualified,
+      rejectReason,
+      timingFrozen: ctx.timingEvalFrozen,
+    });
+    return { tier, event: null, rejectReason };
+  }
+
+  const passageTier = evaluatePassageTimingTier({
+    passageSampler,
+    crossQualified: ctx.current.crossQualified,
+    rejectReason: null,
+    timingFrozen: ctx.timingEvalFrozen,
+  });
+
+  if (passageTier !== 'perfect') {
+    return { tier: passageTier, event: null, rejectReason: null };
   }
 
   const lookback = shiftPattern?.maxLookbackRows ?? 2;
@@ -174,10 +192,11 @@ export const evaluateShiftCommit = (
   );
 
   if (!picked) {
-    return { event: null, rejectReason: null };
+    return { tier: 'perfect', event: null, rejectReason: null };
   }
 
   return {
+    tier: 'perfect',
     event: makeSteerEvent(
       'shift_commit',
       shiftPattern!.priority,

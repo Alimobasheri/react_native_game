@@ -36,6 +36,7 @@ import type { ResolvedSkillGates } from '@/Game/feedback/skillSurvivalGates';
 import type { RouterDropReason } from '@/Game/feedback/praiseRouter';
 import type {
   PassageFlowSampler,
+  PassageTimingTier,
   RowCrossSnapshot,
   ShiftCommitRejectReason,
   SkillMomentId,
@@ -117,6 +118,7 @@ export type SkillFeedbackDiagEntry =
     passageFlow: CompactPassageFlow;
     skipSteerIdenticalGaps: boolean;
     shiftCommitReject?: ShiftCommitRejectReason;
+    passageTimingTier?: PassageTimingTier | null;
     candidates: CompactCandidate[];
     routed: CompactCandidate[];
     dropped: CompactDrop[];

@@ -2,12 +2,23 @@ import { skillFeedbackTuning } from '@/config/skillFeedback';
 import { createDefaultZigzagTapState } from '../skillFeedbackTypes';
 import { updateZigzagTapDetection } from '../zigzagTapDetection';
 
+const enabledZigzagTuning = {
+  ...skillFeedbackTuning,
+  families: {
+    ...skillFeedbackTuning.families,
+    zigzag_tap: {
+      ...skillFeedbackTuning.families.zigzag_tap,
+      enabled: true,
+    },
+  },
+};
+
 const baseCtx = {
   speedNorm: 0.5,
   difficulty01: 0.4,
   anchorX: 0,
   anchorY: 0,
-  tuning: skillFeedbackTuning,
+  tuning: enabledZigzagTuning,
 };
 
 describe('updateZigzagTapDetection', () => {
@@ -98,5 +109,26 @@ describe('updateZigzagTapDetection', () => {
     });
     expect(result.event?.copy).toBe('ZIG-ZAG KING!');
     expect(result.state.streak).toBe(5);
+  });
+
+  it('returns null when zigzag_tap family is disabled in config', () => {
+    const state = {
+      ...createDefaultZigzagTapState(),
+      streak: 4,
+      lastTapDir: 1 as const,
+      lastTapMs: 1000,
+      lastProcessedTapMs: 1000,
+    };
+    const result = updateZigzagTapDetection({
+      ...baseCtx,
+      tuning: skillFeedbackTuning,
+      speedNorm: 0.6,
+      difficulty01: 0.5,
+      lastTapTimeMs: 1300,
+      lastTapDirection: -1,
+      state,
+      nowMs: 1300,
+    });
+    expect(result.event).toBeNull();
   });
 });

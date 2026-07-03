@@ -79,6 +79,8 @@ export type PassageFlowSampler = {
   maxSwimmerColFracSeen: number;
 };
 
+export type PassageTimingTier = 'perfect' | 'acceptable' | 'failed';
+
 export type ShiftCommitRejectReason =
   | 'no_prev_row'
   | 'no_topology_shift'
@@ -89,6 +91,13 @@ export type ShiftCommitRejectReason =
   | 'pattern_disabled'
   | 'payoff_pinned'
   | 'not_cross_qualified';
+
+export type ShiftCommitEvalResult = {
+  /** null when shift pattern not applicable (e.g. no topology shift). */
+  tier: PassageTimingTier | null;
+  event: SkillPraiseEvent | null;
+  rejectReason: ShiftCommitRejectReason | null;
+};
 
 export type ContactWindowState = {
   rowsSinceReset: number;

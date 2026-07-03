@@ -71,14 +71,21 @@ describe('detectSteerPraise', () => {
       colliding: true,
       swimmerColFrac: 4.2,
     });
+    const shift = evaluateShiftCommit({
+      ...ctxBase,
+      history,
+      current,
+      passageSampler: passage,
+    });
+    expect(shift.tier).toBe('acceptable');
+    expect(shift.event).toBeNull();
     const event = detectSteerPraise({
       ...ctxBase,
       history,
       current,
       passageSampler: passage,
     });
-    expect(event?.momentId).toBe('shift_commit');
-    expect(event?.copy).toBe('NICE!');
+    expect(event).toBeNull();
   });
 
   it('does not fire NICE! when passage had hard block', () => {
@@ -95,6 +102,7 @@ describe('detectSteerPraise', () => {
     });
     expect(shift.event).toBeNull();
     expect(shift.rejectReason).toBe('flow_hard_block');
+    expect(shift.tier).toBe('failed');
   });
 
   it('fires NICE! when global stitch dirty but passage clean', () => {

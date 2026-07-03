@@ -8,25 +8,26 @@
 | Moment | Before | After |
 |--------|--------|-------|
 | **Pin under ceiling, no taps** | Water current slowly slides swimmer sideways out of pin column | Lateral advection off; body bleeds residual vx via damping, then stuck until TAP |
-| **FLOW chapter** | Speed creeps up every second (`WATER_SPEED_ACCELERATION`) | Flat **200 px/s** hold for whole FLOW phase |
-| **FLOW → TENSION** | Gradual unnoticed accel | One snap to **230 px/s** at phase row boundary |
+| **Within a stage (FLOW/TENSION/CLIMAX)** | Speed creeps up every second (`WATER_SPEED_ACCELERATION`) | Flat hold at `computeStageConstantSpeed(base, stageIndex)` |
+| **RELEASE corridor** | Same unnoticed creep | Visible relax accel toward next stage speed — telegraphs "next chapter is faster" |
+| **RELEASE → FLOW boundary** | Gradual drift | `stageIndex++`; snap to new constant (+`STAGE_SPEED_INCREMENT` per stage) |
 | **Hard side block** | Bounce config lived in `skillFeedback` shift_commit (broken / wrong layer) | Physics-owned bounce: kill vx, small rebound, squash + foam from `bounceDisruptorTuning` |
 
 ## Tuning keys (device pass)
 
 | Concern | File |
 |---------|------|
-| Macro speed tiers S1–S3 | `src/config/passageTiming.ts` → `speedTiers` |
+| Stage constant + RELEASE ramp | `src/config/stageProgression.ts` → `STAGE_SPEED_INCREMENT`, `STAGE_RELAX_ACCEL_PER_SECOND` |
 | Pin lateral block | `src/config/swimmerTuning.ts` → `PINNED_BLOCK_WATER_CURRENT_ADVECTION` |
 | Bounce disruptor | `src/config/swimmerTuning.ts` → `bounceDisruptorTuning` |
 | Deprecated continuous accel | `waterPhysicsTuning.WATER_SPEED_ACCELERATION_PER_SECOND` (unused) |
 
 ## Systems touched
 
-- `SpeedTierSystem` — snaps `raisingSpeed` / `baseSpeed` on `pacingPhaseAtTotalRows` change
+- `StageSpeedSystem` — constant `raisingSpeed` per `stageIndex`; RELEASE relax accel; step on RELEASE→FLOW
 - `WaterPhysicsSystem` — gap/flow/calmness only; no per-frame speed lerp
 - `SwimmerPhysicsSystem` — pin advection gate + bounce disruptor
-- Diag: `skillFeedbackDiag` live fields `pacingPhase`, `speedTierLabel`, `baseSpeed`
+- Diag: `skillFeedbackDiag` live fields `pacingPhase`, `stageIndex`, `stageConstantSpeed`, `baseSpeed`
 
 ## Tests
 
@@ -34,7 +35,7 @@
 npm test -- --watchAll=false \
   src/Game/characters/__tests__/swimmerPinnedWaterCurrent.test.ts \
   src/Game/characters/__tests__/swimmerBounceDisruptor.test.ts \
-  src/systems/PhysicsSystem/__tests__/speedTier.test.ts \
+  src/systems/PhysicsSystem/__tests__/stageSpeed.test.ts \
   src/Game/feedback/__tests__
 ```
 
@@ -45,10 +46,10 @@ npm test -- --watchAll=false \
 | ID | Check |
 |----|-------|
 | D7 | Pin, no taps 2s — no lateral drift from water current |
-| D8 | Diag `pacingPhase` TENSION — `raisingSpeed` 230; FLOW 30s flat |
+| D8 | RELEASE shows speed ramp; on RELEASE→FLOW `stageIndex` increments and speed snaps to next stage constant |
 | D3 | Hard side block — squash, foam burst, small rebound away from wall |
 
 ## Deferred to Track 2
 
-- `PassageTimingTier` / `passageTimingEval` gating bounce on failed vs acceptable scrape
+- `PassageTimingTier` / `passageTimingEval` gating bounce on failed vs acceptable scrape → see [track2-slice-a-passage-timing-handoff.md](./track2-slice-a-passage-timing-handoff.md)
 - Full `PassageSegment` FSM

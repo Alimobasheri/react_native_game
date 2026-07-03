@@ -41,7 +41,7 @@ describe('shift_commit pinball passage integration', () => {
     gates,
   };
 
-  it('fires NICE! on row 3 after rim scrape on row 2', () => {
+  it('returns acceptable silence on row 3 after rim scrape on row 2', () => {
     const history = [
       snap([4, 5], 5),
       snap([3, 4], 4),
@@ -68,7 +68,8 @@ describe('shift_commit pinball passage integration', () => {
       current,
       passageSampler: passage,
     });
-    expect(result.event?.copy).toBe('NICE!');
+    expect(result.tier).toBe('acceptable');
+    expect(result.event).toBeNull();
     expect(result.rejectReason).toBeNull();
   });
 });

@@ -383,7 +383,7 @@ P0 Audit ──► P1 Skill juice (Wave 3 ✅) ──► Passage Timing T1–3 �
 **Engine touchpoints (passage-timing — see full map in [passage-timing-roadmap §4](./passage-timing-roadmap.md#4-current-system-inventory-as-shipped-baseline)):**
 
 - Timing orchestrator: `GameplayFeedbackSystem.ts` → `passageSegment.ts` (new)
-- Physics: `SwimmerPhysicsSystem.ts`, `WaterPhysicsSystem.ts`, `SpeedTierSystem.ts` (new)
+- Physics: `SwimmerPhysicsSystem.ts`, `WaterPhysicsSystem.ts`, `StageSpeedSystem.ts`
 - Trail: `SwimmerWaterContactFxSystem.ts` / `FlowTrailVisualSystem` (new)
 - Config: `passageTiming.ts`, `flowStreak.ts` (new)
 
@@ -402,7 +402,7 @@ P0 Audit ──► P1 Skill juice (Wave 3 ✅) ──► Passage Timing T1–3 �
 
 **Player promise:** *Hard squeeze → bright payoff hallway → coins toward next world.*
 
-**Prerequisite:** Passage Timing **Track 1** speed tiers + RELEASE hold (so GREAT! lands in stable chapter).
+**Prerequisite:** Passage Timing **Track 1** stage speed + RELEASE ramp (so GREAT! lands in stable chapter).
 
 **Passage-timing tie-in:** Flow streak **preserves** on REST — trail **dims** only (PT-011); no GREAT! streak break.
 
