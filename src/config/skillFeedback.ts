@@ -36,8 +36,6 @@ export type SteerPatternTuning = {
   passageWindow?: 'per_row';
   flowDisqualifiers?: readonly ('pinned' | 'hard_block')[];
   smoothRequiresCleanPassage?: boolean;
-  wallBumpDebounceMs?: number;
-  wallBumpSquashDurationSec?: number;
   tiers: SkillTierGate[];
 };
 
@@ -163,8 +161,6 @@ export const skillFeedbackTuning = {
           passageWindow: 'per_row' as const,
           flowDisqualifiers: ['pinned', 'hard_block'] as const,
           smoothRequiresCleanPassage: true,
-          wallBumpDebounceMs: 120,
-          wallBumpSquashDurationSec: 0.12,
           tiers: [
             { copy: 'NICE!', bonusMin: 8, bonusMax: 18 },
             { copy: 'SMOOTH!', speedMin: 0.45, diffMin: 0.3, bonusMin: 12, bonusMax: 22 },

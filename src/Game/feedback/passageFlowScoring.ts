@@ -103,10 +103,14 @@ export const hasPassageSteerProof = (
 ): boolean => {
   'worklet';
   const span = passageSwimmerSteerSpan(sampler);
-  if (span >= minSpanCols) {
+  if (minSpanCols > 0 && span >= minSpanCols) {
     return true;
   }
-  if (prev && swimmerColDeltaAbs(current, prev) >= Math.max(1, Math.ceil(minSpanCols))) {
+  if (minSpanCols <= 0 && span > 0) {
+    return true;
+  }
+  const colDeltaMin = minSpanCols > 0 ? Math.max(1, Math.ceil(minSpanCols)) : 1;
+  if (prev && swimmerColDeltaAbs(current, prev) >= colDeltaMin) {
     return true;
   }
   return false;

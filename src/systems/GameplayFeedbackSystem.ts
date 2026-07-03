@@ -40,7 +40,7 @@ import {
 } from '@/Game/ecs-components/ObstaclesManager';
 import { gameplayFeedbackTuning } from '@/config/gameplayFeedback';
 import { skillFeedbackTuning } from '@/config/skillFeedback';
-import { gapDifficulty01FromTotalRows } from '@/config/gapDifficultyRamp';
+import { pacingPhaseAtTotalRows } from '@/Game/path/pacingDirector';
 import { swimmerPhysicsTuning } from '@/config/swimmerTuning';
 import { LAYOUT_CONSTANTS } from '@/Layout';
 import { computeTutorialOpacity } from '@/Game/session/beginGameplay';
@@ -95,6 +95,7 @@ import {
   type SkillFeedbackDiagEntry,
 } from '@/Game/debug/skillFeedbackDiag';
 import { Skia, TextAlign } from '@shopify/react-native-skia';
+import { gapDifficulty01FromTotalRows } from '@/config/gapDifficultyRamp';
 
 const deactivateSlot = (slots: FeedbackFlashSlot[], index: number): FeedbackFlashSlot[] => {
   'worklet';
@@ -163,8 +164,12 @@ export const GameplayFeedbackSystem: System = {
         components[ObstaclesManagerComponentName]
       ) as ObstaclesManagerComponentData | undefined;
       const totalRows = managerData?.totalRowsGenerated ?? 0;
+      const pacingPhase = pacingPhaseAtTotalRows(totalRows);
       const difficulty01 = gapDifficulty01FromTotalRows(totalRows);
       const raisingSpeed = waterData?.raisingSpeed ?? 0;
+      const baseSpeed = waterData?.baseSpeed ?? 0;
+      const stageIndex = session?.stageIndex ?? 1;
+      const stageConstantSpeed = waterData?.stageConstantSpeed;
       const speedNorm = normalizeSpeed01(
         raisingSpeed,
         skillFeedbackTuning.speedNormMax
@@ -324,6 +329,10 @@ export const GameplayFeedbackSystem: System = {
               difficulty01,
               speedNorm,
               raisingSpeed,
+              baseSpeed,
+              pacingPhase,
+              stageIndex,
+              stageConstantSpeed,
               branchKey: snapshot.branchKey,
               gaps: snapshot.rawGaps.slice(),
               swimmerCol,
@@ -423,6 +432,10 @@ export const GameplayFeedbackSystem: System = {
           difficulty01: rowCrossDraft.difficulty01,
           speedNorm: rowCrossDraft.speedNorm,
           raisingSpeed: rowCrossDraft.raisingSpeed,
+          baseSpeed: rowCrossDraft.baseSpeed,
+          pacingPhase: rowCrossDraft.pacingPhase,
+          stageIndex: rowCrossDraft.stageIndex,
+          stageConstantSpeed: rowCrossDraft.stageConstantSpeed,
           branchKey: rowCrossDraft.branchKey,
           gaps: rowCrossDraft.gaps,
           swimmerCol: rowCrossDraft.swimmerCol,
@@ -541,34 +554,34 @@ export const GameplayFeedbackSystem: System = {
         slot.active && slot.kind === flashTag.role
           ? isBonus
             ? computeBonusFlashTransform(
-                slot.startMs,
-                nowMs,
-                slot.anchorX,
-                slot.anchorY,
-                gameplayFeedbackTuning.FLASH_DURATION_MS,
-                layout.risePx,
-                layout.bonusOffsetX,
-                layout.bonusOffsetY,
-                slot.stackIndex,
-                layout.stackGapPx
-              )
+              slot.startMs,
+              nowMs,
+              slot.anchorX,
+              slot.anchorY,
+              gameplayFeedbackTuning.FLASH_DURATION_MS,
+              layout.risePx,
+              layout.bonusOffsetX,
+              layout.bonusOffsetY,
+              slot.stackIndex,
+              layout.stackGapPx
+            )
             : computeFlashTransform(
-                slot.startMs,
-                nowMs,
-                slot.anchorX,
-                slot.anchorY,
-                gameplayFeedbackTuning.FLASH_DURATION_MS,
-                layout.risePx,
-                slot.stackIndex,
-                layout.stackGapPx
-              )
+              slot.startMs,
+              nowMs,
+              slot.anchorX,
+              slot.anchorY,
+              gameplayFeedbackTuning.FLASH_DURATION_MS,
+              layout.risePx,
+              slot.stackIndex,
+              layout.stackGapPx
+            )
           : {
-              x: 0,
-              y: 0,
-              opacity: 0,
-              scale: 1,
-              active: false,
-            };
+            x: 0,
+            y: 0,
+            opacity: 0,
+            scale: 1,
+            active: false,
+          };
 
       if (slot.active && slot.kind === flashTag.role && !transform.active) {
         slots = deactivateSlot(slots, slotIndex);

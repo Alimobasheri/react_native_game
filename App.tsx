@@ -26,11 +26,11 @@ function App() {
             WATER_SURFACE_FROM_CONTAINER_BOTTOM_FRACTION
           }
           waterRiseSpeed={50}
-          raisingSpeed={300}
+          raisingSpeed={400}
           waterShaderOpacity={0.5}
           sideWallContainerOverlapPx={sideWallTuning.CONTAINER_OVERLAP_PX}
           lockedTemplateName={'directed'}
-          storyLockedProceduralSegment={'pinball'}
+          storyLockedProceduralSegment={''}
           lifeDebugMode={0}
           internalIntensity={0.55}
         />

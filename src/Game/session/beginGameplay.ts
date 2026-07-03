@@ -95,6 +95,10 @@ export const beginGameplay = (
       s.runAttemptIndex = blueprintAssignment.runAttemptIndex;
       s.runSeed = blueprintAssignment.runSeed;
       s.runBlueprint = blueprintAssignment.runBlueprint;
+      s.stageIndex = 1;
+      s.stageOverlayKind = 'intro';
+      s.stageOverlayStartMs = nowMs + SPEED_RAMP_MS;
+      s.stageIntroPending = false;
     }
   );
 

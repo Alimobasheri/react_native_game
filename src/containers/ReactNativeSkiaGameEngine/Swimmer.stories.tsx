@@ -63,6 +63,7 @@ import { RunResultComponentName } from '@/Game/ecs-components/RunResult';
 import { GameOverScoreComponentName } from '@/Game/ecs-components/GameOverScore';
 import { ScoreView } from '@/components/ScoreView/ScoreView-rntge';
 import { GameplayFeedbackView } from '@/components/GameplayFeedbackView/GameplayFeedbackView-rntge';
+import { StageOverlayView } from '@/components/StageOverlayView/StageOverlayView-rntge';
 import { SkillFeedbackDiagButton } from '@/components/SkillFeedbackDiagButton/SkillFeedbackDiagButton-rntge';
 import { skillFeedbackDiagTuning } from '@/Game/debug/skillFeedbackDiag';
 import { ObstacleRowComponentName } from '@/Game/ecs-components/ObstacleRowComponent';
@@ -77,6 +78,7 @@ import { StartOverlayTagComponentName } from '@/Game/ecs-components/StartOverlay
 import { GameOverOverlayTagComponentName } from '@/Game/ecs-components/GameOverOverlayTag';
 import { GameplayFeedbackManagerComponentName } from '@/Game/ecs-components/GameplayFeedbackManager';
 import { GameplayFeedbackFlashTagComponentName } from '@/Game/ecs-components/GameplayFeedbackFlashTag';
+import { StageOverlayTagComponentName } from '@/Game/ecs-components/StageOverlayTag';
 import { GameOverScene } from '../Scenes/GameOverScene/index-rntge';
 import { StartScene } from '../Scenes/StartScene/index-rntge';
 import {
@@ -202,6 +204,7 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
               GameOverOverlayTagComponentName,
               GameplayFeedbackManagerComponentName,
               GameplayFeedbackFlashTagComponentName,
+              StageOverlayTagComponentName,
             ]}
           >
             <Preload>
@@ -389,6 +392,7 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                     }}
                   />
                   <GameplayFeedbackView />
+                  <StageOverlayView />
                   {skillFeedbackDiagTuning.SHOW_BUTTON && (
                     <SkillFeedbackDiagButton
                       safeAreaInsets={{

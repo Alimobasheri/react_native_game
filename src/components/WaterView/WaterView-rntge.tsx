@@ -1,6 +1,7 @@
 import { useAddSystem } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useAddSystem/useAddSystem';
 import { WaterShaderSystem } from '@/systems/PhysicsSystem/WaterShaderSystem';
 import { WaterPhysicsSystem } from '@/systems/PhysicsSystem/WaterPhysicsSystem';
+import { StageSpeedSystem } from '@/systems/PhysicsSystem/StageSpeedSystem';
 import { createWaterLifecycleSystem } from '@/systems/PhysicsSystem/WaterLifecycleSystem';
 import { IdleWaterVisualSystem } from '@/systems/PhysicsSystem/IdleWaterVisualSystem';
 import { BlockFoamSystem } from '@/systems/VisualSystem/BlockFoamSystem';
@@ -31,6 +32,7 @@ export const WaterView: FC<{
   useAddSystem({ system: waterLifecycleSystem });
   useAddSystem({ system: IdleWaterVisualSystem });
   useAddSystem({ system: WaterShaderSystem });
+  useAddSystem({ system: StageSpeedSystem });
   useAddSystem({ system: WaterPhysicsSystem });
   useAddSystem({ system: BlockFoamSystem });
   // useAddSystem({ system: WaterSurfaceFoamSystem });

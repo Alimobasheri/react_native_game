@@ -24,6 +24,7 @@ import {
   type WaterComponentData,
 } from '@/Game/ecs-components/Water';
 import { gapDifficulty01FromTotalRows } from '@/config/gapDifficultyRamp';
+import { pacingPhaseAtTotalRows } from '@/Game/path/pacingDirector';
 import { skillFeedbackTuning } from '@/config/skillFeedback';
 import { computeTutorialOpacity } from '@/Game/session/beginGameplay';
 import { getGameSession } from '@/Game/session/gameSessionQuery';
@@ -100,6 +101,10 @@ export type SkillFeedbackDiagEntry =
     difficulty01: number;
     speedNorm: number;
     raisingSpeed: number;
+    baseSpeed: number;
+    pacingPhase: string;
+    stageIndex: number;
+    stageConstantSpeed?: number;
     branchKey: string;
     gaps: number[];
     swimmerCol: number;
@@ -156,7 +161,11 @@ export type SkillFeedbackDiagDump = {
     totalRowsGenerated: number;
     difficulty01: number;
     raisingSpeed: number;
+    baseSpeed: number;
     speedNorm: number;
+    pacingPhase: string;
+    stageIndex: number;
+    stageConstantSpeed?: number;
     swimmerColFrac: number;
     pinned: boolean;
     ceilingBrush: boolean;
@@ -400,8 +409,10 @@ export const buildSkillFeedbackDiagDump = (
   ) as GameplayFeedbackManagerData | undefined;
 
   const totalRows = obstacleMgr?.totalRowsGenerated ?? 0;
+  const pacingPhase = pacingPhaseAtTotalRows(totalRows);
   const difficulty01 = gapDifficulty01FromTotalRows(totalRows);
   const raisingSpeed = waterData?.raisingSpeed ?? 0;
+  const baseSpeed = waterData?.baseSpeed ?? 0;
   const speedNorm = normalizeSpeed01(
     raisingSpeed,
     skillFeedbackTuning.speedNormMax
@@ -442,7 +453,11 @@ export const buildSkillFeedbackDiagDump = (
       totalRowsGenerated: totalRows,
       difficulty01,
       raisingSpeed,
+      baseSpeed,
       speedNorm,
+      pacingPhase,
+      stageIndex: session?.stageIndex ?? 1,
+      stageConstantSpeed: waterData?.stageConstantSpeed,
       swimmerColFrac,
       pinned: swimmerData?.isPinnedFromAbove === true,
       ceilingBrush: swimmerData?.ceilingBrushThisFrame === true,

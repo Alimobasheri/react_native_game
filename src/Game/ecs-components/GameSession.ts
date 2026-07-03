@@ -34,6 +34,13 @@ export type GameSessionComponentData = {
   gameOverRetryPressStartMs: number;
   /** Score count-up on game-over panel; 0 = idle. */
   gameOverScoreAnimStartMs: number;
+  /** Current directed-path loop stage (1-based). */
+  stageIndex?: number;
+  /** In-run stage title overlay state. */
+  stageOverlayKind?: 'none' | 'intro' | 'done' | 'next';
+  stageOverlayStartMs?: number;
+  /** Show Stage 1 intro after session speed ramp completes. */
+  stageIntroPending?: boolean;
   /** Final run score shown on the game-over panel. */
   gameOverFinalScore: number;
   /** True when the last run beat the stored best score. */
@@ -83,6 +90,10 @@ export const createGameSessionComponent = (
       gameOverOverlayFadeStartMs: data.gameOverOverlayFadeStartMs ?? 0,
       gameOverRetryPressStartMs: data.gameOverRetryPressStartMs ?? 0,
       gameOverScoreAnimStartMs: data.gameOverScoreAnimStartMs ?? 0,
+      stageIndex: data.stageIndex ?? 1,
+      stageOverlayKind: data.stageOverlayKind ?? 'none',
+      stageOverlayStartMs: data.stageOverlayStartMs ?? 0,
+      stageIntroPending: data.stageIntroPending ?? false,
       gameOverFinalScore: data.gameOverFinalScore ?? 0,
       gameOverIsNewBest: data.gameOverIsNewBest ?? false,
       sessionSeed,

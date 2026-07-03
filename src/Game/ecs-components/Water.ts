@@ -1,4 +1,5 @@
 import { Component } from '@/containers/ReactNativeSkiaGameEngine/services-ecs';
+import type { PacingDirectorPhase } from '@/Game/path/pacingDirector';
 
 export const WaterComponentName = 'Water';
 
@@ -13,6 +14,10 @@ export type WaterComponentData = {
    * UI or systems may ease visuals or adjust `raisingSpeed` while this is set.
    */
   releaseRestZoneActive?: boolean;
+  /** Last macro pacing phase — stage speed + overlay transitions (StageSpeedSystem). */
+  lastPacingPhaseForStage?: PacingDirectorPhase;
+  /** Constant speed for current stage (diag). */
+  stageConstantSpeed?: number;
   forceDirection?: number;
   flowDirection?: number; // Smoothed directional flow used by shader
   /**

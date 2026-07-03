@@ -1,4 +1,4 @@
-import { pacingCycleLayoutFromCycleStart } from '@/config/gapDifficultyRamp';
+import { gapDifficultyRampTuning, pacingCycleLayoutFromCycleStart } from '@/config/gapDifficultyRamp';
 import {
   applyCyclePersonality,
   resolveCycleLayout,
@@ -47,7 +47,7 @@ describe('applyCyclePersonality', () => {
 
   it('shortRelease clamps RELEASE to hard minimum on cycle 1', () => {
     const adjusted = applyCyclePersonality(base, 'shortRelease', 0, 1);
-    expect(adjusted.releaseRows).toBe(3);
+    expect(adjusted.releaseRows).toBe(gapDifficultyRampTuning.RELEASE_PHASE_ROWS_HARD_MIN);
   });
 
   it('climaxForward leaves row budgets unchanged', () => {

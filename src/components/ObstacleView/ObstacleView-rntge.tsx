@@ -36,7 +36,7 @@ export const ObstacleView: FC<{
       createObstaclesManagerComponent({
         sceneKey,
         spawnTimerSeconds: 0,
-        totalRowsGenerated: 200,
+        totalRowsGenerated: 0,
         lockedTemplateName,
         storyLockedProceduralSegment,
       }),

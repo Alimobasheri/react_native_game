@@ -20,12 +20,14 @@ export const swimmerPhysicsTuning = {
   PINNED_TAP_VISIBLE_NUDGE_COLUMN_FRACTION: 0.1,
   /** Water-current pull scale on a pinned escape tap frame (keep impulse). */
   PINNED_TAP_WATER_CURRENT_SCALE: 0.00,
+  /** Zero lateral water advection while pinned unless this frame applies a tap impulse. */
+  PINNED_BLOCK_WATER_CURRENT_ADVECTION: true,
   TAP_IMPULSE_MULTIPLIER_MIN: 1,
   TAP_IMPULSE_MULTIPLIER_MAX: 3.5,
   MAX_WATER_CURRENT_SPEED: 400,
-  WATER_CURRENT_RESPONSE_PER_SECOND: 10,
-  WATER_CURRENT_SURGE_BOOST: 2.4,
-  SURFACE_FOLLOW_RESPONSE_PER_SECOND: 48,
+  WATER_CURRENT_RESPONSE_PER_SECOND: 2.5,
+  WATER_CURRENT_SURGE_BOOST: 0.6,
+  SURFACE_FOLLOW_RESPONSE_PER_SECOND: 12,
   /** Fraction of full swimmer height placed below the computed surface crest. */
   SURFACE_SUBMERGENCE_RATIO: 0.1,
   SURFACE_BOB_BLEND: 1.2,
@@ -66,17 +68,20 @@ export const gameSessionTuning = {
 } as const;
 
 export const waterPhysicsTuning = {
-  /** Pixels/s² added to baseSpeed once the session ramp hands off to WaterPhysicsSystem. */
+  /**
+   * @deprecated No continuous water accel — stage speed owned by StageSpeedSystem.
+   * Kept for story controls only.
+   */
   WATER_SPEED_ACCELERATION_PER_SECOND: 2.2,
   WATER_SPEED_MAX: 400,
-  FLOW_ACCEL_PER_SECOND: 12,
-  FLOW_IMPULSE_ON_ROW_CHANGE: 6.4,
-  FLOW_IMPULSE_BLEND_PER_SECOND: 36.8,
+  FLOW_ACCEL_PER_SECOND: 6,
+  FLOW_IMPULSE_ON_ROW_CHANGE: 3.2,
+  FLOW_IMPULSE_BLEND_PER_SECOND: 18.4,
   FLOW_DRAG_PER_SECOND: 0.07,
-  FLOW_OFFSET_SCALE: 13.6,
-  FLOW_OFFSET_RETURN_PER_SECOND: 3.6,
-  GAP_BLEND_SPEED_PER_SECOND: 5.4,
-  SURGE_RISE_PER_SECOND: 2.1,
+  FLOW_OFFSET_SCALE: 6.8,
+  FLOW_OFFSET_RETURN_PER_SECOND: 1.8,
+  GAP_BLEND_SPEED_PER_SECOND: 2.7,
+  SURGE_RISE_PER_SECOND: 1.05,
   SURGE_DECAY_PER_SECOND: 0.09,
   SURFACE_CENTER_SMOOTH_PER_SECOND: 1.2,
   CURVE_AMP_SMOOTH_PER_SECOND: 0.9,
@@ -85,6 +90,20 @@ export const waterPhysicsTuning = {
   BAND_HEIGHT_SMOOTH_PER_SECOND: 8,
   MIN_BAND_HALF_HEIGHT: 0.01,
   MAX_BAND_HALF_HEIGHT: 0.5,
+} as const;
+
+/**
+ * Failed-timing side-block bounce — PT-006 body disruption (physics-owned, not praise).
+ * Pillar D lite: calmnessDip dulls water briefly on hard wall hit.
+ */
+export const bounceDisruptorTuning = {
+  debounceMs: 120,
+  squashDurationSec: 0.12,
+  /** Fraction of MAX_HORIZONTAL_SPEED — impulse opposite block direction. */
+  reboundSpeedScale: 0.08,
+  /** Floor for narrow-gap rebound scale (clearance01 multiplier). */
+  narrowReboundScaleMin: 0.3,
+  calmnessDip: 0.15,
 } as const;
 
 export const tapInputTuning = {

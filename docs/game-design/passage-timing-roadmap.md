@@ -489,10 +489,10 @@ Track 4 Rhythm schema ◄─── (after 1–3 feel good) ─────┘
 
 | Task | Files | Exit |
 |------|-------|------|
-| T1.1 Pin strict lateral | `SwimmerPhysicsSystem`, `swimmerTuning` | D7 pass |
-| T1.2 Bounce disruptor on failed | `SwimmerPhysicsSystem`, `passageTimingEval` hook | D3 visible bounce |
-| T1.3 Speed tier hold | `SpeedTierSystem`, `WaterPhysicsSystem`, `passageTiming.ts` | D8 pass |
-| T1.4 Remove continuous accel | `WaterPhysicsSystem`, `waterPhysicsTuning` | speed flat in FLOW |
+| T1.1 Pin strict lateral | `SwimmerPhysicsSystem`, `swimmerTuning` | D7 pass ✅ |
+| T1.2 Bounce disruptor on failed | `SwimmerPhysicsSystem`, `passageTimingEval` hook | D3 visible bounce ✅ (physics hook; full timing gate Track 2) |
+| T1.3 Speed tier hold | `SpeedTierSystem`, `WaterPhysicsSystem`, `passageTiming.ts` | D8 pass ✅ |
+| T1.4 Remove continuous accel | `WaterPhysicsSystem`, `waterPhysicsTuning` | speed flat in FLOW ✅ |
 
 **Estimate:** 1 sprint
 

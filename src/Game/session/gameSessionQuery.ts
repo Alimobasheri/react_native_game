@@ -5,6 +5,10 @@ import {
   GameSessionComponentName,
   GameSessionPhase,
 } from '@/Game/ecs-components/GameSession';
+import {
+  resolvePacingRunContext,
+  type PacingRunContext,
+} from '@/Game/path/cyclePersonality';
 
 export const getGameSessionEntity = (
   components: Record<string, ComponentStore<unknown>>
@@ -20,6 +24,18 @@ export const getGameSession = (
   return firstDataFromStore(
     components[GameSessionComponentName]
   ) as GameSessionComponentData | undefined;
+};
+
+/** Same pacing context ObstacleSystem uses for macro phase boundaries. */
+export const getPacingRunContextFromComponents = (
+  components: Record<string, ComponentStore<unknown>>
+): PacingRunContext | undefined => {
+  'worklet';
+  const session = getGameSession(components);
+  return resolvePacingRunContext(
+    session?.runBlueprint,
+    session?.runAttemptIndex ?? 0
+  );
 };
 
 export const isStartReady = (

@@ -66,12 +66,11 @@ function resolvePrevObstacleRowForWater(
 }
 
 /**
- * WaterPhysicsSystem - Owns water gameplay properties (speed, difficulty ramp).
+ * WaterPhysicsSystem - Owns water gameplay properties (gap flow, calmness, shader inputs).
  *
  * Responsibilities:
- * - Keeps water "conceptual speed" (`Water.raisingSpeed`) progressing over time.
- * - Drives difficulty curve used by swimmer physics and obstacle movement/spawning.
- * - Only ramps speed once the game has exited the initial rising phase.
+ * - Drives gap blend, lateral flow, calmness, and surface curve state on `Water`.
+ * - Macro `raisingSpeed` / `baseSpeed` are owned by StageSpeedSystem.
  *
  * NOTE: Visual shader logic remains in `WaterShaderSystem`, and swimmer movement
  * remains in `SwimmerPhysicsSystem`. This system only mutates `Water` data.
@@ -152,10 +151,6 @@ export const WaterPhysicsSystem: System = {
         return;
       }
 
-      const currentSpeed = waterData.baseSpeed ?? 0;
-      const acceleratedSpeed =
-        currentSpeed + waterPhysicsTuning.WATER_SPEED_ACCELERATION_PER_SECOND * deltaSeconds;
-      const clampedSpeed = Math.min(waterPhysicsTuning.WATER_SPEED_MAX, acceleratedSpeed);
       const centerEnt = waterData.centerRowEntity;
       const activeRow =
         typeof centerEnt === 'number'
@@ -313,10 +308,6 @@ export const WaterPhysicsSystem: System = {
       const lowSurge = 1 - clamp01(nextSurgeEnergy / 0.75);
       const calmnessTarget = clamp01(wideGap * 0.62 + lowFlow * 0.23 + lowSurge * 0.15);
 
-      const gapsLength = activeRow?.gaps?.length ?? 0;
-      let multiply = (gapsLength * 2) / LAYOUT_CONSTANTS.COLUMNS;
-      multiply = 1 / (multiply || 1);
-
       ecs.updateComponent<WaterComponentData>(
         waterEntity,
         WaterComponentName,
@@ -329,7 +320,6 @@ export const WaterPhysicsSystem: System = {
           const oldCurveCenter = water.surfaceCurveCenterNorm ?? gapCenterNorm;
           const oldCurveAmp = water.surfaceCurveAmp ?? 0.008;
           const oldCurveTilt = water.surfaceCurveTilt ?? 0;
-          water.baseSpeed = clampedSpeed;
           water.centerRowEntity = currentRowEntity;
           water.lastCenterRowEntity = currentRowEntity;
           water.forceDirection = flowVelocity;
@@ -385,14 +375,6 @@ export const WaterPhysicsSystem: System = {
           water.peakSharpness = 1.15 + pressure * 0.7;
           water.troughDepth = 0.001 + pressure * 0.01;
           water.flowWaveSpeedScale = 0.00014 + Math.abs(flowVelocity) * 0.00035 + nextSurgeEnergy * 0.0002;
-
-          const targetSpeed = water.baseSpeed * (1 + multiply * 0.1);
-          const diff = targetSpeed - water.baseSpeed;
-          if (diff > 0) {
-            water.raisingSpeed = Math.min(water.raisingSpeed + diff * 0.1, targetSpeed);
-          } else if (diff < 0) {
-            water.raisingSpeed = Math.max(water.raisingSpeed + diff * 0.1, targetSpeed);
-          }
         }
       );
     });

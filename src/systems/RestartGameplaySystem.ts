@@ -280,6 +280,8 @@ const restartGameplay = (
         (w) => {
           w.raisingSpeed = session.visualRaisingSpeed;
           w.baseSpeed = session.gameplayRaisingSpeed;
+          w.lastPacingPhaseForStage = undefined;
+          w.stageConstantSpeed = undefined;
           w.centerRowEntity = undefined;
           w.lastCenterRowEntity = undefined;
           w.visualIntensity = 1;
@@ -345,6 +347,10 @@ const restartGameplay = (
       s.tutorialFadeStartMs = 0;
       s.animTimeSec = 0;
       s.ctaPressStartMs = 0;
+      s.stageIndex = 1;
+      s.stageOverlayKind = 'none';
+      s.stageOverlayStartMs = 0;
+      s.stageIntroPending = false;
     }
   );
 };

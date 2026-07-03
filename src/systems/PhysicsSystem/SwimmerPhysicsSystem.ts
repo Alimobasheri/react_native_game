@@ -41,7 +41,7 @@ import {
   RunResultComponentData,
   RunResultComponentName,
 } from '@/Game/ecs-components/RunResult';
-import { swimmerPhysicsTuning, swimmerLocomotionMode, swimmerCoastPreset, swimmerCoastPresets } from '@/config/swimmerTuning';
+import { swimmerPhysicsTuning, swimmerLocomotionMode, swimmerCoastPreset, swimmerCoastPresets, bounceDisruptorTuning } from '@/config/swimmerTuning';
 import { scheduleOnRN } from 'react-native-worklets';
 import {
   degreesToRadians,
@@ -65,7 +65,12 @@ import {
   SwimmerPivotSplashEventType,
   SwimmerWallBumpEventType,
 } from '@/Game/characters/swimmerLocomotionEvents';
-import { skillFeedbackTuning } from '@/config/skillFeedback';
+import { computePinnedWaterCurrentResponse } from '@/Game/characters/swimmerPinnedWaterCurrent';
+import {
+  computeReboundVelocityX,
+  shouldDebounceWallBump,
+  shouldTriggerBounceDisruptor,
+} from '@/Game/characters/swimmerBounceDisruptor';
 import {
   sampleApproachRowClearancePx,
   sampleHorizontalClearancePx,
@@ -605,10 +610,13 @@ export const SwimmerPhysicsSystem: System = {
         1 - Math.exp(-swimmerPhysicsTuning.WATER_CURRENT_RESPONSE_PER_SECOND * deltaSeconds);
       if (swimmerComponent.useColumnControl) {
         currentResponse *= swimmerCoastPresets[swimmerCoastPreset].TAP_MODE_CURRENT_RESPONSE_SCALE;
-        if (wasPinnedFromAbove && tapImpulseAppliedThisFrame) {
-          currentResponse *= swimmerPhysicsTuning.PINNED_TAP_WATER_CURRENT_SCALE;
-        }
       }
+      currentResponse = computePinnedWaterCurrentResponse(
+        wasPinnedFromAbove,
+        tapImpulseAppliedThisFrame,
+        swimmerPhysicsTuning.PINNED_BLOCK_WATER_CURRENT_ADVECTION,
+        currentResponse
+      );
       const vxBeforeWaterCurrent = swimmerVelocityX;
       swimmerVelocityX +=
         (waterCurrentVelocityX - swimmerVelocityX) * currentResponse;
@@ -1041,16 +1049,47 @@ export const SwimmerPhysicsSystem: System = {
           const impactSpeed = Math.abs(swimmerVelocityX);
           swimmerVelocityX = 0;
 
-          if (!isBlockedFromAbove) {
+          if (
+            shouldTriggerBounceDisruptor(
+              movementBlocked,
+              isBlockedFromAbove,
+              blockedDir
+            )
+          ) {
+            const clearance01 = locomotion.clearance01 ?? 1;
+            const reboundScale =
+              bounceDisruptorTuning.reboundSpeedScale *
+              Math.max(bounceDisruptorTuning.narrowReboundScaleMin, clearance01);
+            swimmerVelocityX = computeReboundVelocityX(
+              blockedDir,
+              swimmerPhysicsTuning.MAX_HORIZONTAL_SPEED,
+              reboundScale
+            );
             const nowMs = Date.now();
-            const shiftCfg =
-              skillFeedbackTuning.families.steer_clean.patterns.shift_commit;
-            const debounceMs = shiftCfg.wallBumpDebounceMs ?? 120;
-            const squashSec = shiftCfg.wallBumpSquashDurationSec ?? 0.12;
             const lastBumpMs = locomotion.lastWallBumpMs ?? 0;
-            if (nowMs - lastBumpMs >= debounceMs) {
+            if (
+              shouldDebounceWallBump(
+                nowMs,
+                lastBumpMs,
+                bounceDisruptorTuning.debounceMs
+              )
+            ) {
               locomotion.lastWallBumpMs = nowMs;
-              locomotion.wallBumpSquashTimer = squashSec;
+              locomotion.wallBumpSquashTimer =
+                bounceDisruptorTuning.squashDurationSec;
+              if (bounceDisruptorTuning.calmnessDip > 0 && waterEntity !== undefined) {
+                ecs.updateComponent<WaterComponentData>(
+                  waterEntity,
+                  WaterComponentName,
+                  (water) => {
+                    'worklet';
+                    water.calmness = Math.max(
+                      0,
+                      (water.calmness ?? 0.5) - bounceDisruptorTuning.calmnessDip
+                    );
+                  }
+                );
+              }
               eventQueue.addEvent({
                 type: SwimmerWallBumpEventType,
                 payload: {

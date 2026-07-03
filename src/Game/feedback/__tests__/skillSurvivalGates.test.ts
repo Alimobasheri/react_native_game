@@ -35,7 +35,7 @@ describe('resolveSkillGates', () => {
     expect(gates.surfMinNetDelta).toBe(3);
     expect(gates.steerCooldownMs).toBe(250);
     expect(gates.maxDirtyRowsInWindow).toBe(2);
-    expect(gates.swimmerSteerMinSpanCols).toBe(0.72);
+    expect(gates.swimmerSteerMinSpanCols).toBe(0);
   });
 });
 

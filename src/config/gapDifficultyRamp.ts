@@ -98,15 +98,15 @@ export const gapDifficultyRampTuning = {
   FLOW_CHUTE_ROWS_BEFORE_CHICANE_END_MAX: 48,
 
   /** Release cathartic full-width strip row count. */
-  RELEASE_REST_ZONE_ROWS_START_MIN: 6,
-  RELEASE_REST_ZONE_ROWS_START_MAX: 10,
-  RELEASE_REST_ZONE_ROWS_END_MIN: 12,
-  RELEASE_REST_ZONE_ROWS_END_MAX: 18,
+  RELEASE_REST_ZONE_ROWS_START_MIN: 50,
+  RELEASE_REST_ZONE_ROWS_START_MAX: 80,
+  RELEASE_REST_ZONE_ROWS_END_MIN: 100,
+  RELEASE_REST_ZONE_ROWS_END_MAX: 150,
 
   /**
    * Macro pacing: rows per **FLOW / TENSION / CLIMAX / RELEASE** phase within one cycle.
-   * Same difficulty curve as gaps; lengths widen as `cycleStartTotalRows` approaches full ramp.
-   * Inner path segments (funnel, pinball, …) clamp to the picked phase row budgets for that cycle.
+   * RELEASE length must be ≥ cathartic rest strip (`RELEASE_REST_ZONE_*`) or the open strip
+   * is clipped to `releaseRows - 1`.
    */
   FLOW_PHASE_ROWS_START_MIN: 34,
   FLOW_PHASE_ROWS_START_MAX: 50,
@@ -126,11 +126,11 @@ export const gapDifficultyRampTuning = {
   CLIMAX_PHASE_ROWS_END_MAX: 80,
   CLIMAX_PHASE_ROWS_HARD_MIN: 10,
 
-  RELEASE_PHASE_ROWS_START_MIN: 16,
-  RELEASE_PHASE_ROWS_START_MAX: 22,
-  RELEASE_PHASE_ROWS_END_MIN: 3,
-  RELEASE_PHASE_ROWS_END_MAX: 8,
-  RELEASE_PHASE_ROWS_HARD_MIN: 3,
+  RELEASE_PHASE_ROWS_START_MIN: 50,
+  RELEASE_PHASE_ROWS_START_MAX: 80,
+  RELEASE_PHASE_ROWS_END_MIN: 12,
+  RELEASE_PHASE_ROWS_END_MAX: 24,
+  RELEASE_PHASE_ROWS_HARD_MIN: 8,
 } as const;
 
 /** ~10 full difficulty ramps for `runDepthTensionBonus01` long-run bias (was fixed cycle×10). */
@@ -531,10 +531,10 @@ export function pathSegmentReleaseRestZoneRows(
     t.RELEASE_REST_ZONE_ROWS_END_MAX,
     varianceU32,
     3,
-    30
+    t.RELEASE_REST_ZONE_ROWS_END_MAX
   );
   if (releasePhaseRowBudget != null && Number.isFinite(releasePhaseRowBudget)) {
-    const cap = Math.max(3, Math.floor(releasePhaseRowBudget) - 1);
+    const cap = Math.max(3, Math.floor(releasePhaseRowBudget));
     v = Math.min(v, cap);
   }
   return v;
