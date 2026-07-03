@@ -287,7 +287,7 @@ Not hidden collectibles — props in wall parallax as player rises:
 | `new_best` | NEW BEST! | Beat personal best | **Shipped** (`ScoreHudSystem`) |
 | _(bonus flyout)_ | +N | Skill-moment bonus; **clearance scales +N only** | **Shipped** |
 
-**Rule:** `clearance01` never selects copy — only inflates +N. Praise copy/thresholds: `src/config/skillFeedback.ts`; passage timing / flow streak: `src/config/passageTiming.ts`, `src/config/flowStreak.ts` (see [passage-timing-roadmap](./passage-timing-roadmap.md) §11).
+**Rule:** `clearance01` never selects copy — only inflates +N. Praise copy/thresholds: `src/config/skillFeedback.ts`; flow streak: `src/config/flowStreak.ts` (Track 3). Passage timing tiers: `passageTimingEval.ts` + collision sampler — see [passage-timing-roadmap](./passage-timing-roadmap.md) §11, PT-016.
 
 Trigger definitions for shipped Layer A copy: **[§15](#15-layer-a-skill-feedback--full-implementation-handoff)**. Target semantics: **passage-timing-roadmap §6–7**.
 
@@ -378,14 +378,14 @@ P0 Audit ──► P1 Skill juice (Wave 3 ✅) ──► Passage Timing T1–3 �
 **Deferred from old P1 follow-up:**
 
 - ~~Clean gap combo (tap ×2/×3)~~ → **flow streak** (PT-004)
-- ~~Device tune `skillFeedback.ts` only~~ → tune `passageTiming.ts` + `flowStreak.ts` after Track 2
+- ~~Device tune `skillFeedback.ts` only~~ → tune collision/`swimmerTuning.ts` for passage fidelity; `flowStreak.ts` after Track 3
 
 **Engine touchpoints (passage-timing — see full map in [passage-timing-roadmap §4](./passage-timing-roadmap.md#4-current-system-inventory-as-shipped-baseline)):**
 
 - Timing orchestrator: `GameplayFeedbackSystem.ts` → `passageSegment.ts` (new)
 - Physics: `SwimmerPhysicsSystem.ts`, `WaterPhysicsSystem.ts`, `StageSpeedSystem.ts`
 - Trail: `SwimmerWaterContactFxSystem.ts` / `FlowTrailVisualSystem` (new)
-- Config: `passageTiming.ts`, `flowStreak.ts` (new)
+- Config: `flowStreak.ts` (Track 3); passage tiers from `passageTimingEval.ts` (no timing config file — PT-016)
 
 **Tests / QA (Wave 3 — done):**
 
@@ -657,8 +657,8 @@ The shipped blueprint system remains **geometry scheduler only**:
 
 ## 14. Next actions (start here)
 
-1. **Passage Timing Track 1:** pin strict + speed tier hold + bounce hook — [passage-timing-roadmap §9](./passage-timing-roadmap.md#9-implementation-tracks-ordered).
-2. **Phase 2** (after Tracks 1–2): economy + GREAT!/PERFECT! + coins.
+1. **Passage Timing Track 3:** flow streak + trail + HUD — [passage-timing-roadmap §9](./passage-timing-roadmap.md#9-implementation-tracks-ordered). Track 1 ✅ Track 2 core (`shift_commit` tier) ✅ — see [PT-016](./passage-timing-roadmap.md) / [clarification log](../visual-design/logs/track2-physics-passage-timing-clarification.md).
+2. **Phase 2** (after Track 3 feel check): economy + GREAT!/PERFECT! + coins.
 3. **Deferred:** TAP coach gate policy (PT-014) — founder device pass when convenient.
 
 ---
@@ -667,7 +667,7 @@ The shipped blueprint system remains **geometry scheduler only**:
 
 **Status:** Wave 3 shipped (2026-06-30). **Semantics evolving** per [passage-timing-roadmap.md](./passage-timing-roadmap.md) — detectors below remain on device until Tracks 2–3 cut over.
 
-**Target architecture (post Track 2):** see passage-timing-roadmap §5 — `PassageSegment` FSM + `PassageTimingTier` drives praise, trail, and flow streak.
+**Target architecture (post Track 2 core):** see passage-timing-roadmap §5 — `PassageTimingTier` from physics sampler drives praise; flow streak + trail (Track 3). PT-016: no config timing windows.
 
 ### 15.1 — Copy inventory (§7 gameplay flashes)
 
@@ -766,6 +766,7 @@ src/Game/feedback/rowCrossEval.ts
 | 2026-06-29 | Wave 1.1 path-based steer praise — lane cluster topology, SURFING! copy, `gapPathAnalysis.ts` |
 | 2026-06-30 | Wave 3 — Near Miss tap-gate; clean NICE!; tap zig-zag; dual word stack; TIGHT! removed |
 | 2026-07-02 | v1.1 — L-011 passage timing; link [passage-timing-roadmap.md](./passage-timing-roadmap.md); P1 complete → Tracks 1–3; copy deck deprecations; PT-011…PT-015 locked |
+| 2026-07-03 | PT-016 clarification — passage timing is physics-outcome; removed `passageTiming.ts` scaffold; see [clarification log](../visual-design/logs/track2-physics-passage-timing-clarification.md) |
 
 ---
 

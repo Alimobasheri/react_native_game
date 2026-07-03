@@ -1,6 +1,6 @@
 # Passage Timing & Flow Streak — Master Roadmap
 
-**Status:** Draft v1.1 (2026-07-02) — **authoritative implementation blueprint** for skill/timing/physics refactor  
+**Status:** Draft v1.3 (2026-07-03) — **authoritative implementation blueprint** for skill/timing/physics refactor  
 **Audience:** Founder, implementers, future agent sessions  
 **Supersedes for timing work:** Wave 3 skill-praise assumptions in [player-experience-roadmap.md](./player-experience-roadmap.md) §15 (detectors remain shipped; **semantics evolve** per this doc)
 
@@ -61,6 +61,7 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 | **PT-013** | **Near miss** does **not** break flow streak | Orthogonal survival skill | Streak break on clutch escape |
 | **PT-014** | **TAP coach** stays shipped as-is; onboarding gate **deferred** (founder device pass later) | Don't block Track 1 on coach policy | Removing TAP before replacement |
 | **PT-015** | **`rapidTapStreak` → tap impulse mult** stays **always** (pinned or not); **never** affects score, HUD combo, or `praiseBonus` | Tap chain = steering power only | Tap mult on score; pin-only mult |
+| **PT-016** | **Perfect timing = physics outcome at gap-shift seam** — `PassageFlowSampler` (`pinnedSeen`, `hardBlockSeen`, `softScrapeSeen`) from collision is authoritative; **no** config `gapBlend` / tap clocks in feedback; tap optional (current can thread clean); “commit window” = emergent block geometry (Flappy Dunk basket rims) | Config commit fractions; feedback-layer tap timing; `passageTiming.ts` | |
 
 **Relationship to player-experience-roadmap L-006:** Skill feedback remains highest ROI — this doc **deepens** L-006; it does not deprioritize it.
 
@@ -72,9 +73,9 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 |------|------------|---------------|
 | **Gap-shift seam** | Row boundary where lane cluster center moves ≥ `minStepDelta` cols | `centerDeltaCols()` in `gapTopology.ts` |
 | **Passage segment** | Approach runway → seam → exit settle between two row crosses | Evolves from `PassageFlowSampler` (per-row today) |
-| **Gap blend phase** | `Water.gapBlend` 0→1 while surface curve lerps between prev/curr gap | `waterPhysicsTuning.GAP_BLEND_SPEED_PER_SECOND` |
+| **Gap blend phase** | `Water.gapBlend` 0→1 while surface curve lerps between prev/curr gap — **visual/physics water surface only**; not a feedback timing gate (PT-016) | `waterPhysicsTuning.GAP_BLEND_SPEED_PER_SECOND` |
 | **Stage speed** | Constant `raisingSpeed` for one directed-path loop (`stageIndex`); RELEASE relax ramp | `stageProgression.ts` + `StageSpeedSystem.ts` |
-| **Commit window** | Fraction of gap blend where tap/steer must complete for **perfect** | `passageTiming.ts` → `commitWindowByStageIndex` |
+| **Commit corridor** | *(conceptual)* Moments physics still allows a clean thread through the shift — block rims, pin threat, speeds; **simulated** by collision, **observed** by `PassageFlowSampler` | `swimmerBlockCollision.ts` → `passageFlowScoring.ts` |
 | **Flow streak** | Count of consecutive **perfect** passages | New state on `GameplayFeedbackManager` or `Swimmer` |
 | **Macro phase** | FLOW / TENSION / CLIMAX / RELEASE | `pacingDirector.ts` |
 | **Path archetype** | pinball, funnel, chicane, chute, release, paradox | `branchKey` on `ObstacleRow` / generators |
@@ -87,7 +88,7 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 
 | Piece | Location | What it does today | Passage-timing fit |
 |-------|----------|-------------------|-------------------|
-| Orchestrator | `src/systems/GameplayFeedbackSystem.ts` | Per-frame contact sample → row-cross on `centerRowEntity` change → candidates → router → slots | **Clock OK**; needs `PassageSegment` FSM |
+| Orchestrator | `src/systems/GameplayFeedbackSystem.ts` | Per-frame contact sample → row-cross on `centerRowEntity` change → candidates → router → slots | **Clock OK** ✅; optional `PassageSegment` FSM for Track 3 diag only |
 | Row cross snapshot | `src/Game/feedback/rowCrossEval.ts` | Builds `RowCrossSnapshot` with topology, `crossQualified`, `cleanCross` | **Keep** as seam event source |
 | Row history | `src/Game/feedback/rowCrossHistory.ts` | Ring buffer, identical-gap skip | **Keep** |
 | Passage sampler (per-row) | `src/Game/feedback/passageFlowScoring.ts` | `pinnedSeen`, `hardBlockSeen`, `softScrapeSeen`, steer span | **Extend** to multi-row segment |
@@ -101,7 +102,7 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 | Tap coach | `src/Game/feedback/tapCoachDetection.ts` | TAP / SAVED! | **Keep**; tighten pin strict mode in physics |
 | Praise router | `src/Game/feedback/praiseRouter.ts` | Priority, cooldowns, dual word stack | **Extend** for flow streak copy escalation |
 | Praise bonus | `src/Game/feedback/praiseBonus.ts` | +N from clearance/hygiene/speed | **Scale** by flow streak multiplier |
-| Config | `src/config/skillFeedback.ts` | Families, tiers, hygiene, survival ramp | **Add** `passageTiming`, `flowStreak` blocks |
+| Config | `src/config/skillFeedback.ts` | Families, tiers, hygiene, survival ramp | **Add** `flowStreak` block (Track 3); passage timing tiers need no separate config (PT-016) |
 | Flash VFX | `src/Game/feedback/feedbackFlashAnim.ts`, `gameplayFeedback.ts` | Fredoka float-up | **Keep** |
 | State store | `src/Game/ecs-components/GameplayFeedbackManager.ts` | `skillFeedback`, slots, diag ring | **Add** `flowStreak`, `trailPhase`, `passageSegment` |
 | Types | `src/Game/feedback/skillFeedbackTypes.ts` | Snapshots, samplers, states | **Add** `PassageSegmentState`, `FlowStreakState` — `PassageTimingTier` ✅ Slice A |
@@ -134,7 +135,7 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 | Water tuning | `swimmerTuning.ts` → `waterPhysicsTuning` | `WATER_SPEED_ACCELERATION_PER_SECOND` | **Deprecated** (unused) |
 | Difficulty ramp | `gapDifficultyRamp.ts` | 500-row curve for gaps, runway, segment lengths | **Keep** for geometry; decouple from speed |
 | Obstacle movement | `ObstacleSystem.ts` | `raisingSpeed * deltaSeconds` row motion | **Consume** stage speed from `Water` |
-| Speed norm for praise | `rowCrossEval.ts` → `normalizeSpeed01` | `raisingSpeed / speedNormMax` | **Keep**; commit windows key off `stageIndex` (Track 2+) |
+| Speed norm for praise | `rowCrossEval.ts` → `normalizeSpeed01` | `raisingSpeed / speedNormMax` | **Keep**; SMOOTH! tier upgrade only |
 
 ### 4.4 Path generation & macro pacing
 
@@ -160,17 +161,24 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 | Score HUD combo | `ScoreHudSystem.ts` | ×2/×3 from `visualStrokeTier` | **Replace** with flow streak HUD |
 | HUD layout | `scoreHudLayout.ts`, `ScoreView-rntge.tsx` | combo badge entities | **Repurpose** for flow streak |
 
-### 4.6 Gap-shift / blend signals (timing window source)
+### 4.6 Gap-shift seam — physics authority (PT-016)
 
-| Piece | Location | Role |
-|-------|----------|------|
-| `Water.gapBlend` | `Water` component | 0 at new row, →1 over time |
-| `computeGapTransitionT` | `waterSurfaceProfile.ts` | Blend progress proxy |
-| `softGapInfluence` | `waterSurfaceProfile.ts` | Lateral pull into gap |
-| Swimmer surface follow | `SwimmerPhysicsSystem.ts` | Rider on curve equation |
-| `FLOW_IMPULSE_ON_ROW_CHANGE` | `waterPhysicsTuning` | Surge on seam — telegraph |
+**Perfect / acceptable / failed come from collision outcomes sampled per frame, not from feedback timing fractions.**
 
-**Commit window design (to implement):** Sample `gapBlend` at tap frame; **perfect** if tap occurs while `gapBlend ∈ [commitStart, commitEnd]` AND steer settles before `gapBlend > commitEnd`. Bounds are **tier-configured**, not fixed ms.
+| Piece | Location | Role in passage timing |
+|-------|----------|------------------------|
+| `resolveSwimmerAgainstRows` | `swimmerBlockCollision.ts` | Side block (rim), ceiling pin, hard stop — **defines** what clean means |
+| `movementBlockedThisFrame` | `SwimmerPhysicsSystem.ts` | Hard block → `hardBlockSeen` → failed |
+| `isPinnedFromAbove` | collision + physics | Late pin under closing block → `pinnedSeen` → failed |
+| `isSideBlocked` / `isColliding` | collision | Rim scrape → `softScrapeSeen` → acceptable |
+| `updatePassageFlowSampler` | `passageFlowScoring.ts` | Accumulates passage outcomes between row crosses |
+| `evaluatePassageTimingTier` | `passageTimingEval.ts` | Maps sampler → `perfect` / `acceptable` / `failed` |
+
+**Flappy Dunk basket (gap shift left):** current-row block on shift-side rim; next-row block on opposite side threatens pin from above. Thread clean → perfect. Scrape rim → acceptable. Block or pin → failed.
+
+**Water surface (not timing gates):** `Water.gapBlend`, surface follow, `FLOW_IMPULSE_ON_ROW_CHANGE` — visual/physics feel only; do **not** gate praise from feedback layer.
+
+**Clarification log:** [track2-physics-passage-timing-clarification.md](../visual-design/logs/track2-physics-passage-timing-clarification.md)
 
 ---
 
@@ -189,9 +197,9 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 └───────────────────────────────┬─────────────────────────────────────────┘
                                 ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│ TIMING (PassageSegment FSM — authoritative)                              │
-│  approach → commit → cross → exit                                        │
-│  emits PassageTimingTier per segment                                       │
+│ TIMING (physics-outcome tier — authoritative for shift_commit ✅)         │
+│  PassageFlowSampler per inter-row window → PassageTimingTier at cross    │
+│  optional PassageSegment id for Track 3 flow streak / diag only          │
 └───────────────────────────────┬─────────────────────────────────────────┘
                                 ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -205,12 +213,11 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 
 | Module | Responsibility |
 |--------|----------------|
-| `src/config/passageTiming.ts` | Commit window fractions per `stageIndex` (gapBlend gate Track 2 Slice B) |
 | `src/config/stageProgression.ts` | Stage constant speed + RELEASE relax accel + per-stage increment |
 | `src/config/flowStreak.ts` | Copy ladder, trail colors, multiplier steps, REST dim rule (PT-011) |
 | `src/config/rhythmSchema.ts` | Beat pattern IDs, break rules, phase allowlists |
-| `src/Game/feedback/passageSegment.ts` | FSM: open/extend/close segment, emit timing tier |
-| `src/Game/feedback/passageTimingEval.ts` | perfect/acceptable/failed from sampler + gapBlend + topology ✅ Slice A |
+| `src/Game/feedback/passageSegment.ts` | *(optional Track 3)* segment id for flow streak / diag — not a timing rule |
+| `src/Game/feedback/passageTimingEval.ts` | perfect/acceptable/failed from `PassageFlowSampler` ✅ Slice A (PT-016) |
 | `src/Game/feedback/flowStreak.ts` | streak increment/break, copy tier for router |
 | `src/Game/feedback/zigzagPassageDetection.ts` | Geometry zigzag on alternating Δcenter (replaces tap zigzag) |
 | `src/systems/FlowTrailVisualSystem.ts` (or extend water FX) | Trail persistence from streak state |
@@ -226,7 +233,7 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 
 | Skill ID | Current detector | Path gate (today) | Required change | Scope |
 |----------|------------------|-------------------|-----------------|-------|
-| `shift_commit` | `evaluateShiftCommit` | `centerDeltaCols`, not wide-open | Add `passageTimingEval` gate for perfect vs acceptable; SMOOTH! = perfect + speed/diff | **M** |
+| `shift_commit` | `evaluateShiftCommit` | `centerDeltaCols`, not wide-open | `passageTimingEval` perfect vs acceptable ✅ Slice A; SMOOTH! = perfect + speed/diff | **Done** |
 | `snap_transfer` | `detectSnapTransfer` | pinhole→flare topology | Require timing tier ≥ acceptable at snap row | **S** |
 | `cross_sweep` | `detectSteerPraise` | monotonic travel | Same | **S** |
 | `slalom_block` | `detectSteerPraise` | `branchKey` chicane | Same | **S** |
@@ -234,10 +241,10 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 | `zigzag_passage` | *disabled* `zigzag_chain` | alternating Δcenter | New `zigzagPassageDetection.ts`; disable `zigzag_tap` | **M** |
 | `near_miss` | `nearMissDetection` | pin threat + tap | Unchanged | — |
 | `tap_coach` / `pin_saved` | `tapCoachDetection` | pin latch grace | Unchanged; physics strict separately | — |
-| `curve_ride` | *none* | no tap during blend + clean | **New** skill — optional Pillar C | **L** |
-| `lane_hold` | *none* | monotonic, zero taps, clean | **New** — rewards reading | **L** |
+| `curve_ride` | *none* | clean thread, no scrape | **New** skill — optional; physics sampler only (PT-016) | **L** |
+| `lane_hold` | *none* | monotonic, clean passage | **New** — rewards reading | **L** |
 | `thread` | *partial* snap | pinhole W≤1 | Stricter child of snap | **S** |
-| `late_commit` | *none* | tap in last 30% blend | **New** high-risk tier | **M** |
+| `late_commit` | *none* | — | **Rejected** — timing is physics-outcome, not blend % (PT-016) | — |
 | `break_recovery` | *implicit* acceptable | scrape then center | Maps to acceptable — no streak | **S** |
 
 **Validations:**
@@ -252,7 +259,7 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 **Edge cases:**
 - Multipath: segment keyed by `branchKey` + taken lane cluster; praise only on branch swimmer occupies.
 - Fork: two valid passages — perfect on taken branch only.
-- False wall squeeze: seam timing differs from pinball — use branch-specific commit windows.
+- False wall squeeze: same physics sampler rules; tune collision if rim/pin read is wrong on device.
 
 ---
 
@@ -262,7 +269,7 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 
 | Tier | Detection rule (target) | Praise word | Trail | Bounce | Streak |
 |------|-------------------------|-------------|-------|--------|--------|
-| **perfect** | `passageIsClean` + steer proof + commit in window + crossQualified | tiered copy | ON / extend | no | +1 |
+| **perfect** | `passageIsClean` + steer proof + gap-shift topology + `crossQualified` | tiered copy | ON / extend | no | +1 |
 | **acceptable** | crossQualified, no hard block, soft scrape OK | **silence** (PT-012) | OFF | light or none | break |
 | **failed** | `hardBlockSeen` or `pinnedSeen` in passage before cross | silence | OFF | **yes** | break |
 
@@ -277,17 +284,18 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 | `movementBlockedThisFrame` | `hardBlockSeen` | failed trigger |
 | `wallBumpSquashDurationSec` in config | unused in physics? | failed bounce duration |
 
-**Change scope:** **Large** — new `passageTimingEval.ts`; refactor `evaluateShiftCommit` to return `{ tier, event }`.
+**Change scope:** **Shipped** for `shift_commit` — `passageTimingEval.ts` + `evaluateShiftCommit` ✅ Slice A. Extend same sampler rules to other steer/snap skills (Track 2 remainder / Track 3).
 
-**Tests to add:**
-- `passageTimingEval.test.ts` — matrix of sampler + blend → tier
-- Extend `shiftCommitPassage.integration.test.ts` — rim scrape → acceptable not perfect
+**Tests:**
+- `passageTimingEval.test.ts` — tier matrix from sampler ✅
+- `shiftCommitPassage.integration.test.ts` — rim scrape → acceptable not perfect ✅
 - `failedTimingBounce.integration.test.ts` — hard block sets bounce timer (device/manual)
 
 **Edge cases:**
 - Failed then cross row via momentum — streak already broken; no word.
 - Perfect near_miss same frame — dual word stack OK; trail only if perfect passage (router rule).
-- Session speed ramp active (`speedRampStartMs`) — freeze timing eval or widen window (config).
+- Session speed ramp active (`speedRampStartMs`) — downgrade perfect → acceptable (shipped).
+- Zero taps, water current threads clean — still `perfect` (PT-016).
 
 ---
 
@@ -309,7 +317,6 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 | `StageSpeedSystem.ts` | Applies hold + RELEASE ramp; steps on phase boundary |
 | `WaterPhysicsSystem.ts` | Gap/flow/calmness only — no speed lerp |
 | `gapDifficultyRamp.ts` | Geometry only — no speed coupling |
-| `passageTiming.ts` | Commit windows keyed by `stageIndex` (Track 2+) |
 
 **Validations:**
 - Time-per-row flat ±1% within FLOW/TENSION/CLIMAX of a stage
@@ -449,7 +456,7 @@ All praise copy, trail state, flow streak, and +N bonuses **must** derive from t
 
 | Test file | Covers |
 |-----------|--------|
-| `passageTimingEval.test.ts` | **NEW** — tier matrix |
+| `passageTimingEval.test.ts` | tier matrix from sampler ✅ |
 | `passageSegment.test.ts` | **NEW** — FSM open/close |
 | `flowStreak.test.ts` | **NEW** — increment/break/preserve REST |
 | `passageFlowScoring.test.ts` | existing — extend hard/soft |
@@ -499,17 +506,20 @@ Track 4 Rhythm schema ◄─── (after 1–3 feel good) ─────┘
 
 ### Track 2 — Passage timing evaluation
 
-**Goal:** `PassageTimingTier` is authoritative.
+**Goal:** `PassageTimingTier` is authoritative from **physics outcomes** (PT-016).
 
 | Task | Files | Exit |
 |------|-------|------|
-| T2.1 `passageSegment.ts` FSM | new + `GameplayFeedbackSystem` | diag shows segment id |
+| T2.1 `passageSegment.ts` FSM | new + `GameplayFeedbackSystem` | *(optional Track 3)* diag segment id for flow streak |
 | T2.2 `passageTimingEval.ts` | new + `skillFeedbackTypes` | unit matrix green ✅ Slice A |
 | T2.3 Refactor `evaluateShiftCommit` | `steerPraiseDetection` | integration tests updated ✅ Slice A |
-| T2.4 Gap blend commit window | read `Water.gapBlend` in feedback system | perfect requires window |
+| ~~T2.4 Gap blend commit window~~ | — | **Rejected (PT-016)** — physics sampler is authoritative; removed `passageTiming.ts` |
 | T2.5 Disable `zigzag_tap` | config + router | D6 no false zigzag ✅ Slice A |
+| T2.6 Extend tier gate to snap/steer families | `snapTransferDetection`, `steerPraiseDetection` | acceptable = silence on all passage skills |
 
-**Estimate:** 1–2 sprints
+**Track 2 core (`shift_commit`) shipped** with Slice A. Next: T2.6 or **Track 3** flow streak.
+
+**Estimate:** Track 3 — 1–2 sprints
 
 ---
 
@@ -554,8 +564,8 @@ Track 4 Rhythm schema ◄─── (after 1–3 feel good) ─────┘
 | **P2 Rest + coins** | GREAT!/PERFECT! on RELEASE; flow streak **preserve** rule; speed hold in REST |
 | **P3–P4 Worlds** | Trail/shine colors from world reactive tokens — no timing logic change |
 | **P5 Items** | Jet ribbon ×2 must stack with flow streak policy (define: additive or separate) |
-| **P6 Pinball set-piece** | Paddle hit = `zigzag_passage` + perfect window |
-| **P7 Tuning** | `passageTiming.ts` + `flowStreak.ts` device passes |
+| **P6 Pinball set-piece** | Paddle hit = `zigzag_passage` + clean physics passage |
+| **P7 Tuning** | `flowStreak.ts` + collision/sampler fidelity device passes |
 
 ---
 
@@ -564,7 +574,7 @@ Track 4 Rhythm schema ◄─── (after 1–3 feel good) ─────┘
 | Concern | File |
 |---------|------|
 | Praise copy/thresholds | `src/config/skillFeedback.ts` |
-| Passage timing windows | `src/config/passageTiming.ts` — `commitWindowByStageIndex` |
+| Passage timing tiers | `passageTimingEval.ts` + `passageFlowScoring.ts` — **no separate timing config** (PT-016) |
 | Stage speed hold + RELEASE ramp | `src/config/stageProgression.ts` + `StageSpeedSystem.ts` |
 | Flow streak / trail | `src/config/flowStreak.ts` (**new**) |
 | Rhythm beats | `src/config/rhythmSchema.ts` (**new**) |
@@ -595,7 +605,8 @@ Signed off — implement as **PT-011…PT-015** in §2.
 | 2026-07-02 | v1 — initial master roadmap from passage-timing design session |
 | 2026-07-02 | v1.1 — PT-011…PT-015 locked (founder sign-off on REST, acceptable silence, near miss, TAP coach, rapidTapStreak) |
 | 2026-07-03 | v1.2 — Stage speed model documented (`StageSpeedSystem` supersedes draft `SpeedTierSystem`); Track 2 Slice A shipped (`passageTimingEval`, `shift_commit` tier gate, `zigzag_tap` off) |
+| 2026-07-03 | v1.3 — **PT-016** physics-defined passage timing; rejected `gapBlend` config gates; removed `passageTiming.ts`; clarification [log](../visual-design/logs/track2-physics-passage-timing-clarification.md) |
 
 ---
 
-*When a track ships, check boxes in §9 and append a handoff log. Do not tune timing in systems — tune `passageTiming.ts` and `flowStreak.ts`.*
+*When a track ships, check boxes in §9 and append a handoff log. Tune passage fidelity in collision + `swimmerTuning.ts`; tune flow streak in `flowStreak.ts` (Track 3).*
