@@ -1,8 +1,9 @@
 # Passage Timing & Flow Streak — Master Roadmap
 
-**Status:** Draft v1.3 (2026-07-03) — **authoritative implementation blueprint** for skill/timing/physics refactor  
+**Status:** Draft v1.3 (2026-07-03) — **partially superseded (2026-07-04)**  
 **Audience:** Founder, implementers, future agent sessions  
-**Supersedes for timing work:** Wave 3 skill-praise assumptions in [player-experience-roadmap.md](./player-experience-roadmap.md) §15 (detectors remain shipped; **semantics evolve** per this doc)
+**Still authoritative for:** Track 1 physics (pin strict, bounce, stage speed hold), `passageTimingEval` plumbing where used for set-pieces.  
+**Superseded by:** [stage-hazard-progression-roadmap.md](./stage-hazard-progression-roadmap.md) — flow streak, trail-on-perfect, NICE!-every-shift, rhythm schema (Tracks 3–4).
 
 **Companion docs (do not duplicate — link and extend):**
 

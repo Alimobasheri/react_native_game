@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Obstacle Template Preview</title>
+    <title>Stage Design Lab</title>
     <style>
       :root {
         --bg: #0b0614;
@@ -46,31 +46,436 @@
       .app {
         height: 100%;
         display: grid;
-        grid-template-columns: minmax(340px, 1fr) minmax(420px, 1.25fr);
+        grid-template-columns: minmax(300px, 0.42fr) minmax(480px, 1fr);
         gap: 14px;
         padding: 14px;
       }
 
-      .leftStack {
+      .sidebarStack {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 8px;
         min-height: 0;
         min-width: 0;
       }
 
-      .leftStack .panel {
+      .sidebarTabs {
+        display: flex;
+        gap: 4px;
+      }
+
+      .sidebarTab {
+        flex: 1;
+        padding: 7px 8px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--muted);
+        font-size: 11px;
+        cursor: pointer;
+      }
+
+      .sidebarTab.active {
+        color: var(--text);
+        border-color: rgba(255, 154, 60, 0.45);
+        background: rgba(255, 154, 60, 0.1);
+      }
+
+      .sidebarSection.hidden {
+        display: none;
+      }
+
+      .canvasMain {
+        display: flex;
+        flex-direction: column;
         min-height: 0;
       }
 
+      .canvasToolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .toolBtn {
+        padding: 6px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--muted);
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      .toolBtn.active {
+        color: var(--text);
+        border-color: rgba(255, 154, 60, 0.55);
+        background: rgba(255, 154, 60, 0.12);
+      }
+
+      .toolBtn:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+      }
+
+      .toolbarDivider {
+        width: 1px;
+        height: 22px;
+        background: var(--border);
+        margin: 0 2px;
+      }
+
+      .toolBtn.danger {
+        color: #fca5a5;
+        border-color: rgba(248, 113, 113, 0.35);
+      }
+
+      .toolBtn.danger:disabled {
+        color: var(--muted);
+        border-color: var(--border);
+      }
+
+      .canvasStatusBar {
+        padding: 6px 12px;
+        font-size: 11px;
+        color: var(--muted);
+        border-top: 1px solid var(--border);
+        font-family: ui-monospace, monospace;
+        min-height: 28px;
+      }
+
+      .machineryPalette {
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--border);
+        max-height: 180px;
+        overflow: auto;
+      }
+
+      .machineryPalette.hidden {
+        display: none;
+      }
+
+      .catalogCards {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .catalogCard {
+        text-align: left;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.15);
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .catalogCard.selected {
+        border-color: rgba(168, 85, 247, 0.6);
+        background: rgba(168, 85, 247, 0.1);
+      }
+
+      .catalogFlash {
+        color: #fbbf24;
+        font-weight: 700;
+        font-size: 11px;
+      }
+
+      .catalogName {
+        color: var(--text);
+        font-weight: 600;
+        font-size: 12px;
+      }
+
+      .catalogDesc {
+        color: var(--muted);
+        font-size: 10px;
+        line-height: 1.35;
+      }
+
+      .emptyState {
+        padding: 12px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .inspectorCard {
+        padding: 10px;
+        border-radius: 8px;
+        background: rgba(100, 116, 139, 0.12);
+        margin-bottom: 8px;
+      }
+
+      .inspectorFlash {
+        color: #fbbf24;
+        font-weight: 700;
+        font-size: 13px;
+      }
+
+      .inspectorTitle {
+        font-weight: 600;
+        color: var(--text);
+        margin: 4px 0;
+      }
+
+      .inspectorDesc {
+        font-size: 11px;
+        color: var(--muted);
+        line-height: 1.4;
+      }
+
+      .boundsGrid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        margin: 8px 0;
+      }
+
+      .boundsGrid label {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        font-size: 10px;
+        color: var(--muted);
+      }
+
+      .boundsGrid input {
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--text);
+        border-radius: 6px;
+        padding: 4px 6px;
+        font-size: 12px;
+      }
+
+      .gapBarEditor {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+        margin: 8px 0;
+      }
+
+      .gapBarCell {
+        min-width: 36px;
+        padding: 6px 4px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        font-size: 9px;
+        cursor: pointer;
+      }
+
+      .gapBarCell.isGap {
+        background: rgba(61, 209, 255, 0.2);
+        color: #7dd3fc;
+      }
+
+      .gapBarCell.isBlock {
+        background: rgba(255, 154, 60, 0.25);
+        color: #fdba74;
+      }
+
+      .linkBtn {
+        background: none;
+        border: none;
+        color: #7dd3fc;
+        cursor: pointer;
+        font-size: inherit;
+        padding: 0 4px;
+      }
+
+      .playbackRowExtra {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 12px 8px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .playbackRowExtra input {
+        width: 56px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--text);
+        border-radius: 6px;
+        padding: 4px;
+      }
+
+      .timelineHzDot.hz-vise {
+        background: #475569;
+      }
+      .timelineHzDot.hz-iris {
+        background: #64748b;
+      }
+      .timelineHzDot.hz-buzz {
+        background: #ef4444;
+      }
+
+      .pathLabBody.compact {
+        padding: 8px 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .viewMenu {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .composerPanel,
       .jsonPanel {
         flex: 1.1;
-        min-height: 180px;
+        min-height: 220px;
       }
 
       .pathLabPanel {
         flex: 0.95;
-        max-height: 48vh;
+        max-height: 52vh;
+      }
+
+      .composerBody {
+        padding: 10px 12px 12px;
+        overflow: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        font-size: 12px;
+      }
+
+      .composerGrid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .composerGrid label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .composerGrid input,
+      .composerGrid select {
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--text);
+        border-radius: 8px;
+        padding: 6px 8px;
+        font-size: 12px;
+      }
+
+      .segmentList {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-height: 140px;
+        overflow: auto;
+      }
+
+      .segmentItem {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        cursor: pointer;
+        background: rgba(0, 0, 0, 0.12);
+      }
+
+      .segmentItem.selected {
+        border-color: rgba(255, 154, 60, 0.55);
+        background: rgba(255, 154, 60, 0.08);
+      }
+
+      .phaseTag {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        padding: 2px 6px;
+        border-radius: 999px;
+      }
+
+      .phase-flow {
+        background: rgba(45, 212, 191, 0.2);
+        color: #5eead4;
+      }
+      .phase-tension {
+        background: rgba(251, 191, 36, 0.2);
+        color: #fcd34d;
+      }
+      .phase-climax {
+        background: rgba(248, 113, 113, 0.2);
+        color: #fca5a5;
+      }
+      .phase-release {
+        background: rgba(74, 222, 128, 0.2);
+        color: #86efac;
+      }
+
+      .segLabel {
+        flex: 1;
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      .segMeta {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .toolRow {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .toolRow button {
+        padding: 6px 8px;
+        font-size: 12px;
+      }
+
+      .playbackBar {
+        border-top: 1px solid var(--border);
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        background: rgba(0, 0, 0, 0.08);
+      }
+
+      .playbackControls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .playbackControls input[type="range"] {
+        flex: 1;
+        min-width: 120px;
+      }
+
+      .exportBar {
+        border-top: 1px solid var(--border);
+        padding: 10px 12px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        background: rgba(0, 0, 0, 0.06);
       }
 
       .pathLabBody {
@@ -367,1640 +772,338 @@
           grid-template-rows: auto 1fr;
         }
       }
+
+      .hazardList,
+      .hazardItem,
+      .bindingItem {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .hazardList {
+        max-height: 140px;
+        overflow: auto;
+        margin: 8px 0;
+      }
+
+      .hazardItem,
+      .bindingItem {
+        padding: 6px 8px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        cursor: pointer;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .hazardItem.selected {
+        border-color: rgba(255, 154, 60, 0.55);
+        background: rgba(255, 154, 60, 0.08);
+      }
+
+      .hzKind {
+        font-size: 11px;
+        color: #94a3b8;
+      }
+
+      .hzMeta {
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .miniBtn {
+        font-size: 10px;
+        padding: 2px 6px;
+      }
+
+      .wizardRow {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 8px 0;
+      }
+
+      .wizardRow button {
+        font-size: 11px;
+      }
+
+      .hazardInspector {
+        margin-top: 8px;
+        padding: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 12px;
+      }
+
+      .inspectorTitle {
+        font-weight: 600;
+        color: #cbd5e1;
+      }
+
+      .mutedHint {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .macroTimelineWrap {
+        padding: 6px 12px 0;
+      }
+
+      .macroTimeline {
+        position: relative;
+        display: flex;
+        width: 100%;
+        height: 28px;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        cursor: pointer;
+      }
+
+      .timelineChunk {
+        border: none;
+        color: rgba(0, 0, 0, 0.75);
+        font-size: 10px;
+        font-weight: 700;
+        cursor: pointer;
+        padding: 0;
+      }
+
+      .timelineChunk.phase-flow {
+        background: rgba(45, 212, 191, 0.75);
+      }
+      .timelineChunk.phase-tension {
+        background: rgba(251, 191, 36, 0.75);
+      }
+      .timelineChunk.phase-climax {
+        background: rgba(248, 113, 113, 0.75);
+      }
+      .timelineChunk.phase-release {
+        background: rgba(74, 222, 128, 0.75);
+      }
+
+      .timelineHazards {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+
+      .timelinePlayhead {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: rgba(255, 244, 156, 0.95);
+        box-shadow: 0 0 8px rgba(255, 244, 156, 0.85);
+        pointer-events: none;
+        z-index: 4;
+        transform: translateX(-1px);
+      }
+
+      .timelineHzDot {
+        position: absolute;
+        top: 50%;
+        width: 8px;
+        height: 8px;
+        margin-left: -4px;
+        margin-top: -4px;
+        border-radius: 50%;
+        background: #64748b;
+        border: 1px solid #fff;
+        pointer-events: auto;
+        cursor: pointer;
+      }
     </style>
   </head>
   <body>
     <div class="app">
-      <div class="leftStack">
-      <section class="panel jsonPanel">
-        <div class="panelHeader">
-          <div class="titleWrap">
-            <div class="title">Template JSON</div>
-            <div class="subtitle">
-              Paste the same shape used by <code>createJsonLevelRowPathTemplate</code>:
-              <code>{ columns, rows: [{ blocks, gaps? }] }</code>
-            </div>
-          </div>
-          <div class="controls">
-            <button id="btnSmily" type="button">Load smily</button>
-            <button id="btnFormat" type="button">Format</button>
-            <button id="btnRender" type="button">Render</button>
-          </div>
+      <div class="sidebarStack">
+        <div class="sidebarTabs">
+          <button type="button" class="sidebarTab active" data-section="stage">Stage</button>
+          <button type="button" class="sidebarTab" data-section="selection">Selection</button>
+          <button type="button" class="sidebarTab" data-section="export">Export</button>
         </div>
-        <textarea id="input" spellcheck="false"></textarea>
-        <div class="footer">
-          <div id="status" class="ok">Ready.</div>
-          <div class="legend">
-            <span><span class="swatch bg"></span> background</span>
-            <span><span class="swatch block"></span> blocks</span>
-            <span><span class="swatch gap"></span> gaps (hybrid)</span>
-            <span><span class="swatch coin"></span> coin pickups (hybrid)</span>
-          </div>
-        </div>
-      </section>
 
-      <section class="panel pathLabPanel">
-        <div class="panelHeader">
-          <div class="titleWrap">
-            <div class="title">Deterministic path lab</div>
-            <div class="subtitle">
-              Same generators as <code>ObstacleSystem</code> / <code>gapDifficultyRamp.ts</code> (preview).
-              Enable to paint the canvas from path type + tuning (JSON template ignored).
+        <section class="panel sidebarSection" data-section="stage">
+          <div class="panelHeader">
+            <div class="titleWrap">
+              <div class="title">Stage</div>
+              <div class="subtitle">Chapter metadata · 6 columns default</div>
             </div>
           </div>
-          <div class="controls">
-            <label class="pill" title="Drive canvas from PathLab.buildLevel instead of textarea JSON">
-              <input id="pathLabEnabled" type="checkbox" />
-              Path lab on
-            </label>
-            <button id="btnPathLabApply" type="button">Apply</button>
-          </div>
-        </div>
-        <div class="pathLabBody">
-          <div class="pathLabRow">
-            <label>
-              Segment
-              <select id="pl_segment" class="pathLabSelect">
-                <option value="directedMacro">directedMacro (FLOW→TENSION→CLIMAX→RELEASE)</option>
-                <option value="flowMultipath">flowMultipath</option>
-                <option value="flowChute">flowChute (chute → chicane)</option>
-                <option value="funnel">funnel (loop)</option>
-                <option value="tensionArc">tensionArc (funnel → paradox → multipath)</option>
-                <option value="paradoxSplit">paradoxSplit (loop)</option>
-                <option value="tensionMultipath">tensionMultipath</option>
-                <option value="pinball">pinball → multipath</option>
-                <option value="falseWall">falseWall → multipath</option>
-                <option value="climaxMultipath">climaxMultipath</option>
-                <option value="releaseRestZone">releaseRestZone (cathartic strip)</option>
-                <option value="releaseMultipath">releaseMultipath</option>
-                <option value="releaseDefault">releaseDefault (strip then multipath)</option>
+          <div class="composerBody">
+            <div class="composerGrid">
+              <label>Preset
+                <select id="sd_preset">
+                  <option value="">— load preset —</option>
+                  <option value="1">Stage 1 — Flood Shaft</option>
+                  <option value="2">Stage 2 — Pinch Pipe</option>
+                  <option value="3">Stage 3 — Drawbridge Den</option>
+                  <option value="4">Stage 4 — Buzz Cavern</option>
+                  <option value="5">Stage 5 — Pinball Vault</option>
+                  <option value="6">Stage 6 — Crush Tube</option>
+                </select>
+              </label>
+              <label>Stage index <input id="sd_stageIndex" type="number" value="1" min="1" max="99" /></label>
+              <label>Name <input id="sd_stageName" type="text" value="Flood Shaft" /></label>
+              <label>Signature
+                <select id="sd_hazard">
+                  <option value="none">None</option>
+                  <option value="hazard_platform">Steel platform</option>
+                  <option value="hazard_vise">Pinch pipe (legacy)</option>
+                  <option value="hazard_iris_clamp">Iris clamp</option>
+                  <option value="hazard_tilt_gate">Tilt gate</option>
+                  <option value="hazard_buzz_wheel">Buzz wheel</option>
+                </select>
+              </label>
+              <label>Columns <input id="sd_columns" type="number" value="6" min="4" max="16" /></label>
+              <label>Water px/s <input id="sd_waterSpeed" type="number" value="350" min="20" max="600" /></label>
+              <label>Row px <input id="sd_rowHeight" type="number" value="24" min="8" max="96" /></label>
+              <label>Notes <input id="sd_notes" type="text" placeholder="handoff notes" /></label>
+            </div>
+            <div class="segmentList" id="segmentList"></div>
+            <div class="toolRow">
+              <select id="sd_newPhase" class="pathLabSelect">
+                <option value="flow">flow</option>
+                <option value="tension">tension</option>
+                <option value="climax">climax</option>
+                <option value="release">release</option>
               </select>
-            </label>
-          </div>
-          <div class="pathLabRow">
-            <label>columns <input id="pl_columns" class="smallInput" type="number" value="15" min="5" max="32" /></label>
-            <label>rows <input id="pl_rowCount" class="smallInput" type="number" value="48" min="1" max="400" /></label>
-            <label>pathRunId <input id="pl_pathRunId" class="smallInput" type="number" value="0" /></label>
-            <label>stream start <input id="pl_streamStart" class="smallInput" type="number" value="0" title="totalRowsGenerated before row 0" /></label>
-            <label class="pill" title="After each row, increment stream like spawned row count">
-              <input id="pl_advanceStream" type="checkbox" checked />
-              +stream / row
-            </label>
-          </div>
-          <div class="pathLabHint">
-            Optional overrides (leave empty to use ramped random from stream): funnel duration, pinball segment rows,
-            false-wall total rows, cathartic strip rows, chute rows before chicane.
-          </div>
-          <div class="pathLabRow">
-            <label>funnel rows <input id="pl_ov_funnel" class="smallInput" placeholder="auto" /></label>
-            <label>pinball rows <input id="pl_ov_pinball" class="smallInput" placeholder="auto" /></label>
-            <label>false wall rows <input id="pl_ov_falsewall" class="smallInput" placeholder="auto" /></label>
-            <label>rest strip <input id="pl_ov_rest" class="smallInput" placeholder="auto" /></label>
-            <label>chute rows <input id="pl_ov_chute" class="smallInput" placeholder="auto" /></label>
-          </div>
-          <div class="pathLabHint" id="pl_runwayHint">Runway dup rows (sample stream=0, rowIdx=0): —</div>
-          <details class="pathLabAdv">
-            <summary>Advanced — merge JSON into gap ramp tuning</summary>
-            <div class="pathLabHint" style="margin-top: 6px">
-              Keys match <code>gapDifficultyRamp.ts</code> (e.g. <code>ROWS_FOR_FULL_RAMP</code>, <code>CURVE_EXPONENT</code>,
-              <code>FLOW_PHASE_ROWS_*</code>, <code>TENSION_PHASE_ROWS_*</code>, …). Merged over defaults.
+              <input id="sd_newRows" class="smallInput" type="number" value="4" min="1" max="100" />
+              <button id="btnAddSegment" type="button">+ Segment</button>
             </div>
-            <textarea id="pl_tuningJson" spellcheck="false">{}</textarea>
-          </details>
-        </div>
-      </section>
+            <div class="toolRow">
+              <input id="sd_insertCount" class="smallInput" type="number" value="1" min="1" max="50" />
+              <button id="btnInsertRowsAbove" type="button">+ above</button>
+              <button id="btnInsertRowsBelow" type="button">+ below</button>
+              <button id="btnDeleteRows" type="button">Delete rows</button>
+            </div>
+          </div>
+          <div class="footer">
+            <div id="fairnessStatus" class="ok">Reachability OK</div>
+          </div>
+        </section>
+
+        <section class="panel sidebarSection hidden" data-section="selection">
+          <div class="panelHeader">
+            <div class="titleWrap">
+              <div class="title">Selection</div>
+              <div class="subtitle">Row · hazard · segment inspector</div>
+            </div>
+          </div>
+          <div class="composerBody" id="selectionPanel">
+            <div class="emptyState">Click the canvas to inspect a row or machinery region.</div>
+          </div>
+        </section>
+
+        <section class="panel sidebarSection hidden" data-section="export">
+          <div class="panelHeader">
+            <div class="titleWrap">
+              <div class="title">Export</div>
+              <div class="subtitle">JSON handoff for engine work</div>
+            </div>
+            <div class="controls">
+              <button id="btnCopyJson" type="button">Copy</button>
+              <button id="btnDownloadJson" type="button">Download</button>
+            </div>
+          </div>
+          <div class="composerBody">
+            <button id="btnHandoffBundle" type="button">Handoff bundle (JSON + PNG + prompt)</button>
+            <button id="btnFormat" type="button">Import JSON into composer</button>
+            <details class="pathLabAdv">
+              <summary>Raw JSON</summary>
+              <textarea id="input" spellcheck="false" style="min-height:200px;width:100%"></textarea>
+            </details>
+            <div id="status" class="ok" style="margin-top:8px">Ready.</div>
+          </div>
+        </section>
+
+        <!-- hidden path lab fields for segment generate -->
+        <select id="pl_segment" class="pathLabSelect" hidden>
+          <option value="flowMultipath">flowMultipath</option>
+          <option value="tensionArc">tensionArc</option>
+          <option value="climaxMultipath">climaxMultipath</option>
+          <option value="releaseRestZone">releaseRestZone</option>
+        </select>
+        <input id="pl_rowCount" type="hidden" value="12" />
+        <input id="pl_pathRunId" type="hidden" value="0" />
+        <input id="pl_streamStart" type="hidden" value="0" />
+        <input id="pl_advanceStream" type="hidden" />
+        <textarea id="pl_tuningJson" hidden>{}</textarea>
       </div>
 
-      <section class="panel">
-        <div class="panelHeader">
-          <div class="titleWrap">
-            <div class="title">Canvas preview</div>
-            <div class="subtitle">
-              Orange = solid blocks. Hybrid + coins: green spinning pickups = template block ∩ proc gap.
-              Row 0 at bottom.
-            </div>
-          </div>
-          <div class="controls">
-            <input
-              id="cellSize"
-              class="smallInput"
-              inputmode="numeric"
-              autocomplete="off"
-              value="22"
-              title="Cell size (px)"
-            />
-            <label class="pill" title="Override gaps using baseMultiPath-style generator (preview only)">
-              <input id="hybridMode" type="checkbox" />
-              MultiPath hybrid gaps
-            </label>
-            <label class="pill" title="Show proc-generated gaps overlay (blue)">
-              <input id="showHybridGaps" type="checkbox" checked />
-              Show gaps
-            </label>
-            <label class="pill" title="Preview collectible coins where JSON blocks overlap proc gaps (green, animated)">
-              <input id="showHybridConflicts" type="checkbox" checked />
-              Show coins
-            </label>
-            <input
-              id="seed"
-              class="smallInput"
-              inputmode="numeric"
-              autocomplete="off"
-              value="1"
-              title="Seed (for hybrid mode)"
-            />
-            <button id="btnReroll" type="button" title="New seed for hybrid mode">Reroll</button>
-            <button id="btnEdit" type="button" title="Toggle edit mode">
-              Edit: off
-            </button>
+      <section class="panel canvasMain">
+        <div class="canvasToolbar">
+          <button type="button" class="toolBtn active" data-tool="select" title="V">Select</button>
+          <button type="button" class="toolBtn" data-tool="paint" title="B">Paint gaps</button>
+          <button type="button" class="toolBtn" data-tool="machinery" title="M">Machinery</button>
+          <span class="toolbarDivider" aria-hidden="true"></span>
+          <button id="btnUndo" type="button" class="toolBtn" title="Undo (⌘Z)" disabled>Undo</button>
+          <button id="btnRedo" type="button" class="toolBtn" title="Redo (⌘⇧Z)" disabled>Redo</button>
+          <span class="toolbarDivider" aria-hidden="true"></span>
+          <button id="btnDeleteSelection" type="button" class="toolBtn danger" title="Delete (Del)" disabled>Delete</button>
+          <button id="btnClearCanvas" type="button" class="toolBtn danger" title="Clear hazards + reset row paint">Clear canvas</button>
+          <span class="musicStatus">⌘Z undo · Del delete machinery</span>
+          <div class="viewMenu">
+            <label class="pill"><input id="toggleShowLabels" type="checkbox" checked /> Labels</label>
+            <label class="pill"><input id="toggleShowMarkers" type="checkbox" checked /> Markers</label>
+            <label class="pill"><input id="toggleDeviceFrame" type="checkbox" /> Phone frame</label>
+            <input id="cellSize" class="smallInput" type="number" value="22" title="Cell px" />
             <button id="btnFit" type="button">Bottom</button>
           </div>
         </div>
-        <div class="canvasWrap">
+        <div class="machineryPalette hidden" id="machineryPalette">
+          <div class="mutedHint" style="margin-bottom:6px">Pick a template, drag the exact rectangle. Each drag places <strong>one</strong> platform — not both sides.</div>
+          <div class="catalogCards" id="catalogCards"></div>
+        </div>
+        <div class="canvasWrap" id="canvasWrap">
           <canvas id="canvas"></canvas>
         </div>
-        <div class="musicBar">
-          <div class="musicControls">
-            <button id="btnLoadDefaultMusic" type="button">Load Empacotatron</button>
-            <input id="musicFile" class="fileInput" type="file" accept="audio/*" />
-            <button id="btnAnalyzeMusic" type="button">Analyze</button>
-            <button id="btnGenerateMusicTemplate" type="button">Generate music template</button>
-            <button id="btnMusicPlay" type="button" disabled>Play</button>
-            <label class="inlineField" title="Same idea as Water.raisingSpeed in the runtime preview">
-              water px/s
-              <input id="musicWaterSpeed" class="smallInput" inputmode="numeric" value="100" />
-            </label>
-            <label class="inlineField" title="Pixel height of one obstacle row for preview timing">
-              row px
-              <input id="musicRowHeight" class="smallInput" inputmode="numeric" value="24" />
-            </label>
+        <div class="canvasStatusBar" id="canvasStatusBar">Hover grid for row · col</div>
+        <div class="playbackBar">
+          <div class="playbackControls">
+            <button id="btnWaterPlay" type="button">Play</button>
+            <span id="sd_playbackTime" class="musicStatus">0.00s · water row -</span>
+            <span id="hazardPhaseReadout" class="musicStatus"></span>
+            <input id="sd_scrubber" type="range" min="0" max="60" step="0.05" value="0" />
           </div>
-          <div id="musicStatus" class="musicStatus">
-            Music journey: load/analyze the track, generate rows, then play to highlight the active row.
-          </div>
+        </div>
+        <div class="playbackRowExtra">
+          <label>Go to row <input id="goToRowInput" type="number" value="0" min="0" /></label>
+          <button id="btnGoToRow" type="button">Go</button>
+          <span>Scrubber = water time · platform starts at the water row you set</span>
+        </div>
+        <div class="macroTimelineWrap">
+          <div class="macroTimeline" id="macroTimeline"></div>
+        </div>
+        <div class="exportBar">
+          <button id="btnScreenshotFull" type="button">PNG full</button>
+          <button id="btnScreenshotViewport" type="button">PNG viewport</button>
+          <button id="btnScreenshotClipboard" type="button">Copy PNG</button>
         </div>
         <div class="footer">
           <div id="stats" class="ok">—</div>
-          <div style="color: var(--muted)">
-            Tip: in Edit mode, click cells to toggle block/gap.
-          </div>
         </div>
       </section>
     </div>
 
     <script src="scripts/template-preview-path-lab.js"></script>
-    <script>
-      const smilyObj = {
-        columns: 15,
-        rows: [
-          { gaps: [6, 7, 8], blocks: [0, 1, 2, 3, 4, 5, 9, 10, 11, 12, 13, 14] },
-          { gaps: [5, 6, 7, 8, 9], blocks: [0, 1, 2, 3, 4, 10, 11, 12, 13, 14] },
-          { gaps: [4, 5, 6, 7, 8, 9, 10], blocks: [0, 1, 2, 3, 11, 12, 13, 14] },
-          { gaps: [3, 4, 5, 6, 7, 8, 9, 10, 11], blocks: [0, 1, 2, 12, 13, 14] },
-          { gaps: [1, 2, 3, 4, 5, 9, 10, 11, 12, 13], blocks: [0, 6, 7, 8, 14] },
-          { gaps: [2, 3, 4, 6, 7, 8, 10, 11, 12], blocks: [0, 1, 5, 9, 13, 14] },
-          { gaps: [2, 3, 5, 6, 7, 8, 9, 11, 12], blocks: [0, 1, 4, 10, 13, 14] },
-          { gaps: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13], blocks: [0, 14] },
-          { gaps: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13], blocks: [0, 14] },
-          { gaps: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13], blocks: [0, 14] },
-          { gaps: [1, 2, 3, 6, 7, 8, 11, 12, 13], blocks: [0, 4, 5, 9, 10, 14] },
-          { gaps: [1, 2, 3, 6, 7, 8, 11, 12, 13], blocks: [0, 4, 5, 9, 10, 14] },
-          { gaps: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], blocks: [0, 1, 13, 14] },
-          { gaps: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], blocks: [0, 1, 13, 14] },
-          { gaps: [3, 4, 5, 6, 7, 8, 9, 10, 11], blocks: [0, 1, 2, 12, 13, 14] },
-          { gaps: [4, 5, 6, 7, 8, 9, 10], blocks: [0, 1, 2, 3, 11, 12, 13, 14] },
-          { gaps: [5, 6, 7, 8, 9], blocks: [0, 1, 2, 3, 4, 10, 11, 12, 13, 14] },
-          { gaps: [6, 7, 8], blocks: [0, 1, 2, 3, 4, 5, 9, 10, 11, 12, 13, 14] },
-        ],
-      };
-
-      const $pathLabEnabled = document.getElementById("pathLabEnabled");
-      const $plRunwayHint = document.getElementById("pl_runwayHint");
-      const $btnPathLabApply = document.getElementById("btnPathLabApply");
-
-      function mergePathLabTuning() {
-        const base = typeof PathLab !== "undefined" ? PathLab.defaultGapTuning() : {};
-        let extra = {};
-        try {
-          const raw = (document.getElementById("pl_tuningJson")?.value || "").trim() || "{}";
-          extra = JSON.parse(raw);
-          if (typeof extra !== "object" || extra === null) extra = {};
-        } catch (_) {
-          extra = {};
-        }
-        return Object.assign({}, base, extra);
-      }
-
-      function readPathLabConfig(tuning) {
-        const el = (id) => document.getElementById(id);
-        const num = (id, d) => {
-          const n = Number(el(id)?.value);
-          return Number.isFinite(n) ? n : d;
-        };
-        const str = (id) => (el(id)?.value || "").trim();
-        return {
-          segment: el("pl_segment")?.value || "flowMultipath",
-          columns: num("pl_columns", 15),
-          rowCount: num("pl_rowCount", 48),
-          pathRunId: num("pl_pathRunId", 0),
-          streamStart: num("pl_streamStart", 0),
-          advanceStream: Boolean(el("pl_advanceStream")?.checked),
-          tuning,
-          overrides: {
-            funnelRows: str("pl_ov_funnel") || null,
-            pinballRows: str("pl_ov_pinball") || null,
-            falseWallRows: str("pl_ov_falsewall") || null,
-            restRows: str("pl_ov_rest") || null,
-            chuteRows: str("pl_ov_chute") || null,
-          },
-        };
-      }
-
-      function refreshPathLabHint() {
-        if (!$plRunwayHint || typeof PathLab === "undefined") return;
-        try {
-          const tuning = mergePathLabTuning();
-          const cols = num("pl_columns", 15);
-          const gapSeed = 0;
-          const w0 = PathLab.multipathGapWidthParamsFromTotalRows(tuning, 0, cols, gapSeed);
-          const wLate = PathLab.multipathGapWidthParamsFromTotalRows(
-            tuning,
-            tuning.ROWS_FOR_FULL_RAMP || 2400,
-            cols,
-            gapSeed
-          );
-          const dup = PathLab.gapShiftRunwayDupRowsPreview(tuning, 0, 0x72756e77);
-          const dupLate = PathLab.gapShiftRunwayDupRowsPreview(tuning, tuning.ROWS_FOR_FULL_RAMP || 2400, 0x72756e78);
-          const c0 = PathLab.getPacingCycleState(tuning, 0);
-          const c1 = PathLab.getPacingCycleState(tuning, c0.cycleTotalRows);
-          $plRunwayHint.textContent =
-            `Multipath widths (@cols=${cols}): stream≈0 → minW ${w0.minW}, maxW ${w0.maxW}; stream≈full ramp → minW ${wLate.minW}, maxW ${wLate.maxW}. ` +
-            `Runway dup: stream≈0 → ${dup}; stream≈full ramp → ${dupLate}. ` +
-            `Macro cycle @0: FLOW ${c0.flowRows}, TENSION ${c0.tensionRows}, CLIMAX ${c0.climaxRows}, RELEASE ${c0.releaseRows} (${c0.cycleTotalRows} rows). ` +
-            `Next cycle @${c0.cycleTotalRows}: FLOW ${c1.flowRows}, … (${c1.cycleTotalRows} rows).`;
-        } catch (e) {
-          $plRunwayHint.textContent = String(e?.message || e);
-        }
-      }
-      const $status = document.getElementById("status");
-      const $stats = document.getElementById("stats");
-      const $cellSize = document.getElementById("cellSize");
-      const $btnEdit = document.getElementById("btnEdit");
-      const $hybridMode = document.getElementById("hybridMode");
-      const $showHybridGaps = document.getElementById("showHybridGaps");
-      const $showHybridConflicts = document.getElementById("showHybridConflicts");
-      const $seed = document.getElementById("seed");
-      const $btnReroll = document.getElementById("btnReroll");
-      const $canvas = document.getElementById("canvas");
-      const $btnLoadDefaultMusic = document.getElementById("btnLoadDefaultMusic");
-      const $musicFile = document.getElementById("musicFile");
-      const $btnAnalyzeMusic = document.getElementById("btnAnalyzeMusic");
-      const $btnGenerateMusicTemplate = document.getElementById("btnGenerateMusicTemplate");
-      const $btnMusicPlay = document.getElementById("btnMusicPlay");
-      const $musicWaterSpeed = document.getElementById("musicWaterSpeed");
-      const $musicRowHeight = document.getElementById("musicRowHeight");
-      const $musicStatus = document.getElementById("musicStatus");
-      const $canvasWrap = $canvas.parentElement;
-      const ctx = $canvas.getContext("2d");
-
-      const MUSIC_ASSET_URL = "assets/empacotatron_full_0.ogg";
-      const clampInt = (v, min, max) => Math.max(min, Math.min(max, Math.round(v)));
-      const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-      let editMode = false;
-      let lastView = null; // { startX, startY, scale, cell, gap, pad, columns, rowCount }
-      let lastRenderFit = true;
-      let coinAnimRaf = null;
-      let musicAudioContext = null;
-      let musicAudioBuffer = null;
-      let musicAnalysis = null;
-      let musicObjectUrl = null;
-      let musicActiveRow = -1;
-      let musicRaf = null;
-      let musicTemplateActive = false;
-      let lastCanvasContentKey = "";
-      const musicAudio = new Audio();
-      musicAudio.preload = "auto";
-
-      function stopCoinAnimation() {
-        if (coinAnimRaf) {
-          cancelAnimationFrame(coinAnimRaf);
-          coinAnimRaf = null;
-        }
-      }
-
-      /**
-       * Green collectible coin preview: pseudo-3D flip + rotating shine (canvas 2D).
-       * Center/radius in grid-local pixels (same space as cell rects).
-       */
-      function drawGreenCoin(ctx, centerX, centerY, radius, tMs, phaseOffset) {
-        const flip = tMs * 0.0032 + phaseOffset;
-        const scaleX = Math.max(0.14, Math.abs(Math.cos(flip)));
-        const t = tMs * 0.001;
-
-        ctx.save();
-        ctx.translate(centerX, centerY);
-        ctx.scale(scaleX, 1);
-
-        const glowPulse = 0.45 + 0.55 * Math.sin(t * 2.1 + phaseOffset);
-        const g1 = ctx.createRadialGradient(0, 0, radius * 0.15, 0, 0, radius * 1.45);
-        g1.addColorStop(0, `rgba(120, 255, 170, ${0.28 * glowPulse})`);
-        g1.addColorStop(0.45, `rgba(60, 200, 110, ${0.16 * glowPulse})`);
-        g1.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = g1;
-        ctx.beginPath();
-        ctx.arc(0, 0, radius * 1.38, 0, Math.PI * 2);
-        ctx.fill();
-
-        const body = ctx.createRadialGradient(
-          -radius * 0.35,
-          -radius * 0.35,
-          0,
-          0,
-          0,
-          radius
-        );
-        body.addColorStop(0, "#ecfdf5");
-        body.addColorStop(0.25, "#86efac");
-        body.addColorStop(0.55, "#22c55e");
-        body.addColorStop(0.88, "#15803d");
-        body.addColorStop(1, "#14532d");
-        ctx.fillStyle = body;
-        ctx.beginPath();
-        ctx.arc(0, 0, radius, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.save();
-        const spin = t * 1.15 + phaseOffset * 1.3;
-        ctx.rotate(spin);
-        const sweep = 0.5 + 0.5 * Math.sin(t * 2.8 + phaseOffset * 2.1);
-        const sh = ctx.createLinearGradient(-radius, -radius, radius, radius);
-        sh.addColorStop(0, "rgba(255,255,255,0)");
-        sh.addColorStop(0.38, "rgba(255,255,255,0)");
-        sh.addColorStop(0.46, `rgba(255,255,255,${0.18 + 0.28 * sweep})`);
-        sh.addColorStop(0.52, `rgba(255,255,255,${0.42 + 0.22 * sweep})`);
-        sh.addColorStop(0.58, "rgba(255,255,255,0)");
-        sh.addColorStop(1, "rgba(255,255,255,0)");
-        ctx.fillStyle = sh;
-        ctx.beginPath();
-        ctx.arc(0, 0, radius * 0.94, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-
-        ctx.strokeStyle = "rgba(255,255,255,0.5)";
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        ctx.arc(0, 0, radius * 0.985, 0, Math.PI * 2);
-        ctx.stroke();
-
-        ctx.restore();
-      }
-
-      function scheduleCoinAnimationLoop() {
-        if (coinAnimRaf) return;
-        function loop(tMs) {
-          if (!$hybridMode.checked || !$showHybridConflicts.checked) {
-            stopCoinAnimation();
-            return;
-          }
-          tryRender({ fit: false, animTime: tMs, skipAnimScheduling: true, scrollMode: "preserve" });
-          coinAnimRaf = requestAnimationFrame(loop);
-        }
-        coinAnimRaf = requestAnimationFrame(loop);
-      }
-
-      // --- Seeded RNG (Mulberry32) so hybrid previews are reproducible ---
-      function mulberry32(seed) {
-        let t = seed >>> 0;
-        return function rand() {
-          t += 0x6d2b79f5;
-          let r = Math.imul(t ^ (t >>> 15), 1 | t);
-          r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
-          return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-        };
-      }
-
-      function setStatusOk(text) {
-        $status.className = "ok";
-        $status.textContent = text;
-      }
-
-      function setStatusError(text) {
-        $status.className = "error";
-        $status.textContent = text;
-      }
-
-      function setMusicStatus(text, isError = false) {
-        $musicStatus.style.color = isError
-          ? getComputedStyle(document.documentElement).getPropertyValue("--danger").trim()
-          : "var(--muted)";
-        $musicStatus.textContent = text;
-      }
-
-      function getMusicTimingConfig() {
-        const waterSpeed = clamp(Number($musicWaterSpeed.value) || 100, 20, 420);
-        const rowHeight = clamp(Number($musicRowHeight.value) || 24, 8, 96);
-        $musicWaterSpeed.value = String(Math.round(waterSpeed));
-        $musicRowHeight.value = String(Math.round(rowHeight));
-        return {
-          waterSpeed,
-          rowHeight,
-          rowDuration: rowHeight / waterSpeed,
-        };
-      }
-
-      function getMusicAudioContext() {
-        const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContextCtor) throw new Error("This browser does not support Web Audio.");
-        if (!musicAudioContext) musicAudioContext = new AudioContextCtor();
-        return musicAudioContext;
-      }
-
-      async function decodeMusicArrayBuffer(arrayBuffer, label, playbackUrl) {
-        const audioContext = getMusicAudioContext();
-        const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
-        musicAudioBuffer = decoded;
-        musicAnalysis = null;
-        musicTemplateActive = false;
-        musicActiveRow = -1;
-        musicAudio.src = playbackUrl;
-        musicAudio.currentTime = 0;
-        $btnMusicPlay.disabled = false;
-        setMusicStatus(
-          `Loaded ${label}: ${decoded.duration.toFixed(1)}s, ${decoded.sampleRate} Hz. Click Analyze, then Generate music template.`
-        );
-        tryRender({ fit: false, scrollMode: "bottom" });
-      }
-
-      async function loadMusicFromUrl(url) {
-        setMusicStatus(`Loading ${url}...`);
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`Could not load ${url} (${response.status}).`);
-        const arrayBuffer = await response.arrayBuffer();
-        await decodeMusicArrayBuffer(arrayBuffer, url, url);
-      }
-
-      async function loadMusicFromFile(file) {
-        if (!file) return;
-        if (musicObjectUrl) URL.revokeObjectURL(musicObjectUrl);
-        musicObjectUrl = URL.createObjectURL(file);
-        const arrayBuffer = await file.arrayBuffer();
-        await decodeMusicArrayBuffer(arrayBuffer, file.name, musicObjectUrl);
-      }
-
-      function downmixAudioBuffer(buffer) {
-        const length = buffer.length;
-        const channels = buffer.numberOfChannels;
-        const mono = new Float32Array(length);
-        for (let ch = 0; ch < channels; ch++) {
-          const data = buffer.getChannelData(ch);
-          for (let i = 0; i < length; i++) mono[i] += data[i] / channels;
-        }
-        return mono;
-      }
-
-      function movingAverage(values, radius) {
-        const out = new Float32Array(values.length);
-        let sum = 0;
-        for (let i = 0; i < values.length; i++) {
-          sum += values[i];
-          const remove = i - radius * 2 - 1;
-          if (remove >= 0) sum -= values[remove];
-          const count = Math.min(i + 1, radius * 2 + 1);
-          out[i] = sum / Math.max(1, count);
-        }
-        return out;
-      }
-
-      function normalizeFloatArray(values) {
-        let max = 0;
-        for (let i = 0; i < values.length; i++) max = Math.max(max, Math.abs(values[i]));
-        if (max <= 0.000001) return values;
-        const out = new Float32Array(values.length);
-        for (let i = 0; i < values.length; i++) out[i] = values[i] / max;
-        return out;
-      }
-
-      function pickBeatPeaks(onset, hopSeconds) {
-        const smooth = movingAverage(onset, Math.max(2, Math.round(0.18 / hopSeconds)));
-        const localRadius = Math.max(2, Math.round(0.08 / hopSeconds));
-        const minSepFrames = Math.max(1, Math.round(0.22 / hopSeconds));
-        const peaks = [];
-        let lastPeak = -minSepFrames;
-
-        for (let i = localRadius; i < onset.length - localRadius; i++) {
-          const v = onset[i];
-          if (v < Math.max(0.08, smooth[i] * 1.55)) continue;
-          if (i - lastPeak < minSepFrames) continue;
-          let isLocalMax = true;
-          for (let j = i - localRadius; j <= i + localRadius; j++) {
-            if (onset[j] > v) {
-              isLocalMax = false;
-              break;
-            }
-          }
-          if (!isLocalMax) continue;
-          peaks.push({ time: i * hopSeconds, strength: clamp(v, 0, 1) });
-          lastPeak = i;
-        }
-        return peaks;
-      }
-
-      function estimateBpm(peaks) {
-        if (!peaks || peaks.length < 4) return 120;
-        const buckets = new Map();
-        for (let i = 0; i < peaks.length; i++) {
-          for (let j = i + 1; j < Math.min(peaks.length, i + 9); j++) {
-            const dt = peaks[j].time - peaks[i].time;
-            if (dt < 0.25 || dt > 1.25) continue;
-            let bpm = 60 / dt;
-            while (bpm < 75) bpm *= 2;
-            while (bpm > 170) bpm /= 2;
-            const bucket = Math.round(bpm / 2) * 2;
-            buckets.set(bucket, (buckets.get(bucket) || 0) + peaks[i].strength + peaks[j].strength);
-          }
-        }
-        let bestBpm = 120;
-        let bestScore = -1;
-        buckets.forEach((score, bpm) => {
-          if (score > bestScore) {
-            bestScore = score;
-            bestBpm = bpm;
-          }
-        });
-        return bestBpm;
-      }
-
-      function analyzeMusicBuffer(buffer) {
-        const mono = downmixAudioBuffer(buffer);
-        const sampleRate = buffer.sampleRate;
-        const frameSize = 2048;
-        const hopSize = 1024;
-        const frameCount = Math.max(1, Math.floor((mono.length - frameSize) / hopSize));
-        const hopSeconds = hopSize / sampleRate;
-        const energy = new Float32Array(frameCount);
-        const brightness = new Float32Array(frameCount);
-        const onsetRaw = new Float32Array(frameCount);
-
-        let prevEnergy = 0;
-        let prevBrightness = 0;
-        for (let frame = 0; frame < frameCount; frame++) {
-          const start = frame * hopSize;
-          let sumSq = 0;
-          let zeroCrossings = 0;
-          let prev = mono[start] || 0;
-          for (let i = 0; i < frameSize; i++) {
-            const s = mono[start + i] || 0;
-            sumSq += s * s;
-            if ((s >= 0 && prev < 0) || (s < 0 && prev >= 0)) zeroCrossings += 1;
-            prev = s;
-          }
-          const rms = Math.sqrt(sumSq / frameSize);
-          const zcr = zeroCrossings / frameSize;
-          energy[frame] = rms;
-          brightness[frame] = clamp(zcr * 12, 0, 1);
-          onsetRaw[frame] =
-            Math.max(0, rms - prevEnergy * 0.94) +
-            Math.max(0, brightness[frame] - prevBrightness) * 0.08;
-          prevEnergy = rms;
-          prevBrightness = brightness[frame];
-        }
-
-        const energyNorm = normalizeFloatArray(energy);
-        const onset = normalizeFloatArray(onsetRaw);
-        const peaks = pickBeatPeaks(onset, hopSeconds);
-        const bpm = estimateBpm(peaks);
-        return {
-          duration: buffer.duration,
-          sampleRate,
-          hopSeconds,
-          bpm,
-          peaks,
-          energy: energyNorm,
-          brightness,
-          onset,
-        };
-      }
-
-      function getFeatureAtTime(analysis, time) {
-        const index = clampInt(time / analysis.hopSeconds, 0, analysis.energy.length - 1);
-        const beatWindow = 0.105;
-        let beatStrength = 0;
-        let nearestBeatTime = null;
-        for (let i = 0; i < analysis.peaks.length; i++) {
-          const p = analysis.peaks[i];
-          const d = Math.abs(p.time - time);
-          if (d > beatWindow) continue;
-          const v = (1 - d / beatWindow) * p.strength;
-          if (v > beatStrength) {
-            beatStrength = v;
-            nearestBeatTime = p.time;
-          }
-        }
-        return {
-          energy: clamp(analysis.energy[index] || 0, 0, 1),
-          brightness: clamp(analysis.brightness[index] || 0, 0, 1),
-          onset: clamp(analysis.onset[index] || 0, 0, 1),
-          beatStrength: clamp(beatStrength, 0, 1),
-          nearestBeatTime,
-        };
-      }
-
-      function parseLevel(text) {
-        // Allow either:
-        // - the raw object JSON ( { columns, rows: ... } )
-        // - a JSON string of that object (as stored in smilyLevelJson)
-        const first = JSON.parse(text);
-        if (typeof first === "string") return JSON.parse(first);
-        return first;
-      }
-
-      function normalizeUniqueInts(values, min, max) {
-        const clamped = (Array.isArray(values) ? values : [])
-          .map((v) => Math.round(Number(v)))
-          .filter((v) => Number.isFinite(v))
-          .map((v) => Math.max(min, Math.min(max, v)));
-        return Array.from(new Set(clamped)).sort((a, b) => a - b);
-      }
-
-      function computeGapsFromBlocks(columns, blocks) {
-        const set = new Set(blocks);
-        const gaps = [];
-        for (let c = 0; c < columns; c++) if (!set.has(c)) gaps.push(c);
-        return gaps;
-      }
-
-      function normalizeLevelForEditing(level) {
-        const columns = Math.max(1, Number(level?.columns ?? 0) || 0);
-        const rowsIn = Array.isArray(level?.rows) ? level.rows : [];
-        const rows = rowsIn.map((r) => {
-          const blocks = normalizeUniqueInts(r?.blocks ?? [], 0, columns - 1);
-          const gaps =
-            r && Array.isArray(r.gaps)
-              ? normalizeUniqueInts(r.gaps, 0, columns - 1)
-              : computeGapsFromBlocks(columns, blocks);
-          return { blocks, gaps };
-        });
-        return { columns, rows };
-      }
-
-      // --- MultiPath gaps logic (JS port of ObstacleSystem.generateMultiPathGaps) ---
-      function groupGapsToRanges(gaps, rowLength) {
-        const sorted = normalizeUniqueInts(gaps || [], 0, Math.max(0, rowLength - 1));
-        const ranges = [];
-        let start = null;
-        let prev = null;
-        for (let i = 0; i < sorted.length; i++) {
-          const c = sorted[i];
-          if (start === null) {
-            start = c;
-            prev = c;
-            continue;
-          }
-          if (c === prev + 1) {
-            prev = c;
-            continue;
-          }
-          ranges.push({ startCol: start, endCol: prev });
-          start = c;
-          prev = c;
-        }
-        if (start !== null) ranges.push({ startCol: start, endCol: prev });
-        return ranges;
-      }
-
-      const rangeWidthCols = (r) => Math.max(1, r.endCol - r.startCol + 1);
-      const rangeCenterCols = (r) => (r.startCol + r.endCol) * 0.5;
-
-      function enforceRangeConstraints(ranges, rowLength) {
-        if (rowLength <= 0) return [];
-        let normalized = (ranges || [])
-          .map((r) => {
-            const a = clampInt(r.startCol, 0, rowLength - 1);
-            const b = clampInt(r.endCol, 0, rowLength - 1);
-            return a <= b ? { startCol: a, endCol: b } : { startCol: b, endCol: a };
-          })
-          .sort((x, y) => x.startCol - y.startCol);
-
-        const merged = [];
-        for (let i = 0; i < normalized.length; i++) {
-          const r = normalized[i];
-          const last = merged[merged.length - 1];
-          if (!last) {
-            merged.push(r);
-            continue;
-          }
-          if (r.startCol <= last.endCol + 1) {
-            last.endCol = Math.max(last.endCol, r.endCol);
-          } else {
-            merged.push(r);
-          }
-        }
-
-        for (let i = 0; i < merged.length; i++) {
-          merged[i].startCol = clampInt(merged[i].startCol, 0, rowLength - 1);
-          merged[i].endCol = clampInt(Math.max(merged[i].endCol, merged[i].startCol), 0, rowLength - 1);
-        }
-        return merged;
-      }
-
-      function splitRange(r, rowLength, minWidth) {
-        const w = rangeWidthCols(r);
-        if (w < minWidth * 2 + 1) return [r];
-        const center = Math.round(rangeCenterCols(r));
-        const leftEnd = clampInt(center - 1, r.startCol + minWidth - 1, r.endCol - (minWidth + 1));
-        const rightStart = clampInt(leftEnd + 2, r.startCol + minWidth + 1, r.endCol - (minWidth - 1));
-        const left = { startCol: r.startCol, endCol: leftEnd };
-        const right = { startCol: rightStart, endCol: r.endCol };
-        if (rangeWidthCols(left) < minWidth || rangeWidthCols(right) < minWidth) return [r];
-        if (right.startCol <= left.endCol + 1) return [r];
-        return enforceRangeConstraints([left, right], rowLength);
-      }
-
-      function maybeMutateRanges(ranges, rowLength, rand) {
-        const mutated = (ranges || []).map((r) => {
-          const shift = rand() < 0.5 ? -1 : 1;
-          const doShift = rand() < 0.55;
-          const doResize = rand() < 0.45;
-          let start = r.startCol;
-          let end = r.endCol;
-          if (doShift) {
-            start += shift;
-            end += shift;
-          }
-          if (doResize) {
-            const widen = rand() < 0.5 ? -1 : 1;
-            if (widen < 0) {
-              start -= 1;
-              end += 1;
-            } else if (rangeWidthCols(r) > 1) {
-              start += 1;
-              end -= 1;
-            }
-          }
-          return { startCol: start, endCol: end };
-        });
-        return enforceRangeConstraints(mutated, rowLength);
-      }
-
-      const overlapCols = (a, b) => Math.max(0, Math.min(a.endCol, b.endCol) - Math.max(a.startCol, b.startCol) + 1);
-
-      function ensureMinWidth(ranges, rowLength, minWidth) {
-        if (!ranges || !ranges.length) return ranges || [];
-        const expanded = ranges.map((r) => {
-          const w = rangeWidthCols(r);
-          if (w >= minWidth) return r;
-          const start = clampInt(r.startCol, 0, rowLength - 1);
-          const end = clampInt(Math.min(rowLength - 1, start + minWidth - 1), 0, rowLength - 1);
-          return { startCol: start, endCol: end };
-        });
-        return enforceRangeConstraints(expanded, rowLength);
-      }
-
-      function ensureEachCurrOverlapsSomePrev(curr, prev, rowLength, minOverlapCols) {
-        if (!curr || !curr.length || !prev || !prev.length) return curr || [];
-        const fixed = curr.map((r) => ({ ...r }));
-
-        for (let i = 0; i < fixed.length; i++) {
-          const r = fixed[i];
-          let bestPrev = prev[0];
-          let bestDist = Number.POSITIVE_INFINITY;
-          const c = rangeCenterCols(r);
-          for (let j = 0; j < prev.length; j++) {
-            const d = Math.abs(c - rangeCenterCols(prev[j]));
-            if (d < bestDist) {
-              bestDist = d;
-              bestPrev = prev[j];
-            }
-          }
-          const ov = overlapCols(r, bestPrev);
-          if (ov >= minOverlapCols) continue;
-
-          let shift = 0;
-          if (r.endCol < bestPrev.startCol) {
-            shift = (bestPrev.startCol + (minOverlapCols - 1)) - r.endCol;
-          } else if (r.startCol > bestPrev.endCol) {
-            shift = (bestPrev.endCol - (minOverlapCols - 1)) - r.startCol;
-          } else {
-            shift = clampInt(Math.round(rangeCenterCols(bestPrev) - rangeCenterCols(r)), -1, 1);
-          }
-          if (shift !== 0) {
-            r.startCol = clampInt(r.startCol + shift, 0, rowLength - 1);
-            r.endCol = clampInt(r.endCol + shift, 0, rowLength - 1);
-            if (r.endCol < r.startCol) r.endCol = r.startCol;
-          }
-        }
-
-        return enforceRangeConstraints(fixed, rowLength);
-      }
-
-      function rangesToGaps(ranges) {
-        const gaps = [];
-        for (let i = 0; i < (ranges || []).length; i++) {
-          for (let c = ranges[i].startCol; c <= ranges[i].endCol; c++) gaps.push(c);
-        }
-        return gaps;
-      }
-
-      function generateMultiPathGaps(prevGaps, rowLength, rand) {
-        const MAX_PATHS = 4;
-        const MIN_W = 2;
-        const MAX_W = Math.max(MIN_W, Math.min(6, Math.floor(rowLength * 0.6)));
-        const MIN_OVERLAP = 1;
-
-        let prevRanges = groupGapsToRanges(prevGaps, rowLength);
-        if (prevRanges.length === 0) {
-          const center = Math.floor(rowLength / 2);
-          const width = rand() < 0.6 ? 3 : 2;
-          const startA = clampInt(center - Math.floor(width / 2), 0, rowLength - 1);
-          const a = { startCol: startA, endCol: Math.min(rowLength - 1, startA + width - 1) };
-          const twoPaths = rowLength >= 8 && rand() < 0.35;
-          if (twoPaths) {
-            const offset = Math.max(2, Math.floor(rowLength / 4));
-            const bCenter = clampInt(center + (rand() < 0.5 ? -offset : offset), 0, rowLength - 1);
-            const bStart = clampInt(bCenter - 1, 0, rowLength - 1);
-            const b = { startCol: bStart, endCol: Math.min(rowLength - 1, bStart + 1) };
-            prevRanges = enforceRangeConstraints([a, b], rowLength);
-          } else {
-            prevRanges = enforceRangeConstraints([a], rowLength);
-          }
-        }
-
-        let ranges = ensureMinWidth(prevRanges, rowLength, MIN_W);
-        ranges = maybeMutateRanges(ranges, rowLength, rand);
-        ranges = ensureMinWidth(ranges, rowLength, MIN_W);
-        ranges = ensureEachCurrOverlapsSomePrev(ranges, prevRanges, rowLength, MIN_OVERLAP);
-
-        if (ranges.length < MAX_PATHS && rand() < 0.25) {
-          let widestIdx = 0;
-          let widest = 0;
-          for (let i = 0; i < ranges.length; i++) {
-            const w = rangeWidthCols(ranges[i]);
-            if (w > widest) {
-              widest = w;
-              widestIdx = i;
-            }
-          }
-          if (widest >= MIN_W * 2 + 1) {
-            const children = splitRange(ranges[widestIdx], rowLength, MIN_W);
-            if (children.length > 1) {
-              const next = [...ranges.slice(0, widestIdx), ...children, ...ranges.slice(widestIdx + 1)];
-              ranges = enforceRangeConstraints(next, rowLength);
-              ranges = ensureMinWidth(ranges, rowLength, MIN_W);
-              ranges = ensureEachCurrOverlapsSomePrev(ranges, prevRanges, rowLength, MIN_OVERLAP);
-            }
-          }
-        }
-
-        if (ranges.length > MAX_PATHS) {
-          ranges = [...ranges]
-            .sort((a, b) => rangeWidthCols(b) - rangeWidthCols(a))
-            .slice(0, MAX_PATHS)
-            .sort((a, b) => a.startCol - b.startCol);
-        }
-
-        ranges = ensureMinWidth(ranges, rowLength, MIN_W);
-        ranges = ranges.map((r) => {
-          const w = rangeWidthCols(r);
-          if (w <= MAX_W) return r;
-          const center = Math.round(rangeCenterCols(r));
-          const half = Math.floor(MAX_W / 2);
-          const start = clampInt(center - half, 0, rowLength - 1);
-          const end = clampInt(start + MAX_W - 1, 0, rowLength - 1);
-          return { startCol: start, endCol: end };
-        });
-        ranges = enforceRangeConstraints(ranges, rowLength);
-        ranges = ensureMinWidth(ranges, rowLength, MIN_W);
-        ranges = ensureEachCurrOverlapsSomePrev(ranges, prevRanges, rowLength, MIN_OVERLAP);
-        return rangesToGaps(ranges);
-      }
-
-      function smoothstep(edge0, edge1, x) {
-        const t = clamp((x - edge0) / Math.max(0.00001, edge1 - edge0), 0, 1);
-        return t * t * (3 - 2 * t);
-      }
-
-      function blocksFromGaps(columns, gaps) {
-        const gapSet = new Set(gaps || []);
-        const blocks = [];
-        for (let c = 0; c < columns; c++) {
-          if (!gapSet.has(c)) blocks.push(c);
-        }
-        return blocks;
-      }
-
-      function rangeAroundCenter(center, width, columns) {
-        const safeWidth = clampInt(width, 2, Math.max(2, Math.min(6, columns - 2)));
-        let start = Math.round(center - (safeWidth - 1) / 2);
-        start = clampInt(start, 1, Math.max(1, columns - safeWidth - 1));
-        return { startCol: start, endCol: start + safeWidth - 1 };
-      }
-
-      function buildMusicJourneyLevel(analysis, seed) {
-        const columns = 15;
-        const { rowDuration, waterSpeed, rowHeight } = getMusicTimingConfig();
-        const rand = mulberry32((clampInt(Number(seed) || 1, 1, 2147483647) ^ 0x9e3779b9) >>> 0);
-        const rowCount = clampInt(Math.ceil(analysis.duration / rowDuration) + 4, 18, 520);
-        const centerStart = (columns - 1) / 2;
-        const rightGoal = columns - 3;
-        let currentCenter = centerStart;
-        let prevRanges = [];
-        const rows = [];
-
-        for (let r = 0; r < rowCount; r++) {
-          const time = r * rowDuration;
-          const progress = clamp(time / Math.max(0.001, analysis.duration), 0, 1);
-          const feature = getFeatureAtTime(analysis, time);
-          const beatsElapsed = time * analysis.bpm / 60;
-          const phraseIndex = Math.floor(beatsElapsed / 16);
-          const phraseDir = phraseIndex % 2 === 0 ? 1 : -1;
-
-          // The song gives intent, then continuity rules turn it into fair rows.
-          const rightwardJourney = centerStart + (rightGoal - centerStart) * smoothstep(0.12, 0.9, progress);
-          const musicalSwing =
-            Math.sin(progress * Math.PI * 7 + seed * 0.013) * (0.8 + feature.energy * 1.4) +
-            (feature.brightness - 0.42) * 3.2 +
-            phraseDir * feature.onset * 1.4 +
-            (rand() - 0.5) * feature.beatStrength * 2.2;
-          const desiredCenter = clamp(rightwardJourney + musicalSwing, 1.5, columns - 2.5);
-          const maxShift = 0.65 + feature.beatStrength * 0.75 + feature.energy * 0.35;
-          currentCenter += clamp(desiredCenter - currentCenter, -maxShift, maxShift);
-
-          const calmWidthBonus = (1 - feature.energy) * 1.35;
-          const beatNarrowing = feature.beatStrength * 1.45 + feature.onset * 0.65;
-          const width = clampInt(4.8 + calmWidthBonus - beatNarrowing, 2, 6);
-          let ranges = [rangeAroundCenter(currentCenter, width, columns)];
-
-          const canSplit =
-            feature.energy > 0.58 &&
-            feature.beatStrength > 0.34 &&
-            r > 8 &&
-            rand() < 0.32 + feature.onset * 0.22;
-          if (canSplit) {
-            const sideDir = feature.brightness > 0.46 ? 1 : -1;
-            const sideCenter = clamp(currentCenter + sideDir * (2.4 + rand() * 1.8), 1.5, columns - 2.5);
-            ranges = enforceRangeConstraints(
-              [...ranges, rangeAroundCenter(sideCenter, 2, columns)],
-              columns
-            );
-          }
-
-          if (prevRanges.length) {
-            ranges = ensureEachCurrOverlapsSomePrev(ranges, prevRanges, columns, 1);
-          }
-          ranges = ensureMinWidth(enforceRangeConstraints(ranges, columns), columns, 2);
-          const gaps = rangesToGaps(ranges);
-          prevRanges = ranges;
-
-          rows.push({
-            blocks: blocksFromGaps(columns, gaps),
-            gaps,
-            __music: {
-              time: Number(time.toFixed(3)),
-              energy: Number(feature.energy.toFixed(3)),
-              beat: Number(feature.beatStrength.toFixed(3)),
-              brightness: Number(feature.brightness.toFixed(3)),
-              onset: Number(feature.onset.toFixed(3)),
-            },
-          });
-        }
-
-        return {
-          columns,
-          rows,
-          meta: {
-            source: "music-template-preview",
-            bpm: Number(analysis.bpm.toFixed(1)),
-            duration: Number(analysis.duration.toFixed(3)),
-            waterSpeed,
-            rowHeight,
-            rowDuration: Number(rowDuration.toFixed(4)),
-            note: "Rows are generated from local energy/onset/brightness, then clamped for row-to-row gap continuity.",
-          },
-        };
-      }
-
-      function buildHybridPreviewLevel(level, seed) {
-        const normalized = normalizeLevelForEditing(level);
-        const columns = normalized.columns;
-        const rows = normalized.rows;
-        const rand = mulberry32(clampInt(Number(seed) || 1, 1, 2147483647));
-
-        let prevGaps = [];
-        const nextRows = rows.map((row, rowIndex) => {
-          const gapsProc = generateMultiPathGaps(prevGaps, columns, rand);
-          prevGaps = gapsProc;
-
-          // Hybrid rule (Pattern A):
-          // - gaps are proc-generated (playability/continuity)
-          // - blocks are template blocks clipped to never occupy a gap column
-          const gapsSet = new Set(gapsProc);
-          const blocksTemplate = row.blocks.slice();
-          const blocksFinal = blocksTemplate.filter((c) => !gapsSet.has(c));
-          const conflicts = blocksTemplate.filter((c) => gapsSet.has(c));
-
-          return {
-            blocks: blocksFinal,
-            gaps: gapsProc,
-            __gapsProc: gapsProc,
-            __blocksTemplate: blocksTemplate,
-            __conflicts: conflicts,
-          };
-        });
-
-        return { columns, rows: nextRows };
-      }
-
-      function resizeCanvasToCssPixels(cssWidth, cssHeight) {
-        const dpr = window.devicePixelRatio || 1;
-        const width = Math.max(1, Math.ceil(cssWidth));
-        const height = Math.max(1, Math.ceil(cssHeight));
-        $canvas.style.width = `${width}px`;
-        $canvas.style.height = `${height}px`;
-        const w = Math.max(1, Math.floor(width * dpr));
-        const h = Math.max(1, Math.floor(height * dpr));
-        if ($canvas.width !== w || $canvas.height !== h) {
-          $canvas.width = w;
-          $canvas.height = h;
-        }
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      }
-
-      function scrollCanvasToBottom() {
-        $canvasWrap.scrollTop = Math.max(0, $canvasWrap.scrollHeight - $canvasWrap.clientHeight);
-      }
-
-      function scrollCanvasToRow(rowIndex, behavior = "auto") {
-        if (!lastView || rowIndex < 0 || rowIndex >= lastView.rowCount) return;
-        const { startY, cell, gap, rowCount } = lastView;
-        const rowFromTop = rowCount - 1 - rowIndex;
-        const rowTop = startY + rowFromTop * (cell + gap);
-        const rowMid = rowTop + cell / 2;
-        const targetTop = clamp(
-          rowMid - $canvasWrap.clientHeight * 0.55,
-          0,
-          Math.max(0, $canvasWrap.scrollHeight - $canvasWrap.clientHeight)
-        );
-        $canvasWrap.scrollTo({ top: targetTop, behavior });
-      }
-
-      function render(level, opts) {
-        const columns = Math.max(1, Number(level?.columns ?? 0) || 0);
-        const rows = Array.isArray(level?.rows) ? level.rows : [];
-        const rowCount = rows.length;
-        if (!columns || !rowCount) {
-          drawEmpty("No rows to render.");
-          $stats.textContent = `columns=${columns || 0}, rows=${rowCount}`;
-          return;
-        }
-
-        const cell = opts.cell;
-        const gap = opts.gap;
-        const pad = opts.pad;
-        const axisPadLeft = opts.axisPadLeft;
-        const axisPadTop = opts.axisPadTop;
-        const showHybridGaps = Boolean(opts.showHybridGaps);
-        const showHybridConflicts = Boolean(opts.showHybridConflicts);
-        const animTime = opts.animTime != null ? opts.animTime : performance.now();
-        const activeRow = Number.isFinite(opts.activeRow) ? opts.activeRow : -1;
-
-        const gridW = columns * cell + (columns - 1) * gap;
-        const gridH = rowCount * cell + (rowCount - 1) * gap;
-        const viewportW = Math.max(1, $canvasWrap.clientWidth);
-        const viewportH = Math.max(1, $canvasWrap.clientHeight);
-        const contentW = Math.max(viewportW, gridW + pad * 2 + axisPadLeft);
-        const contentH = Math.max(viewportH, gridH + pad * 2 + axisPadTop);
-        const previousContentKey = lastCanvasContentKey;
-        const contentKey = `${columns}:${rowCount}:${cell}:${gap}:${contentW}:${contentH}`;
-
-        // Keep block pixels constant. The scroll container handles tall templates.
-        const scale = 1;
-
-        resizeCanvasToCssPixels(contentW, contentH);
-        const cssW = contentW;
-        const cssH = contentH;
-
-        // Clear with purple background.
-        ctx.clearRect(0, 0, cssW, cssH);
-        ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--canvas-bg").trim();
-        ctx.fillRect(0, 0, cssW, cssH);
-
-        const startX = Math.floor((cssW - axisPadLeft - gridW) / 2) + axisPadLeft;
-        const startY = cssH - pad - gridH;
-
-        lastView = { startX, startY, scale, cell, gap, pad, columns, rowCount, axisPadLeft, axisPadTop };
-        lastCanvasContentKey = contentKey;
-
-        // Axis labels
-        ctx.save();
-        ctx.fillStyle = "rgba(255,255,255,0.72)";
-        ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        for (let c = 0; c < columns; c++) {
-          const x = startX + (c * (cell + gap) + cell / 2) * scale;
-          const y = startY - Math.max(10, axisPadTop * 0.55);
-          ctx.fillText(String(c), x, y);
-        }
-        ctx.textAlign = "right";
-        for (let r = 0; r < rowCount; r++) {
-          const rr = rowCount - 1 - r;
-          const y = startY + (rr * (cell + gap) + cell / 2) * scale;
-          const x = startX - Math.max(10, axisPadLeft * 0.28);
-          ctx.fillText(String(r), x, y);
-        }
-        ctx.restore();
-
-        // Subtle grid backdrop. (Row 0 should be bottom, so y is flipped.)
-        ctx.save();
-        ctx.translate(startX, startY);
-        ctx.scale(scale, scale);
-        ctx.fillStyle = "rgba(255,255,255,0.06)";
-        for (let r = 0; r < rowCount; r++) {
-          const rr = rowCount - 1 - r;
-          for (let c = 0; c < columns; c++) {
-            const x = c * (cell + gap);
-            const y = rr * (cell + gap);
-            ctx.fillRect(x, y, cell, cell);
-          }
-        }
-        ctx.restore();
-
-        if (activeRow >= 0 && activeRow < rowCount) {
-          const rr = rowCount - 1 - activeRow;
-          const y = rr * (cell + gap);
-          const rowDef = rows[activeRow] || {};
-          const beat = clamp(Number(rowDef.__music?.beat ?? 0), 0, 1);
-          ctx.save();
-          ctx.translate(startX, startY);
-          ctx.scale(scale, scale);
-          ctx.fillStyle = `rgba(255, 255, 255, ${0.09 + beat * 0.08})`;
-          ctx.fillRect(-4, y - 4, gridW + 8, cell + 8);
-          ctx.strokeStyle = `rgba(255, 244, 156, ${0.74 + beat * 0.24})`;
-          ctx.lineWidth = 2.5;
-          ctx.strokeRect(-4, y - 4, gridW + 8, cell + 8);
-          ctx.fillStyle = "rgba(255,244,156,0.95)";
-          ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
-          ctx.textAlign = "left";
-          ctx.textBaseline = "bottom";
-          ctx.fillText(
-            `now row ${activeRow}${rowDef.__music ? `  beat ${rowDef.__music.beat}` : ""}`,
-            0,
-            Math.max(12, y - 7)
-          );
-          ctx.restore();
-        }
-
-        // Draw blocks (orange).
-        const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
-        const gapColor = "rgba(61, 209, 255, 0.22)";
-        const gapStroke = "rgba(61, 209, 255, 0.62)";
-        ctx.save();
-        ctx.translate(startX, startY);
-        ctx.scale(scale, scale);
-
-        let totalBlocks = 0;
-        for (let r = 0; r < rowCount; r++) {
-          const rr = rowCount - 1 - r;
-          const rowDef = rows[r] || {};
-          const blocks = normalizeUniqueInts(rowDef.blocks, 0, columns - 1);
-          const gapsArr = normalizeUniqueInts(rowDef.gaps, 0, columns - 1);
-          const conflictsArr = showHybridConflicts
-            ? normalizeUniqueInts(rowDef.__conflicts, 0, columns - 1)
-            : [];
-          totalBlocks += blocks.length;
-
-          // Optional gap overlay (hybrid mode): lightly tint + outline the open cells.
-          if (showHybridGaps && gapsArr.length) {
-            for (let i = 0; i < gapsArr.length; i++) {
-              const col = gapsArr[i];
-              const x = col * (cell + gap);
-              const y = rr * (cell + gap);
-              ctx.fillStyle = gapColor;
-              ctx.fillRect(x, y, cell, cell);
-              ctx.strokeStyle = gapStroke;
-              ctx.lineWidth = 1;
-              ctx.strokeRect(x + 0.5, y + 0.5, Math.max(0, cell - 1), Math.max(0, cell - 1));
-            }
-          }
-
-          // Collectible coin preview (hybrid): JSON block ∩ proc gap — green coin, flip + shine.
-          if (showHybridConflicts && conflictsArr.length) {
-            for (let i = 0; i < conflictsArr.length; i++) {
-              const col = conflictsArr[i];
-              const x = col * (cell + gap);
-              const y = rr * (cell + gap);
-              const cx = x + cell / 2;
-              const cy = y + cell / 2;
-              const r = Math.max(3, Math.min(cell * 0.42, cell / 2 - 1));
-              const phase = col * 0.73 + rr * 1.17;
-              drawGreenCoin(ctx, cx, cy, r, animTime, phase);
-            }
-          }
-
-          for (let i = 0; i < blocks.length; i++) {
-            const col = blocks[i];
-            const x = col * (cell + gap);
-            const y = rr * (cell + gap);
-            ctx.fillStyle = accent;
-            ctx.fillRect(x, y, cell, cell);
-            // tiny highlight
-            ctx.fillStyle = "rgba(255,255,255,0.12)";
-            ctx.fillRect(x + 2, y + 2, Math.max(0, cell - 4), Math.max(0, cell - 4));
-          }
-        }
-        ctx.restore();
-
-        const activeText =
-          activeRow >= 0 && activeRow < rowCount ? `, activeRow=${activeRow}` : "";
-        $stats.textContent = `columns=${columns}, rows=${rowCount}, blocks=${totalBlocks}${activeText}`;
-
-        if (opts.scrollMode === "active" && activeRow >= 0) {
-          scrollCanvasToRow(activeRow, opts.scrollBehavior || "auto");
-        } else if (opts.scrollMode === "bottom" || previousContentKey !== contentKey) {
-          scrollCanvasToBottom();
-        }
-      }
-
-      function drawEmpty(message) {
-        const cssW = Math.max(1, $canvasWrap.clientWidth);
-        const cssH = Math.max(1, $canvasWrap.clientHeight);
-        resizeCanvasToCssPixels(cssW, cssH);
-        ctx.clearRect(0, 0, cssW, cssH);
-        ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--canvas-bg").trim();
-        ctx.fillRect(0, 0, cssW, cssH);
-        ctx.fillStyle = "rgba(255,255,255,0.78)";
-        ctx.font = "14px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(message, cssW / 2, cssH / 2);
-      }
-
-      function readOptions() {
-        const raw = Number($cellSize.value);
-        const cell = clampInt(Number.isFinite(raw) ? raw : 22, 6, 70);
-        if (String(cell) !== $cellSize.value) $cellSize.value = String(cell);
-        // Extra padding for axis labels.
-        const axisPadLeft = 34;
-        const axisPadTop = 30;
-        return { cell, gap: 3, pad: 16, axisPadLeft, axisPadTop, fit: false, showHybridGaps: false };
-      }
-
-      function tryRender(options = {}) {
-        const fit = options.fit;
-        const animTime = options.animTime;
-        const skipAnimScheduling = Boolean(options.skipAnimScheduling);
-        const suppressStatus = Boolean(options.suppressStatus);
-        const scrollMode =
-          options.scrollMode ||
-          (skipAnimScheduling || suppressStatus ? "preserve" : "bottom");
-        if (typeof fit === "boolean") lastRenderFit = fit;
-        try {
-          const tuning = mergePathLabTuning();
-          refreshPathLabHint();
-          if (typeof PathLab !== "undefined" && $pathLabEnabled?.checked) {
-            const level = PathLab.buildLevel(readPathLabConfig(tuning));
-            if (!level || typeof level !== "object") throw new Error("PathLab returned empty.");
-            if (!Array.isArray(level.rows)) throw new Error("PathLab rows missing.");
-            const opts = readOptions();
-            opts.fit = Boolean(fit !== undefined ? fit : lastRenderFit);
-            opts.showHybridGaps = Boolean($showHybridGaps.checked);
-            opts.showHybridConflicts = false;
-            opts.animTime = animTime != null ? animTime : performance.now();
-            opts.activeRow = musicActiveRow;
-            opts.scrollMode = scrollMode;
-            opts.scrollBehavior = options.scrollBehavior;
-            render(level, opts);
-            if (!suppressStatus) {
-              setStatusOk(`Path lab: ${level.meta?.segment || "?"} (${level.rows.length} rows).`);
-            }
-            stopCoinAnimation();
-            return;
-          }
-
-          const levelRaw = parseLevel($input.value);
-          const isHybrid = Boolean($hybridMode.checked) && !$pathLabEnabled?.checked;
-          const seed = clampInt(Number($seed.value) || 1, 1, 2147483647);
-          if (String(seed) !== $seed.value) $seed.value = String(seed);
-
-          const level = isHybrid ? buildHybridPreviewLevel(levelRaw, seed) : levelRaw;
-          if (!level || typeof level !== "object") throw new Error("Top-level JSON must be an object.");
-          if (!Array.isArray(level.rows)) throw new Error("Missing `rows` array.");
-          const opts = readOptions();
-          opts.fit = Boolean(fit !== undefined ? fit : lastRenderFit);
-          // Overlays are only meaningful in hybrid mode.
-          opts.showHybridGaps = isHybrid && Boolean($showHybridGaps.checked);
-          opts.showHybridConflicts = isHybrid && Boolean($showHybridConflicts.checked);
-          opts.animTime = animTime != null ? animTime : performance.now();
-          opts.activeRow = musicActiveRow;
-          opts.scrollMode = scrollMode;
-          opts.scrollBehavior = options.scrollBehavior;
-          render(level, opts);
-          if (!suppressStatus) {
-            setStatusOk(isHybrid ? `Rendered (hybrid gaps, seed=${seed}).` : "Rendered.");
-          }
-        } catch (e) {
-          drawEmpty("Invalid JSON.");
-          setStatusError(String(e?.message || e));
-          $stats.textContent = "—";
-          stopCoinAnimation();
-        }
-        if (!skipAnimScheduling) {
-          const isHybrid = Boolean($hybridMode.checked);
-          if (isHybrid && Boolean($showHybridConflicts.checked)) scheduleCoinAnimationLoop();
-          else stopCoinAnimation();
-        }
-      }
-
-      function formatInput() {
-        try {
-          const level = parseLevel($input.value);
-          $input.value = JSON.stringify(level, null, 2);
-          setStatusOk("Formatted.");
-        } catch (e) {
-          setStatusError(String(e?.message || e));
-        }
-      }
-
-      async function ensureMusicAnalysis() {
-        if (!musicAudioBuffer) {
-          try {
-            await loadMusicFromUrl(MUSIC_ASSET_URL);
-          } catch (e) {
-            throw new Error(
-              `Could not auto-load ${MUSIC_ASSET_URL}. If you opened this HTML directly and the browser blocks local fetch, choose the .ogg with the file picker. ${e?.message || e}`
-            );
-          }
-        }
-        if (!musicAnalysis) {
-          setMusicStatus("Analyzing audio features...");
-          musicAnalysis = analyzeMusicBuffer(musicAudioBuffer);
-          setMusicStatus(
-            `Analyzed: ${musicAnalysis.duration.toFixed(1)}s, estimated ${musicAnalysis.bpm.toFixed(
-              0
-            )} BPM, ${musicAnalysis.peaks.length} beat/onset peaks.`
-          );
-        }
-        return musicAnalysis;
-      }
-
-      async function analyzeMusic() {
-        try {
-          await ensureMusicAnalysis();
-        } catch (e) {
-          setMusicStatus(String(e?.message || e), true);
-        }
-      }
-
-      async function generateMusicTemplate() {
-        try {
-          const analysis = await ensureMusicAnalysis();
-          const seed = clampInt(Number($seed.value) || 1, 1, 2147483647);
-          const level = buildMusicJourneyLevel(analysis, seed);
-          $hybridMode.checked = false;
-          musicTemplateActive = true;
-          musicActiveRow = -1;
-          $input.value = JSON.stringify(level, null, 2);
-          tryRender({ fit: false, scrollMode: "bottom" });
-          const timing = getMusicTimingConfig();
-          setMusicStatus(
-            `Generated ${level.rows.length} rows from music. Row timing: ${timing.rowDuration.toFixed(
-              3
-            )}s (${timing.rowHeight}px / ${timing.waterSpeed}px/s). Press Play to watch the journey.`
-          );
-        } catch (e) {
-          setMusicStatus(String(e?.message || e), true);
-        }
-      }
-
-      function stopMusicPlayback(resetButton = true) {
-        if (musicRaf) {
-          cancelAnimationFrame(musicRaf);
-          musicRaf = null;
-        }
-        if (!musicAudio.paused) musicAudio.pause();
-        if (resetButton) $btnMusicPlay.textContent = "Play";
-      }
-
-      function updateMusicPlayhead() {
-        const timing = getMusicTimingConfig();
-        const nextRow = Math.floor(musicAudio.currentTime / timing.rowDuration);
-        if (nextRow !== musicActiveRow) {
-          musicActiveRow = nextRow;
-          tryRender({
-            fit: false,
-            animTime: performance.now(),
-            skipAnimScheduling: true,
-            suppressStatus: true,
-            scrollMode: "active",
-            scrollBehavior: "smooth",
-          });
-        }
-        if (musicAudio.ended || musicAudio.paused) {
-          stopMusicPlayback();
-          return;
-        }
-        musicRaf = requestAnimationFrame(updateMusicPlayhead);
-      }
-
-      async function toggleMusicPlayback() {
-        if (!musicAudio.src) {
-          await analyzeMusic();
-        }
-        if (!musicTemplateActive) {
-          await generateMusicTemplate();
-        }
-        if (!musicAudio.src) return;
-
-        if (!musicAudio.paused) {
-          stopMusicPlayback();
-          setMusicStatus(`Paused at ${musicAudio.currentTime.toFixed(2)}s, row ${musicActiveRow}.`);
-          return;
-        }
-
-        if (musicAudio.ended) musicAudio.currentTime = 0;
-        try {
-          await musicAudio.play();
-          $btnMusicPlay.textContent = "Pause";
-          setMusicStatus("Playing music template. Highlight follows water speed / row height.");
-          updateMusicPlayhead();
-        } catch (e) {
-          setMusicStatus(String(e?.message || e), true);
-        }
-      }
-
-      // Wiring
-      $btnPathLabApply.addEventListener("click", () => tryRender({ fit: false, scrollMode: "bottom" }));
-      $pathLabEnabled.addEventListener("change", () => tryRender({ fit: false, scrollMode: "bottom" }));
-      document.getElementById("pl_tuningJson")?.addEventListener("input", () => {
-        window.clearTimeout(window.__plHintT);
-        window.__plHintT = window.setTimeout(refreshPathLabHint, 120);
-      });
-      [
-        "pl_segment",
-        "pl_columns",
-        "pl_rowCount",
-        "pl_pathRunId",
-        "pl_streamStart",
-        "pl_advanceStream",
-        "pl_ov_funnel",
-        "pl_ov_pinball",
-        "pl_ov_falsewall",
-        "pl_ov_rest",
-        "pl_ov_chute",
-      ].forEach((id) => {
-        const n = document.getElementById(id);
-        if (!n) return;
-        n.addEventListener("change", () => {
-          refreshPathLabHint();
-          if ($pathLabEnabled?.checked) tryRender({ fit: false, scrollMode: "bottom" });
-        });
-      });
-
-      document.getElementById("btnSmily").addEventListener("click", () => {
-        stopMusicPlayback();
-        musicTemplateActive = false;
-        musicActiveRow = -1;
-        $input.value = JSON.stringify(smilyObj, null, 2);
-        tryRender({ fit: false, scrollMode: "bottom" });
-      });
-      document.getElementById("btnFormat").addEventListener("click", formatInput);
-      document.getElementById("btnRender").addEventListener("click", () => tryRender({ fit: false, scrollMode: "bottom" }));
-      document.getElementById("btnFit").addEventListener("click", () => tryRender({ fit: false, scrollMode: "bottom" }));
-      $hybridMode.addEventListener("change", () => tryRender({ fit: false, scrollMode: "bottom" }));
-      $showHybridGaps.addEventListener("change", () => tryRender({ fit: false, scrollMode: "preserve" }));
-      $showHybridConflicts.addEventListener("change", () => tryRender({ fit: false, scrollMode: "preserve" }));
-      $seed.addEventListener("change", () => tryRender({ fit: false, scrollMode: "bottom" }));
-      $btnLoadDefaultMusic.addEventListener("click", async () => {
-        try {
-          stopMusicPlayback();
-          await loadMusicFromUrl(MUSIC_ASSET_URL);
-        } catch (e) {
-          setMusicStatus(
-            `Could not load default asset. If this page is opened as file://, choose assets/empacotatron_full_0.ogg manually. ${e?.message || e}`,
-            true
-          );
-        }
-      });
-      $musicFile.addEventListener("change", async () => {
-        try {
-          stopMusicPlayback();
-          await loadMusicFromFile($musicFile.files?.[0]);
-        } catch (e) {
-          setMusicStatus(String(e?.message || e), true);
-        }
-      });
-      $btnAnalyzeMusic.addEventListener("click", analyzeMusic);
-      $btnGenerateMusicTemplate.addEventListener("click", generateMusicTemplate);
-      $btnMusicPlay.addEventListener("click", toggleMusicPlayback);
-      $musicWaterSpeed.addEventListener("change", () => {
-        getMusicTimingConfig();
-        if (musicAnalysis) generateMusicTemplate();
-      });
-      $musicRowHeight.addEventListener("change", () => {
-        getMusicTimingConfig();
-        if (musicAnalysis) generateMusicTemplate();
-      });
-      $btnReroll.addEventListener("click", () => {
-        const next = clampInt(Math.floor(Math.random() * 2147483647) + 1, 1, 2147483647);
-        $seed.value = String(next);
-        if (musicAnalysis && musicTemplateActive) {
-          generateMusicTemplate();
-          return;
-        }
-        tryRender({ fit: false, scrollMode: "bottom" });
-      });
-
-      function updateEditButton() {
-        $btnEdit.textContent = editMode ? "Edit: on" : "Edit: off";
-        $btnEdit.style.borderColor = editMode ? "rgba(255,154,60,0.55)" : "var(--border)";
-        $btnEdit.style.background = editMode ? "rgba(255,154,60,0.10)" : "rgba(255,255,255,0.04)";
-      }
-
-      $btnEdit.addEventListener("click", () => {
-        editMode = !editMode;
-        updateEditButton();
-        setStatusOk(editMode ? "Edit mode enabled. Click canvas cells to toggle." : "Edit mode disabled.");
-      });
-
-      $canvas.addEventListener("click", (ev) => {
-        if (!editMode) return;
-        if (!lastView) return;
-
-        try {
-          const rect = $canvas.getBoundingClientRect();
-          const cssX = ev.clientX - rect.left;
-          const cssY = ev.clientY - rect.top;
-          const { startX, startY, scale, cell, gap, columns, rowCount } = lastView;
-
-          const x = (cssX - startX) / scale;
-          const y = (cssY - startY) / scale;
-          if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-          if (x < 0 || y < 0) return;
-
-          const stride = cell + gap;
-          const col = Math.floor(x / stride);
-          const rowFromTop = Math.floor(y / stride);
-          if (col < 0 || col >= columns) return;
-          if (rowFromTop < 0 || rowFromTop >= rowCount) return;
-
-          // Ignore clicks in the gap area.
-          const inCellX = x - col * stride;
-          const inCellY = y - rowFromTop * stride;
-          if (inCellX < 0 || inCellX > cell || inCellY < 0 || inCellY > cell) return;
-
-          // Convert rendered row (top-based) -> JSON row index (row 0 is bottom).
-          const jsonRow = rowCount - 1 - rowFromTop;
-
-          const parsed = parseLevel($input.value);
-          const normalized = normalizeLevelForEditing(parsed);
-          if (jsonRow < 0 || jsonRow >= normalized.rows.length) return;
-
-          const row = normalized.rows[jsonRow];
-          const hasBlock = row.blocks.includes(col);
-
-          if (hasBlock) {
-            row.blocks = row.blocks.filter((v) => v !== col);
-            if (!row.gaps.includes(col)) row.gaps.push(col);
-          } else {
-            row.blocks = [...row.blocks, col];
-            row.gaps = row.gaps.filter((v) => v !== col);
-          }
-
-          row.blocks = normalizeUniqueInts(row.blocks, 0, normalized.columns - 1);
-          row.gaps = normalizeUniqueInts(row.gaps, 0, normalized.columns - 1);
-
-          const next = { ...parsed, columns: normalized.columns, rows: normalized.rows };
-          $input.value = JSON.stringify(next, null, 2);
-          tryRender({ fit: false, scrollMode: "preserve" });
-          setStatusOk(`Toggled row=${jsonRow}, col=${col} → ${hasBlock ? "gap" : "block"}.`);
-        } catch (e) {
-          setStatusError(String(e?.message || e));
-        }
-      });
-
-      $cellSize.addEventListener("change", () => tryRender({ fit: false, scrollMode: "bottom" }));
-      $input.addEventListener("input", () => {
-        musicTemplateActive = false;
-        musicActiveRow = -1;
-        // light debounce
-        window.clearTimeout(window.__rntgePreviewT);
-        window.__rntgePreviewT = window.setTimeout(() => tryRender({ fit: false, scrollMode: "bottom" }), 180);
-      });
-
-      const ro = new ResizeObserver(() => tryRender({ fit: false, scrollMode: "preserve" }));
-      ro.observe(document.body);
-
-      musicAudio.addEventListener("ended", () => {
-        stopMusicPlayback();
-        setMusicStatus("Playback ended. Press Play to replay the generated journey.");
-      });
-
-      // Initial state
-      updateEditButton();
-      refreshPathLabHint();
-      $input.value = JSON.stringify(smilyObj, null, 2);
-      tryRender({ fit: false, scrollMode: "bottom" });
-    </script>
+    <script src="scripts/stage-design-lab/schema.js"></script>
+    <script src="scripts/stage-design-lab/hazard-catalog.js"></script>
+    <script src="scripts/stage-design-lab/composer.js"></script>
+    <script src="scripts/stage-design-lab/interaction.js"></script>
+    <script src="scripts/stage-design-lab/hazard-sim.js"></script>
+    <script src="scripts/stage-design-lab/hazard-generators.js"></script>
+    <script src="scripts/stage-design-lab/hazard-renderer.js"></script>
+    <script src="scripts/stage-design-lab/fairness-v2.js"></script>
+    <script src="scripts/stage-design-lab/renderer.js"></script>
+    <script src="scripts/stage-design-lab/playback.js"></script>
+    <script src="scripts/stage-design-lab/export.js"></script>
+    <script src="scripts/stage-design-lab/app.js"></script>
   </body>
 </html>
-

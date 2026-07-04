@@ -4,13 +4,15 @@
 **Audience:** Founder, artists, implementers, future agent sessions  
 **Purpose:** Turn the shipped infinite-run **engine** into a game players **feel, collect, and return to** — without new core verbs or endless single-world sessions.
 
-**Skill / timing / physics refactor:** **[passage-timing-roadmap.md](./passage-timing-roadmap.md)** is the **authoritative implementation blueprint** for passage-defined skills, speed tiers, flow streak, and trail feedback. Continue Layer A skill work from that doc; this file owns meta phases, worlds, coins, and copy deck **voice** — not timing detector semantics.
+**Stage chapters + hazards + skill pivot:** **[stage-hazard-progression-roadmap.md](./stage-hazard-progression-roadmap.md)** is the **authoritative blueprint** for visible stage progression, hazard vocabulary, survival-heat feedback, and flow-streak deprecation.  
+**Passage timing (partial):** **[passage-timing-roadmap.md](./passage-timing-roadmap.md)** — keep Track 1 physics only; Track 3 flow streak superseded by stage-hazard doc.
 
 **Companion docs (do not duplicate — link and extend):**
 
 | Doc | Owns |
 |-----|------|
-| **[passage-timing-roadmap.md](./passage-timing-roadmap.md)** | Passage timing tiers, speed steps, flow streak, trail/bounce, rhythm schema, detector refactor — **implementation SSOT** |
+| **[stage-hazard-progression-roadmap.md](./stage-hazard-progression-roadmap.md)** | Stage chapters, hazard catalog (clamp, tilt, vise, buzz wheel), survival heat, flow streak deprecation — **primary implementation SSOT (2026-07-04)** |
+| **[passage-timing-roadmap.md](./passage-timing-roadmap.md)** | Track 1 physics (pin strict, bounce, stage speed) — flow streak / trail / rhythm schema **superseded** by stage-hazard doc |
 | [run-level-progression.md](./run-level-progression.md) | Run blueprint, opening archetypes, milestone **geometry** pools, attempt memory — **backend scheduler** |
 | [../visual-design/swimmer-ai-context.md](../visual-design/swimmer-ai-context.md) | Art AI prompts, layer rules, export sizes |
 | [../containers/ReactNativeSkiaGameEngine/swimmer.styles.md](../../src/containers/ReactNativeSkiaGameEngine/swimmer.styles.md) | **Chunky Underground Aqua Rush** style bible |
@@ -657,9 +659,10 @@ The shipped blueprint system remains **geometry scheduler only**:
 
 ## 14. Next actions (start here)
 
-1. **Passage Timing Track 3:** flow streak + trail + HUD — [passage-timing-roadmap §9](./passage-timing-roadmap.md#9-implementation-tracks-ordered). Track 1 ✅ Track 2 core (`shift_commit` tier) ✅ — see [PT-016](./passage-timing-roadmap.md) / [clarification log](../visual-design/logs/track2-physics-passage-timing-clarification.md).
-2. **Phase 2** (after Track 3 feel check): economy + GREAT!/PERFECT! + coins.
-3. **Deferred:** TAP coach gate policy (PT-014) — founder device pass when convenient.
+1. **Stage hazard progression:** Slice 1 stage identity → vise / clamp / buzz wheel — [stage-hazard-progression-roadmap §11](./stage-hazard-progression-roadmap.md#11-implementation-tracks-ordered).
+2. **Flow streak cleanup:** Slice 7 in stage-hazard doc (founder reverted trail work; remove remaining flow streak code when ready).
+3. **Phase 2:** REST coins + GREAT!/PERFECT! + next-hazard preview ghost (aligns with stage-hazard §4.3).
+4. **Deferred:** TAP coach gate policy (PT-014) — founder device pass when convenient.
 
 ---
 
