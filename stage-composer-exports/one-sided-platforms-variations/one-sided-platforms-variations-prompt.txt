@@ -1,0 +1,8 @@
+Stage design handoff — one-sided-platforms-variations (Stage 1)
+Grid: 6 columns, 32 rows, signature: none
+Hazards: hazard_platform×6
+Tracks: none
+Fairness: Timed: row 22 unreachable at t=4.37s (overlap=0).
+Segments: flow:FLOW teach(32r)
+See attached JSON (schema v2: hazards[], tracks[], markers[], fairnessReport) + PNG screenshot.
+Goal: implement/tune per stage-hazard-progression-roadmap (signature: none).

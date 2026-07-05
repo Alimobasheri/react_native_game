@@ -6,6 +6,10 @@
 
   const S = () => global.StageDesignSchema;
   const Sim = () => global.StageDesignHazardSim;
+  const G = () => global.StageDesignHazardGenerators;
+
+  const MIN_RESIDUAL_HINT =
+    "check pressCols cap (min residual gap = 1 col on 6-col grid; see platform-shaft-roadmap PS-003)";
 
   function groupGapsToRanges(gaps, rowLength) {
     return S().groupGapsToRanges(gaps, rowLength);
@@ -24,6 +28,35 @@
     return maxOv;
   }
 
+  function gapWidthFromRow(flatRow) {
+    return Array.isArray(flatRow?.gaps) ? flatRow.gaps.length : 0;
+  }
+
+  function auditPlatformPressCaps(doc, warnings) {
+    const columns = doc.grid?.columns ?? 6;
+    const flat = doc.flattened?.rows || [];
+    const hazards = doc.hazards || [];
+    const minRes = G()?.MIN_RESIDUAL_GAP_COLS_DEFAULT ?? 1;
+    const maxPress = G()?.maxPressColsForCorridor;
+
+    if (!maxPress) return;
+
+    for (const hz of hazards) {
+      if (hz.kind !== "hazard_platform") continue;
+      const rs = hz.bounds?.rowStart ?? hz.anchor?.globalRowIndex ?? 0;
+      const row = flat[rs];
+      if (!row) continue;
+      const gapW = gapWidthFromRow(row);
+      const requested = hz.params?.pressCols ?? 1;
+      const allowed = maxPress(gapW, 0, minRes);
+      if (requested > allowed) {
+        warnings.push(
+          `Platform ${hz.id}: pressCols=${requested} exceeds cap ${allowed} for gap width ${gapW} — ${MIN_RESIDUAL_HINT}.`
+        );
+      }
+    }
+  }
+
   function computeFairnessReport(doc) {
     const warnings = [];
     const issues = [];
@@ -31,6 +64,13 @@
     const flat = doc.flattened?.rows || [];
     const rowHeight = doc.playback?.rowHeightPx || 24;
     const speed = doc.playback?.waterSpeedPxPerSec || 350;
+    const hasPlatform = (doc.hazards || []).some((h) => h.kind === "hazard_platform");
+
+    if (Array.isArray(doc.meta?.harmonizerWarnings)) {
+      warnings.push(...doc.meta.harmonizerWarnings);
+    }
+
+    auditPlatformPressCaps(doc, warnings);
 
     for (let i = 1; i < flat.length; i++) {
       const ov = overlapBetweenRows(flat[i - 1].gaps, flat[i].gaps, columns);
@@ -63,7 +103,10 @@
       }
 
       if (worst.overlap < 1) {
-        const msg = `Timed: row ${i} unreachable at t=${worst.t.toFixed(2)}s (overlap=${worst.overlap}).`;
+        let msg = `Timed: row ${i} unreachable at t=${worst.t.toFixed(2)}s (overlap=${worst.overlap}).`;
+        if (hasPlatform) {
+          msg += ` — ${MIN_RESIDUAL_HINT}.`;
+        }
         warnings.push(msg);
         issues.push({ type: "timed", row: i, t: worst.t, overlap: worst.overlap });
       }

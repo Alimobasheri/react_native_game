@@ -18,6 +18,12 @@ export type StoryLockedProceduralSegment =
   | "releaseMultipath"
   | "flowMultipath"
 
+/**
+ * Storybook / debug: lock one platform-shaft composer loop (Slice 2+).
+ * ObstacleSystem consumes in Slice 3 — see platform-shaft-roadmap.md §7.
+ */
+export type StoryLockedShaftRecipe = "composePressIntroShaft"
+
 export interface GetRowArgs {
   rowIndex: number,
   ecs: ECS,

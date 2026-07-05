@@ -549,19 +549,30 @@
       return tr;
     }
 
+    function globalRowForNewSegment(insertAfterSegmentId) {
+      let start = 0;
+      for (const s of doc.segments || []) {
+        if (insertAfterSegmentId && s.id === insertAfterSegmentId) {
+          return start + s.rows.length;
+        }
+        start += s.rows.length;
+      }
+      return start;
+    }
+
     function applyWizard(fnName, params, opts) {
       if (!G()?.run) return null;
       snapshot();
-      const startRow =
-        opts?.startGlobalRow ??
-        (getSelectedGlobalRows()[0] ?? Math.max(0, doc.flattened.totalRows - 1));
-      const result = G().run(fnName, params || {}, doc.grid.columns, startRow);
+      const insertAfterId = getSelectedSegment()?.id;
+      const segmentStartRow =
+        opts?.startGlobalRow ?? globalRowForNewSegment(insertAfterId);
+      const result = G().run(fnName, params || {}, doc.grid.columns, segmentStartRow);
       const seg = addSegment({
         label: opts?.label || fnName,
         macroPhase: opts?.macroPhase || "tension",
         source: "procedural",
         rows: result.rows,
-        insertAfterSegmentId: getSelectedSegment()?.id,
+        insertAfterSegmentId: insertAfterId,
       });
       doc.hazards = doc.hazards || [];
       doc.tracks = doc.tracks || [];
@@ -569,7 +580,9 @@
       doc.proceduralBindings = doc.proceduralBindings || [];
       result.hazards.forEach((h) => {
         h.anchor = h.anchor || {};
-        if (h.anchor.globalRowIndex == null) h.anchor.globalRowIndex = startRow;
+        if (h.anchor.globalRowIndex == null) {
+          h.anchor.globalRowIndex = h.bounds?.rowStart ?? segmentStartRow;
+        }
         doc.hazards.push(h);
       });
       result.tracks.forEach((t) => doc.tracks.push(t));
@@ -579,6 +592,13 @@
           segmentId: seg.id,
           ...result.binding,
         });
+      }
+      if (Array.isArray(result.harmonizerWarnings) && result.harmonizerWarnings.length) {
+        doc.meta = doc.meta || {};
+        doc.meta.harmonizerWarnings = [
+          ...(doc.meta.harmonizerWarnings || []),
+          ...result.harmonizerWarnings,
+        ];
       }
       doc = S().flattenDocument(doc);
       return { segment: seg, result };
@@ -610,6 +630,40 @@
       return doc;
     }
 
+    function findProceduralBindingIndex(segmentId, fnName) {
+      const bindings = doc.proceduralBindings || [];
+      if (segmentId) {
+        const idx = bindings.findIndex((b) => b.segmentId === segmentId && b.fn === fnName);
+        if (idx >= 0) return idx;
+      }
+      return bindings.findIndex((b) => b.fn === fnName);
+    }
+
+    function rerollPressIntroShaft(opts) {
+      const segId = opts?.segmentId ?? getSelectedSegment()?.id;
+      const idx = findProceduralBindingIndex(segId, "composePressIntroShaft");
+      if (idx < 0) return null;
+      const before = (doc.proceduralBindings || [])[idx];
+      const updated = rerollProceduralBinding(idx, opts?.seedBump ?? 1);
+      if (!updated) return null;
+      const binding = (doc.proceduralBindings || [])[idx];
+      const seg = findSegment(binding?.segmentId);
+      return {
+        segment: seg,
+        binding,
+        seed: binding?.params?.seed ?? 0,
+        previousSeed: before?.params?.seed ?? 0,
+      };
+    }
+
+    function insertPressTeach(opts) {
+      return applyWizard(
+        "composePressIntroShaft",
+        { difficulty01: opts?.difficulty01 ?? 0.2, seed: opts?.seed ?? 0 },
+        { macroPhase: opts?.macroPhase || "flow", label: opts?.label || "Press intro shaft" }
+      );
+    }
+
     function loadStageSkeleton(presetIndex) {
       const preset = S().STAGE_PRESETS.find((p) => p.index === presetIndex);
       if (!preset) return null;
@@ -633,7 +687,7 @@
         return { placed: "platforms" };
       }
       if (preset.signatureHazardId === "hazard_iris_clamp") {
-        return applyWizard("irisClampRow", { preset: "2of8" }, { macroPhase: "climax", label: "Iris clamp" });
+        return applyWizard("irisClampRow", { preset: "narrowPreset" }, { macroPhase: "climax", label: "Iris clamp" });
       }
       if (preset.signatureHazardId === "hazard_buzz_wheel") {
         return applyWizard("buzzWheel", { mode: "drift" }, { macroPhase: "tension", label: "Buzz drift" });
@@ -683,6 +737,8 @@
       deleteMarker,
       addTrack,
       applyWizard,
+      insertPressTeach,
+      rerollPressIntroShaft,
       rerollProceduralBinding,
       loadStageSkeleton,
     };

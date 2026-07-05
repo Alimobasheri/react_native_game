@@ -502,13 +502,17 @@
     }
 
     if (seg) {
+      const introBinding = (composer.getDocument().proceduralBindings || []).find(
+        (b) => b.segmentId === seg.id && b.fn === "composePressIntroShaft"
+      );
+      const canRerollIntro = seg.source === "procedural" && introBinding;
       panel.innerHTML = `
         <div class="inspectorTitle">${escapeHtml(seg.label)}</div>
-        <div class="mutedHint">${seg.rows.length} rows · ${seg.macroPhase}</div>
+        <div class="mutedHint">${seg.rows.length} rows · ${seg.macroPhase}${canRerollIntro ? ` · seed ${introBinding.params?.seed ?? 0}` : ""}</div>
         <div class="toolRow">
           <button type="button" id="btnDupSegment">Duplicate</button>
           <button type="button" id="btnDeleteSegment">Delete</button>
-          <button type="button" id="btnRerollSegment">Re-roll path</button>
+          ${canRerollIntro ? `<button type="button" id="btnRerollIntroSegment">Re-roll intro shaft</button>` : `<button type="button" id="btnRerollSegment">Re-roll path</button>`}
         </div>
         <details id="pathLabFold" class="pathLabAdv">
           <summary>Generate path segment…</summary>
@@ -537,6 +541,9 @@
       el("btnRerollSegment")?.addEventListener("click", () => {
         if (seg.source === "pathLab") composer.rerollSegment(seg.id);
         refreshAfterMutation();
+      });
+      el("btnRerollIntroSegment")?.addEventListener("click", () => {
+        rerollIntroShaftForSelectedSegment();
       });
       el("btnPathLabInsert")?.addEventListener("click", insertPathLabAsSegment);
       el("btnFullStageLoop")?.addEventListener("click", importFullStageLoop);
@@ -842,6 +849,40 @@
     el("btnAddSegment")?.addEventListener("click", () => {
       composer.addSegment({ label: "New segment", macroPhase: el("sd_newPhase")?.value || "flow", rowCount: Number(el("sd_newRows")?.value) || 4 });
       refreshAfterMutation();
+    });
+
+    el("btnInsertPressTeach")?.addEventListener("click", () => {
+      const result = composer.insertPressTeach({ macroPhase: "flow", difficulty01: 0.2 });
+      if (!result) {
+        setStatus("Press intro shaft generator unavailable.", true);
+        return;
+      }
+      refreshAfterMutation();
+      const rowCount = result.segment?.rows?.length ?? 0;
+      const hazardCount = result.result?.hazards?.length ?? 0;
+      const warnCount = result.result?.harmonizerWarnings?.length ?? 0;
+      setStatus(
+        warnCount
+          ? `Inserted press intro shaft (${rowCount} rows, ${hazardCount} slabs). Harmonizer: ${warnCount} note(s).`
+          : `Inserted press intro shaft (${rowCount} rows, ${hazardCount} slabs).`
+      );
+    });
+
+    function rerollIntroShaftForSelectedSegment() {
+      const seg = composer.getSelectedSegment();
+      const result = composer.rerollPressIntroShaft({ segmentId: seg?.id });
+      if (!result) {
+        setStatus("No intro shaft to re-roll — insert one first, or select its segment.", true);
+        return;
+      }
+      refreshAfterMutation();
+      const rowCount = result.segment?.rows?.length ?? 0;
+      const hazardCount = result.binding?.hazardIds?.length ?? 0;
+      setStatus(`Re-rolled intro shaft (seed ${result.seed}, ${rowCount} rows, ${hazardCount} slabs).`);
+    }
+
+    el("btnRerollPressIntroShaft")?.addEventListener("click", () => {
+      rerollIntroShaftForSelectedSegment();
     });
 
     function getInsertAnchorRow() {

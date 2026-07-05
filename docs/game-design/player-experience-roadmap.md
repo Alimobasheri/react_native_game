@@ -12,6 +12,7 @@
 | Doc | Owns |
 |-----|------|
 | **[stage-hazard-progression-roadmap.md](./stage-hazard-progression-roadmap.md)** | Stage chapters, hazard catalog (clamp, tilt, vise, buzz wheel), survival heat, flow streak deprecation — **primary implementation SSOT (2026-07-04)** |
+| **[platform-shaft-roadmap.md](./platform-shaft-roadmap.md)** | One-sided steel press platforms — recipes, harmonizer, flow force, dev visual locks (2026-07-04) |
 | **[passage-timing-roadmap.md](./passage-timing-roadmap.md)** | Track 1 physics (pin strict, bounce, stage speed) — flow streak / trail / rhythm schema **superseded** by stage-hazard doc |
 | [run-level-progression.md](./run-level-progression.md) | Run blueprint, opening archetypes, milestone **geometry** pools, attempt memory — **backend scheduler** |
 | [../visual-design/swimmer-ai-context.md](../visual-design/swimmer-ai-context.md) | Art AI prompts, layer rules, export sizes |
@@ -528,7 +529,7 @@ Use [swimmer-ai-context.md](../visual-design/swimmer-ai-context.md) + style bibl
 - **Readable in &lt; 1s:** water = rise, green swimmer = player, blocks = danger, gaps = life
 - **Bright aqua water** — never murky descent
 - **Chunky, toy-like, saturated** — not horror sewer
-- **8-column grid** — block sprites tile cleanly; see `Layout.ts`
+- **6-column grid** — block sprites tile cleanly; see `Layout.ts` (`LAYOUT_CONSTANTS.COLUMNS = 6`)
 
 ### 9.2 AI art pipeline (per asset)
 

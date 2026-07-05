@@ -11,6 +11,7 @@
 | [player-experience-roadmap.md](./player-experience-roadmap.md) | Layer A/B meta, phases P0–P7, copy deck voice, world skins, coins |
 | [run-level-progression.md](./run-level-progression.md) | Run blueprint, opening archetypes, milestone pools, attempt memory |
 | [passage-timing-roadmap.md](./passage-timing-roadmap.md) | **Partially superseded** — keep Track 1 physics (pin strict, bounce, stage speed hold); retire flow streak / perfect-seam praise as primary loop |
+| [platform-shaft-roadmap.md](./platform-shaft-roadmap.md) | Press-shaft hazard family: one-sided steel platforms, recipes, harmonizer, flow force, dev visual locks, slice handoffs |
 | [../../src/docs/game-designer-llm-context.md](../../src/docs/game-designer-llm-context.md) | Core loop, grid, death rules |
 
 ---
@@ -48,7 +49,7 @@
 | **SH-004** | **REST corridor = chapter punctuation** — coins, GREAT!, dim optional heat trail, **preview next hazard** | Hybrid-casual retention; Jelly Jump periodic reward beat | REST as silent geometry only |
 | **SH-005** | **Fairness invariant unchanged** — timed hazards must keep ≥1 reachable lane until telegraph ends | Same as multipath overlap in `proceduralGaps.ts` | Impossible clamp with no telegraph |
 | **SH-006** | **Pin-heavy hazards → TAP/SAVED!**; **steer-wide hazards → Near Miss / scrape** | Death model + existing detectors | Instant fail on every hazard touch without pin read |
-| **SH-007** | **8-column grid SSOT** — all hazards express as column masks, entities, or timed mask phases | `Layout.ts` | Free-floating 3D obby geometry |
+| **SH-007** | **6-column grid SSOT** — all hazards express as column masks, entities, or timed mask phases | `Layout.ts` (`LAYOUT_CONSTANTS.COLUMNS = 6`) | Free-floating 3D obby geometry |
 | **SH-008** | **Flow streak + comet trail (passage-timing Track 3) — deprecate** | Founder reverted trail work; forced praise misaligned with loop | PT-004 flow streak HUD; PT-005 trail-on-perfect |
 | **SH-009** | **Keep passage-timing Track 1 physics** — pin strict, bounce disruptor, stage-constant speed, RELEASE ramp | Body honesty still valuable | — |
 | **SH-010** | **World skins (Layer B) orthogonal to stage hazards** — stage hazard art can reuse default world until Phase 3 | L-002 equipped world fixed per run | Per-world hazard rules in v1 |
@@ -261,6 +262,19 @@ Covered by **§5.3 Vise rows** + optional **sliding gap** (§6.2) — sequences 
 
 ---
 
+### 5.6 One-sided press platforms (steel slabs)
+
+**IDs:** `hazard_platform`  
+**Player name:** *(optional flash)* / "Press shaft"
+
+**Visual:** **Flat steel compressor slab** on one wall — slides inward, **holds** (no retract v1). Distinct from orange clay (SH-011). Narrowest gap = **1 open column** on 6-col grid (not full seal against far wall).
+
+**Behavior:** Timed row-attached machinery mask; optional flow force into shrinking lane. Recipes: teach single, pinball pair, stack cascade, opposite-wall squeeze.
+
+**Full spec + slices:** [platform-shaft-roadmap.md](./platform-shaft-roadmap.md) — do not duplicate here.
+
+---
+
 ## 6. Additional hazard & pattern ideas (backlog)
 
 ### 6.1 Water & pressure (uses existing water systems)
@@ -457,6 +471,8 @@ Phase 2 REST coins + preview ghost (parallel art)
 
 **Estimate:** 1 sprint
 
+> **Press-shaft chapters** (steel one-sided platforms) — see [platform-shaft-roadmap.md](./platform-shaft-roadmap.md). Ships after Slice 1 stage identity; parallel to / extends Slice 2 vise.
+
 ---
 
 ### Slice 3 — Iris clamp (timed row phase A)
@@ -580,6 +596,8 @@ Phase 2 REST coins + preview ghost (parallel art)
 | Q3 | Stage names fixed roster vs procedural adjectives? | Fixed roster §4.2 |
 | Q4 | Iris + tilt in same stage or alternate stages? | Both in Stage 3 CLIMAX combo |
 | Q5 | When to delete flow streak code vs rebind? | Rebind heat first, delete in Slice 7 |
+| Q6 | Press shaft — sharp hazards on blocks/slab for danger without full seal? | Defer PS-TODO-002/003 — see [platform-shaft-roadmap.md §10](./platform-shaft-roadmap.md#10-backlog--deferred-ps-todo) |
+| Q7 | Multi-layer water for true slab seal? | Defer PS-TODO-001 — min residual 1 col for v1 |
 
 ---
 
@@ -589,6 +607,7 @@ Phase 2 REST coins + preview ghost (parallel art)
 |------|--------|
 | 2026-07-04 | v1.0 — Initial roadmap: stage chapter model, hazard catalog (iris, tilt, vise, buzz wheel), survival heat pivot, flow streak deprecation, implementation slices, research refs |
 | 2026-07-04 | v1.1 — **SH-011** moving platforms = machinery art (compressor pans, metal flaps, vise jaws) — **not** orange cave blocks; §5.0 visual identity; engineering render split |
+| 2026-07-04 | v1.2 — **SH-007** corrected to **6-column** grid; §5.6 press platforms stub; link to [platform-shaft-roadmap.md](./platform-shaft-roadmap.md); Q6–Q7 open questions |
 
 ---
 

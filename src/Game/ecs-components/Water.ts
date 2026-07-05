@@ -31,6 +31,8 @@ export type WaterComponentData = {
   gapRangeCount?: number;
   /** Per-gap-group local flow velocity (-1..1), packed as 4 floats. */
   flowPerRange?: [number, number, number, number];
+  /** Additive platform-press flow from mergeRowHazardPass (reset each frame). */
+  platformFlowPerRange?: [number, number, number, number];
   /** Per-gap-group crest amplitude budget (UV units), packed as 4 floats. */
   ampPerRange?: [number, number, number, number];
   currentGapStartNorm?: number; // 0..1 gap start in container UV X

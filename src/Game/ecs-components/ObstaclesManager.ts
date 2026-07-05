@@ -1,6 +1,9 @@
 import { Component } from '@/containers/ReactNativeSkiaGameEngine/services-ecs';
 import { Entity } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/entity';
-import type { StoryLockedProceduralSegment } from '@/Game/ecs-systems/obstacleSystem';
+import type {
+  StoryLockedProceduralSegment,
+  StoryLockedShaftRecipe,
+} from '@/Game/ecs-systems/obstacleSystem';
 
 export const ObstaclesManagerComponentName = 'ObstaclesManager';
 
@@ -28,6 +31,17 @@ export type ObstaclesManagerComponentData = {
    * Only applies when the active template uses `baseMultiPathGetRow` (`directed`, `baseMulti`).
    */
   storyLockedProceduralSegment?: StoryLockedProceduralSegment;
+  /**
+   * Storybook / device: lock one platform-shaft composer (e.g. composePressIntroShaft).
+   * ObstacleSystem reads in Slice 3 — platform-shaft-roadmap.md §7.
+   */
+  storyLockedShaftRecipe?: StoryLockedShaftRecipe;
+  /** Deterministic harmonizer reroll seed for locked shaft recipe. */
+  storyLockedShaftSeed?: number;
+  /** Difficulty profile 0..1 for locked shaft recipe. */
+  storyLockedShaftDifficulty?: number;
+  /** When true, repeat the same shaft segment on template rollover (Slice 3). */
+  storyLockShaftLoop?: boolean;
   templateInfo?: {
     currentTemplateName: string;
     currentTempalteTotalRow: number;

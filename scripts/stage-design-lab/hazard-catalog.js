@@ -26,7 +26,7 @@
       defaultRows: 1,
       defaultCols: 2,
       icon: "iris",
-      params: { preset: "2of8", closeDurationSec: 0.9, telegraphRows: 2 },
+      params: { preset: "narrowPreset", closeDurationSec: 0.9, telegraphRows: 2 },
     },
     {
       kind: "hazard_tilt_gate",

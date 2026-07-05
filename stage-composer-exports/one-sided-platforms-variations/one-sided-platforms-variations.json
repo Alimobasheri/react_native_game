@@ -1,0 +1,1156 @@
+{
+  "schemaVersion": 2,
+  "kind": "stage-design",
+  "grid": {
+    "columns": 6,
+    "rowHeightPx": 24,
+    "cellGapPx": 3
+  },
+  "stage": {
+    "index": 1,
+    "displayName": "one-sided-platforms-variations",
+    "signatureHazardId": "none",
+    "waterSpeedPxPerSec": 120
+  },
+  "segments": [
+    {
+      "id": "seg-1-mr62fopt",
+      "label": "FLOW teach",
+      "macroPhase": "flow",
+      "source": "manual",
+      "pathLab": null,
+      "rows": [
+        {
+          "blocks": [
+            0,
+            1,
+            2,
+            4,
+            5
+          ],
+          "gaps": [
+            3
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            1,
+            2,
+            4,
+            5
+          ],
+          "gaps": [
+            3
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            1,
+            2,
+            4,
+            5
+          ],
+          "gaps": [
+            3
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            1,
+            2,
+            4,
+            5
+          ],
+          "gaps": [
+            3
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            1,
+            2,
+            4,
+            5
+          ],
+          "gaps": [
+            3
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            4,
+            5
+          ],
+          "gaps": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            4,
+            5
+          ],
+          "gaps": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            4,
+            5
+          ],
+          "gaps": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            4,
+            5
+          ],
+          "gaps": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            4,
+            5
+          ],
+          "gaps": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            1,
+            4,
+            5
+          ],
+          "gaps": [
+            2,
+            3
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            1,
+            2,
+            4,
+            5
+          ],
+          "gaps": [
+            3
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            1,
+            2,
+            5
+          ],
+          "gaps": [
+            3,
+            4
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            1,
+            5
+          ],
+          "gaps": [
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            1,
+            5
+          ],
+          "gaps": [
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            1,
+            5
+          ],
+          "gaps": [
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            1,
+            5
+          ],
+          "gaps": [
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            1,
+            2,
+            5
+          ],
+          "gaps": [
+            3,
+            4
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            1,
+            2,
+            4,
+            5
+          ],
+          "gaps": [
+            3
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            1,
+            4,
+            5
+          ],
+          "gaps": [
+            2,
+            3
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            1,
+            4,
+            5
+          ],
+          "gaps": [
+            2,
+            3
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            4,
+            5
+          ],
+          "gaps": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            3,
+            4,
+            5
+          ],
+          "gaps": [
+            1,
+            2
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            4,
+            5
+          ],
+          "gaps": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            1,
+            2,
+            4,
+            5
+          ],
+          "gaps": [
+            3
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            1,
+            2,
+            4,
+            5
+          ],
+          "gaps": [
+            3
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            1,
+            4,
+            5
+          ],
+          "gaps": [
+            2,
+            3
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            4,
+            5
+          ],
+          "gaps": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            4,
+            5
+          ],
+          "gaps": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            4,
+            5
+          ],
+          "gaps": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            5
+          ],
+          "gaps": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "blocks": [
+            0,
+            5
+          ],
+          "gaps": [
+            1,
+            2,
+            3,
+            4
+          ]
+        }
+      ]
+    }
+  ],
+  "playback": {
+    "waterSpeedPxPerSec": 120,
+    "rowHeightPx": 24
+  },
+  "meta": {
+    "tool": "stage-design-lab",
+    "notes": "",
+    "exportedAt": "2026-07-04T09:44:27.414Z",
+    "schemaVersion": 2
+  },
+  "hazards": [
+    {
+      "id": "hz-1-mr639lm4",
+      "renderLayer": "machinery",
+      "kind": "hazard_platform",
+      "bounds": {
+        "rowStart": 6,
+        "rowEnd": 8,
+        "colStart": 3,
+        "colEnd": 3
+      },
+      "anchor": {
+        "globalRowIndex": 6
+      },
+      "params": {
+        "pressCols": 2,
+        "pressDurationSec": 2,
+        "pressDirection": "left",
+        "pressEase": "ease-in",
+        "animStartRow": 4,
+        "animStartSec": null
+      },
+      "phases": [
+        {
+          "name": "pressing",
+          "durationSec": 2
+        },
+        {
+          "name": "held",
+          "durationSec": 0.25
+        }
+      ]
+    },
+    {
+      "id": "hz-2-mr63ah6u",
+      "renderLayer": "machinery",
+      "kind": "hazard_platform",
+      "bounds": {
+        "rowStart": 13,
+        "rowEnd": 15,
+        "colStart": 2,
+        "colEnd": 2
+      },
+      "anchor": {
+        "globalRowIndex": 13
+      },
+      "params": {
+        "pressCols": 1,
+        "pressDurationSec": 2,
+        "pressDirection": "right",
+        "pressEase": "ease-out",
+        "animStartRow": 12,
+        "animStartSec": null
+      },
+      "phases": [
+        {
+          "name": "pressing",
+          "durationSec": 2
+        },
+        {
+          "name": "held",
+          "durationSec": 0.25
+        }
+      ]
+    },
+    {
+      "id": "hz-4-mr6670al",
+      "renderLayer": "machinery",
+      "kind": "hazard_platform",
+      "bounds": {
+        "rowStart": 28,
+        "rowEnd": 30,
+        "colStart": 1,
+        "colEnd": 1
+      },
+      "anchor": {
+        "globalRowIndex": 28
+      },
+      "params": {
+        "pressCols": 2,
+        "pressDurationSec": 2,
+        "pressDirection": "right",
+        "pressEase": "ease-in-out",
+        "animStartRow": 28,
+        "animStartSec": null
+      },
+      "phases": [
+        {
+          "name": "pressing",
+          "durationSec": 2
+        },
+        {
+          "name": "held",
+          "durationSec": 0.25
+        }
+      ]
+    },
+    {
+      "id": "hz-5-mr668pk2",
+      "renderLayer": "machinery",
+      "kind": "hazard_platform",
+      "bounds": {
+        "rowStart": 21,
+        "rowEnd": 21,
+        "colStart": 1,
+        "colEnd": 1
+      },
+      "anchor": {
+        "globalRowIndex": 21
+      },
+      "params": {
+        "pressCols": 2,
+        "pressDurationSec": 2,
+        "pressDirection": "right",
+        "pressEase": "ease-in-out",
+        "animStartRow": 20,
+        "animStartSec": null
+      },
+      "phases": [
+        {
+          "name": "pressing",
+          "durationSec": 2
+        },
+        {
+          "name": "held",
+          "durationSec": 0.25
+        }
+      ]
+    },
+    {
+      "id": "hz-6-mr668qdp",
+      "renderLayer": "machinery",
+      "kind": "hazard_platform",
+      "bounds": {
+        "rowStart": 22,
+        "rowEnd": 22,
+        "colStart": 1,
+        "colEnd": 1
+      },
+      "anchor": {
+        "globalRowIndex": 22
+      },
+      "params": {
+        "pressCols": 2,
+        "pressDurationSec": 2,
+        "pressDirection": "right",
+        "pressEase": "ease-in",
+        "animStartRow": 21,
+        "animStartSec": null
+      },
+      "phases": [
+        {
+          "name": "pressing",
+          "durationSec": 2
+        },
+        {
+          "name": "held",
+          "durationSec": 0.25
+        }
+      ]
+    },
+    {
+      "id": "hz-7-mr668r6w",
+      "renderLayer": "machinery",
+      "kind": "hazard_platform",
+      "bounds": {
+        "rowStart": 23,
+        "rowEnd": 23,
+        "colStart": 1,
+        "colEnd": 1
+      },
+      "anchor": {
+        "globalRowIndex": 23
+      },
+      "params": {
+        "pressCols": 2,
+        "pressDurationSec": 2,
+        "pressDirection": "right",
+        "pressEase": "ease-in",
+        "animStartRow": 23,
+        "animStartSec": null
+      },
+      "phases": [
+        {
+          "name": "pressing",
+          "durationSec": 2
+        },
+        {
+          "name": "held",
+          "durationSec": 0.25
+        }
+      ]
+    }
+  ],
+  "tracks": [],
+  "markers": [],
+  "proceduralBindings": [],
+  "flattened": {
+    "totalRows": 32,
+    "rows": [
+      {
+        "globalRowIndex": 0,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 0,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          1,
+          2,
+          4,
+          5
+        ],
+        "gaps": [
+          3
+        ]
+      },
+      {
+        "globalRowIndex": 1,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 1,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          1,
+          2,
+          4,
+          5
+        ],
+        "gaps": [
+          3
+        ]
+      },
+      {
+        "globalRowIndex": 2,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 2,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          1,
+          2,
+          4,
+          5
+        ],
+        "gaps": [
+          3
+        ]
+      },
+      {
+        "globalRowIndex": 3,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 3,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          1,
+          2,
+          4,
+          5
+        ],
+        "gaps": [
+          3
+        ]
+      },
+      {
+        "globalRowIndex": 4,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 4,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          1,
+          2,
+          4,
+          5
+        ],
+        "gaps": [
+          3
+        ]
+      },
+      {
+        "globalRowIndex": 5,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 5,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          4,
+          5
+        ],
+        "gaps": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "globalRowIndex": 6,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 6,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          4,
+          5
+        ],
+        "gaps": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "globalRowIndex": 7,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 7,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          4,
+          5
+        ],
+        "gaps": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "globalRowIndex": 8,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 8,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          4,
+          5
+        ],
+        "gaps": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "globalRowIndex": 9,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 9,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          4,
+          5
+        ],
+        "gaps": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "globalRowIndex": 10,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 10,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          1,
+          4,
+          5
+        ],
+        "gaps": [
+          2,
+          3
+        ]
+      },
+      {
+        "globalRowIndex": 11,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 11,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          1,
+          2,
+          4,
+          5
+        ],
+        "gaps": [
+          3
+        ]
+      },
+      {
+        "globalRowIndex": 12,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 12,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          1,
+          2,
+          5
+        ],
+        "gaps": [
+          3,
+          4
+        ]
+      },
+      {
+        "globalRowIndex": 13,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 13,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          1,
+          5
+        ],
+        "gaps": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "globalRowIndex": 14,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 14,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          1,
+          5
+        ],
+        "gaps": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "globalRowIndex": 15,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 15,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          1,
+          5
+        ],
+        "gaps": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "globalRowIndex": 16,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 16,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          1,
+          5
+        ],
+        "gaps": [
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "globalRowIndex": 17,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 17,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          1,
+          2,
+          5
+        ],
+        "gaps": [
+          3,
+          4
+        ]
+      },
+      {
+        "globalRowIndex": 18,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 18,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          1,
+          2,
+          4,
+          5
+        ],
+        "gaps": [
+          3
+        ]
+      },
+      {
+        "globalRowIndex": 19,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 19,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          1,
+          4,
+          5
+        ],
+        "gaps": [
+          2,
+          3
+        ]
+      },
+      {
+        "globalRowIndex": 20,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 20,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          1,
+          4,
+          5
+        ],
+        "gaps": [
+          2,
+          3
+        ]
+      },
+      {
+        "globalRowIndex": 21,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 21,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          4,
+          5
+        ],
+        "gaps": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "globalRowIndex": 22,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 22,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          3,
+          4,
+          5
+        ],
+        "gaps": [
+          1,
+          2
+        ]
+      },
+      {
+        "globalRowIndex": 23,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 23,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          4,
+          5
+        ],
+        "gaps": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "globalRowIndex": 24,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 24,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          1,
+          2,
+          4,
+          5
+        ],
+        "gaps": [
+          3
+        ]
+      },
+      {
+        "globalRowIndex": 25,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 25,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          1,
+          2,
+          4,
+          5
+        ],
+        "gaps": [
+          3
+        ]
+      },
+      {
+        "globalRowIndex": 26,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 26,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          1,
+          4,
+          5
+        ],
+        "gaps": [
+          2,
+          3
+        ]
+      },
+      {
+        "globalRowIndex": 27,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 27,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          4,
+          5
+        ],
+        "gaps": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "globalRowIndex": 28,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 28,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          4,
+          5
+        ],
+        "gaps": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "globalRowIndex": 29,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 29,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          4,
+          5
+        ],
+        "gaps": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "globalRowIndex": 30,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 30,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          5
+        ],
+        "gaps": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "globalRowIndex": 31,
+        "segmentId": "seg-1-mr62fopt",
+        "localRowIndex": 31,
+        "macroPhase": "flow",
+        "blocks": [
+          0,
+          5
+        ],
+        "gaps": [
+          1,
+          2,
+          3,
+          4
+        ]
+      }
+    ]
+  },
+  "fairnessReport": {
+    "ok": false,
+    "warnings": [
+      "Timed: row 22 unreachable at t=4.37s (overlap=0).",
+      "Timed: row 23 unreachable at t=4.80s (overlap=0)."
+    ],
+    "issues": [
+      {
+        "type": "timed",
+        "row": 22,
+        "t": 4.366666666666667,
+        "overlap": 0
+      },
+      {
+        "type": "timed",
+        "row": 23,
+        "t": 4.8,
+        "overlap": 0
+      }
+    ],
+    "sampled": 12
+  }
+}

@@ -99,11 +99,9 @@ export const SwimmerView: FC<{
 
   const { swimmerWidth, swimmerHeight } = useMemo(() => {
     const columnWidth = containerWidth / LAYOUT_CONSTANTS.COLUMNS;
-    const width =
-      columnWidth * swimmerVisualTuning.VISUAL_WIDTH_COLUMN_RATIO;
+    const width = columnWidth * swimmerVisualTuning.VISUAL_WIDTH_COLUMN_RATIO;
 
-    const height =
-      swimmerVisualTuning.VISUAL_HEIGHT_TO_WIDTH_RATIO * width;
+    const height = swimmerVisualTuning.VISUAL_HEIGHT_TO_WIDTH_RATIO * width;
 
     return { swimmerWidth: width, swimmerHeight: height };
   }, [containerWidth, containerHeight]);

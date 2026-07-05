@@ -31,6 +31,10 @@ function App() {
           sideWallContainerOverlapPx={sideWallTuning.CONTAINER_OVERLAP_PX}
           lockedTemplateName={'directed'}
           storyLockedProceduralSegment={''}
+          storyLockedShaftRecipe={'composePressIntroShaft'}
+          storyLockedShaftSeed={42}
+          storyLockedShaftDifficulty={0.4}
+          storyLockShaftLoop={true}
           lifeDebugMode={0}
           internalIntensity={0.55}
         />

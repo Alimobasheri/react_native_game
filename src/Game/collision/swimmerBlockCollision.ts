@@ -237,8 +237,9 @@ export function selectRowsNearSwimmerFromComponentStore(
     }
     out.push({
       y: rowData.y,
-      gaps: rowData.gaps,
-      solidColumnCentersX: rowData.solidColumnCentersX,
+      gaps: rowData.effectiveGaps ?? rowData.gaps,
+      solidColumnCentersX:
+        rowData.effectiveSolidColumnCentersX ?? rowData.solidColumnCentersX,
     });
   });
   return out;

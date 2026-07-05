@@ -26,6 +26,7 @@ import {
 } from '@/Game/water/gapRanges';
 import { gameSessionTuning, waterPhysicsTuning } from '@/config/swimmerTuning';
 import { getGameSession, isStartReady, isGameOverPhase } from '@/Game/session/gameSessionQuery';
+import { waterTransitionBandFromSurface } from '@/Game/grid/waterTransitionBand';
 
 /**
  * Row spawned earlier sits lower on screen (larger `y`). When `prevRowEntity` still
@@ -126,12 +127,18 @@ export const WaterPhysicsSystem: System = {
       return c * c * (3 - 2 * c);
     };
 
+    const rowGaps = (row: ObstacleRowComponentData | null | undefined): number[] | undefined => {
+      'worklet';
+      if (!row) return undefined;
+      return row.effectiveGaps ?? row.gaps;
+    };
+
     const getGapRangeNorm = (row: ObstacleRowComponentData | null): [number, number] => {
       'worklet';
       if (!row) {
         return [1 / LAYOUT_CONSTANTS.COLUMNS, (LAYOUT_CONSTANTS.COLUMNS - 1) / LAYOUT_CONSTANTS.COLUMNS];
       }
-      const gaps = row.gaps;
+      const gaps = rowGaps(row);
       if (!gaps || gaps.length === 0) {
         return [1 / LAYOUT_CONSTANTS.COLUMNS, (LAYOUT_CONSTANTS.COLUMNS - 1) / LAYOUT_CONSTANTS.COLUMNS];
       }
@@ -163,8 +170,8 @@ export const WaterPhysicsSystem: System = {
       );
 
       // --- Multi-gap derived state (max 4 ranges) ---
-      const currRangesCol = groupGapsToRanges(activeRow?.gaps, LAYOUT_CONSTANTS.COLUMNS);
-      const prevRangesCol = groupGapsToRanges(prevRow?.gaps, LAYOUT_CONSTANTS.COLUMNS);
+      const currRangesCol = groupGapsToRanges(rowGaps(activeRow), LAYOUT_CONSTANTS.COLUMNS);
+      const prevRangesCol = groupGapsToRanges(rowGaps(prevRow), LAYOUT_CONSTANTS.COLUMNS);
       const currRanges = pickUpToFourByWidth(
         rangesColToNorm(currRangesCol, LAYOUT_CONSTANTS.COLUMNS)
       );
@@ -181,6 +188,7 @@ export const WaterPhysicsSystem: System = {
         prevFlow[2],
         prevFlow[3],
       ];
+      const platformFlow = waterData.platformFlowPerRange ?? [0, 0, 0, 0];
 
       // Per-range target flow based on (currCenter - relatedPrevCenter) in normalized gap space.
       for (let i = 0; i < 4; i++) {
@@ -276,10 +284,12 @@ export const WaterPhysicsSystem: System = {
       );
       flowOffset = clampSigned(flowOffset, 1.0);
       const rowHeightPx = containerData.width / LAYOUT_CONSTANTS.COLUMNS;
-      const lockAheadY = containerData.waterSurfaceY - rowHeightPx * 0.42;
-      const transitionTargetY = lockAheadY - rowHeightPx * 0.28;
-      const transitionStartY = transitionTargetY - rowHeightPx * 0.48;
-      const transitionEndY = transitionTargetY + rowHeightPx * 0.36;
+      const transitionBand = waterTransitionBandFromSurface(
+        containerData.waterSurfaceY,
+        rowHeightPx
+      );
+      const transitionStartY = transitionBand.transitionStartY;
+      const transitionEndY = transitionBand.transitionEndY;
       const geometricBlend = activeRow
         ? smoothStep01(
           (activeRow.y - transitionStartY) /
@@ -331,7 +341,11 @@ export const WaterPhysicsSystem: System = {
           water.gapRangesPrev01 = packedPrev.r01;
           water.gapRangesPrev23 = packedPrev.r23;
           water.gapRangeCount = packedCurr.count;
+          for (let pf = 0; pf < 4; pf++) {
+            nextFlow[pf] = clampSigned(nextFlow[pf] + platformFlow[pf], 1.25);
+          }
           water.flowPerRange = nextFlow;
+          water.platformFlowPerRange = [0, 0, 0, 0];
           water.ampPerRange = ampPerRange;
           water.currentGapStartNorm = gapStartNorm;
           water.currentGapEndNorm = gapEndNorm;

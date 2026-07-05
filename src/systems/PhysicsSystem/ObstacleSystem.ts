@@ -73,6 +73,7 @@ import {
   TemplateInitArgs,
   type GetRowArgs,
   type StoryLockedProceduralSegment,
+  type StoryLockedShaftRecipe,
 } from '@/Game/ecs-systems/obstacleSystem';
 import {
   getOrCreateTemplateContextEntity,
@@ -136,6 +137,19 @@ import { mickyLevelJson } from '@/Game/templates/obstacles/micky';
 import { kittyLevelJson } from '@/Game/templates/obstacles/kitty';
 import { deadpoolLevelJson } from '@/Game/templates/obstacles/deadpool';
 import { megamanLevelJson } from '@/Game/templates/obstacles/megaman';
+import {
+  createPlatformShaftRowPathTemplate,
+  type PlatformShaftSpawnRowArgs,
+  type PlatformShaftTemplateCtx,
+} from '@/Game/path/platformShaft/platformShaftRowPathTemplate';
+import { maybeSpawnMovingHazardsForRow } from '@/Game/hazards/hazardSpawnFromBeat';
+import { PLATFORM_SHAFT_ROW_HAZARD_BANDS } from '@/Game/hazards/platformShaftTODO';
+import { purgePlatformShaftHazardsAndEffectiveGaps } from '@/Game/hazards/purgePlatformShaftHazardState';
+import { mergeRowHazardPass } from '@/Game/grid/mergeRowHazardPass';
+import {
+  rowOverlapsTransitionBand,
+  waterTransitionBandFromSurface,
+} from '@/Game/grid/waterTransitionBand';
 
 function readStoryLockedProceduralSegment(
   components: Record<string, any>,
@@ -146,6 +160,57 @@ function readStoryLockedProceduralSegment(
     managerEntity
   ) as ObstaclesManagerComponentData | undefined;
   return mgr?.storyLockedProceduralSegment;
+}
+
+
+function readStoryLockedShaftRecipe(
+  components: Record<string, any>,
+  managerEntity: Entity
+): StoryLockedShaftRecipe | undefined {
+  'worklet';
+  const mgr = components[ObstaclesManagerComponentName]?.get(
+    managerEntity
+  ) as ObstaclesManagerComponentData | undefined;
+  return mgr?.storyLockedShaftRecipe;
+}
+
+function readStoryLockShaftLoop(
+  components: Record<string, any>,
+  managerEntity: Entity
+): boolean {
+  'worklet';
+  const mgr = components[ObstaclesManagerComponentName]?.get(
+    managerEntity
+  ) as ObstaclesManagerComponentData | undefined;
+  return mgr?.storyLockShaftLoop === true;
+}
+
+function resolveEffectiveTemplateName(
+  components: Record<string, any>,
+  managerEntity: Entity,
+  lock?: string
+): string {
+  'worklet';
+  if (readStoryLockedShaftRecipe(components, managerEntity)) {
+    return 'platformShaftIntro';
+  }
+  return lock ?? 'directed';
+}
+
+function resolveTemplateNameOnRollover(
+  components: Record<string, any>,
+  managerEntity: Entity,
+  lock?: string
+): string {
+  'worklet';
+  const shaftRecipe = readStoryLockedShaftRecipe(components, managerEntity);
+  if (shaftRecipe && readStoryLockShaftLoop(components, managerEntity)) {
+    return 'platformShaftIntro';
+  }
+  if (shaftRecipe) {
+    return lock ?? 'directed';
+  }
+  return lock ?? 'directed';
 }
 
 function effectiveMacroPhaseForProceduralRow(params: GetRowArgs): MacroPhase {
@@ -212,6 +277,8 @@ function spawnObstacleRowEntity(args: {
   leftX: number;
   obstacleDimension: { width: number; height: number };
   prevRowEntity: Entity | null;
+  beatRowIndex?: number;
+  shaftSegmentEpoch?: number;
   spawnDiag?: Pick<
     ObstacleRowComponentData,
     'spawnDiagTemplateName' | 'spawnDiagBranchKey'
@@ -227,6 +294,8 @@ function spawnObstacleRowEntity(args: {
     leftX,
     obstacleDimension,
     prevRowEntity,
+    beatRowIndex,
+    shaftSegmentEpoch,
     spawnDiag,
   } = args;
 
@@ -254,13 +323,14 @@ function spawnObstacleRowEntity(args: {
     pickImage: pickSwimmerBlockImageStable,
   };
 
-  const renderLayers = buildObstacleRowRenderLayers({
+  const blockLayers = buildObstacleRowRenderLayers({
     ...layerArgs,
     gaps,
     rowY: y,
     rowBelowGaps: prevRowData?.gaps ?? null,
     rowAboveGaps: null,
   });
+  const renderLayers = blockLayers;
 
   const rowEntity = ecs.createEntity();
 
@@ -287,6 +357,8 @@ function spawnObstacleRowEntity(args: {
     gaps,
     solidColumnCentersX,
     prevRowEntity,
+    beatRowIndex,
+    shaftSegmentEpoch,
     ...spawnDiag,
   });
 
@@ -790,7 +862,7 @@ const baseMultiPathGetRow: RowPathTemplate['getRow'] = (_ctx, params) => {
       }
     } else {
       xctx.lastSignatureSpawnKind = undefined;
-    if (!xctx.climaxStage) {
+      if (!xctx.climaxStage) {
         if (storySeg === 'falseWall') {
           xctx.climaxStage = 'falseWall';
           xctx.climaxFalseSubRow = 0;
@@ -1069,6 +1141,48 @@ const RestRowPathTemplate: RowPathTemplate = {
   getRow: restGetRow
 }
 
+
+const spawnPlatformShaftRow = (params: PlatformShaftSpawnRowArgs): Entity => {
+  'worklet';
+  return spawnObstacleRowEntity(params);
+};
+
+function maybeSpawnPlatformShaftHazardsForRow(args: {
+  ecs: ECS;
+  sceneEntity: Entity;
+  templateName: string;
+  ctx: TemplateCtx;
+  rowIndex: number;
+  rowEntity: Entity;
+  leftX: number;
+  obstacleDimension: { width: number; height: number };
+}): void {
+  'worklet';
+  if (!PLATFORM_SHAFT_ROW_HAZARD_BANDS) {
+    return;
+  }
+  if (args.templateName !== 'platformShaftIntro') {
+    return;
+  }
+  const rowData = args.ecs.components[ObstacleRowComponentName].get(
+    args.rowEntity
+  ) as ObstacleRowComponentData | undefined;
+  if (!rowData) {
+    return;
+  }
+  maybeSpawnMovingHazardsForRow({
+    ecs: args.ecs,
+    sceneEntity: args.sceneEntity,
+    ctx: args.ctx as PlatformShaftTemplateCtx,
+    rowIndex: args.rowIndex,
+    rowEntity: args.rowEntity,
+    rowData,
+    leftX: args.leftX,
+    rowLength: LAYOUT_CONSTANTS.COLUMNS,
+    obstacleDimension: args.obstacleDimension,
+  });
+}
+
 const spawnObstacleRowFromTemplate = (params: {
   ecs: ECS;
   sceneEntity: Entity;
@@ -1123,7 +1237,14 @@ const MegamanRowPathTemplate: RowPathTemplate = createJsonLevelRowPathTemplate({
   diagTemplateName: 'megaman',
 });
 
+
+const PlatformShaftIntroRowPathTemplate: RowPathTemplate = createPlatformShaftRowPathTemplate({
+  spawnRow: spawnPlatformShaftRow,
+  diagTemplateName: 'platformShaftIntro',
+});
+
 const MappedTemplates: Record<string, RowPathTemplate> = {
+  platformShaftIntro: PlatformShaftIntroRowPathTemplate,
   directed: DirectedRowPathTemplate,
   base: BaseRowPathTemplate,
   baseMulti: BaseMultiPathRowPathTemplate,
@@ -1186,7 +1307,26 @@ function selectTemplate(args: {
   (ctx as Record<string, unknown>).climaxPreference = climaxPreference;
   (ctx as Record<string, unknown>).pacingRunContext = pacingRunContext;
 
-  if (template.init) {
+  const ctxData = components[TemplateContextComponentName]?.get(
+    ctxEntity
+  ) as TemplateContextComponentData | undefined;
+
+  if (templateName === 'platformShaftIntro') {
+    const mgr = components[ObstaclesManagerComponentName]?.get(args.managerEntity) as
+      | ObstaclesManagerComponentData
+      | undefined;
+    const prevEpoch =
+      ((ctxData?.ctx ?? {}) as PlatformShaftTemplateCtx).shaftSegmentEpoch ?? 0;
+    (ctx as Record<string, unknown>).platformShaftRecipe = mgr?.storyLockedShaftRecipe;
+    (ctx as Record<string, unknown>).platformShaftSeed = mgr?.storyLockedShaftSeed ?? 42;
+    (ctx as Record<string, unknown>).platformShaftDifficulty =
+      mgr?.storyLockedShaftDifficulty ?? 0.4;
+    (ctx as Record<string, unknown>).columns = initArgs.rowLength;
+    if (template.init) {
+      template.init(ctx, initArgs);
+    }
+    (ctx as PlatformShaftTemplateCtx).shaftSegmentEpoch = prevEpoch + 1;
+  } else if (template.init) {
     template.init(ctx, initArgs);
   }
 
@@ -1300,12 +1440,9 @@ export const ObstacleSystem: System = {
       return;
     }
     const waterSurfaceY = containerData.waterSurfaceY;
+    const transitionBand = waterTransitionBandFromSurface(waterSurfaceY, blockHeight);
+    const transitionTargetY = transitionBand.transitionTargetY;
     const currentCenterRowEntity = waterData.centerRowEntity;
-    // Lock slightly ahead of the visible surface so the water can start reacting
-    // as a row enters the flow band, not after it is already centered.
-    const lockAheadY = waterSurfaceY - blockHeight * 0.42;
-    // Transition target is even higher to begin cross-row shaping before center alignment.
-    const transitionTargetY = lockAheadY - blockHeight * 0.42;
     let nearestRowEntity: number | undefined;
     let nearestRowDistance = Number.POSITIVE_INFINITY;
     let nearestOverlapRowEntity: number | undefined;
@@ -1339,8 +1476,11 @@ export const ObstacleSystem: System = {
       const rowTop = newY - blockHeight / 2;
       const rowBottom = newY + blockHeight / 2;
       const rowCenterDistance = Math.abs(newY - transitionTargetY);
-      const overlapsTransitionBand =
-        transitionTargetY >= rowTop && transitionTargetY <= rowBottom + blockHeight * 0.42;
+      const overlapsTransitionBand = rowOverlapsTransitionBand(
+        newY,
+        blockHeight,
+        transitionBand
+      );
       if (overlapsTransitionBand && rowCenterDistance < nearestOverlapDistance) {
         nearestOverlapDistance = rowCenterDistance;
         nearestOverlapRowEntity = obstacleRowEntity;
@@ -1439,6 +1579,10 @@ export const ObstacleSystem: System = {
         : undefined;
     maybeLogPlayerActiveObstacleRowTemplate(ecs, components, managerEntity, centerForPlayerDiag);
 
+    if (PLATFORM_SHAFT_ROW_HAZARD_BANDS) {
+      mergeRowHazardPass({ ecs, components, deltaTime, eventQueue });
+    }
+
     // Seed initial obstacles when none exist (either during initial phase or when starting with water at center)
     const shouldSeedInitialObstacles =
       rowStore.count() === 0 && !isGameOver;
@@ -1454,7 +1598,7 @@ export const ObstacleSystem: System = {
         initialY: maxY,
       };
 
-      const initialTemplateName = lock ?? 'directed';
+      const initialTemplateName = resolveEffectiveTemplateName(components, managerEntity, lock);
 
       // Initial segment: `directed` = phase-driven base vs baseMulti; story lock may pick JSON etc.
       const selected = selectTemplate({
@@ -1481,7 +1625,7 @@ export const ObstacleSystem: System = {
         // If we've reached the end of the active template, switch to the next template
         // and continue filling the seed rows.
         if (activeRowIndex > activeRowCount - 1) {
-          const newTemplateName = lock ?? 'directed';
+          const newTemplateName = resolveTemplateNameOnRollover(components, managerEntity, lock);
           const nextSelected = selectTemplate({
             ecs,
             components,
@@ -1549,6 +1693,16 @@ export const ObstacleSystem: System = {
           macroPhase: macroForRow,
           templateCtx: activeCtx as Record<string, unknown>,
           rowIndex: spawnedRowIndex,
+        });
+        maybeSpawnPlatformShaftHazardsForRow({
+          ecs,
+          sceneEntity,
+          templateName: activeTemplateName,
+          ctx: activeCtx,
+          rowIndex: spawnedRowIndex,
+          rowEntity: lastRowEntity,
+          leftX,
+          obstacleDimension,
         });
         activeRowIndex += 1;
       }
@@ -1621,7 +1775,19 @@ export const ObstacleSystem: System = {
         let totalRow = templateInfo.currentTempalteTotalRow
 
         if (lastRowIndex > totalRow - 1) {
-          const newTemplateName = lock ?? 'directed';
+          const newTemplateName = resolveTemplateNameOnRollover(components, managerEntity, lock);
+          if (
+            newTemplateName === 'platformShaftIntro' &&
+            readStoryLockShaftLoop(components, managerEntity) &&
+            PLATFORM_SHAFT_ROW_HAZARD_BANDS
+          ) {
+            purgePlatformShaftHazardsAndEffectiveGaps({
+              ecs,
+              components,
+              sceneKey: managerData.sceneKey,
+              eventQueue,
+            });
+          }
           const initArgs: TemplateInitArgs = {
             ecs,
             sceneEntity,
@@ -1691,6 +1857,16 @@ export const ObstacleSystem: System = {
             templateCtx: selected.ctx as Record<string, unknown>,
             rowIndex: 0,
           });
+          maybeSpawnPlatformShaftHazardsForRow({
+            ecs,
+            sceneEntity,
+            templateName: newTemplateName,
+            ctx: selected.ctx,
+            rowIndex: 0,
+            rowEntity: newRowEntity,
+            leftX,
+            obstacleDimension,
+          });
           // Reset timer after re-seeding
           ecs.updateComponent<ObstaclesManagerComponentData>(
             managerEntity,
@@ -1756,6 +1932,16 @@ export const ObstacleSystem: System = {
             macroPhase: macroForRow,
             templateCtx: ctx as Record<string, unknown>,
             rowIndex: lastRowIndex,
+          });
+          maybeSpawnPlatformShaftHazardsForRow({
+            ecs,
+            sceneEntity,
+            templateName: templateInfo.currentTemplateName,
+            ctx,
+            rowIndex: lastRowIndex,
+            rowEntity: newRowEntity,
+            leftX,
+            obstacleDimension,
           });
           ecs.updateComponent<ObstaclesManagerComponentData>(
             managerEntity,

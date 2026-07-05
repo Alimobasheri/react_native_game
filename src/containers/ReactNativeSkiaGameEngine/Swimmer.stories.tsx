@@ -85,7 +85,14 @@ import {
   WATER_SURFACE_FROM_CONTAINER_BOTTOM_FRACTION,
   getWaterSurfaceRestY,
 } from '@/Layout';
-import type { StoryLockedProceduralSegment } from '@/Game/ecs-systems/obstacleSystem';
+import type {
+  StoryLockedProceduralSegment,
+  StoryLockedShaftRecipe,
+} from '@/Game/ecs-systems/obstacleSystem';
+import {
+  HazardBandLeadComponentName,
+} from '@/Game/ecs-components/HazardBandLead';
+import { HazardBandMemberComponentName } from '@/Game/ecs-components/HazardBandMember';
 
 /** Same geometry as `getWaterSurfaceRestY` but uses story arg `fraction` for experiments. */
 function waterSurfaceYFromBottomFraction(
@@ -125,6 +132,13 @@ export type SwimmerStoryArgs = {
    * (funnel, pinball, …) instead of cycling macro pacing shapes.
    */
   storyLockedProceduralSegment: '' | StoryLockedProceduralSegment;
+  /**
+   * Lock one platform-shaft composer loop (composePressIntroShaft). Slice 3 streams rows.
+   */
+  storyLockedShaftRecipe: '' | StoryLockedShaftRecipe;
+  storyLockedShaftSeed: number;
+  storyLockedShaftDifficulty: number;
+  storyLockShaftLoop: boolean;
   /** Playable swimmer visual skin. */
   swimmerSkinId: SwimmerSkinId;
   /** Composite shader debug gate: 0=composite, 1=mask, 2=uvScroll, 3=rawBody */
@@ -158,6 +172,11 @@ const PROC_SEGMENT_OPTIONS: ('' | StoryLockedProceduralSegment)[] = [
   'releaseRestZone',
   'releaseMultipath',
   'flowMultipath',
+];
+
+const SHAFT_RECIPE_OPTIONS: ('' | StoryLockedShaftRecipe)[] = [
+  '',
+  'composePressIntroShaft',
 ];
 
 export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
@@ -205,6 +224,8 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
               GameplayFeedbackManagerComponentName,
               GameplayFeedbackFlashTagComponentName,
               StageOverlayTagComponentName,
+              HazardBandLeadComponentName,
+              HazardBandMemberComponentName,
             ]}
           >
             <Preload>
@@ -362,6 +383,12 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                     storyLockedProceduralSegment={
                       args.storyLockedProceduralSegment || undefined
                     }
+                    storyLockedShaftRecipe={
+                      args.storyLockedShaftRecipe || undefined
+                    }
+                    storyLockedShaftSeed={args.storyLockedShaftSeed}
+                    storyLockedShaftDifficulty={args.storyLockedShaftDifficulty}
+                    storyLockShaftLoop={args.storyLockShaftLoop || undefined}
                   />
 
                   {/* Swimmer - centered in a column; TapSwimmer handles tap-to-move */}
@@ -421,6 +448,10 @@ const meta = {
     sideWallContainerOverlapPx: sideWallTuning.CONTAINER_OVERLAP_PX,
     lockedTemplateName: '',
     storyLockedProceduralSegment: '',
+    storyLockedShaftRecipe: '',
+    storyLockedShaftSeed: 42,
+    storyLockedShaftDifficulty: 0.4,
+    storyLockShaftLoop: false,
     swimmerSkinId: DEFAULT_SWIMMER_SKIN_ID,
     lifeDebugMode: 0,
     internalIntensity: 0.2,
@@ -451,13 +482,34 @@ const meta = {
       description:
         'Requires template `directed` or `baseMulti`. Loops one procedural path for Storybook.',
     },
+    storyLockedShaftRecipe: {
+      control: 'select',
+      options: SHAFT_RECIPE_OPTIONS,
+      description:
+        'Platform shaft composer lock. Slice 3 streams intro shaft rows when set.',
+    },
+    storyLockedShaftSeed: {
+      control: { type: 'number' },
+      description:
+        'Deterministic harmonizer reroll seed for locked shaft recipe.',
+    },
+    storyLockedShaftDifficulty: {
+      control: { type: 'range', min: 0, max: 1, step: 0.05 },
+      description: 'Shaft difficulty profile 0 (easy) .. 1 (hard).',
+    },
+    storyLockShaftLoop: {
+      control: 'boolean',
+      description:
+        'Repeat the same shaft segment on template rollover (Slice 3).',
+    },
     swimmerSkinId: {
       control: 'select',
       options: [AQUA_SPROUT_SKIN_ID, KELP_DRIFTER_SKIN_ID],
     },
     lifeDebugMode: {
       control: { type: 'range', min: 0, max: 3, step: 1 },
-      description: 'G0–G3 device gates: 3=raw body, 1=mask, 2=UV scroll, 0=composite',
+      description:
+        'G0–G3 device gates: 3=raw body, 1=mask, 2=UV scroll, 0=composite',
     },
     internalIntensity: {
       control: { type: 'range', min: 0, max: 1, step: 0.05 },
@@ -494,6 +546,17 @@ export const LockedPathFunnelLoop: StoryObj<typeof meta> = {
   args: {
     ...directedMultipath,
     storyLockedProceduralSegment: 'funnel',
+  },
+};
+
+/** Platform shaft intro teach loop — Slice 2 props; Slice 3 streams rows. */
+export const LockedPressIntroShaftLoop: StoryObj<typeof meta> = {
+  args: {
+    lockedTemplateName: 'directed',
+    storyLockedShaftRecipe: 'composePressIntroShaft',
+    storyLockedShaftSeed: 42,
+    storyLockedShaftDifficulty: 0.4,
+    storyLockShaftLoop: true,
   },
 };
 

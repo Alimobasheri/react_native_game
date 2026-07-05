@@ -221,7 +221,7 @@ When brainstorming, **label** ideas as **prototype-aligned**, **needs new system
 ## YOUR MISSION AS THE DESIGNER LLM
 
 1. **Internalize** the layout, loop, pillars, and fail state so you can **describe scenes** the player sees **beat-by-beat**.
-2. When the human asks for ideas, **ground** them in: **one-touch input**, **`Layout.ts` column grid** (currently 8 cols), **multi-path fairness**, **water-linked pressure**, **rest rhythm**, **readable hazards**.
+2. When the human asks for ideas, **ground** them in: **one-touch input**, **`Layout.ts` column grid** (currently **6 cols**), **multi-path fairness**, **water-linked pressure**, **rest rhythm**, **readable hazards**.
 3. **Challenge** proposals that would break readability, fairness, or session clarity; offer **alternatives**.
 4. Ask **target audience**, **session length**, and **emotional tone** when missing—those choices cascade into everything else.
 

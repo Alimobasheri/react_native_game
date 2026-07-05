@@ -20,10 +20,179 @@
     return `mk-${mkCounter++}-${Date.now().toString(36)}`;
   }
 
+  const MIN_RESIDUAL_GAP_COLS_DEFAULT = 1;
+
   function scalePreset(columns, preset) {
-    if (preset === "6of8") return Math.max(2, Math.round((6 / 8) * columns));
-    if (preset === "2of8") return Math.max(1, Math.round((2 / 8) * columns));
+    if (preset === "widePreset" || preset === "6of8") {
+      return Math.max(2, Math.round((6 / 8) * columns));
+    }
+    if (preset === "narrowPreset" || preset === "2of8") {
+      return Math.max(1, Math.round((2 / 8) * columns));
+    }
     return Math.max(1, Math.floor(columns / 3));
+  }
+
+  function maxPressColsForCorridor(gapWidthAtRest, oppositeWallInset, minResidualGapCols) {
+    const minRes = minResidualGapCols ?? MIN_RESIDUAL_GAP_COLS_DEFAULT;
+    const inset = Math.max(0, oppositeWallInset ?? 0);
+    const gapW = Math.max(1, Math.round(gapWidthAtRest ?? 1));
+    return Math.max(0, gapW - inset - minRes);
+  }
+
+  function capPressCols(gapWidthAtRest, requestedPressCols, oppositeWallInset, minResidualGapCols) {
+    const maxP = maxPressColsForCorridor(gapWidthAtRest, oppositeWallInset, minResidualGapCols);
+    return Math.max(0, Math.min(Math.max(0, Math.round(requestedPressCols ?? 0)), maxP));
+  }
+
+  function harmonizePlatformSlab(slabParams, corridorSpec, opts) {
+    const minRes = opts?.minResidualGapCols ?? MIN_RESIDUAL_GAP_COLS_DEFAULT;
+    const corridor = corridorSpec || { gapWidthCols: 2, oppositeWallInset: 0 };
+    const p = slabParams || {};
+    const requested = p.pressCols ?? 1;
+    const capped = capPressCols(
+      corridor.gapWidthCols,
+      requested,
+      corridor.oppositeWallInset ?? 0,
+      minRes
+    );
+    const warnings = [];
+    if (capped < requested) {
+      warnings.push(
+        `Capped pressCols ${requested} → ${capped} (gap ${corridor.gapWidthCols}, min residual ${minRes} col).`
+      );
+    }
+    p.pressCols = capped;
+    return { params: p, warnings, capped: capped < requested };
+  }
+
+  function tryFairnessForBeat(beat, columns, waterSpeedPxPerSec) {
+    const schema = global.StageDesignSchema;
+    const fair = global.StageDesignFairness;
+    if (!schema?.flattenDocument || !fair?.computeFairnessReport) {
+      return { ok: true, warnings: [], issues: [] };
+    }
+    const primarySpeed = waterSpeedPxPerSec ?? 350;
+    const speeds = primarySpeed === 120 ? [120] : [primarySpeed, 120];
+    let lastReport = { ok: true, warnings: [], issues: [] };
+    for (const speed of speeds) {
+      const doc = schema.flattenDocument({
+        schemaVersion: 2,
+        kind: "stage-design",
+        grid: { columns, rowHeightPx: 24, cellGapPx: 3 },
+        stage: { waterSpeedPxPerSec: speed },
+        playback: { waterSpeedPxPerSec: speed, rowHeightPx: 24 },
+        segments: [
+          {
+            id: "temp-seg",
+            label: "temp",
+            macroPhase: "flow",
+            source: "procedural",
+            rows: beat.rows,
+          },
+        ],
+        hazards: beat.hazards || [],
+        tracks: beat.tracks || [],
+        markers: beat.markers || [],
+      });
+      lastReport = fair.computeFairnessReport(doc);
+      if (!lastReport.ok) {
+        return {
+          ok: false,
+          warnings: lastReport.warnings || [],
+          issues: lastReport.issues || [],
+          speed,
+        };
+      }
+    }
+    return { ok: true, warnings: lastReport.warnings || [], issues: [] };
+  }
+
+  function harmonizePlatformBeat(beat, opts) {
+    const columns = opts?.columns ?? 6;
+    const minRes = opts?.minResidualGapCols ?? MIN_RESIDUAL_GAP_COLS_DEFAULT;
+    const corridor = opts?.corridor || { gapWidthCols: 2, oppositeWallInset: 0 };
+    const warnings = [];
+
+    for (const hz of beat.hazards || []) {
+      if (hz.kind !== "hazard_platform") continue;
+      const { warnings: w } = harmonizePlatformSlab(hz.params, corridor, { minResidualGapCols: minRes });
+      warnings.push(...w);
+    }
+
+    let attempts = 0;
+    while (attempts < 3) {
+      const fair = tryFairnessForBeat(beat, columns, opts?.waterSpeedPxPerSec);
+      if (fair.ok) break;
+      const platformHazards = (beat.hazards || []).filter((h) => h.kind === "hazard_platform");
+      if (!platformHazards.length) break;
+      const timedIssue = (fair.issues || []).find((i) => i.type === "timed");
+      const failRow = timedIssue?.row;
+      const culprit =
+        platformHazards.find(
+          (h) =>
+            failRow != null &&
+            (h.bounds?.rowStart ?? 0) <= failRow &&
+            (h.bounds?.rowEnd ?? 0) >= failRow
+        ) ||
+        platformHazards.find(
+          (h) =>
+            failRow != null &&
+            (h.params?.animStartRow ?? h.bounds?.rowStart ?? 0) <= failRow &&
+            (h.bounds?.rowEnd ?? 0) >= failRow - 1
+        ) ||
+        platformHazards[platformHazards.length - 1];
+      if (attempts < 2) {
+        culprit.params.pressDurationSec = (culprit.params.pressDurationSec ?? 1) + 0.3;
+        warnings.push(
+          `Fairness retry @${fair.speed ?? "?"}px/s row ${failRow ?? "?"}: ${culprit.id} pressDurationSec +0.3s (now ${culprit.params.pressDurationSec.toFixed(1)}s)`
+        );
+      } else {
+        const anchor = culprit.bounds?.rowStart ?? culprit.anchor?.globalRowIndex ?? 0;
+        culprit.params.animStartRow = Math.max(0, (culprit.params.animStartRow ?? anchor) - 1);
+        warnings.push(`Fairness retry: ${culprit.id} telegraph lead +1 row`);
+      }
+      attempts++;
+    }
+
+    beat.harmonizerWarnings = warnings;
+    return { beat, warnings, capped: warnings.some((w) => w.startsWith("Capped")) };
+  }
+
+  function buildPlatformSlabHazard(params, columns, startGlobalRow, slabStartRow, rowSpan, side) {
+    const pressDur = params.pressDurationSec ?? 1.4;
+    const pressCols = params.pressCols ?? 1;
+    const pressEase = params.pressEase || "ease-out";
+    const anchorCol = side === "left" ? 1 : columns - 2;
+    const pressDirection = side === "left" ? "right" : "left";
+    const rowEnd = slabStartRow + rowSpan - 1;
+    const animStartRow = params.animStartRow ?? Math.max(0, slabStartRow - 2);
+    const hzId = nextHzId();
+    const hazard = attachBounds(
+      {
+        id: hzId,
+        kind: "hazard_platform",
+        renderLayer: "machinery",
+        anchor: { globalRowIndex: slabStartRow },
+        params: {
+          pressCols,
+          pressDurationSec: pressDur,
+          pressDirection,
+          pressEase,
+          animStartRow,
+          animStartSec: null,
+        },
+        phases: [
+          { name: "pressing", durationSec: pressDur },
+          { name: "held", durationSec: params.heldDurationSec ?? 0.25 },
+        ],
+      },
+      columns,
+      slabStartRow,
+      rowEnd,
+      anchorCol,
+      anchorCol
+    );
+    return hazard;
   }
 
   function gapColsFromWidth(columns, gapWidth, centerCol) {
@@ -43,6 +212,27 @@
     return blocks;
   }
 
+  /** Machinery column — static orange wall removed on slab rows so the press can travel. */
+  function pressWallCol(columns, side) {
+    return side === "left" ? 1 : columns - 2;
+  }
+
+  function corridorRowForSlab(columns, gapWidth, centerCol, side) {
+    const gaps = gapColsFromWidth(columns, gapWidth, centerCol);
+    const wallCol = pressWallCol(columns, side);
+    const gapSet = new Set(gaps);
+    gapSet.add(wallCol);
+    if (side === "left") {
+      const gapMin = Math.min(...gaps);
+      for (let c = wallCol + 1; c < gapMin; c++) gapSet.add(c);
+    } else {
+      const gapMax = Math.max(...gaps);
+      for (let c = gapMax + 1; c < wallCol; c++) gapSet.add(c);
+    }
+    const newGaps = Array.from(gapSet).sort((a, b) => a - b);
+    return { gaps: newGaps, blocks: blocksFromGaps(columns, newGaps) };
+  }
+
   function attachBounds(hazard, columns, startRow, endRow, colStart, colEnd) {
     hazard.bounds = {
       rowStart: startRow,
@@ -51,6 +241,360 @@
       colEnd: colEnd != null ? colEnd : columns - 1,
     };
     return hazard;
+  }
+
+  function lerpNum(a, b, t) {
+    return a + (b - a) * Math.max(0, Math.min(1, t));
+  }
+
+  function lerpTeachEscalation(difficulty01) {
+    const d = Math.max(0, Math.min(1, difficulty01 ?? 0.2));
+    return {
+      safeRunwayRows: Math.round(lerpNum(8, 6, d)),
+      breatheRows: Math.round(lerpNum(5, 3, d)),
+      chicaneRows: Math.round(lerpNum(4, 3, d)),
+      releaseRows: Math.round(lerpNum(10, 5, d)),
+      press1RowSpan: 3,
+      press2RowSpan: Math.round(lerpNum(2, 2, d)),
+      press1Duration: lerpNum(1.5, 1.15, d),
+      press1Telegraph: Math.round(lerpNum(3, 2, d)),
+      press2Duration: lerpNum(1.2, 0.95, d),
+      press2Telegraph: Math.round(lerpNum(2, 1, d)),
+      stackDuration: lerpNum(1.0, 0.8, d),
+      climaxDuration: lerpNum(0.85, 0.75, d),
+      climaxTelegraph: 1,
+    };
+  }
+
+  function appendCorridorRows(rowDefs, columns, count, spec) {
+    const gapW = spec.gapWidthCols ?? 2;
+    const center = spec.centerCol ?? 2.5;
+    const driftTotal = spec.driftTotalCols ?? 0;
+    const n = Math.max(0, Math.round(count));
+    for (let i = 0; i < n; i++) {
+      const t = n <= 1 ? 0 : i / (n - 1);
+      const gaps = gapColsFromWidth(columns, gapW, center + driftTotal * t);
+      rowDefs.push({
+        blocks: blocksFromGaps(columns, gaps),
+        gaps,
+        macroPhase: spec.macroPhase || "flow",
+      });
+    }
+    return n;
+  }
+
+  function appendSlabEvent(ctx, localStartRow, spec) {
+    const { rowDefs, hazards, markers, columns, warnings, opts, startGlobalRow } = ctx;
+    const rowSpan = Math.max(1, spec.rowSpan ?? 1);
+    const gapW = spec.gapWidthCols ?? 2;
+    const centerCol = spec.centerCol ?? 2.5;
+    const corridor = { gapWidthCols: gapW, oppositeWallInset: spec.oppositeWallInset ?? 0 };
+    const side = spec.side ?? "right";
+    const telegraphLead = spec.telegraphLeadRows ?? 2;
+    const globalBase = startGlobalRow ?? 0;
+    const slabStartGlobal = globalBase + localStartRow;
+
+    for (let i = 0; i < rowSpan; i++) {
+      const rowGeom = corridorRowForSlab(columns, gapW, centerCol, side);
+      rowDefs.push({
+        blocks: rowGeom.blocks,
+        gaps: rowGeom.gaps,
+        macroPhase: spec.macroPhase || "flow",
+      });
+    }
+
+    const animStartGlobal =
+      spec.animStartLocalRow != null
+        ? globalBase + spec.animStartLocalRow
+        : spec.animStartRow != null
+          ? spec.animStartRow
+          : Math.max(0, slabStartGlobal - telegraphLead);
+
+    const slabParams = {
+      pressCols: spec.pressCols ?? 1,
+      pressDurationSec: spec.pressDurationSec ?? 1.2,
+      pressEase: spec.pressEase ?? "ease-out",
+      animStartRow: animStartGlobal,
+      heldDurationSec: spec.heldDurationSec ?? 0.25,
+    };
+    const harm = harmonizePlatformSlab(slabParams, corridor, opts);
+    if (harm.warnings.length) warnings.push(...harm.warnings);
+
+    const hazard = buildPlatformSlabHazard(
+      harm.params,
+      columns,
+      slabStartGlobal,
+      slabStartGlobal,
+      rowSpan,
+      side
+    );
+    hazards.push(hazard);
+
+    if (spec.addTelegraph !== false && telegraphLead > 0) {
+      markers.push({
+        id: nextMkId(),
+        globalRowIndex: Math.max(0, hazard.params.animStartRow),
+        kind: "telegraph",
+        label: spec.telegraphLabel || "",
+      });
+    }
+
+    return rowSpan;
+  }
+
+  function composePressIntroShaft(params, columns, startGlobalRow) {
+    const seed = params?.seed ?? 0;
+    const difficulty01 = Math.max(0, Math.min(1, params?.difficulty01 ?? 0.2));
+    const esc = lerpTeachEscalation(difficulty01);
+    const gapW = params?.gapWidthCols ?? 2;
+    const baseCenter = 2.5;
+    const chicaneSign = seed % 2 === 0 ? 1 : -1;
+    const stackSide = seed % 2 === 1 ? "right" : "left";
+    const climaxSide = stackSide === "right" ? "left" : "right";
+
+    const rowDefs = [];
+    const hazards = [];
+    const markers = [];
+    const warnings = [];
+    let localCursor = 0;
+    const ctx = {
+      rowDefs,
+      hazards,
+      markers,
+      columns,
+      warnings,
+      startGlobalRow,
+      opts: {
+        minResidualGapCols: params?.minResidualGapCols ?? MIN_RESIDUAL_GAP_COLS_DEFAULT,
+      },
+    };
+
+    localCursor += appendCorridorRows(rowDefs, columns, esc.safeRunwayRows, {
+      gapWidthCols: gapW,
+      centerCol: baseCenter,
+      macroPhase: "flow",
+    });
+
+    localCursor += appendSlabEvent(ctx, localCursor, {
+      side: "right",
+      rowSpan: esc.press1RowSpan,
+      pressCols: 1,
+      pressDurationSec: esc.press1Duration,
+      pressEase: "ease-out",
+      telegraphLeadRows: esc.press1Telegraph,
+      gapWidthCols: gapW,
+      centerCol: baseCenter,
+      macroPhase: "flow",
+    });
+
+    localCursor += appendCorridorRows(rowDefs, columns, esc.breatheRows, {
+      gapWidthCols: gapW,
+      centerCol: baseCenter,
+      macroPhase: "flow",
+    });
+
+    localCursor += appendSlabEvent(ctx, localCursor, {
+      side: "left",
+      rowSpan: esc.press2RowSpan,
+      pressCols: 1,
+      pressDurationSec: esc.press2Duration,
+      pressEase: "ease-out",
+      telegraphLeadRows: esc.press2Telegraph,
+      gapWidthCols: gapW,
+      centerCol: baseCenter,
+      macroPhase: "flow",
+    });
+
+    const chicaneCenter = baseCenter + chicaneSign * 0.5;
+    localCursor += appendCorridorRows(rowDefs, columns, esc.chicaneRows, {
+      gapWidthCols: gapW,
+      centerCol: chicaneCenter,
+      driftTotalCols: chicaneSign * 0.5,
+      macroPhase: "tension",
+    });
+
+    const stackLocal0 = localCursor;
+    localCursor += appendSlabEvent(ctx, stackLocal0, {
+      side: stackSide,
+      rowSpan: 1,
+      pressCols: 1,
+      pressDurationSec: esc.stackDuration,
+      pressEase: "ease-out",
+      telegraphLeadRows: 1,
+      gapWidthCols: gapW,
+      centerCol: chicaneCenter,
+      macroPhase: "tension",
+      animStartLocalRow: stackLocal0 - 1,
+    });
+
+    const stackLocal1 = localCursor;
+    localCursor += appendSlabEvent(ctx, stackLocal1, {
+      side: stackSide,
+      rowSpan: 1,
+      pressCols: 1,
+      pressDurationSec: esc.stackDuration,
+      pressEase: "ease-out",
+      telegraphLeadRows: 0,
+      gapWidthCols: gapW,
+      centerCol: chicaneCenter,
+      macroPhase: "tension",
+      animStartLocalRow: stackLocal1,
+      addTelegraph: false,
+    });
+
+    localCursor += appendCorridorRows(rowDefs, columns, 2, {
+      gapWidthCols: gapW,
+      centerCol: chicaneCenter,
+      driftTotalCols: baseCenter - chicaneCenter,
+      macroPhase: "tension",
+    });
+
+    localCursor += appendSlabEvent(ctx, localCursor, {
+      side: climaxSide,
+      rowSpan: 1,
+      pressCols: 1,
+      pressDurationSec: esc.climaxDuration,
+      pressEase: "ease-in",
+      telegraphLeadRows: esc.climaxTelegraph,
+      gapWidthCols: gapW,
+      centerCol: baseCenter,
+      macroPhase: "climax",
+    });
+
+    appendCorridorRows(rowDefs, columns, esc.releaseRows, {
+      gapWidthCols: gapW,
+      centerCol: baseCenter,
+      macroPhase: "release",
+    });
+
+    const beat = { rows: rowDefs, hazards, tracks: [], markers };
+    const harmonized = harmonizePlatformBeat(beat, {
+      columns,
+      corridor: { gapWidthCols: gapW, oppositeWallInset: 0 },
+      waterSpeedPxPerSec: params?.waterSpeedPxPerSec,
+      minResidualGapCols: MIN_RESIDUAL_GAP_COLS_DEFAULT,
+    }).beat;
+
+    const allWarnings = [...warnings, ...(harmonized.harmonizerWarnings || [])];
+
+    return {
+      rows: harmonized.rows,
+      hazards: harmonized.hazards,
+      tracks: [],
+      markers: harmonized.markers,
+      harmonizerWarnings: allWarnings,
+      binding: {
+        fn: "composePressIntroShaft",
+        params: {
+          seed,
+          difficulty01,
+          gapWidthCols: gapW,
+          chicaneSign,
+          stackSide,
+        },
+        hazardIds: harmonized.hazards.map((h) => h.id),
+      },
+    };
+  }
+
+  function pressTeachSingle(params, columns, startGlobalRow) {
+    const seed = params?.seed ?? 0;
+    const side = params?.side ?? (seed % 2 === 1 ? "right" : "left");
+    const approachRows = params?.approachRows ?? 5;
+    const slabRows = params?.rowSpan ?? 3;
+    const recoveryRows = params?.recoveryRows ?? 4;
+    const gapWidthCols = params?.gapWidthCols ?? 2;
+    const centerCol = side === "right" ? 2.5 : 2.5;
+    const corridor = { gapWidthCols, oppositeWallInset: params?.oppositeWallInset ?? 0 };
+
+    const rowDefs = [];
+    for (let i = 0; i < approachRows; i++) {
+      const gaps = gapColsFromWidth(columns, gapWidthCols, centerCol);
+      rowDefs.push({
+        blocks: blocksFromGaps(columns, gaps),
+        gaps,
+        macroPhase: params.macroPhase || "flow",
+      });
+    }
+
+    const slabStartRow = startGlobalRow + approachRows;
+    for (let i = 0; i < slabRows; i++) {
+      const rowGeom = corridorRowForSlab(columns, gapWidthCols, centerCol, side);
+      rowDefs.push({
+        blocks: rowGeom.blocks,
+        gaps: rowGeom.gaps,
+        macroPhase: params.macroPhase || "flow",
+      });
+    }
+
+    for (let i = 0; i < recoveryRows; i++) {
+      const t = recoveryRows <= 1 ? 0 : i / (recoveryRows - 1);
+      const drift = (params.recoveryDriftCols ?? 0) * t;
+      const gaps = gapColsFromWidth(columns, gapWidthCols, centerCol + drift);
+      rowDefs.push({
+        blocks: blocksFromGaps(columns, gaps),
+        gaps,
+        macroPhase: "release",
+      });
+    }
+
+    const hazard = buildPlatformSlabHazard(
+      {
+        pressCols: params.pressCols ?? 1,
+        pressDurationSec: params.pressDurationSec ?? 1.4,
+        pressEase: params.pressEase ?? "ease-out",
+        animStartRow: params.animStartRow ?? slabStartRow - 2,
+        heldDurationSec: params.heldDurationSec ?? 0.25,
+      },
+      columns,
+      startGlobalRow,
+      slabStartRow,
+      slabRows,
+      side
+    );
+
+    const beat = {
+      rows: rowDefs,
+      hazards: [hazard],
+      tracks: [],
+      markers: [
+        {
+          id: nextMkId(),
+          globalRowIndex: Math.max(0, slabStartRow - 2),
+          kind: "telegraph",
+          label: "",
+        },
+      ],
+    };
+
+    const harmonized = harmonizePlatformBeat(beat, {
+      columns,
+      corridor,
+      waterSpeedPxPerSec: params.waterSpeedPxPerSec,
+      minResidualGapCols: params.minResidualGapCols ?? MIN_RESIDUAL_GAP_COLS_DEFAULT,
+    }).beat;
+
+    const hzId = harmonized.hazards[0].id;
+    return {
+      rows: harmonized.rows,
+      hazards: harmonized.hazards,
+      tracks: [],
+      markers: harmonized.markers,
+      harmonizerWarnings: harmonized.harmonizerWarnings || [],
+      binding: {
+        fn: "pressTeachSingle",
+        params: {
+          side,
+          approachRows,
+          rowSpan: slabRows,
+          recoveryRows,
+          gapWidthCols,
+          seed,
+          difficulty01: params.difficulty01 ?? 0.2,
+        },
+        hazardIds: [hzId],
+      },
+    };
   }
 
   function viseSequence(params, columns, startGlobalRow) {
@@ -103,7 +647,7 @@
   }
 
   function irisClampRow(params, columns, globalRow) {
-    const preset = params.preset || "2of8";
+    const preset = params.preset || "narrowPreset";
     const closedW = params.closedGapCols ?? scalePreset(columns, preset);
     const openW = params.openGapCols ?? Math.max(closedW + 1, columns - 2);
     const closeDur = params.closeDurationSec ?? 0.9;
@@ -279,6 +823,10 @@
         return buzzWheel(params || {}, columns, startGlobalRow);
       case "slidingGap":
         return slidingGap(params || {}, columns, startGlobalRow);
+      case "pressTeachSingle":
+        return pressTeachSingle(params || {}, columns, startGlobalRow);
+      case "composePressIntroShaft":
+        return composePressIntroShaft(params || {}, columns, startGlobalRow);
       default:
         throw new Error(`Unknown generator: ${fnName}`);
     }
@@ -288,6 +836,12 @@
     const params = { ...(binding.params || {}), seed: (binding.params?.seed || 0) + (seedBump || 1) };
     if (binding.fn === "viseSequence" && params.driftCols === 0) {
       params.driftCols = (seedBump || 1) % 2 === 0 ? 0 : 1;
+    }
+    if (binding.fn === "pressTeachSingle") {
+      params.side = params.seed % 2 === 1 ? "right" : "left";
+    }
+    if (binding.fn === "composePressIntroShaft") {
+      params.chicaneSign = params.seed % 2 === 0 ? 1 : -1;
     }
     return run(binding.fn, params, columns, startGlobalRow);
   }
@@ -300,7 +854,19 @@
     tiltGate,
     buzzWheel,
     slidingGap,
+    pressTeachSingle,
+    composePressIntroShaft,
+    lerpTeachEscalation,
+    appendCorridorRows,
+    appendSlabEvent,
+    corridorRowForSlab,
+    pressWallCol,
     scalePreset,
+    maxPressColsForCorridor,
+    capPressCols,
+    harmonizePlatformSlab,
+    harmonizePlatformBeat,
+    MIN_RESIDUAL_GAP_COLS_DEFAULT,
     nextHzId,
     nextTrkId,
     nextMkId,

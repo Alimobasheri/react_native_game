@@ -4,7 +4,10 @@ import { ObstacleSystem } from '@/systems/PhysicsSystem/ObstacleSystem';
 import { useSceneContextUnsafe } from '@/containers/ReactNativeSkiaGameEngine/components-rntge/Scene/hooks';
 import { createObstaclesManagerComponent } from '@/Game/ecs-components/ObstaclesManager';
 import { FC } from 'react';
-import type { StoryLockedProceduralSegment } from '@/Game/ecs-systems/obstacleSystem';
+import type {
+  StoryLockedProceduralSegment,
+  StoryLockedShaftRecipe,
+} from '@/Game/ecs-systems/obstacleSystem';
 
 /**
  * ObstacleView - Component that manages dynamic obstacles for the swimmer game
@@ -26,7 +29,19 @@ export const ObstacleView: FC<{
    * Requires `lockedTemplateName` `directed` or `baseMulti`.
    */
   storyLockedProceduralSegment?: StoryLockedProceduralSegment;
-}> = ({ lockedTemplateName, storyLockedProceduralSegment }) => {
+  /** Lock one platform-shaft composer loop — Slice 3 consumes in ObstacleSystem. */
+  storyLockedShaftRecipe?: StoryLockedShaftRecipe;
+  storyLockedShaftSeed?: number;
+  storyLockedShaftDifficulty?: number;
+  storyLockShaftLoop?: boolean;
+}> = ({
+  lockedTemplateName,
+  storyLockedProceduralSegment,
+  storyLockedShaftRecipe,
+  storyLockedShaftSeed,
+  storyLockedShaftDifficulty,
+  storyLockShaftLoop,
+}) => {
   const sceneContext = useSceneContextUnsafe();
   const sceneKey = sceneContext?.sceneKey ?? 'swimmerGame';
 
@@ -39,12 +54,16 @@ export const ObstacleView: FC<{
         totalRowsGenerated: 0,
         lockedTemplateName,
         storyLockedProceduralSegment,
+        storyLockedShaftRecipe,
+        storyLockedShaftSeed,
+        storyLockedShaftDifficulty,
+        storyLockShaftLoop,
       }),
     ],
   });
 
-  // Register the obstacle system
-  const { systemId: id } = useAddSystem({ system: ObstacleSystem });
+  // Register the obstacle system (includes grid-anchored hazard motion pass)
+  useAddSystem({ system: ObstacleSystem });
 
   return null;
 };
