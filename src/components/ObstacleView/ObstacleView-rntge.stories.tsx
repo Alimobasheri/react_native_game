@@ -35,7 +35,6 @@ import {
 } from '@/assets/swimmerCharacters';
 import { sourceCode as waterShaderSourceCode } from '@/Shaders/WaterShader/waterShader';
 
-
 import { ContainerComponentName } from '@/Game/ecs-components/Container';
 import { WaterComponentName } from '@/Game/ecs-components/Water';
 import { SwimmerComponentName } from '@/Game/ecs-components/Swimmer';
@@ -93,11 +92,31 @@ export const ObstacleTemplateGameComp: FC<ObstacleTemplateStoryProps> = memo(
             <Content>
               <Scene name="game">
                 <Preload>
-                  <Asset type="image" name="block_var_0" uriOrBase64={swimmerBlockVar0} />
-                  <Asset type="image" name="block_var_1" uriOrBase64={swimmerBlockVar1} />
-                  <Asset type="image" name="block_var_2" uriOrBase64={swimmerBlockVar2} />
-                  <Asset type="image" name="block_var_3" uriOrBase64={swimmerBlockVar3} />
-                  <Asset type="image" name="cave_bg" uriOrBase64={swimmerCaveBg} />
+                  <Asset
+                    type="image"
+                    name="block_var_0"
+                    uriOrBase64={swimmerBlockVar0}
+                  />
+                  <Asset
+                    type="image"
+                    name="block_var_1"
+                    uriOrBase64={swimmerBlockVar1}
+                  />
+                  <Asset
+                    type="image"
+                    name="block_var_2"
+                    uriOrBase64={swimmerBlockVar2}
+                  />
+                  <Asset
+                    type="image"
+                    name="block_var_3"
+                    uriOrBase64={swimmerBlockVar3}
+                  />
+                  <Asset
+                    type="image"
+                    name="cave_bg"
+                    uriOrBase64={swimmerCaveBg}
+                  />
                   <Asset
                     type="image"
                     name={SWIMMER_CHARACTER_IMAGE.floaterGoggledBody}
@@ -161,9 +180,9 @@ export const ObstacleTemplateGameComp: FC<ObstacleTemplateStoryProps> = memo(
                     waterRiseSpeed={3}
                   />
 
-                  <WaterView raisingSpeed={100} />
-
                   <ObstacleView lockedTemplateName={args.templateName} />
+
+                  <WaterView raisingSpeed={100} />
 
                   <SwimmerView
                     y={swimmerStartY}

@@ -1,5 +1,5 @@
 import { getObstacleRowPitch } from '@/assets/swimmerBlocks';
-import { gridSpanToWorld } from '@/Game/grid/gridSpanToWorld';
+import { gridSpanToWorld, slabAabbFromWorldRect } from '@/Game/grid/gridSpanToWorld';
 import { gapColsClosedByPressForCollision, simPlatformPress } from '@/Game/hazards/platformPressMotion';
 import { composePressIntroShaft } from '@/Game/path/platformShaft/composePressIntroShaft';
 import { TEST_COLS } from '@/Game/path/__tests__/testGrid';
@@ -54,5 +54,33 @@ describe('visibilityCollisionParity', () => {
       columns: TEST_COLS,
     });
     expect(rect.width).toBeCloseTo(columnWidth, 5);
+  });
+
+  it('press slab AABB width matches fractional render width during partial press', () => {
+    const sim = simPlatformPress(hazard, TEST_COLS, 0.5, rowStart)!;
+    const rect = gridSpanToWorld({
+      slabStart: sim.slabStart,
+      slabEnd: sim.slabEnd,
+      rowYs: [200],
+      leftX: 0,
+      columnWidth,
+      blockHeight,
+      rowPitch,
+      columns: TEST_COLS,
+    });
+    const aabb = slabAabbFromWorldRect(rect);
+    expect(aabb.maxX - aabb.minX).toBeCloseTo(rect.width, 5);
+    expect(aabb.maxX - aabb.minX).toBeLessThan(
+      gridSpanToWorld({
+        slabStart: Math.min(...sim.blockCols),
+        slabEnd: Math.max(...sim.blockCols) + 1,
+        rowYs: [200],
+        leftX: 0,
+        columnWidth,
+        blockHeight,
+        rowPitch,
+        columns: TEST_COLS,
+      }).width
+    );
   });
 });

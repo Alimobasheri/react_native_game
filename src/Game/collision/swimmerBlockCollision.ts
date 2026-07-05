@@ -16,6 +16,8 @@ export type CollisionRow = {
   y: number;
   gaps: readonly number[];
   solidColumnCentersX?: readonly number[];
+  /** Fractional press-slab solid — matches steel render extent. */
+  pressSlabAabb?: AABB;
 };
 
 export type ContainerLayout = {
@@ -79,6 +81,20 @@ export type ResolveSwimmerResult = {
 
 const DEFAULT_HITBOX_SCALE = 1.0;
 const SKIN_EPSILON = 0.5;
+
+function aabbWithHitboxScale(aabb: AABB, hitboxScale: number): AABB {
+  'worklet';
+  const cx = (aabb.minX + aabb.maxX) * 0.5;
+  const cy = (aabb.minY + aabb.maxY) * 0.5;
+  const halfW = ((aabb.maxX - aabb.minX) * 0.5) * hitboxScale;
+  const halfH = ((aabb.maxY - aabb.minY) * 0.5) * hitboxScale;
+  return {
+    minX: cx - halfW,
+    maxX: cx + halfW,
+    minY: cy - halfH,
+    maxY: cy + halfH,
+  };
+}
 
 export function aabbFromCenter(
   cx: number,
@@ -240,6 +256,7 @@ export function selectRowsNearSwimmerFromComponentStore(
       gaps: rowData.effectiveGaps ?? rowData.gaps,
       solidColumnCentersX:
         rowData.effectiveSolidColumnCentersX ?? rowData.solidColumnCentersX,
+      pressSlabAabb: rowData.effectivePressSlabAabb,
     });
   });
   return out;
@@ -267,6 +284,9 @@ export function solidAABBsFromRow(
         maxY: row.y + halfH,
       });
     }
+    if (row.pressSlabAabb) {
+      solids.push(aabbWithHitboxScale(row.pressSlabAabb, hitboxScale));
+    }
     return solids;
   }
 
@@ -288,6 +308,9 @@ export function solidAABBsFromRow(
       minY: row.y - halfH,
       maxY: row.y + halfH,
     });
+  }
+  if (row.pressSlabAabb) {
+    solids.push(aabbWithHitboxScale(row.pressSlabAabb, hitboxScale));
   }
   return solids;
 }

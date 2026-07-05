@@ -1,3 +1,4 @@
+import { platformShaftTuning } from '@/config/platformShaftTuning';
 import { swimmerWaterLightingTuning } from '@/config/swimmerWaterLightingTuning';
 
 const M_PI = Math.PI;
@@ -70,6 +71,55 @@ const bandMask = (y: number, center: number, halfH: number): number => {
   return Math.max(0, Math.min(1, low * high));
 };
 
+const clampSigned = (value: number, absMax: number): number => {
+  'worklet';
+  return Math.max(-absMax, Math.min(absMax, value));
+};
+
+/** Per-X local flow — mirrors SwimmerPhysicsSystem / water shader uFlowPerRange sampling. */
+export const sampleLocalFlowAtXNorm = (
+  xNorm: number,
+  gapBlend: number,
+  gapCurr01: readonly [number, number, number, number],
+  gapCurr23: readonly [number, number, number, number],
+  gapPrev01: readonly [number, number, number, number],
+  gapPrev23: readonly [number, number, number, number],
+  flowPerRange: readonly [number, number, number, number] | undefined,
+  flowVelocity: number
+): number => {
+  'worklet';
+  const x = clamp01(xNorm);
+  const blendT = smoothstepEdge(0, 1, clamp01(gapBlend));
+  const r0: [number, number] = [
+    lerp(gapPrev01[0], gapCurr01[0], blendT),
+    lerp(gapPrev01[1], gapCurr01[1], blendT),
+  ];
+  const r1: [number, number] = [
+    lerp(gapPrev01[2], gapCurr01[2], blendT),
+    lerp(gapPrev01[3], gapCurr01[3], blendT),
+  ];
+  const r2: [number, number] = [
+    lerp(gapPrev23[0], gapCurr23[0], blendT),
+    lerp(gapPrev23[1], gapCurr23[1], blendT),
+  ];
+  const r3: [number, number] = [
+    lerp(gapPrev23[2], gapCurr23[2], blendT),
+    lerp(gapPrev23[3], gapCurr23[3], blendT),
+  ];
+  const w0 = softRangeWeight(r0[0], r0[1], x);
+  const w1 = softRangeWeight(r1[0], r1[1], x);
+  const w2 = softRangeWeight(r2[0], r2[1], x);
+  const w3 = softRangeWeight(r3[0], r3[1], x);
+  const wSum = w0 + w1 + w2 + w3;
+  const slots = flowPerRange ?? [flowVelocity, 0, 0, 0];
+  if (wSum <= 0.0001) {
+    return clampSigned(flowVelocity, 1);
+  }
+  const local =
+    (w0 * slots[0] + w1 * slots[1] + w2 * slots[2] + w3 * slots[3]) / wSum;
+  return clampSigned(local, 1.25);
+};
+
 export type WaterGapSpan = {
   startNorm: number;
   endNorm: number;
@@ -97,6 +147,7 @@ export type WaterSurfaceProfileParams = {
   curveTilt: number;
   calmness: number;
   flowVelocity: number;
+  flowPerRange?: readonly [number, number, number, number];
   surgeEnergy: number;
   surfaceBandCenterY: number;
   surfaceBandHalfHeight: number;
@@ -157,79 +208,121 @@ export const computeFinalSurfaceUv = (params: WaterSurfaceProfileParams): number
   const w2 = softRangeWeight(r2.start, r2.end, x);
   const w3 = softRangeWeight(r3.start, r3.end, x);
   const softGapAny = Math.max(0, Math.min(1, Math.max(Math.max(w0, w1), Math.max(w2, w3))));
-  const activeGapMaskAny = Math.max(
+
+  const hybrid = clamp01(params.hybridGapMaskStrength);
+  const gapFeather = Math.max(0.02, Math.min(0.09, blendedGapWidth * 0.45));
+  const currGap = {
+    start: params.gapCurrent[0],
+    end: Math.max(params.gapCurrent[0] + 0.01, params.gapCurrent[1]),
+  };
+  const currGapWidth = Math.max(0.02, currGap.end - currGap.start);
+  const currFeather = Math.max(0.02, Math.min(0.09, currGapWidth * 0.45));
+  const c0 = { start: params.gapCurr01[0], end: params.gapCurr01[1] };
+  const c1 = { start: params.gapCurr01[2], end: params.gapCurr01[3] };
+  const c2 = { start: params.gapCurr23[0], end: params.gapCurr23[1] };
+  const c3 = { start: params.gapCurr23[2], end: params.gapCurr23[3] };
+  const cw0 = softRangeWeight(c0.start, c0.end, x);
+  const cw1 = softRangeWeight(c1.start, c1.end, x);
+  const cw2 = softRangeWeight(c2.start, c2.end, x);
+  const cw3 = softRangeWeight(c3.start, c3.end, x);
+  const softGapCurrAny = Math.max(
+    0,
+    Math.min(1, Math.max(Math.max(cw0, cw1), Math.max(cw2, cw3)))
+  );
+  const activeGapMaskCurrAny = Math.max(
     0,
     Math.min(
       1,
       Math.max(
-        Math.max(hardRangeMask(r0.start, r0.end, x), hardRangeMask(r1.start, r1.end, x)),
-        Math.max(hardRangeMask(r2.start, r2.end, x), hardRangeMask(r3.start, r3.end, x))
+        Math.max(hardRangeMask(c0.start, c0.end, x), hardRangeMask(c1.start, c1.end, x)),
+        Math.max(hardRangeMask(c2.start, c2.end, x), hardRangeMask(c3.start, c3.end, x))
       )
     )
   );
-
-  const hybrid = clamp01(params.hybridGapMaskStrength);
-  const activeGapMask = lerp(
-    hardRangeMask(blendedGap.start, blendedGap.end, x),
-    activeGapMaskAny,
-    hybrid
-  );
-  const gapFeather = Math.max(0.02, Math.min(0.09, blendedGapWidth * 0.45));
-  const softGap = lerp(
-    softGapInfluence(blendedGap.start, blendedGap.end, x, gapFeather),
-    softGapAny,
-    hybrid
-  );
+  const softGapSurfaceSingle = softGapInfluence(currGap.start, currGap.end, x, currFeather);
+  const softGapSingle = softGapInfluence(blendedGap.start, blendedGap.end, x, gapFeather);
+  const softGapSurface = hybrid > 0.01 ? softGapCurrAny : softGapSurfaceSingle;
+  const activeGapMask = hybrid > 0.01 ? activeGapMaskCurrAny : hardRangeMask(currGap.start, currGap.end, x);
+  const softGap = hybrid > 0.01 ? softGapAny : softGapSingle;
 
   const surfaceYForBand =
     params.waterLevel + computeIdleSurfaceOffsetNorm(x, params.iTime);
-  const activeBandMask = bandMask(
+
+  const surgeEnergy = Math.max(0, Math.min(1, params.surgeEnergy));
+  const calmness = clamp01(params.calmness);
+  const localFlow = sampleLocalFlowAtXNorm(
+    x,
+    params.gapBlend,
+    params.gapCurr01,
+    params.gapCurr23,
+    params.gapPrev01,
+    params.gapPrev23,
+    params.flowPerRange,
+    params.flowVelocity
+  );
+  const rowBandMask = bandMask(
     surfaceYForBand,
     clamp01(params.surfaceBandCenterY),
     Math.max(0.02, Math.min(0.2, params.surfaceBandHalfHeight))
   );
-
-  const surgeEnergy = Math.max(0, Math.min(1, params.surgeEnergy));
-  const calmness = clamp01(params.calmness);
-  const flowVelocity = Math.max(-1, Math.min(1, params.flowVelocity));
+  const waterLineMask = bandMask(
+    params.waterLevel,
+    params.waterLevel,
+    Math.max(0.03, Math.min(0.28, params.surfaceBandHalfHeight * 1.35))
+  );
+  const pressFlowActive = Math.abs(localFlow) > 0.04;
+  const gameplayBandMask = Math.max(rowBandMask, waterLineMask * (pressFlowActive ? 1 : 0));
+  const flowVelocity =
+    Math.abs(localFlow) > 0.001
+      ? Math.max(-1, Math.min(1, localFlow))
+      : Math.max(-1, Math.min(1, params.flowVelocity));
   const pressure = Math.max(
     0,
-    Math.min(1, (1 - blendedGapWidth) * 0.72 + Math.abs(flowVelocity) * 0.28)
+    Math.min(1, (1 - currGapWidth) * 0.72 + Math.abs(flowVelocity) * 0.28)
   );
   const directionalFlowBoost =
-    Math.abs(flowVelocity) * (0.1 + 0.3 * surgeEnergy) * activeGapMask * activeBandMask;
+    Math.abs(flowVelocity) * (0.1 + 0.3 * surgeEnergy) * activeGapMask * gameplayBandMask;
 
-  const curveMargin = Math.max(0.01, Math.min(0.08, blendedGapWidth * 0.2));
-  const inertiaTravel = Math.max(0.035, blendedGapWidth * (0.16 + 0.2 * surgeEnergy));
+  const curveMargin = Math.max(0.01, Math.min(0.08, currGapWidth * 0.2));
+  const inertiaTravel = Math.max(0.035, currGapWidth * (0.16 + 0.2 * surgeEnergy));
   const curveCenter = Math.max(
-    blendedGap.start + curveMargin - inertiaTravel,
-    Math.min(blendedGap.end - curveMargin + inertiaTravel, params.curveCenter)
+    currGap.start + curveMargin - inertiaTravel,
+    Math.min(currGap.end - curveMargin + inertiaTravel, params.curveCenter)
   );
-  const gapHalf = Math.max(blendedGapWidth * 0.5, 0.02);
+  const gapHalf = Math.max(currGapWidth * 0.5, 0.02);
   const centeredNorm = (x - curveCenter) / gapHalf;
   const centerCurve = Math.exp(-centeredNorm * centeredNorm * 2.8) * Math.max(0, params.curveAmp);
   const directionalTilt = Math.max(-1, Math.min(1, centeredNorm)) * params.curveTilt;
   const calmRippleAmp =
-    (0.0005 + calmness * 0.0038) * (1 - surgeEnergy) * softGap * activeBandMask;
+    (0.0005 + calmness * 0.0038) * (1 - surgeEnergy) * softGapSurface * gameplayBandMask;
   const calmRippleA =
     Math.sin(x * params.frequency * 4.5 + params.iTime * params.speed * (0.02 + 0.04 * Math.abs(flowVelocity)));
   const calmRippleB =
     Math.sin(x * params.frequency * 2.8 - params.iTime * params.speed * 0.015 + 1.2);
   const calmRipples = (calmRippleA * 0.65 + calmRippleB * 0.35) * calmRippleAmp;
-  const curveInfluence = 0.18 + 0.82 * activeBandMask;
-  const edgeBend = (1 - softGap) * activeBandMask * (0.003 + 0.01 * (0.4 + pressure * 0.6));
+  const curveInfluence = gameplayBandMask;
+  const edgeBend = (1 - softGapSurface) * gameplayBandMask * (0.003 + 0.01 * (0.4 + pressure * 0.6));
   const idleOffset = computeIdleSurfaceOffsetNorm(x, params.iTime);
   const visualIntensity = clamp01(params.visualIntensity);
+  const flowLeanGain = pressFlowActive
+    ? platformShaftTuning.FLOW_SURFACE_LEAN_UV
+    : platformShaftTuning.FLOW_SURFACE_LEAN_UV * 0.42;
+  const flowLean =
+    flowVelocity *
+    directionalFlowBoost *
+    (flowLeanGain + flowLeanGain * 1.45 * surgeEnergy) *
+    curveInfluence;
   const gameplayDelta =
-    (centerCurve + directionalTilt) * curveInfluence + calmRipples - edgeBend;
-
-  void directionalFlowBoost;
+    (centerCurve + directionalTilt) * curveInfluence +
+    calmRipples -
+    edgeBend +
+    flowLean;
 
   return Math.max(
     0,
     Math.min(
       1,
-      params.waterLevel + idleOffset + gameplayDelta * visualIntensity
+      params.waterLevel + idleOffset + gameplayDelta * visualIntensity * gameplayBandMask
     )
   );
 };

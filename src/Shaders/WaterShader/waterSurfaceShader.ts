@@ -55,9 +55,8 @@ export const waterSurfaceShaderHelpers = `
     float whiteCap = 1.0 / exp(smoothstep(surfaceH, surfaceH + 0.01, wavePosition.y) * 0.5);
     vec3 waterMix = mix(vec3(1.0) * clampedFoam, w * waterColor, 0.8);
     float foamBoost = 0.95 + pressure * 0.32 * softGap * activeBandMask + surgeEnergy * 0.25;
-    float surfaceVisibility = mix(1.0, softGap, activeBandMask);
     waterMix = mix(lipColor, waterMix, uVisualIntensity);
     lipAlpha = mix(lipAlpha, w * whiteCap * foamBoost, uVisualIntensity);
-    return vec4(waterMix, lipAlpha * rectangleMask * surfaceVisibility);
+    return vec4(waterMix, lipAlpha * rectangleMask);
   }
 `;

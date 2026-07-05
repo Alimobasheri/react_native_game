@@ -147,6 +147,7 @@ const buildProfileBaseFromWater = (
     calmness: water.calmness ?? 0.5,
     flowVelocity:
       water.flowVelocity ?? water.flowDirection ?? readUniformNumber(uniforms, 'uFlowVelocity', 0),
+    flowPerRange: water.flowPerRange,
     surgeEnergy:
       water.surgeEnergy ??
       water.surgePhase ??

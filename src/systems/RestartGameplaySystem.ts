@@ -290,6 +290,7 @@ const restartGameplay = (
           w.surgeEnergy = 0;
           w.flowVelocity = 0;
           w.flowOffset = 0;
+          w.prevCenterGapWidthNorm = undefined;
         }
       );
     }

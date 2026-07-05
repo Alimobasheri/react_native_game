@@ -81,6 +81,8 @@ export const waterPhysicsTuning = {
   FLOW_OFFSET_SCALE: 6.8,
   FLOW_OFFSET_RETURN_PER_SECOND: 1.8,
   GAP_BLEND_SPEED_PER_SECOND: 2.7,
+  /** Same-row shaft squeeze / effectiveGaps — display edge chase speed. */
+  GAP_EDGE_SMOOTH_PER_SECOND: 11,
   SURGE_RISE_PER_SECOND: 1.05,
   SURGE_DECAY_PER_SECOND: 0.09,
   SURFACE_CENTER_SMOOTH_PER_SECOND: 1.2,

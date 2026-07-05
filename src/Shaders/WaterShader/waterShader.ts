@@ -28,8 +28,11 @@ export const waveShaderUniforms = `
   uniform float containerHeight;
   uniform vec2 uGapCurrent;
   uniform vec2 uGapPrev;
+  uniform vec2 uGapTarget;
   uniform vec4 uGapCurr01;
   uniform vec4 uGapCurr23;
+  uniform vec4 uGapTarget01;
+  uniform vec4 uGapTarget23;
   uniform vec4 uGapPrev01;
   uniform vec4 uGapPrev23;
   uniform vec4 uFlowPerRange;
@@ -159,6 +162,24 @@ export const waveShaderCircleMaskFunc = `
     if (rr.y <= rr.x + 0.0005) return 0.0;
     return gapMask(rr, x);
   }
+
+  float sampleLocalFlowAtX(float x, float blendT) {
+    vec2 r0 = vec2(mix(uGapPrev01.x, uGapCurr01.x, blendT), mix(uGapPrev01.y, uGapCurr01.y, blendT));
+    vec2 r1 = vec2(mix(uGapPrev01.z, uGapCurr01.z, blendT), mix(uGapPrev01.w, uGapCurr01.w, blendT));
+    vec2 r2 = vec2(mix(uGapPrev23.x, uGapCurr23.x, blendT), mix(uGapPrev23.y, uGapCurr23.y, blendT));
+    vec2 r3 = vec2(mix(uGapPrev23.z, uGapCurr23.z, blendT), mix(uGapPrev23.w, uGapCurr23.w, blendT));
+    float w0 = softRangeWeight(r0, x);
+    float w1 = softRangeWeight(r1, x);
+    float w2 = softRangeWeight(r2, x);
+    float w3 = softRangeWeight(r3, x);
+    float wSum = w0 + w1 + w2 + w3;
+    float fallback = clamp(mix(uFlowDir, uFlowVelocity, 0.75), -1.0, 1.0);
+    if (wSum <= 0.0001) {
+      return fallback;
+    }
+    float localFlow = (w0 * uFlowPerRange.x + w1 * uFlowPerRange.y + w2 * uFlowPerRange.z + w3 * uFlowPerRange.w) / wSum;
+    return abs(localFlow) > 0.001 ? clamp(localFlow, -1.25, 1.25) : fallback;
+  }
 `;
 
 export const waveShaderMainFunc = `
@@ -183,6 +204,7 @@ export const waveShaderMainFunc = `
     float blendedGapEnd = mix(uGapPrev.y, uGapCurrent.y, blendT);
     vec2 blendedGap = vec2(blendedGapStart, max(blendedGapStart + 0.01, blendedGapEnd));
     float blendedGapWidth = max(0.02, blendedGap.y - blendedGap.x);
+    float gapFeather = max(0.02, min(0.09, blendedGapWidth * 0.45));
     // Multi-gap hybrid: compute combined mask/weight from up to 4 packed ranges.
     vec2 r0 = vec2(mix(uGapPrev01.x, uGapCurr01.x, blendT), mix(uGapPrev01.y, uGapCurr01.y, blendT));
     vec2 r1 = vec2(mix(uGapPrev01.z, uGapCurr01.z, blendT), mix(uGapPrev01.w, uGapCurr01.w, blendT));
@@ -193,49 +215,82 @@ export const waveShaderMainFunc = `
     float w2 = softRangeWeight(r2, containerUV.x);
     float w3 = softRangeWeight(r3, containerUV.x);
     float softGapAny = clamp(max(max(w0, w1), max(w2, w3)), 0.0, 1.0);
-    float activeGapMaskAny = clamp(max(max(hardRangeMask(r0, containerUV.x), hardRangeMask(r1, containerUV.x)),
-                                      max(hardRangeMask(r2, containerUV.x), hardRangeMask(r3, containerUV.x))), 0.0, 1.0);
-    // Keep single-gap math for silhouette for now; multi-surface comes next step.
-    float activeGapMask = mix(gapMask(blendedGap, containerUV.x), activeGapMaskAny, clamp(uHybridGapMaskStrength, 0.0, 1.0));
-    float gapFeather = max(0.02, min(0.09, blendedGapWidth * 0.45));
-    float softGap = mix(softGapInfluence(blendedGap, containerUV.x, gapFeather), softGapAny, clamp(uHybridGapMaskStrength, 0.0, 1.0));
-    float activeBandMask = bandMask(
+    vec2 displayGap = vec2(uGapCurrent.x, max(uGapCurrent.x + 0.01, uGapCurrent.y));
+    float displayGapWidth = max(0.02, displayGap.y - displayGap.x);
+    float displayFeather = max(0.02, min(0.09, displayGapWidth * 0.45));
+    float hybrid = clamp(uHybridGapMaskStrength, 0.0, 1.0);
+    float softGapSurfaceSingle = softGapInfluence(displayGap, containerUV.x, displayFeather);
+    vec2 d0 = vec2(uGapCurr01.x, uGapCurr01.y);
+    vec2 d1 = vec2(uGapCurr01.z, uGapCurr01.w);
+    vec2 d2 = vec2(uGapCurr23.x, uGapCurr23.y);
+    vec2 d3 = vec2(uGapCurr23.z, uGapCurr23.w);
+    float dw0 = softRangeWeight(d0, containerUV.x);
+    float dw1 = softRangeWeight(d1, containerUV.x);
+    float dw2 = softRangeWeight(d2, containerUV.x);
+    float dw3 = softRangeWeight(d3, containerUV.x);
+    float softGapSurfaceAny = clamp(max(max(dw0, dw1), max(dw2, dw3)), 0.0, 1.0);
+    float softGapSurface = hybrid > 0.01 ? softGapSurfaceAny : softGapSurfaceSingle;
+    float activeGapMask = hybrid > 0.01
+      ? clamp(
+          max(
+            max(hardRangeMask(d0, containerUV.x), hardRangeMask(d1, containerUV.x)),
+            max(hardRangeMask(d2, containerUV.x), hardRangeMask(d3, containerUV.x))
+          ),
+          0.0,
+          1.0
+        )
+      : gapMask(displayGap, containerUV.x);
+    float softGap = hybrid > 0.01 ? softGapAny : softGapInfluence(blendedGap, containerUV.x, gapFeather);
+    float localFlow = sampleLocalFlowAtX(containerUV.x, blendT);
+    float rowBandMask = bandMask(
       containerUV.y,
       clamp(uSurfaceBandCenterY, 0.0, 1.0),
       clamp(uSurfaceBandHalfHeight, 0.02, 0.2)
     );
+    float waterLineMask = bandMask(
+      clamp(waterLevel, 0.0, 1.0),
+      clamp(waterLevel, 0.0, 1.0),
+      clamp(uSurfaceBandHalfHeight * 1.35, 0.03, 0.28)
+    );
+    float pressFlowMask = step(0.04, abs(localFlow));
+    float activeBandMask = max(rowBandMask, waterLineMask * pressFlowMask);
     float surgeEnergy = clamp(max(uSurge, uSurgeEnergy), 0.0, 1.0);
     float calmness = clamp(uCalmness, 0.0, 1.0);
-    float flowVelocity = clamp(mix(uFlowDir, uFlowVelocity, 0.75), -1.0, 1.0);
+    float flowVelocity = localFlow;
     float flowOffset = clamp(uFlowOffset, -1.0, 1.0);
-    float pressure = clamp((1.0 - blendedGapWidth) * 0.72 + abs(flowVelocity) * 0.28, 0.0, 1.0);
+    float pressure = clamp((1.0 - displayGapWidth) * 0.72 + abs(flowVelocity) * 0.28, 0.0, 1.0);
     float directionalFlowBoost = abs(flowVelocity) * (0.1 + 0.3 * surgeEnergy) * activeGapMask * activeBandMask;
 
-    // Canonical silhouette = center surge curve + directional tilt + optional calm ripples.
-    float curveMargin = max(0.01, min(0.08, blendedGapWidth * 0.2));
-    float inertiaTravel = max(0.035, blendedGapWidth * (0.16 + 0.2 * surgeEnergy));
+    // Surface wave shape — gap squeeze / side pressure only in the transition band.
+    float curveMargin = max(0.01, min(0.08, displayGapWidth * 0.2));
+    float inertiaTravel = max(0.035, displayGapWidth * (0.16 + 0.2 * surgeEnergy));
     float curveCenter = clamp(
       uCurveCenter,
-      blendedGap.x + curveMargin - inertiaTravel,
-      blendedGap.y - curveMargin + inertiaTravel
+      displayGap.x + curveMargin - inertiaTravel,
+      displayGap.y - curveMargin + inertiaTravel
     );
-    float gapHalf = max(blendedGapWidth * 0.5, 0.02);
+    float gapHalf = max(displayGapWidth * 0.5, 0.02);
     float centeredNorm = (containerUV.x - curveCenter) / gapHalf;
     float centerCurve = exp(-centeredNorm * centeredNorm * 2.8) * max(0.0, uCurveAmp);
     float directionalTilt = clamp(centeredNorm, -1.0, 1.0) * uCurveTilt;
-    float calmRippleAmp = (0.0005 + calmness * 0.0038) * (1.0 - surgeEnergy) * softGap * activeBandMask;
+    float calmRippleAmp = (0.0005 + calmness * 0.0038) * (1.0 - surgeEnergy) * softGapSurface * activeBandMask;
     float calmRippleA = sin(containerUV.x * frequency * 4.5 + iTime * speed * (0.02 + 0.04 * abs(flowVelocity)));
     float calmRippleB = sin(containerUV.x * frequency * 2.8 - iTime * speed * 0.015 + 1.2);
     float calmRipples = (calmRippleA * 0.65 + calmRippleB * 0.35) * calmRippleAmp;
-    float curveInfluence = 0.18 + 0.82 * activeBandMask;
-    float edgeBend = (1.0 - softGap) * activeBandMask * (0.003 + 0.01 * (0.4 + pressure * 0.6));
+    float curveInfluence = activeBandMask;
+    float edgeBend = (1.0 - softGapSurface) * activeBandMask * (0.003 + 0.01 * (0.4 + pressure * 0.6));
+    float flowLean =
+      flowVelocity *
+      directionalFlowBoost *
+      (mix(0.0042, 0.032, pressFlowMask) + 0.0061 * surgeEnergy * pressFlowMask) *
+      curveInfluence;
     float idleOffset = computeIdleSurfaceOffset(containerUV);
     float gameplayDelta =
-      (centerCurve + directionalTilt) * curveInfluence + calmRipples - edgeBend;
+      (centerCurve + directionalTilt) * curveInfluence + calmRipples - edgeBend + flowLean;
     float visualIntensity = clamp(uVisualIntensity, 0.0, 1.0);
-    // Keep idle surface waves alive; layer gameplay bulge/tilt on top.
+    // Body stays full-width; only the surface line bulges/tilts in the row band.
     float finalSurface = clamp(
-      surfaceBase + idleOffset + gameplayDelta * visualIntensity,
+      surfaceBase + idleOffset + gameplayDelta * visualIntensity * activeBandMask,
       0.0,
       1.0
     );
@@ -251,14 +306,13 @@ export const waveShaderMainFunc = `
         finalSurface,
         centeredNorm,
         activeBandMask,
-        softGap,
+        softGapSurface,
         surgeEnergy,
         flowVelocity,
         directionalFlowBoost
       );
 
-      float bandGapVisibility = mix(1.0, softGap, activeBandMask * visualIntensity);
-      return vec4(flowColor, 0.88 * rectangleMask * bandGapVisibility);
+      return vec4(flowColor, 0.88 * rectangleMask);
     }
 
     // Above water level - thin glossy surface lip (foam only during gameplay).
@@ -270,7 +324,7 @@ export const waveShaderMainFunc = `
       calmness,
       flowVelocity,
       pressure,
-      softGap,
+      softGapSurface,
       activeBandMask,
       surgeEnergy,
       rectangleMask

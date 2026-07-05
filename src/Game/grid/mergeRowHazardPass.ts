@@ -23,24 +23,26 @@ import {
   WaterComponentName,
 } from '@/Game/ecs-components/Water';
 import type { EventQueueContextType } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useEventQueue/useEventQueue';
+import type { AABB } from '@/Game/collision/swimmerBlockCollision';
 import { getObstacleRowPitch } from '@/assets/swimmerBlocks';
 import { rowEntityBeatIndexFromRow } from '@/Game/grid/hazardBandRowBeat';
 import { hazardLocalSecFromBeatRow, resolveAnimStartRow } from '@/Game/grid/hazardPhase';
 import { resolvePlatformSlabOccupancy, unionBlockedCols } from '@/Game/grid/resolveOccupancy';
 import { rowSpanOf } from '@/Game/grid/gridSpan';
 import {
+  hazardBandCouplesToWaterLock,
   latchedWorldBeat,
   resolveSegmentWaterLockRow,
   worldBeatFromWaterLock,
 } from '@/Game/grid/worldBeatFromWaterLock';
 import { waterTransitionBandFromSurface } from '@/Game/grid/waterTransitionBand';
 import { flowNormFromPressVelocity } from '@/Game/hazards/flowFromPlatform';
-import { pressExtentAtLocalSec, simPlatformPress } from '@/Game/hazards/platformPressMotion';
+import { gapColsClosedByPressForCollision, pressExtentAtLocalSec, simPlatformPress } from '@/Game/hazards/platformPressMotion';
 import { solidColumnCentersFromGaps } from '@/Game/path/obstacleRowGeometry';
 import { minGapWidthCols } from '@/Game/path/platformShaft/primitives';
 import type { PlatformSlabHazard } from '@/Game/path/platformShaft/types';
 import { getObstacleWidth, LAYOUT_CONSTANTS } from '@/Layout';
-import { gridSpanToWorld } from '@/Game/grid/gridSpanToWorld';
+import { gridSpanToWorld, slabAabbFromWorldRect } from '@/Game/grid/gridSpanToWorld';
 import { getGameSession, isGameOverPhase, isStartReady } from '@/Game/session/gameSessionQuery';
 import { platformShaftTuning } from '@/config/platformShaftTuning';
 import { appendHazardSteelToRowRender, restoreOrangeOnlyHazardRowRender } from '@/Game/render/appendHazardSteelToRowRender';
@@ -48,6 +50,19 @@ import {
   RenderComponentData,
   RenderComponentName,
 } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
+
+const gapsDiffer = (base: readonly number[], effective: readonly number[]): boolean => {
+  'worklet';
+  if (base.length !== effective.length) {
+    return true;
+  }
+  for (let i = 0; i < base.length; i++) {
+    if (base[i] !== effective[i]) {
+      return true;
+    }
+  }
+  return false;
+};
 
 export type MergeRowHazardPassArgs = {
   ecs: ECS;
@@ -228,6 +243,8 @@ export const mergeRowHazardPass = (args: MergeRowHazardPassArgs): void => {
   const deltaSeconds = deltaTime / 1000;
 
   const blockColsByEntity = new Map<number, number[]>();
+  const effectiveGapsByEntity = new Map<number, number[]>();
+  const slabAabbByEntity = new Map<number, AABB>();
   const memberEntityIds: number[] = [];
   let maxPlatformFlow = 0;
 
@@ -335,8 +352,28 @@ export const mergeRowHazardPass = (args: MergeRowHazardPassArgs): void => {
         localSec: latchedLocalSec,
         columns: rowLength,
       });
-      if (occ && occ.pressExtent > 0.001) {
-        mergeBlockColsForEntity(blockColsByEntity, rowEntity, occ.blockedCols);
+      const rowSim =
+        occ ??
+        simPlatformPress(hazard, rowLength, latchedLocalSec, beatIdx);
+      if (rowSim) {
+        if (occ) {
+          effectiveGapsByEntity.set(rowEntity, occ.effectiveGaps);
+        }
+        const closedGapCols = gapColsClosedByPressForCollision(row.gaps, rowSim);
+        if (closedGapCols.length > 0) {
+          mergeBlockColsForEntity(blockColsByEntity, rowEntity, closedGapCols);
+        }
+        const worldRect = gridSpanToWorld({
+          slabStart: rowSim.slabStart,
+          slabEnd: rowSim.slabEnd,
+          rowYs: [row.y],
+          leftX,
+          columnWidth,
+          blockHeight,
+          rowPitch,
+          columns: rowLength,
+        });
+        slabAabbByEntity.set(rowEntity, slabAabbFromWorldRect(worldRect));
       }
     }
 
@@ -355,7 +392,13 @@ export const mergeRowHazardPass = (args: MergeRowHazardPassArgs): void => {
       latchedLocalSec,
       leadData.bounds.rowStart
     );
-    if (restGaps.length > 0 && drawSim) {
+    const couplesToWater = hazardBandCouplesToWaterLock({
+      waterLockRow: lockRow,
+      memberRowEntityIds: liveMembers,
+      transitionBand,
+      blockHeight,
+    });
+    if (couplesToWater && restGaps.length > 0 && drawSim) {
       if (drawSim.pressExtent > 0.001) {
         const effective = gapsMinusBlocked(restGaps, drawSim.blockCols);
         const gapW = minGapWidthCols(effective);
@@ -448,27 +491,36 @@ export const mergeRowHazardPass = (args: MergeRowHazardPassArgs): void => {
   rowStore.forEach((rowEntity, rowData) => {
     const isMember = memberEntityIds.indexOf(rowEntity) >= 0;
     const blockCols = blockColsByEntity.get(rowEntity) ?? [];
+    const occGaps = effectiveGapsByEntity.get(rowEntity);
+    const narrowedGaps =
+      occGaps && gapsDiffer(rowData.gaps, occGaps) ? occGaps.slice() : undefined;
 
-    if (!isMember || blockCols.length === 0) {
-      if (rowData.effectiveGaps || rowData.effectiveSolidColumnCentersX) {
+    if (!isMember || (blockCols.length === 0 && !narrowedGaps && !slabAabbByEntity.has(rowEntity))) {
+      if (rowData.effectiveGaps || rowData.effectiveSolidColumnCentersX || rowData.effectivePressSlabAabb) {
         ecs.updateComponent<ObstacleRowComponentData>(rowEntity, ObstacleRowComponentName, (row) => {
           row.effectiveGaps = undefined;
           row.effectiveSolidColumnCentersX = undefined;
+          row.effectivePressSlabAabb = undefined;
         });
       }
       return;
     }
 
-    const effectiveGaps = gapsMinusBlocked(rowData.gaps, blockCols);
-    const effectiveSolidColumnCentersX = solidColumnCentersFromGaps(
-      effectiveGaps,
-      rowLength,
-      containerCenterX,
-      columnGridWidth
-    );
+    const effectiveGaps = narrowedGaps;
+    const effectiveSolidColumnCentersX =
+      effectiveGaps != null
+        ? solidColumnCentersFromGaps(
+          effectiveGaps,
+          rowLength,
+          containerCenterX,
+          columnGridWidth
+        )
+        : undefined;
+    const effectivePressSlabAabb = slabAabbByEntity.get(rowEntity);
     ecs.updateComponent<ObstacleRowComponentData>(rowEntity, ObstacleRowComponentName, (row) => {
       row.effectiveGaps = effectiveGaps;
       row.effectiveSolidColumnCentersX = effectiveSolidColumnCentersX;
+      row.effectivePressSlabAabb = effectivePressSlabAabb;
     });
   });
 

@@ -89,9 +89,7 @@ import type {
   StoryLockedProceduralSegment,
   StoryLockedShaftRecipe,
 } from '@/Game/ecs-systems/obstacleSystem';
-import {
-  HazardBandLeadComponentName,
-} from '@/Game/ecs-components/HazardBandLead';
+import { HazardBandLeadComponentName } from '@/Game/ecs-components/HazardBandLead';
 import { HazardBandMemberComponentName } from '@/Game/ecs-components/HazardBandMember';
 
 /** Same geometry as `getWaterSurfaceRestY` but uses story arg `fraction` for experiments. */
@@ -367,13 +365,7 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                     waterRiseSpeed={args.waterRiseSpeed}
                   />
 
-                  {/* Water - rendered separately, will be updated by system */}
-                  <WaterView
-                    raisingSpeed={args.raisingSpeed}
-                    shaderOpacity={args.waterShaderOpacity}
-                  />
-
-                  {/* Dynamic Obstacles */}
+                  {/* Dynamic Obstacles — before WaterView: hazard merge + effectiveGaps */}
                   <ObstacleView
                     lockedTemplateName={
                       args.lockedTemplateName
@@ -389,6 +381,12 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                     storyLockedShaftSeed={args.storyLockedShaftSeed}
                     storyLockedShaftDifficulty={args.storyLockedShaftDifficulty}
                     storyLockShaftLoop={args.storyLockShaftLoop || undefined}
+                  />
+
+                  {/* Water — after obstacles so physics reads same-frame shaft flow */}
+                  <WaterView
+                    raisingSpeed={args.raisingSpeed}
+                    shaderOpacity={args.waterShaderOpacity}
                   />
 
                   {/* Swimmer - centered in a column; TapSwimmer handles tap-to-move */}

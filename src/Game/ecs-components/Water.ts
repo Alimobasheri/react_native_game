@@ -37,11 +37,18 @@ export type WaterComponentData = {
   ampPerRange?: [number, number, number, number];
   currentGapStartNorm?: number; // 0..1 gap start in container UV X
   currentGapEndNorm?: number; // 0..1 gap end in container UV X
+  /** Smoothed gap span pushed to shader as uGapCurrent (display edge). */
+  displayGapStartNorm?: number;
+  displayGapEndNorm?: number;
+  displayGapRangesCurr01?: [number, number, number, number];
+  displayGapRangesCurr23?: [number, number, number, number];
   prevGapStartNorm?: number; // previous row gap start for cross-fade
   prevGapEndNorm?: number; // previous row gap end for cross-fade
   gapBlend?: number; // 0..1 blend from prev gap to current gap
   gapCenterNorm?: number; // 0..1 center of current gap span
   gapWidthNorm?: number; // 0..1 width of current gap span
+  /** Previous frame center-row gap width — detects same-row shaft squeeze (Slice B). */
+  prevCenterGapWidthNorm?: number;
   surfaceBandCenterY?: number; // 0..1 (bottom=0, top=1)
   surfaceBandHalfHeight?: number; // 0..1
   surgePhase?: number; // 0..1 short pulse triggered on row change

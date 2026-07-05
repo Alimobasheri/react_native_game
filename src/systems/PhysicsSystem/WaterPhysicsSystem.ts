@@ -24,9 +24,15 @@ import {
   rangesColToNorm,
   rangeWidth,
 } from '@/Game/water/gapRanges';
+import { platformShaftTuning } from '@/config/platformShaftTuning';
 import { gameSessionTuning, waterPhysicsTuning } from '@/config/swimmerTuning';
 import { getGameSession, isStartReady, isGameOverPhase } from '@/Game/session/gameSessionQuery';
 import { waterTransitionBandFromSurface } from '@/Game/grid/waterTransitionBand';
+import { syncWaterShaderGameplayUniforms } from '@/Game/water/syncWaterShaderGameplayUniforms';
+import {
+  RenderComponentData,
+  RenderComponentName,
+} from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 
 /**
  * Row spawned earlier sits lower on screen (larger `y`). When `prevRowEntity` still
@@ -149,6 +155,21 @@ export const WaterPhysicsSystem: System = {
       return [start, end];
     };
 
+    const lerp4 = (
+      from: [number, number, number, number],
+      to: [number, number, number, number],
+      t: number
+    ): [number, number, number, number] => {
+      'worklet';
+      const c = clamp01(t);
+      return [
+        from[0] + (to[0] - from[0]) * c,
+        from[1] + (to[1] - from[1]) * c,
+        from[2] + (to[2] - from[2]) * c,
+        from[3] + (to[3] - from[3]) * c,
+      ];
+    };
+
     entities.forEach((waterEntity) => {
       const waterData = components[WaterComponentName]?.get(
         waterEntity
@@ -189,6 +210,7 @@ export const WaterPhysicsSystem: System = {
         prevFlow[3],
       ];
       const platformFlow = waterData.platformFlowPerRange ?? [0, 0, 0, 0];
+      const platformPressFlow = platformFlow[0];
 
       // Per-range target flow based on (currCenter - relatedPrevCenter) in normalized gap space.
       for (let i = 0; i < 4; i++) {
@@ -225,7 +247,11 @@ export const WaterPhysicsSystem: System = {
       ] as const;
       const totalOpen = widths[0] + widths[1] + widths[2] + widths[3];
       const avgAbsFlow =
-        (Math.abs(nextFlow[0]) + Math.abs(nextFlow[1]) + Math.abs(nextFlow[2]) + Math.abs(nextFlow[3])) /
+        (Math.abs(nextFlow[0]) +
+          Math.abs(nextFlow[1]) +
+          Math.abs(nextFlow[2]) +
+          Math.abs(nextFlow[3]) +
+          Math.abs(platformPressFlow)) /
         Math.max(1, currRanges.length);
       const pressureTotal = clamp01((1 - Math.min(1, totalOpen)) * 0.72 + clamp01(avgAbsFlow / 1.25) * 0.28);
       const ampTotal = Math.max(0.002, Math.min(0.03, 0.003 + pressureTotal * 0.016));
@@ -245,11 +271,19 @@ export const WaterPhysicsSystem: System = {
         typeof currentRowEntity === 'number' &&
         currentRowEntity !== waterData.lastCenterRowEntity;
       const gapCenterDelta = Math.abs(gapCenterNorm - prevGapCenterNorm);
+      const prevCenterGapWidthNorm = waterData.prevCenterGapWidthNorm;
+      const sameRowNarrowing =
+        !hasRowChanged && typeof prevCenterGapWidthNorm === 'number'
+          ? Math.max(0, prevCenterGapWidthNorm - gapWidthNorm)
+          : 0;
       const pressureFromWidth = clamp01((1 - gapWidthNorm) * 1.15);
-      const pressure = clamp01(pressureFromWidth * 0.75 + gapCenterDelta * 1.25);
+      const pressure = clamp01(
+        pressureFromWidth * 0.75 + gapCenterDelta * 1.25 + sameRowNarrowing * 0.85
+      );
       const widthDelta = (prevGapEndNorm - prevGapStartNorm) - gapWidthNorm;
       const narrowing = Math.max(0, widthDelta);
-      const oldFlowVelocity = waterData.flowVelocity ?? waterData.flowDirection ?? 0;
+      const effectiveNarrowing = narrowing + sameRowNarrowing;
+      const oldFlowVelocity = waterData.forceDirection ?? 0;
       const referenceCenter = waterData.surfaceCurveCenterNorm ?? gapCenterNorm;
       const gapDirectionDelta = gapCenterNorm - referenceCenter;
       const normalizedDirectionDelta = clampSigned(
@@ -266,11 +300,20 @@ export const WaterPhysicsSystem: System = {
         rowChangeImpulse * Math.min(1, waterPhysicsTuning.FLOW_IMPULSE_BLEND_PER_SECOND * deltaSeconds);
       flowVelocity *= Math.exp(-waterPhysicsTuning.FLOW_DRAG_PER_SECOND * deltaSeconds);
       flowVelocity = clampSigned(flowVelocity, 1.25);
-      let flowOffset = (waterData.flowOffset ?? 0) + flowVelocity * deltaSeconds * waterPhysicsTuning.FLOW_OFFSET_SCALE;
+      const platformSurgeBump =
+        Math.abs(platformPressFlow) > 0.05
+          ? Math.abs(platformPressFlow) * platformShaftTuning.FLOW_SURFACE_SURGE_BUMP
+          : 0;
+      const surfaceFlow = clampSigned(
+        flowVelocity + platformPressFlow * platformShaftTuning.FLOW_SURFACE_GAIN,
+        1.25
+      );
+      let flowOffset =
+        (waterData.flowOffset ?? 0) + surfaceFlow * deltaSeconds * waterPhysicsTuning.FLOW_OFFSET_SCALE;
       const oldSurgeEnergy = waterData.surgeEnergy ?? waterData.surgePhase ?? 0;
       const surgeTarget = hasRowChanged
         ? clamp01(0.5 + pressure * 0.4 + Math.abs(normalizedDirectionDelta) * 0.2)
-        : clamp01(pressure * 0.16 + Math.abs(flowVelocity) * 0.1);
+        : clamp01(pressure * 0.16 + Math.abs(surfaceFlow) * 0.1 + platformSurgeBump);
       const nextSurgeEnergy = surgeTarget > oldSurgeEnergy
         ? oldSurgeEnergy +
         (surgeTarget - oldSurgeEnergy) *
@@ -314,7 +357,7 @@ export const WaterPhysicsSystem: System = {
         Math.min(waterPhysicsTuning.MAX_BAND_HALF_HEIGHT, rowHeightNorm * (0.75 + pressure * 0.7))
       );
       const wideGap = clamp01((gapWidthNorm - 0.22) / 0.56);
-      const lowFlow = 1 - clamp01(Math.abs(flowVelocity) / 0.65);
+      const lowFlow = 1 - clamp01(Math.abs(surfaceFlow) / 0.65);
       const lowSurge = 1 - clamp01(nextSurgeEnergy / 0.75);
       const calmnessTarget = clamp01(wideGap * 0.62 + lowFlow * 0.23 + lowSurge * 0.15);
 
@@ -333,8 +376,8 @@ export const WaterPhysicsSystem: System = {
           water.centerRowEntity = currentRowEntity;
           water.lastCenterRowEntity = currentRowEntity;
           water.forceDirection = flowVelocity;
-          water.flowDirection = flowVelocity;
-          water.flowVelocity = flowVelocity;
+          water.flowDirection = surfaceFlow;
+          water.flowVelocity = surfaceFlow;
           water.flowOffset = flowOffset;
           water.gapRangesCurr01 = packedCurr.r01;
           water.gapRangesCurr23 = packedCurr.r23;
@@ -351,8 +394,37 @@ export const WaterPhysicsSystem: System = {
           water.currentGapEndNorm = gapEndNorm;
           water.prevGapStartNorm = hasRowChanged ? oldGapStart : (water.prevGapStartNorm ?? prevGapStartNorm);
           water.prevGapEndNorm = hasRowChanged ? oldGapEnd : (water.prevGapEndNorm ?? prevGapEndNorm);
+          const oldDisplayStart = water.displayGapStartNorm ?? oldGapStart;
+          const oldDisplayEnd = water.displayGapEndNorm ?? oldGapEnd;
+          const oldDisplayR01 = water.displayGapRangesCurr01 ?? packedCurr.r01;
+          const oldDisplayR23 = water.displayGapRangesCurr23 ?? packedCurr.r23;
+          if (hasRowChanged) {
+            water.displayGapStartNorm = oldGapStart;
+            water.displayGapEndNorm = oldGapEnd;
+            water.displayGapRangesCurr01 = oldDisplayR01;
+            water.displayGapRangesCurr23 = oldDisplayR23;
+          }
+          const rowTransition = nextGapBlend < 0.999;
+          if (rowTransition) {
+            water.displayGapStartNorm =
+              prevGapStartNorm + (gapStartNorm - prevGapStartNorm) * nextGapBlend;
+            water.displayGapEndNorm =
+              prevGapEndNorm + (gapEndNorm - prevGapEndNorm) * nextGapBlend;
+            water.displayGapRangesCurr01 = lerp4(packedPrev.r01, packedCurr.r01, nextGapBlend);
+            water.displayGapRangesCurr23 = lerp4(packedPrev.r23, packedCurr.r23, nextGapBlend);
+          } else {
+            const edgeStep = Math.min(
+              1,
+              waterPhysicsTuning.GAP_EDGE_SMOOTH_PER_SECOND * deltaSeconds
+            );
+            water.displayGapStartNorm = oldDisplayStart + (gapStartNorm - oldDisplayStart) * edgeStep;
+            water.displayGapEndNorm = oldDisplayEnd + (gapEndNorm - oldDisplayEnd) * edgeStep;
+            water.displayGapRangesCurr01 = lerp4(oldDisplayR01, packedCurr.r01, edgeStep);
+            water.displayGapRangesCurr23 = lerp4(oldDisplayR23, packedCurr.r23, edgeStep);
+          }
           water.gapCenterNorm = gapCenterNorm;
           water.gapWidthNorm = gapWidthNorm;
+          water.prevCenterGapWidthNorm = gapWidthNorm;
           water.gapBlend = hasRowChanged ? 0 : nextGapBlend;
           water.surgePhase = nextSurgeEnergy;
           water.surgeEnergy = nextSurgeEnergy;
@@ -372,9 +444,14 @@ export const WaterPhysicsSystem: System = {
           );
           const curveAmpTarget = Math.max(
             0.002,
-            Math.min(0.03, (0.003 + pressure * 0.012 + nextSurgeEnergy * 0.009 + narrowing * 0.022) * (1 - calmness * 0.46))
+            Math.min(
+              0.03,
+              (0.003 + pressure * 0.012 + nextSurgeEnergy * 0.009 + effectiveNarrowing * 0.022) *
+                (1 - calmness * 0.46)
+            )
           ) * 2;
-          const curveTiltTarget = flowVelocity * (0.008 + nextSurgeEnergy * 0.015) * (0.6 + pressure * 0.65);
+          const curveTiltTarget =
+            surfaceFlow * (0.008 + nextSurgeEnergy * 0.015) * (0.6 + pressure * 0.65);
           const curveCenterStep = Math.min(1, waterPhysicsTuning.SURFACE_CENTER_SMOOTH_PER_SECOND * deltaSeconds);
           const curveAmpStep = Math.min(1, waterPhysicsTuning.CURVE_AMP_SMOOTH_PER_SECOND * deltaSeconds);
           const curveTiltStep = Math.min(1, waterPhysicsTuning.CURVE_TILT_SMOOTH_PER_SECOND * deltaSeconds);
@@ -388,9 +465,30 @@ export const WaterPhysicsSystem: System = {
           water.peakHeight = curveAmp * 0.85;
           water.peakSharpness = 1.15 + pressure * 0.7;
           water.troughDepth = 0.001 + pressure * 0.01;
-          water.flowWaveSpeedScale = 0.00014 + Math.abs(flowVelocity) * 0.00035 + nextSurgeEnergy * 0.0002;
+          water.flowWaveSpeedScale =
+            0.00014 + Math.abs(surfaceFlow) * 0.00035 + nextSurgeEnergy * 0.0002;
         }
       );
+
+      const renderData = components[RenderComponentName]?.get(waterEntity) as
+        | RenderComponentData
+        | undefined;
+      const waterAfter = components[WaterComponentName]?.get(waterEntity) as
+        | WaterComponentData
+        | undefined;
+      if (renderData?.shader?.uniforms && waterAfter) {
+        ecs.updateComponent<RenderComponentData>(
+          waterEntity,
+          RenderComponentName,
+          (render) => {
+            'worklet';
+            if (!render.shader?.uniforms) {
+              return;
+            }
+            syncWaterShaderGameplayUniforms(render.shader.uniforms, waterAfter);
+          }
+        );
+      }
     });
   },
 };

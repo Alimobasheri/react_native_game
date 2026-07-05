@@ -768,6 +768,7 @@ export const SwimmerPhysicsSystem: System = {
         calmness: waterData.calmness ?? 0.5,
         flowVelocity:
           waterData.flowVelocity ?? waterData.flowDirection ?? 0,
+        flowPerRange: waterData.flowPerRange,
         surgeEnergy: Math.max(
           waterData.surgeEnergy ?? 0,
           waterData.surgePhase ?? 0

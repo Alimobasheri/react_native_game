@@ -1,4 +1,18 @@
+import type { AABB } from '@/Game/collision/swimmerBlockCollision';
 import type { GridSpanWorldRect } from '@/Game/grid/types';
+
+export const slabAabbFromWorldRect = (rect: GridSpanWorldRect): AABB => {
+  'worklet';
+  const slabCenterX = rect.centerX + rect.localSlabX;
+  const halfW = rect.width / 2;
+  const halfH = rect.height / 2;
+  return {
+    minX: slabCenterX - halfW,
+    maxX: slabCenterX + halfW,
+    minY: rect.centerY - halfH,
+    maxY: rect.centerY + halfH,
+  };
+};
 
 export const gridSpanToWorld = (args: {
   slabStart: number;

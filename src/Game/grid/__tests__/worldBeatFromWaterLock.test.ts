@@ -1,6 +1,7 @@
 import { composePressIntroShaft } from '@/Game/path/platformShaft/composePressIntroShaft';
 import { hazardLocalSecFromBeatRow } from '@/Game/grid/hazardPhase';
 import {
+  hazardBandCouplesToWaterLock,
   latchedSegmentWorldBeat,
   latchedWorldBeat,
   resolveSegmentWaterLockRow,
@@ -111,5 +112,34 @@ describe('worldBeatFromWaterLock', () => {
     const beatIn = worldBeatFromWaterLock(centerBeatRow, yInBand, rowPitch, band, blockHeight);
     const beatPast = worldBeatFromWaterLock(centerBeatRow, yPastBand, rowPitch, band, blockHeight);
     expect(beatPast).toBeGreaterThan(beatIn + 1);
+  });
+
+  it('hazardBandCouplesToWaterLock uses transition band overlap on member row', () => {
+    const yInBand = band.transitionTargetY;
+    const lockRow = { entity: 2, beatRowIndex: 8, y: yInBand };
+    expect(
+      hazardBandCouplesToWaterLock({
+        waterLockRow: lockRow,
+        memberRowEntityIds: [1, 2, 3],
+        transitionBand: band,
+        blockHeight,
+      })
+    ).toBe(true);
+    expect(
+      hazardBandCouplesToWaterLock({
+        waterLockRow: { entity: 2, beatRowIndex: 8, y: yInBand - blockHeight * 4 },
+        memberRowEntityIds: [1, 2, 3],
+        transitionBand: band,
+        blockHeight,
+      })
+    ).toBe(false);
+    expect(
+      hazardBandCouplesToWaterLock({
+        waterLockRow: lockRow,
+        memberRowEntityIds: [10, 11],
+        transitionBand: band,
+        blockHeight,
+      })
+    ).toBe(false);
   });
 });

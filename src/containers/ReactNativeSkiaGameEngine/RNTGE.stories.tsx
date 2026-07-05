@@ -442,6 +442,9 @@ const SwimmerGameComp: FC<{}> = memo(
                     onEntityCreated={setContainerEntityId}
                   />
 
+                  {/* Dynamic Obstacles — before WaterView for same-frame shaft flow */}
+                  <ObstacleView />
+
                   {/* Water - rendered separately, will be updated by system */}
                   {containerEntityId !== null && (
                     <WaterView
@@ -469,8 +472,6 @@ const SwimmerGameComp: FC<{}> = memo(
                     screenHeight={windowHeight}
                   />
 
-                  {/* Dynamic Obstacles */}
-                  <ObstacleView />
                 </Content>
               </Scene>
             </Content>

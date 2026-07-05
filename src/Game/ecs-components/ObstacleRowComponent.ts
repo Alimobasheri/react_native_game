@@ -1,5 +1,6 @@
 import { Component } from '@/containers/ReactNativeSkiaGameEngine/services-ecs';
 import { Entity } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/entity';
+import type { AABB } from '@/Game/collision/swimmerBlockCollision';
 
 export const ObstacleRowComponentName = 'ObstacleRow';
 
@@ -16,6 +17,8 @@ export type ObstacleRowComponentData = {
   effectiveGaps?: number[];
   /** Runtime solid centers matching effectiveGaps when press is active. */
   effectiveSolidColumnCentersX?: readonly number[];
+  /** Fractional press-slab world AABB — matches steel render, not integer column snap. */
+  effectivePressSlabAabb?: AABB;
   prevRowEntity: Entity | null;
   /**
    * Which `MappedTemplates` key produced this row (`directed`, `smily`, …). Used for

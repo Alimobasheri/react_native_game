@@ -4,7 +4,8 @@
  * Conventions:
  * - Columns are 0 .. columns-1 (see LAYOUT_CONSTANTS.COLUMNS).
  * - Beat rows are segment-local template rowIndex — NOT totalRowsGenerated.
- * - Fractional col extents (slabStart/slabEnd) are render-only; collision uses integer blockedCols.
+ * - Fractional col extents (slabStart/slabEnd) drive steel render + effectivePressSlabAabb collision.
+ * - Gap-column closure uses gapColsClosedByPressForCollision (not per-column snap on partial overlap).
  */
 
 /** Segment-local beat row (template rowIndex). */

@@ -29,11 +29,13 @@ export const WaterView: FC<{
     [sceneKey, raisingSpeed, shaderOpacity]
   );
 
+  // INVARIANT: StageSpeed → WaterPhysics → WaterShader (physics before uniforms).
+  // ObstacleView must register before WaterView so mergeRowHazardPass runs first.
   useAddSystem({ system: waterLifecycleSystem });
   useAddSystem({ system: IdleWaterVisualSystem });
-  useAddSystem({ system: WaterShaderSystem });
   useAddSystem({ system: StageSpeedSystem });
   useAddSystem({ system: WaterPhysicsSystem });
+  useAddSystem({ system: WaterShaderSystem });
   useAddSystem({ system: BlockFoamSystem });
   // useAddSystem({ system: WaterSurfaceFoamSystem });
 

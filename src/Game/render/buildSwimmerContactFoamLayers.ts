@@ -115,6 +115,7 @@ const buildProfileAtX = (
     curveTilt: base.curveTilt,
     calmness: base.calmness,
     flowVelocity: base.flowVelocity,
+    flowPerRange: base.flowPerRange,
     surgeEnergy: base.surgeEnergy,
     surfaceBandCenterY: base.surfaceBandCenterY,
     surfaceBandHalfHeight: base.surfaceBandHalfHeight,

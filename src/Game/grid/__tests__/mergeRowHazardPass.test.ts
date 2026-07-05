@@ -342,4 +342,63 @@ describe('mergeRowHazardPass', () => {
     expect(steelA.length).toBeGreaterThan(0);
     expect(steelB.length).toBeGreaterThan(0);
   });
+
+  it('does not write platformFlow when band rows are far from water surface', () => {
+    const { ecs, components, rows, leadEntity } = buildEcs(rowStart, 120);
+    let platformFlow: [number, number, number, number] | undefined;
+
+    const leadStore = components[HazardBandLeadComponentName] as ComponentStore<HazardBandLeadComponentData>;
+    const leadData = leadStore.get(leadEntity)!;
+    leadData.pressClockOpen = true;
+    leadData.maxWorldBeat = rowStart + 5;
+    leadData.localSec = 0.5;
+    leadData.prevPressExtent = 0;
+
+    const origUpdate = ecs.updateComponent.bind(ecs);
+    ecs.updateComponent = (entity: number, name: string, fn: (d: unknown) => void) => {
+      if (name === WaterComponentName) {
+        const patch: { platformFlowPerRange?: [number, number, number, number] } = {};
+        fn(patch);
+        platformFlow = patch.platformFlowPerRange;
+        return;
+      }
+      origUpdate(entity, name, fn);
+    };
+
+    mergeRowHazardPass({
+      ecs,
+      components,
+      deltaTime: 100,
+      eventQueue: { addEvent: () => {} } as never,
+    });
+
+    expect(platformFlow).toEqual([0, 0, 0, 0]);
+  });
+
+  it('writes progressively narrowed effectiveGaps during partial press', () => {
+    const { ecs, components, rows, leadEntity } = buildEcs(rowStart, 300);
+    const leadStore = components[HazardBandLeadComponentName] as ComponentStore<HazardBandLeadComponentData>;
+    const leadData = leadStore.get(leadEntity)!;
+    const duration = hazard.params.pressDurationSec ?? 1.4;
+    leadData.pressClockOpen = true;
+    leadData.maxWorldBeat = rowStart + 10;
+    leadData.localSec = duration * 0.45;
+    leadData.prevPressExtent = 0;
+
+    mergeRowHazardPass({
+      ecs,
+      components,
+      deltaTime: 16,
+      eventQueue: { addEvent: () => {} } as never,
+    });
+
+    const trailingRow = rows.get(1)!;
+    const baseWidth = Math.max(...trailingRow.gaps) - Math.min(...trailingRow.gaps) + 1;
+    expect(trailingRow.effectiveGaps).toBeDefined();
+    const effWidth =
+      Math.max(...(trailingRow.effectiveGaps ?? [])) -
+      Math.min(...(trailingRow.effectiveGaps ?? [])) +
+      1;
+    expect(effWidth).toBeLessThan(baseWidth);
+  });
 });

@@ -228,7 +228,9 @@ export const waterBodyShaderHelpers = `
     float visual = clamp(uVisualIntensity, 0.0, 1.0);
     float idleMotion = (1.0 - visual) * uInternalCurrentOpacity;
     float gameplayMotion = visual * (0.45 + 0.35 * surgeEnergy);
-    flowUV.x += flowVelocity * depth * (0.05 + 0.06 * surgeEnergy);
+    float flowAdvect = flowVelocity * (0.05 + 0.06 * surgeEnergy);
+    flowAdvect += sign(flowVelocity) * directionalFlowBoost * 0.018;
+    flowUV.x += flowAdvect * depth;
     flowUV.y -= iTime * speed * (gameplayMotion + idleMotion * 0.25);
 
     vec3 flowColor = sampleWaterDepthGradient(depth, depthBelowSurface);

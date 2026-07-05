@@ -1,5 +1,5 @@
 import type { ObstacleRowComponentData } from '@/Game/ecs-components/ObstacleRowComponent';
-import type { WaterTransitionBand } from '@/Game/grid/waterTransitionBand';
+import { rowOverlapsTransitionBand, type WaterTransitionBand } from '@/Game/grid/waterTransitionBand';
 
 export type SegmentWaterLockRow = {
   entity: number;
@@ -96,6 +96,31 @@ export const resolveSegmentWaterLockRow = (args: {
   });
 
   return bestOverlap ?? bestNear;
+};
+
+/** True when water-lock row is in the band and is a hazard member (transition-band SSOT). */
+export const hazardBandCouplesToWaterLock = (args: {
+  waterLockRow: SegmentWaterLockRow | null;
+  memberRowEntityIds: readonly number[];
+  transitionBand: WaterTransitionBand;
+  blockHeight: number;
+}): boolean => {
+  'worklet';
+  const { waterLockRow, memberRowEntityIds, transitionBand, blockHeight } = args;
+  if (!waterLockRow) {
+    return false;
+  }
+  let isMember = false;
+  for (let i = 0; i < memberRowEntityIds.length; i++) {
+    if (memberRowEntityIds[i] === waterLockRow.entity) {
+      isMember = true;
+      break;
+    }
+  }
+  if (!isMember) {
+    return false;
+  }
+  return rowOverlapsTransitionBand(waterLockRow.y, blockHeight, transitionBand);
 };
 
 /**
