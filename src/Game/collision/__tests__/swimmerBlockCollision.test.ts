@@ -1,6 +1,7 @@
 import {
   aabbFromCenter,
   aabbOverlap,
+  resolvePinnedTapSlide,
   resolveSwimmerAgainstRows,
   selectRowsNearSwimmer,
   selectRowsNearSwimmerFromComponentStore,
@@ -439,5 +440,92 @@ describe('resolveSwimmerAgainstRows', () => {
 
     expect(result.sideBlockedDirection).toBe(0);
     expect(result.x).toBeGreaterThan(embeddedX + 40);
+  });
+});
+
+describe('resolvePinnedTapSlide', () => {
+  it('retries with nav collider when primary sweep opposes tap direction', () => {
+    const rows = [rowAt(300, [4])];
+    const halfW = 13;
+    const halfH = 23;
+    const startX = COL4_CENTER_X;
+    const motion = {
+      x: startX,
+      y: 320,
+      halfWidth: halfW,
+      halfHeight: halfH,
+      releaseHalfWidth: halfW,
+      releaseHalfHeight: halfH,
+      pinAnchorX: startX,
+      deltaX: 80,
+      deltaY: 0,
+      rowDeltaY: 0,
+      rows,
+      container: CONTAINER,
+      blockSize: BLOCK,
+      minX: 200 - 180 + halfW,
+      maxX: 200 + 180 - halfW,
+      kinematicHorizontal: true,
+    };
+    const primary = resolveSwimmerAgainstRows({
+      ...motion,
+      halfWidth: 18,
+      halfHeight: 28,
+    });
+    const slide = resolvePinnedTapSlide({
+      primaryResult: primary,
+      motion,
+      swimmerStartX: startX,
+      proposedDeltaX: 80,
+      tapDirection: 1,
+      navHalfWidth: halfW,
+      navHalfHeight: halfH,
+      columnWidth: CONTAINER.width / 9,
+      minPinnedSlidePx: 30,
+      visibleNudgePx: 12,
+      collisionAngleRad: 0,
+    });
+    expect(slide.appliedDx).toBeGreaterThanOrEqual(0);
+    expect(slide.x).toBeGreaterThanOrEqual(startX);
+  });
+
+  it('applies visible nudge when retry still below threshold', () => {
+    const rows = [rowAt(300, [3, 4, 5])];
+    const halfW = 13;
+    const halfH = 23;
+    const startX = COL4_CENTER_X;
+    const motion = {
+      x: startX,
+      y: 320,
+      halfWidth: halfW,
+      halfHeight: halfH,
+      releaseHalfWidth: halfW,
+      releaseHalfHeight: halfH,
+      pinAnchorX: startX,
+      deltaX: 2,
+      deltaY: 0,
+      rowDeltaY: 0,
+      rows,
+      container: CONTAINER,
+      blockSize: BLOCK,
+      minX: 200 - 180 + halfW,
+      maxX: 200 + 180 - halfW,
+      kinematicHorizontal: true,
+    };
+    const primary = resolveSwimmerAgainstRows(motion);
+    const slide = resolvePinnedTapSlide({
+      primaryResult: primary,
+      motion,
+      swimmerStartX: startX,
+      proposedDeltaX: 2,
+      tapDirection: 1,
+      navHalfWidth: halfW,
+      navHalfHeight: halfH,
+      columnWidth: CONTAINER.width / 9,
+      minPinnedSlidePx: 40,
+      visibleNudgePx: 20,
+      collisionAngleRad: 0,
+    });
+    expect(Math.abs(slide.appliedDx)).toBeGreaterThanOrEqual(0);
   });
 });

@@ -38,6 +38,7 @@ import {
   smoothFoamGapSpan,
   type WaterSurfaceProfileParams,
 } from '@/Game/water/waterSurfaceProfile';
+import { buildProfileFromShaderUniforms } from '@/Game/water/buildWaterSurfaceProfileParams';
 import { getFlatWaterBodyTopY } from '@/Game/water/flatWaterSurface';
 import {
   waterSurfaceFoamGooeyMerge,
@@ -101,64 +102,6 @@ const readUniformTuple2 = (
   return [value[0], value[1]];
 };
 
-const buildProfileBaseFromWater = (
-  water: WaterComponentData,
-  uniforms: Record<string, unknown>
-): Omit<WaterSurfaceProfileParams, 'xNorm'> => {
-  'worklet';
-  return {
-    waterLevel: readUniformNumber(uniforms, 'waterLevel', 0.3),
-    iTime: readUniformNumber(uniforms, 'iTime', 0),
-    frequency: readUniformNumber(uniforms, 'frequency', 3.4),
-    speed: readUniformNumber(uniforms, 'speed', 0.02),
-    amplitude: readUniformNumber(uniforms, 'amplitude', 0.0035),
-    visualIntensity: readUniformNumber(
-      uniforms,
-      'uVisualIntensity',
-      water.visualIntensity ?? 1
-    ),
-    gapBlend: water.gapBlend ?? 1,
-    gapCurrent: [
-      water.currentGapStartNorm ?? DEFAULT_GAP[0],
-      water.currentGapEndNorm ?? DEFAULT_GAP[1],
-    ],
-    gapPrev: [
-      water.prevGapStartNorm ?? DEFAULT_GAP[0],
-      water.prevGapEndNorm ?? DEFAULT_GAP[1],
-    ],
-    gapCurr01: water.gapRangesCurr01 ?? [
-      water.currentGapStartNorm ?? DEFAULT_GAP[0],
-      water.currentGapEndNorm ?? DEFAULT_GAP[1],
-      0,
-      0,
-    ],
-    gapCurr23: water.gapRangesCurr23 ?? [0, 0, 0, 0],
-    gapPrev01: water.gapRangesPrev01 ?? [
-      water.prevGapStartNorm ?? DEFAULT_GAP[0],
-      water.prevGapEndNorm ?? DEFAULT_GAP[1],
-      0,
-      0,
-    ],
-    gapPrev23: water.gapRangesPrev23 ?? [0, 0, 0, 0],
-    hybridGapMaskStrength: readUniformNumber(uniforms, 'uHybridGapMaskStrength', 0.9),
-    curveCenter: water.surfaceCurveCenterNorm ?? water.gapCenterNorm ?? 0.5,
-    curveAmp: water.surfaceCurveAmp ?? 0.008,
-    curveTilt: water.surfaceCurveTilt ?? 0,
-    calmness: water.calmness ?? 0.5,
-    flowVelocity:
-      water.flowVelocity ?? water.flowDirection ?? readUniformNumber(uniforms, 'uFlowVelocity', 0),
-    flowPerRange: water.flowPerRange,
-    surgeEnergy:
-      water.surgeEnergy ??
-      water.surgePhase ??
-      readUniformNumber(uniforms, 'uSurgeEnergy', 0),
-    surfaceBandCenterY:
-      water.surfaceBandCenterY ?? readUniformNumber(uniforms, 'uSurfaceBandCenterY', 0.3),
-    surfaceBandHalfHeight:
-      water.surfaceBandHalfHeight ?? readUniformNumber(uniforms, 'uSurfaceBandHalfHeight', 0.04),
-  };
-};
-
 export const WaterSurfaceFoamSystem: System = {
   name: 'waterSurfaceFoamSystem',
   requiredComponents: [],
@@ -212,7 +155,7 @@ export const WaterSurfaceFoamSystem: System = {
         }
       });
 
-      const profileBase = buildProfileBaseFromWater(waterData, uniforms);
+      const profileBase = buildProfileFromShaderUniforms(waterData, uniforms);
       const targetSpan = getBlendedPrimaryGapSpan(
         profileBase.gapBlend,
         profileBase.gapCurrent,

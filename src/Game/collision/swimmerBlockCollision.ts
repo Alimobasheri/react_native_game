@@ -1308,3 +1308,92 @@ export function resolveSwimmerAgainstRows(
     pinnedCeilingMaxX,
   };
 }
+
+export type PinnedTapSlideInput = {
+  primaryResult: ResolveSwimmerResult;
+  motion: ResolveSwimmerInput;
+  swimmerStartX: number;
+  proposedDeltaX: number;
+  tapDirection: -1 | 1;
+  navHalfWidth: number;
+  navHalfHeight: number;
+  columnWidth: number;
+  minPinnedSlidePx: number;
+  visibleNudgePx: number;
+  collisionAngleRad: number;
+};
+
+export type PinnedTapSlideResult = {
+  x: number;
+  appliedDx: number;
+};
+
+/**
+ * Pinned under a block: tap shoves sideways along the ceiling until the nav
+ * hitbox clears the lip — visible nudge even when the first sweep stalls.
+ *
+ * @see docs/game-design/swimmer-physics-flow.md#pinned-escape
+ */
+export function resolvePinnedTapSlide(
+  input: PinnedTapSlideInput
+): PinnedTapSlideResult {
+  'worklet';
+
+  let finalX = input.primaryResult.x;
+  const appliedDxAfterCollision = finalX - input.swimmerStartX;
+  const needsRetry =
+    Math.abs(input.proposedDeltaX) > 0.5 &&
+    (Math.sign(appliedDxAfterCollision) !== Math.sign(input.proposedDeltaX) ||
+      Math.abs(appliedDxAfterCollision) < input.minPinnedSlidePx * 0.35);
+
+  if (needsRetry) {
+    const retryResult = resolveSwimmerAgainstRows({
+      ...input.motion,
+      halfWidth: input.navHalfWidth,
+      halfHeight: input.navHalfHeight,
+      releaseHalfWidth: input.navHalfWidth,
+      releaseHalfHeight: input.navHalfHeight,
+      angle: input.collisionAngleRad,
+      deltaX:
+        input.tapDirection *
+        Math.max(Math.abs(input.proposedDeltaX), input.minPinnedSlidePx),
+      deltaY: 0,
+    });
+    if (
+      Math.abs(retryResult.x - input.swimmerStartX) >
+      Math.abs(appliedDxAfterCollision)
+    ) {
+      finalX = retryResult.x;
+    }
+  }
+
+  const appliedAfterRetry = finalX - input.swimmerStartX;
+  if (
+    Math.abs(appliedAfterRetry) <
+    Math.max(input.visibleNudgePx, input.minPinnedSlidePx * 0.2)
+  ) {
+    const nudgeResult = resolveSwimmerAgainstRows({
+      ...input.motion,
+      halfWidth: input.navHalfWidth,
+      halfHeight: input.navHalfHeight,
+      releaseHalfWidth: input.navHalfWidth,
+      releaseHalfHeight: input.navHalfHeight,
+      angle: 0,
+      deltaX:
+        input.tapDirection *
+        Math.max(input.visibleNudgePx, input.minPinnedSlidePx * 0.25),
+      deltaY: 0,
+    });
+    if (
+      Math.abs(nudgeResult.x - input.swimmerStartX) >
+      Math.abs(finalX - input.swimmerStartX)
+    ) {
+      finalX = nudgeResult.x;
+    }
+  }
+
+  return {
+    x: finalX,
+    appliedDx: finalX - input.swimmerStartX,
+  };
+}

@@ -2,7 +2,7 @@
 
 **Status:** Design north star (June 2025)  
 **Audience:** AI agents, designers, developers  
-**Related docs:** [Skins](./swimmer-skins.md) · [Animation personalities](./swimmer-animation-personalities.md) · [AI context summary](./swimmer-ai-context.md)
+**Related docs:** [Skins](./swimmer-skins.md) · [Animation personalities](./swimmer-animation-personalities.md) · [AI context summary](./swimmer-ai-context.md) · [Physics flow](../game-design/swimmer-physics-flow.md)
 
 This document defines the intended playable character for **Flood Rush** (working title) / the vertical hyper-casual swimmer game in this repo. It supersedes the older character direction in `src/containers/ReactNativeSkiaGameEngine/swimmer.styles.md` §7 (arms, mouth, large eyes).
 

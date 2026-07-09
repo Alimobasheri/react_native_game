@@ -2,6 +2,7 @@
 
 **Date:** 2026-07-03  
 **Roadmap:** [passage-timing-roadmap.md](../../game-design/passage-timing-roadmap.md) §2 PT-016  
+**Physics flow:** [swimmer-physics-flow.md](../../game-design/swimmer-physics-flow.md)  
 **Supersedes:** Slice B plan (`gapBlend` commit-window gate, `passageTiming.ts` config)
 
 ---

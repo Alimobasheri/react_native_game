@@ -51,6 +51,7 @@ import {
 import { VisualStrokePhase } from '@/Game/characters/visualStrokePhase';
 import { getFlatWaterBodyTopY } from '@/Game/water/flatWaterSurface';
 import type { WaterSurfaceProfileParams } from '@/Game/water/waterSurfaceProfile';
+import { buildProfileFromShaderUniforms } from '@/Game/water/buildWaterSurfaceProfileParams';
 import {
   getGameSession,
   isGameOverPhase,
@@ -74,76 +75,6 @@ import {
   getSwimmerWaterFxPhasePrevStore,
   type SwimmerWaterFxBurstRecord,
 } from '@/Game/water/swimmerWaterFxLifecycle';
-
-const DEFAULT_GAP: [number, number] = [1 / 6, 5 / 6];
-
-const readUniformNumber = (
-  uniforms: Record<string, unknown>,
-  key: string,
-  fallback: number
-): number => {
-  'worklet';
-  const value = uniforms[key];
-  return typeof value === 'number' ? value : fallback;
-};
-
-const buildProfileBaseFromWater = (
-  water: WaterComponentData,
-  uniforms: Record<string, unknown>
-): Omit<WaterSurfaceProfileParams, 'xNorm'> => {
-  'worklet';
-  return {
-    waterLevel: readUniformNumber(uniforms, 'waterLevel', 0.3),
-    iTime: readUniformNumber(uniforms, 'iTime', 0),
-    frequency: readUniformNumber(uniforms, 'frequency', 3.4),
-    speed: readUniformNumber(uniforms, 'speed', 0.02),
-    amplitude: readUniformNumber(uniforms, 'amplitude', 0.0035),
-    visualIntensity: readUniformNumber(
-      uniforms,
-      'uVisualIntensity',
-      water.visualIntensity ?? 1
-    ),
-    gapBlend: water.gapBlend ?? 1,
-    gapCurrent: [
-      water.currentGapStartNorm ?? DEFAULT_GAP[0],
-      water.currentGapEndNorm ?? DEFAULT_GAP[1],
-    ],
-    gapPrev: [
-      water.prevGapStartNorm ?? DEFAULT_GAP[0],
-      water.prevGapEndNorm ?? DEFAULT_GAP[1],
-    ],
-    gapCurr01: water.gapRangesCurr01 ?? [
-      water.currentGapStartNorm ?? DEFAULT_GAP[0],
-      water.currentGapEndNorm ?? DEFAULT_GAP[1],
-      0,
-      0,
-    ],
-    gapCurr23: water.gapRangesCurr23 ?? [0, 0, 0, 0],
-    gapPrev01: water.gapRangesPrev01 ?? [
-      water.prevGapStartNorm ?? DEFAULT_GAP[0],
-      water.prevGapEndNorm ?? DEFAULT_GAP[1],
-      0,
-      0,
-    ],
-    gapPrev23: water.gapRangesPrev23 ?? [0, 0, 0, 0],
-    hybridGapMaskStrength: readUniformNumber(uniforms, 'uHybridGapMaskStrength', 0.9),
-    curveCenter: water.surfaceCurveCenterNorm ?? water.gapCenterNorm ?? 0.5,
-    curveAmp: water.surfaceCurveAmp ?? 0.008,
-    curveTilt: water.surfaceCurveTilt ?? 0,
-    calmness: water.calmness ?? 0.5,
-    flowVelocity:
-      water.flowVelocity ?? water.flowDirection ?? readUniformNumber(uniforms, 'uFlowVelocity', 0),
-    flowPerRange: water.flowPerRange,
-    surgeEnergy:
-      water.surgeEnergy ??
-      water.surgePhase ??
-      readUniformNumber(uniforms, 'uSurgeEnergy', 0),
-    surfaceBandCenterY:
-      water.surfaceBandCenterY ?? readUniformNumber(uniforms, 'uSurfaceBandCenterY', 0.3),
-    surfaceBandHalfHeight:
-      water.surfaceBandHalfHeight ?? readUniformNumber(uniforms, 'uSurfaceBandHalfHeight', 0.04),
-  };
-};
 
 type WaterFxContext = {
   profileBase: Omit<WaterSurfaceProfileParams, 'xNorm'>;
@@ -196,7 +127,7 @@ const readWaterFxContext = (
       string,
       unknown
     >;
-    profileBase = buildProfileBaseFromWater(waterData, uniforms);
+    profileBase = buildProfileFromShaderUniforms(waterData, uniforms);
   });
 
   if (!profileBase) {

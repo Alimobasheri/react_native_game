@@ -465,3 +465,46 @@ export const computeGapTransitionT = (
     Math.abs(displayStartNorm - targetStartNorm) + Math.abs(displayEndNorm - targetEndNorm);
   return Math.max(0, Math.min(1, blendGap * 0.85 + spanDelta * 1.6));
 };
+
+/**
+ * Gap-channel weight at X — swimmer only rides the surface curve inside open water.
+ *
+ * @see docs/game-design/swimmer-physics-flow.md#water-surface-lock
+ */
+export const computeGapFollowMaskAtX = (
+  profileBase: Omit<WaterSurfaceProfileParams, 'xNorm'>,
+  xNorm: number
+): number => {
+  'worklet';
+  const x = clamp01(xNorm);
+  const blendT = smoothstepEdge(0, 1, clamp01(profileBase.gapBlend));
+  const blendedGapStart = lerp(profileBase.gapPrev[0], profileBase.gapCurrent[0], blendT);
+  const blendedGapEnd = lerp(profileBase.gapPrev[1], profileBase.gapCurrent[1], blendT);
+  const safeGapEnd = Math.max(blendedGapStart + 0.01, blendedGapEnd);
+  const blendedGapWidth = Math.max(0.02, safeGapEnd - blendedGapStart);
+  const gapFeather = Math.max(0.02, Math.min(0.09, blendedGapWidth * 0.45));
+  const softGap = softGapInfluence(blendedGapStart, safeGapEnd, x, gapFeather);
+
+  const r0: [number, number] = [
+    lerp(profileBase.gapPrev01[0], profileBase.gapCurr01[0], blendT),
+    lerp(profileBase.gapPrev01[1], profileBase.gapCurr01[1], blendT),
+  ];
+  const r1: [number, number] = [
+    lerp(profileBase.gapPrev01[2], profileBase.gapCurr01[2], blendT),
+    lerp(profileBase.gapPrev01[3], profileBase.gapCurr01[3], blendT),
+  ];
+  const r2: [number, number] = [
+    lerp(profileBase.gapPrev23[0], profileBase.gapCurr23[0], blendT),
+    lerp(profileBase.gapPrev23[1], profileBase.gapCurr23[1], blendT),
+  ];
+  const r3: [number, number] = [
+    lerp(profileBase.gapPrev23[2], profileBase.gapCurr23[2], blendT),
+    lerp(profileBase.gapPrev23[3], profileBase.gapCurr23[3], blendT),
+  ];
+  const softGapAny = Math.max(
+    Math.max(softRangeWeight(r0[0], r0[1], x), softRangeWeight(r1[0], r1[1], x)),
+    Math.max(softRangeWeight(r2[0], r2[1], x), softRangeWeight(r3[0], r3[1], x))
+  );
+
+  return Math.max(softGap, softGapAny);
+};
