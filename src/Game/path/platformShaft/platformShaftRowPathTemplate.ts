@@ -9,7 +9,7 @@ import {
 import { buildSpawnDiagSnapshot } from '@/Game/path/obstacleRowGenDiag';
 import type { MacroPhase } from '@/Game/path/macroPacing';
 import { getNextObstacleRowY } from '@/assets/swimmerBlocks';
-import { composePressIntroShaft } from '@/Game/path/platformShaft/composePressIntroShaft';
+import { composeShaftRecipe, type ShaftRecipeId } from '@/Game/path/platformShaft/composeShaftRecipe';
 import type { RecipeOutput } from '@/Game/path/platformShaft/types';
 
 export type PlatformShaftSpawnRowArgs = {
@@ -56,14 +56,11 @@ export function createPlatformShaftRowPathTemplate(args: {
     init: (ctx: TemplateCtx, _initArgs: TemplateInitArgs) => {
       'worklet';
       const xctx = ctx as PlatformShaftTemplateCtx;
-      const recipe = xctx.platformShaftRecipe ?? 'composePressIntroShaft';
-      if (recipe !== 'composePressIntroShaft') {
-        return;
-      }
+      const recipe = (xctx.platformShaftRecipe ?? 'composePressIntroShaft') as ShaftRecipeId;
       const seed = xctx.platformShaftSeed ?? 42;
       const difficulty01 = xctx.platformShaftDifficulty ?? 0.4;
       const columns = xctx.columns ?? 6;
-      xctx.beat = composePressIntroShaft({
+      xctx.beat = composeShaftRecipe(recipe, {
         seed,
         difficulty01,
         columns,

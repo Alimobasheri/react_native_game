@@ -65,6 +65,8 @@ import { ScoreView } from '@/components/ScoreView/ScoreView-rntge';
 import { GameplayFeedbackView } from '@/components/GameplayFeedbackView/GameplayFeedbackView-rntge';
 import { StageOverlayView } from '@/components/StageOverlayView/StageOverlayView-rntge';
 import { SkillFeedbackDiagButton } from '@/components/SkillFeedbackDiagButton/SkillFeedbackDiagButton-rntge';
+import { PlatformShaftVanishDiagButton } from '@/components/PlatformShaftVanishDiagButton/PlatformShaftVanishDiagButton-rntge';
+import { platformShaftVanishDiagTuning } from '@/Game/debug/platformShaftVanishDiag';
 import { skillFeedbackDiagTuning } from '@/Game/debug/skillFeedbackDiag';
 import { ObstacleRowComponentName } from '@/Game/ecs-components/ObstacleRowComponent';
 import { BlockFoamComponentName } from '@/Game/ecs-components/BlockFoam';
@@ -175,6 +177,8 @@ const PROC_SEGMENT_OPTIONS: ('' | StoryLockedProceduralSegment)[] = [
 const SHAFT_RECIPE_OPTIONS: ('' | StoryLockedShaftRecipe)[] = [
   '',
   'composePressIntroShaft',
+  'pressPinballPair',
+  'pathChicaneShaft',
 ];
 
 export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
@@ -411,6 +415,9 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
                   <ScoreView />
                   <GameplayFeedbackView />
                   <StageOverlayView />
+                  {platformShaftVanishDiagTuning.SHOW_BUTTON && (
+                    <PlatformShaftVanishDiagButton />
+                  )}
                   {skillFeedbackDiagTuning.SHOW_BUTTON && (
                     <SkillFeedbackDiagButton />
                   )}
@@ -554,6 +561,28 @@ export const LockedPressIntroShaftLoop: StoryObj<typeof meta> = {
     storyLockedShaftRecipe: 'composePressIntroShaft',
     storyLockedShaftSeed: 42,
     storyLockedShaftDifficulty: 0.4,
+    storyLockShaftLoop: true,
+  },
+};
+
+/** Pinball press — alternate-side bounce (Slice 4). */
+export const LockedPressPinballLoop: StoryObj<typeof meta> = {
+  args: {
+    lockedTemplateName: 'directed',
+    storyLockedShaftRecipe: 'pressPinballPair',
+    storyLockedShaftSeed: 42,
+    storyLockedShaftDifficulty: 0.4,
+    storyLockShaftLoop: true,
+  },
+};
+
+/** Path v2 — wide chicane + dense derived shafts (P3). */
+export const LockedPathChicaneShaftLoop: StoryObj<typeof meta> = {
+  args: {
+    lockedTemplateName: 'directed',
+    storyLockedShaftRecipe: 'pathChicaneShaft',
+    storyLockedShaftSeed: 42,
+    storyLockedShaftDifficulty: 0.2,
     storyLockShaftLoop: true,
   },
 };

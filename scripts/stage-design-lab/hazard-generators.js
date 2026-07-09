@@ -811,6 +811,149 @@
     };
   }
 
+  function corridorGapsForShaftRow(columns, gapWidth, centerCol, side) {
+    const wallCol = pressWallCol(columns, side);
+    let span = gapColsFromWidth(columns, gapWidth, centerCol);
+    if (side === "right") span = span.filter((c) => c <= wallCol);
+    else span = span.filter((c) => c >= wallCol);
+    const gapSet = new Set(span);
+    gapSet.add(wallCol);
+    // Fill machinery pocket from trimmed span extremum BEFORE wallCol is in the set.
+    if (span.length > 0) {
+      if (side === "left") {
+        const spanMin = Math.min(...span);
+        for (let c = wallCol + 1; c < spanMin; c++) gapSet.add(c);
+      } else {
+        const spanMax = Math.max(...span);
+        for (let c = spanMax + 1; c < wallCol; c++) gapSet.add(c);
+      }
+    }
+    // Outer cave walls never stay playable gaps.
+    const gaps = Array.from(gapSet)
+      .filter((c) => c > 0 && c < columns - 1)
+      .sort((a, b) => a - b);
+    return { gaps, blocks: blocksFromGaps(columns, gaps) };
+  }
+
+  function survivorGapsHugFarWall(corridorGaps, narrowWidth, side) {
+    const w = Math.max(1, Math.round(narrowWidth));
+    const sorted = corridorGaps.slice().sort((a, b) => a - b);
+    if (!sorted.length) return [];
+    if (side === "right") return sorted.slice(0, Math.min(w, sorted.length));
+    return sorted.slice(Math.max(0, sorted.length - w));
+  }
+
+  function maxOneSidedPressCols(corridorGaps, survivorGaps, side, columns) {
+    if (!corridorGaps.length || !survivorGaps.length) return 0;
+    const wallCol = pressWallCol(columns, side);
+    const survivorCol =
+      side === "right" ? Math.min(...survivorGaps) : Math.max(...survivorGaps);
+    if (side === "right") return Math.max(0, wallCol - survivorCol - 1);
+    return Math.max(0, survivorCol - wallCol - 1);
+  }
+
+  function composePathChicane(params, columns, startGlobalRow) {
+    const seed = params?.seed ?? 0;
+    const d = Math.max(0, Math.min(1, params?.difficulty01 ?? 0.2));
+    const rowCount = params?.rowCount ?? 40;
+    const previewOnly = params?.previewOnly === true;
+    const wideW = Math.round(lerpNum(4, 3, d));
+    const narrowW = 1;
+    const shaftStart = 8;
+    const blockN = 9;
+    let center = Math.max(1, Math.min(columns - 2, Math.floor(columns / 2)));
+    let direction = seed % 2 === 0 ? 1 : -1;
+    let rowsInBlock = 0;
+    const lo = 1;
+    const hi = Math.max(lo, columns - 2);
+    const rowDefs = [];
+    const hazards = [];
+    const warnings = [];
+    const hazardIds = [];
+
+    for (let i = 0; i < rowCount; i++) {
+      const globalRow = startGlobalRow + i;
+      const prevCenter = center;
+      const gaps = gapColsFromWidth(columns, wideW, center);
+      rowDefs.push({
+        blocks: blocksFromGaps(columns, gaps),
+        gaps,
+        macroPhase: params?.macroPhase || "flow",
+      });
+      rowsInBlock += 1;
+      if (rowsInBlock >= blockN) {
+        rowsInBlock = 0;
+        let next = center + direction * 2;
+        if (next < lo || next > hi) {
+          direction = direction === 1 ? -1 : 1;
+          next = center + direction * 2;
+        }
+        center = Math.max(lo, Math.min(hi, next));
+      }
+      if (!previewOnly && i >= shaftStart && wideW > narrowW) {
+        const wideGaps = gapColsFromWidth(columns, wideW, center);
+        const narrowGaps = gapColsFromWidth(columns, narrowW, center);
+        const narrowMid = (Math.min(...narrowGaps) + Math.max(...narrowGaps)) / 2;
+        const wideMid = (Math.min(...wideGaps) + Math.max(...wideGaps)) / 2;
+        const side = narrowMid >= wideMid ? "left" : "right";
+        const corridor = corridorGapsForShaftRow(columns, wideW, center, side);
+        rowDefs[rowDefs.length - 1] = {
+          blocks: corridor.blocks,
+          gaps: corridor.gaps,
+          macroPhase: params?.macroPhase || "flow",
+        };
+        const survivorGaps = survivorGapsHugFarWall(corridor.gaps, narrowW, side);
+        const geomMax = maxOneSidedPressCols(corridor.gaps, survivorGaps, side, columns);
+        const requested = Math.min(
+          Math.max(1, corridor.gaps.length - survivorGaps.length),
+          geomMax
+        );
+        if (requested > 0) {
+          const harm = harmonizePlatformSlab({ pressCols: requested }, { gapWidthCols: corridor.gaps.length }, {});
+          warnings.push(...harm.warnings);
+          const hzId = nextHzId();
+          hazardIds.push(hzId);
+          const anchorCol = side === "left" ? 1 : columns - 2;
+          hazards.push(
+            attachBounds(
+              {
+                id: hzId,
+                kind: "hazard_platform",
+                side,
+                params: {
+                  ...harm.params,
+                  pressDirection: side === "left" ? "right" : "left",
+                  pressDurationSec: 1.0,
+                  pressEase: "ease-out",
+                  animStartRow: Math.max(0, globalRow - 2),
+                  heldDurationSec: 0.25,
+                },
+              },
+              columns,
+              globalRow,
+              globalRow,
+              anchorCol,
+              anchorCol
+            )
+          );
+        }
+      }
+    }
+
+    return {
+      rows: rowDefs,
+      hazards,
+      tracks: [],
+      markers: [],
+      harmonizerWarnings: warnings,
+      binding: {
+        fn: "composePathChicane",
+        params: { seed, difficulty01: d, previewOnly, rowCount },
+        hazardIds,
+      },
+    };
+  }
+
   function run(fnName, params, columns, startGlobalRow) {
     switch (fnName) {
       case "viseSequence":
@@ -827,6 +970,8 @@
         return pressTeachSingle(params || {}, columns, startGlobalRow);
       case "composePressIntroShaft":
         return composePressIntroShaft(params || {}, columns, startGlobalRow);
+      case "composePathChicane":
+        return composePathChicane(params || {}, columns, startGlobalRow);
       default:
         throw new Error(`Unknown generator: ${fnName}`);
     }
@@ -856,6 +1001,7 @@
     slidingGap,
     pressTeachSingle,
     composePressIntroShaft,
+    composePathChicane,
     lerpTeachEscalation,
     appendCorridorRows,
     appendSlabEvent,

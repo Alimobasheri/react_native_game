@@ -3,14 +3,23 @@ import {
   anchorCenterY,
   anchorIsComplete,
   buildGridAnchor,
+  growHazardBandMemberIds,
   healAnchorRowIds,
+  healLiveMemberIdsForBand,
   resolveRowEntitiesForBeatRange,
+  resolveRowEntityForBeat,
 } from '@/Game/grid/gridAnchor';
 import type { ComponentStore } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/component';
 import type { ObstacleRowComponentData } from '@/Game/ecs-components/ObstacleRowComponent';
 
 function mockRowStore(
-  rows: { entity: number; beatRowIndex?: number; y: number; shaftSegmentEpoch?: number }[]
+  rows: {
+    entity: number;
+    beatRowIndex?: number;
+    y: number;
+    shaftSegmentEpoch?: number;
+    prevRowEntity?: number | null;
+  }[]
 ): ComponentStore<ObstacleRowComponentData> {
   const map = new Map<number, ObstacleRowComponentData>();
   for (const r of rows) {
@@ -18,7 +27,7 @@ function mockRowStore(
       y: r.y,
       gaps: [],
       solidColumnCentersX: [],
-      prevRowEntity: null,
+      prevRowEntity: r.prevRowEntity ?? null,
       beatRowIndex: r.beatRowIndex,
       shaftSegmentEpoch: r.shaftSegmentEpoch,
     });
@@ -120,5 +129,36 @@ describe('gridAnchor', () => {
     const anchor = buildGridAnchor(8, 9, [10, 20], 1);
     const healed = healAnchorRowIds(anchor, store);
     expect(healed.rowEntityIds).toEqual([20]);
+  });
+
+  it('healLiveMemberIdsForBand drops recycled entity id with wrong beat', () => {
+    const store = mockRowStore([
+      { entity: 10, beatRowIndex: 35, y: 100, shaftSegmentEpoch: 1 },
+      { entity: 50, beatRowIndex: 12, y: 200, shaftSegmentEpoch: 1 },
+    ]);
+    const healed = healLiveMemberIdsForBand([50], store, 35, 35, 1);
+    expect(healed).toEqual([]);
+    const grown = growHazardBandMemberIds([50], store, 35, 35, 1);
+    expect(grown).toEqual([10]);
+  });
+
+  it('growHazardBandMemberIds appends missing beats without replacing healed ids', () => {
+    const store = mockRowStore([
+      { entity: 10, beatRowIndex: 8, y: 200, shaftSegmentEpoch: 1 },
+      { entity: 20, beatRowIndex: 10, y: 120, shaftSegmentEpoch: 1 },
+    ]);
+    const grown = growHazardBandMemberIds([10], store, 8, 10, 1);
+    expect(grown).toEqual([10, 20]);
+  });
+
+  it('resolveRowEntityForBeat prefers loop-seam chain row when beat 0 is duplicated', () => {
+    const store = mockRowStore([
+      { entity: 30, beatRowIndex: 39, y: 569, shaftSegmentEpoch: 1, prevRowEntity: null },
+      { entity: 90, beatRowIndex: 0, y: 518, shaftSegmentEpoch: 2, prevRowEntity: 30 },
+      { entity: 127, beatRowIndex: 0, y: 466, shaftSegmentEpoch: 2, prevRowEntity: 90 },
+      { entity: 83, beatRowIndex: 1, y: 415, shaftSegmentEpoch: 2, prevRowEntity: 127 },
+    ]);
+    const ent = resolveRowEntityForBeat(store, 0, { shaftSegmentEpoch: 2 });
+    expect(ent).toBe(90);
   });
 });

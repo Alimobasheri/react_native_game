@@ -17,7 +17,7 @@ import {
 import type { PlatformShaftTemplateCtx } from '@/Game/path/platformShaft/platformShaftRowPathTemplate';
 import type { PlatformSlabHazard } from '@/Game/path/platformShaft/types';
 import {
-  buildGridAnchor,
+  growHazardBandMemberIds,
   resolveRowEntitiesForBeatRange,
 } from '@/Game/grid/gridAnchor';
 import { gridSpanFromPlatformSlab } from '@/Game/grid/gridSpan';
@@ -36,7 +36,8 @@ export type HazardSpawnFromBeatArgs = {
 
 const findLeadEntityForHazard = (
   ecs: ECS,
-  hazardId: string
+  hazardId: string,
+  shaftSegmentEpoch?: number
 ): Entity | undefined => {
   'worklet';
   const leadStore = ecs.components[HazardBandLeadComponentName] as
@@ -49,9 +50,17 @@ const findLeadEntityForHazard = (
   for (let i = 0; i < leadEntities.length; i++) {
     const entity = leadEntities[i];
     const data = leadStore.get(entity);
-    if (data?.hazardId === hazardId) {
-      return entity;
+    if (data?.hazardId !== hazardId) {
+      continue;
     }
+    if (
+      shaftSegmentEpoch != null &&
+      data.shaftSegmentEpoch != null &&
+      data.shaftSegmentEpoch !== shaftSegmentEpoch
+    ) {
+      continue;
+    }
+    return entity;
   }
   return undefined;
 };
@@ -87,6 +96,37 @@ const trySpawnOrGrowHazardBand = (
 ): boolean => {
   'worklet';
   const span = gridSpanFromPlatformSlab(hazard);
+  const existingLead = findLeadEntityForHazard(ecs, hazard.id, shaftSegmentEpoch);
+  if (existingLead != null) {
+    const leadData = (
+      ecs.components[HazardBandLeadComponentName] as
+        | ComponentStore<HazardBandLeadComponentData>
+        | undefined
+    )?.get(existingLead);
+    const rowEntityIds = growHazardBandMemberIds(
+      leadData?.memberRowEntityIds ?? [],
+      rowStore,
+      span.rowStart,
+      span.rowEnd,
+      shaftSegmentEpoch ?? leadData?.shaftSegmentEpoch
+    );
+    if (rowEntityIds.length === 0) {
+      return false;
+    }
+    ecs.updateComponent<HazardBandLeadComponentData>(
+      existingLead,
+      HazardBandLeadComponentName,
+      (lead) => {
+        lead.memberRowEntityIds = rowEntityIds;
+        if (shaftSegmentEpoch != null) {
+          lead.shaftSegmentEpoch = shaftSegmentEpoch;
+        }
+      }
+    );
+    syncHazardBandMembers(ecs, existingLead, hazard.id, rowEntityIds);
+    return true;
+  }
+
   const rowEntityIds = resolveRowEntitiesForBeatRange(
     rowStore,
     span.rowStart,
@@ -97,30 +137,18 @@ const trySpawnOrGrowHazardBand = (
     return false;
   }
 
-  const existingLead = findLeadEntityForHazard(ecs, hazard.id);
-  if (existingLead != null) {
-    ecs.updateComponent<HazardBandLeadComponentData>(
-      existingLead,
-      HazardBandLeadComponentName,
-      (lead) => {
-        lead.memberRowEntityIds = rowEntityIds.slice();
-      }
-    );
-    syncHazardBandMembers(ecs, existingLead, hazard.id, rowEntityIds);
-    return true;
-  }
-
   if (spawned.includes(hazard.id)) {
-    return false;
+    // mergeRowHazardPass can strip a band while ctx.spawnedHazardIds still lists the id.
+    if (findLeadEntityForHazard(ecs, hazard.id, shaftSegmentEpoch) != null) {
+      return false;
+    }
+    const staleIdx = spawned.indexOf(hazard.id);
+    if (staleIdx >= 0) {
+      spawned.splice(staleIdx, 1);
+    }
   }
 
   const leadEntity = rowEntityIds[rowEntityIds.length - 1];
-  const anchor = buildGridAnchor(
-    span.rowStart,
-    span.rowEnd,
-    rowEntityIds,
-    shaftSegmentEpoch
-  );
 
   ecs.addComponent(
     leadEntity,

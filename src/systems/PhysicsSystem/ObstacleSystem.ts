@@ -144,7 +144,6 @@ import {
 } from '@/Game/path/platformShaft/platformShaftRowPathTemplate';
 import { maybeSpawnMovingHazardsForRow } from '@/Game/hazards/hazardSpawnFromBeat';
 import { PLATFORM_SHAFT_ROW_HAZARD_BANDS } from '@/Game/hazards/platformShaftTODO';
-import { purgePlatformShaftHazardsAndEffectiveGaps } from '@/Game/hazards/purgePlatformShaftHazardState';
 import { mergeRowHazardPass } from '@/Game/grid/mergeRowHazardPass';
 import {
   rowOverlapsTransitionBand,
@@ -538,6 +537,12 @@ function appendGapShiftRunwayRows(args: {
   runwayDupMin?: number;
 }): Entity {
   'worklet';
+  // Platform shaft rows use exact beat-index timing for hazard bands. Injecting duplicate
+  // runway rows here creates visible safe rows with no beatRowIndex, no hazard band, and no
+  // collision between real shaft beats.
+  if (args.spawnDiagTemplateName === 'platformShaftIntro') {
+    return args.newRowEntity;
+  }
   let dupCount = gapShiftRunwayDupRowsFromTotalRows(
     args.runwayDupRowsBasisRows,
     mixU32(args.runwayDupRowsBasisRows >>> 0, args.rowIndexForDiag, 0x72756e77)
@@ -1776,18 +1781,8 @@ export const ObstacleSystem: System = {
 
         if (lastRowIndex > totalRow - 1) {
           const newTemplateName = resolveTemplateNameOnRollover(components, managerEntity, lock);
-          if (
-            newTemplateName === 'platformShaftIntro' &&
-            readStoryLockShaftLoop(components, managerEntity) &&
-            PLATFORM_SHAFT_ROW_HAZARD_BANDS
-          ) {
-            purgePlatformShaftHazardsAndEffectiveGaps({
-              ecs,
-              components,
-              sceneKey: managerData.sceneKey,
-              eventQueue,
-            });
-          }
+          // Do not purge hazard bands on loop rollover: prior-epoch rows are still on screen
+          // for many frames. Epoch-tagged spawn + merge pass strip when members scroll off.
           const initArgs: TemplateInitArgs = {
             ecs,
             sceneEntity,
@@ -1875,7 +1870,7 @@ export const ObstacleSystem: System = {
               m.templateInfo = {
                 currentTemplateName: newTemplateName,
                 currentTempalteTotalRow: newRowCount,
-                currentRowIndex: 0,
+                currentRowIndex: 1,
                 lastRowEntity: newRowEntity,
                 templateContextEntity: selected.ctxEntity,
               }

@@ -1,6 +1,7 @@
 # Platform Shaft — Implementation Roadmap
 
 **Status:** Draft v1.0 (2026-07-04) — **authoritative blueprint** for one-sided steel platform (`hazard_platform`) press-shaft chapters  
+**v2 path-first redesign:** [platform-shaft-path-v2-spec.md](./platform-shaft-path-v2-spec.md) — supersedes v1 recipe-event composers (S4 `pressPinballPair` etc.) for new work. Slices P0–P9 in session plan.
 **Audience:** Founder, implementers, future agent sessions  
 **Parent doc:** [stage-hazard-progression-roadmap.md](./stage-hazard-progression-roadmap.md) — stage chapter model, SH-005 fairness, SH-011 machinery art  
 **Reference handoff:** [stage-composer-exports/one-sided-platforms-variations/](../../stage-composer-exports/one-sided-platforms-variations/) (JSON + PNG + prompt)
@@ -13,6 +14,8 @@
 | [run-level-progression.md](./run-level-progression.md) | Run blueprint, opening archetypes — future shaft pool weights |
 | [../../src/Layout.ts](../../src/Layout.ts) | `LAYOUT_CONSTANTS.COLUMNS = 6` |
 | [../../scripts/stage-design-lab/](../../scripts/stage-design-lab/) | Lab sim, fairness linter, PNG export loop |
+| [platform-shaft-path-v2-spec.md](./platform-shaft-path-v2-spec.md) | Path-first v2 SSOT — PathRowIntent, row-clock, dense shafts |
+| [platform-shaft-path-v2-session-plan.md](./platform-shaft-path-v2-session-plan.md) | v2 session grouping + implementation prompts |
 
 ---
 
@@ -89,6 +92,8 @@ HazardBandLead on ObstacleRow (dynamic) → steel slab  → stage press gimmick
 ---
 
 ## 4. Recipe catalog
+
+**Fun / progression / variability:** [platform-shaft-recipe-fun-spec.md](./platform-shaft-recipe-fun-spec.md)
 
 | Recipe ID | Player read | Key vars | Macro phase |
 |-----------|-------------|----------|-------------|
@@ -328,7 +333,7 @@ Slice 7 Stage pool ◄── Slice 6 Chapter ◄── Slice 5 Motion+flow ◄�
 
 | Task | Exit | Done |
 |------|------|------|
-| S4.1 Lab + engine: `pressPinballPair` | `LockedPressPinballLoop` | [ ] |
+| S4.1 Lab + engine: `pressPinballPair` | `LockedPressPinballLoop` | [x] |
 | S4.2 Lab + engine: `pressStackCascade` | `LockedPressStackLoop` | [ ] |
 | S4.3 Lab + engine: `pressOppositeWall` | `LockedPressSqueezeLoop` | [ ] |
 | S4.4 Lab + engine: `pressMixedBeat` | `LockedPressMixedLoop` | [ ] |

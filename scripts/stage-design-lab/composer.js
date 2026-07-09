@@ -664,6 +664,32 @@
       );
     }
 
+    function insertPathChicanePreview(opts) {
+      return applyWizard(
+        "composePathChicane",
+        {
+          difficulty01: opts?.difficulty01 ?? 0.2,
+          seed: opts?.seed ?? 0,
+          previewOnly: true,
+          rowCount: opts?.rowCount ?? 40,
+        },
+        { macroPhase: opts?.macroPhase || "flow", label: opts?.label || "Path chicane preview" }
+      );
+    }
+
+    function insertPathChicaneShaft(opts) {
+      return applyWizard(
+        "composePathChicane",
+        {
+          difficulty01: opts?.difficulty01 ?? 0.2,
+          seed: opts?.seed ?? 0,
+          previewOnly: false,
+          rowCount: opts?.rowCount ?? 40,
+        },
+        { macroPhase: opts?.macroPhase || "flow", label: opts?.label || "Path chicane shaft" }
+      );
+    }
+
     function loadStageSkeleton(presetIndex) {
       const preset = S().STAGE_PRESETS.find((p) => p.index === presetIndex);
       if (!preset) return null;
@@ -738,6 +764,8 @@
       addTrack,
       applyWizard,
       insertPressTeach,
+      insertPathChicanePreview,
+      insertPathChicaneShaft,
       rerollPressIntroShaft,
       rerollProceduralBinding,
       loadStageSkeleton,

@@ -69,7 +69,11 @@ export const purgePlatformShaftHazardsAndEffectiveGaps = (args: {
     | undefined;
   if (rowStore) {
     rowStore.forEach((rowEntity: Entity, rowData: ObstacleRowComponentData) => {
-      if (!rowData.effectiveGaps && !rowData.effectiveSolidColumnCentersX) {
+      if (
+        !rowData.effectiveGaps &&
+        !rowData.effectiveSolidColumnCentersX &&
+        !rowData.effectivePressSlabAabb
+      ) {
         return;
       }
       ecs.updateComponent<ObstacleRowComponentData>(
@@ -78,6 +82,7 @@ export const purgePlatformShaftHazardsAndEffectiveGaps = (args: {
         (row) => {
           row.effectiveGaps = undefined;
           row.effectiveSolidColumnCentersX = undefined;
+          row.effectivePressSlabAabb = undefined;
         }
       );
     });

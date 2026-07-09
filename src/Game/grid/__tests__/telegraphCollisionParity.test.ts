@@ -123,14 +123,14 @@ describe('telegraphCollisionParity', () => {
         }
         if (name === WaterComponentName) fn({});
       },
-      removeComponent: () => {},
+      removeComponent: () => { },
     };
 
     mergeRowHazardPass({
       ecs: ecs as never,
       components: components as never,
       deltaTime: 16,
-      eventQueue: { addEvent: () => {} } as never,
+      eventQueue: { addEvent: () => { } } as never,
     });
 
     return rows;

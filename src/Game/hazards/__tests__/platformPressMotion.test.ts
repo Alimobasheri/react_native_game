@@ -116,6 +116,16 @@ describe('platformPressMotion', () => {
     expect(gapColsClosedByPressForCollision(baseGaps, atTelegraph)).toEqual([]);
   });
 
+  it('effectiveGapsAtPressPhase preserves base gaps at telegraph', () => {
+    const result = composePressIntroShaft({ seed: 42, difficulty01: 0.4, columns });
+    const hazard = result.hazards[0];
+    const rowIndex = hazard.bounds.rowStart;
+    const baseGaps = result.rows[rowIndex].gaps;
+    expect(
+      effectiveGapsAtPressPhase(baseGaps, hazard, rowIndex, columns, 0)
+    ).toEqual(baseGaps);
+  });
+
   it('gapColsClosedByPressForCollision does not close uninvaded corridor cols during partial press', () => {
     const result = composePressIntroShaft({ seed: 42, difficulty01: 0.4, columns });
     const hazard = result.hazards[0];

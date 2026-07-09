@@ -1,6 +1,7 @@
 import { getObstacleRowPitch } from '@/assets/swimmerBlocks';
-import { mergeRowHazardPass } from '@/Game/grid/mergeRowHazardPass';
+import { composePathChicaneShaft } from '@/Game/path/platformShaft/composePathChicaneShaft';
 import { composePressIntroShaft } from '@/Game/path/platformShaft/composePressIntroShaft';
+import { mergeRowHazardPass } from '@/Game/grid/mergeRowHazardPass';
 import {
   createHazardBandLeadComponent,
   HazardBandLeadComponentData,
@@ -191,6 +192,117 @@ describe('hazardBandLifecycle', () => {
 
     expect(leadStore.has(leadEntity)).toBe(false);
     expect(removed.some((r) => r.endsWith(HazardBandLeadComponentName))).toBe(true);
+  });
+
+  it('keeps steel collision when entity id was recycled to a different beat', () => {
+    const beat = composePathChicaneShaft({ seed: 42, difficulty01: 0.2, columns: TEST_COLS });
+    const hazard = beat.hazards.find((h) => h.bounds.rowStart >= 30);
+    expect(hazard).toBeDefined();
+    if (!hazard) return;
+    const beatRow = hazard.bounds.rowStart;
+    const rows = new Map<number, ObstacleRowComponentData>();
+    rows.set(5, {
+      y: 300,
+      gaps: beat.rows[beatRow].gaps.slice(),
+      solidColumnCentersX: [],
+      prevRowEntity: null,
+      beatRowIndex: beatRow,
+      shaftSegmentEpoch: 1,
+    });
+    rows.set(99, {
+      y: 400,
+      gaps: [],
+      solidColumnCentersX: [],
+      prevRowEntity: null,
+      beatRowIndex: beatRow + 3,
+      shaftSegmentEpoch: 1,
+    });
+    const leadData = createHazardBandLeadComponent({
+      modifierId: hazard.id,
+      hazardId: hazard.id,
+      side: hazard.side,
+      bounds: hazard.bounds,
+      params: hazard.params,
+      memberRowEntityIds: [99],
+      shaftSegmentEpoch: 1,
+    }).data;
+    const leadStore = new Map<number, HazardBandLeadComponentData>([[5, leadData]]);
+    const rowStore = {
+      get: (id: number) => rows.get(id),
+      forEach: (fn: (entity: number, data: ObstacleRowComponentData) => void) => {
+        rows.forEach((data, entity) => fn(entity, data));
+      },
+      count: () => rows.size,
+    } as ComponentStore<ObstacleRowComponentData>;
+    const containerWidth = TEST_COLS * blockHeight;
+    const mkStore = <T,>(data: T, entityId = 0): ComponentStore<T> =>
+      ({
+        get: (id: number) => (id === entityId ? data : undefined),
+        forEach: (fn: (entity: number, d: T) => void) => {
+          fn(entityId, data);
+        },
+        count: () => 1,
+      }) as ComponentStore<T>;
+    const renderStore = new Map([
+      [5, { position: { x: 0, y: 300 }, renderLayers: [{ image: 'block', position: { x: 0, y: 0 } }] }],
+    ]);
+    const components: Record<string, ComponentStore<unknown>> = {
+      [ObstacleRowComponentName]: rowStore,
+      [HazardBandLeadComponentName]: {
+        get: (id: number) => leadStore.get(id),
+        forEach: (fn: (id: number) => void) => leadStore.forEach((_, id) => fn(id)),
+        count: () => leadStore.size,
+      } as ComponentStore<HazardBandLeadComponentData>,
+      [RenderComponentName]: {
+        get: (id: number) => renderStore.get(id),
+        forEach: (fn: (id: number) => void) => renderStore.forEach((_, id) => fn(id)),
+        count: () => renderStore.size,
+      } as ComponentStore<unknown>,
+      [ContainerComponentName]: mkStore({
+        centerX: containerWidth / 2,
+        centerY: 400,
+        width: containerWidth,
+        height: 800,
+        waterSurfaceY: 500,
+      }),
+      [WaterComponentName]: mkStore({
+        raisingSpeed: 200,
+        centerRowEntity: 99,
+      }),
+      [ObstaclesManagerComponentName]: mkStore({ sceneKey: 'swimmerGame' }),
+      [GameSessionComponentName]: mkStore({ phase: 'playing' }),
+    };
+    const ecs = {
+      components,
+      getEntitiesWithComponents: () => [5],
+      updateComponent: (entity: number, name: string, fn: (d: unknown) => void) => {
+        if (name === HazardBandLeadComponentName) {
+          const d = leadStore.get(entity);
+          if (d) fn(d);
+        }
+        if (name === RenderComponentName) {
+          const d = renderStore.get(entity);
+          if (d) fn(d);
+        }
+        if (name === ObstacleRowComponentName) {
+          const d = rows.get(entity);
+          if (d) fn(d);
+        }
+        if (name === WaterComponentName) fn({});
+      },
+      removeComponent: () => {},
+    } as unknown as ECS;
+
+    mergeRowHazardPass({
+      ecs,
+      components,
+      deltaTime: 16,
+      eventQueue: { addEvent: () => {} } as never,
+    });
+
+    expect(leadStore.has(5)).toBe(true);
+    expect(leadStore.get(5)?.memberRowEntityIds).toEqual([5]);
+    expect(rows.get(5)?.effectivePressSlabAabb).toBeDefined();
   });
 
   it('loop purge removes all hazard band components and clears effectiveGaps', () => {

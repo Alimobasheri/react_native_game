@@ -3,6 +3,7 @@ import { maybeSpawnHazardBandsForRow } from '@/Game/hazards/hazardBandSpawn';
 import {
   HazardBandLeadComponentName,
   type HazardBandLeadComponentData,
+  createHazardBandLeadComponent,
 } from '@/Game/ecs-components/HazardBandLead';
 import {
   HazardBandMemberComponentName,
@@ -232,6 +233,36 @@ describe('hazardBandSpawn', () => {
     expect(freshCtx.spawnedHazardIds?.length).toBe(beat.hazards.length);
   });
 
+  it('re-spawns after strip left stale spawnedHazardIds entry', () => {
+    const hazard = beat.hazards[0];
+    const rows = seedRowsForBeatRange(
+      beat,
+      hazard.bounds.rowStart,
+      hazard.bounds.rowEnd
+    );
+    const ecs = createBandMockEcs(rows);
+    const freshCtx: PlatformShaftTemplateCtx = {
+      beat,
+      spawnedHazardIds: [hazard.id],
+      shaftSegmentEpoch: 1,
+    };
+
+    maybeSpawnHazardBandsForRow({
+      ecs,
+      sceneEntity: 0,
+      ctx: freshCtx,
+      rowIndex: hazard.bounds.rowEnd,
+      rowEntity: hazard.bounds.rowEnd - hazard.bounds.rowStart + 1,
+      rowData: rows.get(hazard.bounds.rowEnd - hazard.bounds.rowStart + 1)!,
+      leftX: 0,
+      rowLength: TEST_COLS,
+      obstacleDimension: { width: 60, height: 60 },
+    });
+
+    expect(ecs.getEntitiesWithComponents([HazardBandLeadComponentName]).length).toBe(1);
+    expect(freshCtx.spawnedHazardIds).toContain(hazard.id);
+  });
+
   it('epoch filter picks current segment rows only', () => {
     const hazard = beat.hazards[0];
     const rows = seedRowsForBeatRange(
@@ -272,5 +303,63 @@ describe('hazardBandSpawn', () => {
 
     const leadEntity = ecs.getEntitiesWithComponents([HazardBandLeadComponentName])[0];
     expect(leadEntity).toBeLessThan(100);
+  });
+
+  it('spawns a fresh band for a new shaft segment epoch', () => {
+    const hazard = beat.hazards[0];
+    const rows = seedRowsForBeatRange(
+      beat,
+      hazard.bounds.rowStart,
+      hazard.bounds.rowEnd,
+      1
+    );
+    for (let beatIdx = hazard.bounds.rowStart; beatIdx <= hazard.bounds.rowEnd; beatIdx++) {
+      const dupEntity = 100 + beatIdx;
+      rows.set(dupEntity, {
+        y: 800,
+        gaps: beat.rows[beatIdx].gaps.slice(),
+        solidColumnCentersX: [],
+        prevRowEntity: null,
+        beatRowIndex: beatIdx,
+        shaftSegmentEpoch: 2,
+      });
+    }
+    const ecs = createBandMockEcs(rows);
+    const epoch1Lead = hazard.bounds.rowEnd - hazard.bounds.rowStart + 1;
+    ecs.addComponent(
+      epoch1Lead,
+      createHazardBandLeadComponent({
+        modifierId: hazard.id,
+        hazardId: hazard.id,
+        side: hazard.side,
+        bounds: hazard.bounds,
+        params: hazard.params,
+        memberRowEntityIds: [epoch1Lead],
+        shaftSegmentEpoch: 1,
+      })
+    );
+
+    const freshCtx: PlatformShaftTemplateCtx = {
+      beat,
+      spawnedHazardIds: [],
+      shaftSegmentEpoch: 2,
+    };
+
+    maybeSpawnHazardBandsForRow({
+      ecs,
+      sceneEntity: 0,
+      ctx: freshCtx,
+      rowIndex: hazard.bounds.rowEnd,
+      rowEntity: 100 + hazard.bounds.rowEnd,
+      rowData: rows.get(100 + hazard.bounds.rowEnd)!,
+      leftX: 0,
+      rowLength: TEST_COLS,
+      obstacleDimension: { width: 60, height: 60 },
+    });
+
+    const leads = ecs.getEntitiesWithComponents([HazardBandLeadComponentName]);
+    expect(leads).toContain(epoch1Lead);
+    expect(leads).toContain(100 + hazard.bounds.rowEnd);
+    expect(leads.length).toBe(2);
   });
 });

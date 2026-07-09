@@ -36,7 +36,7 @@ export const computeHazardPhase = (
 ): HazardPhase => {
   'worklet';
   const localSec = hazardLocalSecFromBeatRow(hazard, beatRowAtHazard, rowDurationSec);
-  const { pressT, pressExtent } = pressExtentAtLocalSec(hazard, localSec);
+  const { pressT, pressExtent } = pressExtentAtLocalSec(hazard, localSec, rowDurationSec);
   return {
     localSec,
     phase01: pressT,

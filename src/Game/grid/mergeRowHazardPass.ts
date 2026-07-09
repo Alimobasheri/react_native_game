@@ -25,6 +25,7 @@ import {
 import type { EventQueueContextType } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useEventQueue/useEventQueue';
 import type { AABB } from '@/Game/collision/swimmerBlockCollision';
 import { getObstacleRowPitch } from '@/assets/swimmerBlocks';
+import { growHazardBandMemberIds, healLiveMemberIdsForBand, resolveRowEntitiesForBeatRange } from '@/Game/grid/gridAnchor';
 import { rowEntityBeatIndexFromRow } from '@/Game/grid/hazardBandRowBeat';
 import { hazardLocalSecFromBeatRow, resolveAnimStartRow } from '@/Game/grid/hazardPhase';
 import { resolvePlatformSlabOccupancy, unionBlockedCols } from '@/Game/grid/resolveOccupancy';
@@ -124,9 +125,10 @@ const rowIntersectsViewport = (
   containerBottom: number
 ): boolean => {
   'worklet';
+  const pad = blockHeight * 1.5;
   const rowTop = rowY - blockHeight / 2;
   const rowBottom = rowY + blockHeight / 2;
-  return rowBottom >= containerTop && rowTop <= containerBottom;
+  return rowBottom >= containerTop - pad && rowTop <= containerBottom + pad;
 };
 
 const restoreSteelOnEntity = (
@@ -150,21 +152,6 @@ const restoreSteelOnEntity = (
     render.position = { ...render.position, y: restored.positionY };
     render.isDirty = true;
   });
-};
-
-const healLiveMemberIds = (
-  memberIds: readonly Entity[],
-  rowStore: ComponentStore<ObstacleRowComponentData>
-): Entity[] => {
-  'worklet';
-  const live: Entity[] = [];
-  for (let i = 0; i < memberIds.length; i++) {
-    const ent = memberIds[i];
-    if (rowStore.get(ent)) {
-      live.push(ent);
-    }
-  }
-  return live;
 };
 
 const stripHazardBandFromLead = (
@@ -255,7 +242,42 @@ export const mergeRowHazardPass = (args: MergeRowHazardPassArgs): void => {
       continue;
     }
 
-    let liveMembers = healLiveMemberIds(leadData.memberRowEntityIds, rowStore);
+    const bandRowStart = leadData.bounds.rowStart;
+    const bandRowEnd = leadData.bounds.rowEnd;
+    const bandEpoch = leadData.shaftSegmentEpoch;
+    let liveMembers = healLiveMemberIdsForBand(
+      leadData.memberRowEntityIds,
+      rowStore,
+      bandRowStart,
+      bandRowEnd,
+      bandEpoch
+    );
+    if (liveMembers.length === 0) {
+      liveMembers = growHazardBandMemberIds(
+        [],
+        rowStore,
+        bandRowStart,
+        bandRowEnd,
+        bandEpoch
+      );
+      if (liveMembers.length === 0) {
+        liveMembers = resolveRowEntitiesForBeatRange(
+          rowStore,
+          bandRowStart,
+          bandRowEnd,
+          { shaftSegmentEpoch: bandEpoch }
+        );
+      }
+      if (liveMembers.length > 0) {
+        ecs.updateComponent<HazardBandLeadComponentData>(
+          activeLeadEntity,
+          HazardBandLeadComponentName,
+          (lead) => {
+            lead.memberRowEntityIds = liveMembers;
+          }
+        );
+      }
+    }
     if (liveMembers.length === 0) {
       stripHazardBandFromLead(ecs, components, activeLeadEntity, leadData.memberRowEntityIds, rowStore);
       continue;
@@ -285,12 +307,22 @@ export const mergeRowHazardPass = (args: MergeRowHazardPassArgs): void => {
             lead.localSec = leadData.localSec;
             lead.prevPressExtent = leadData.prevPressExtent;
             lead.lastSteelRenderEntity = leadData.lastSteelRenderEntity;
+            lead.pressClockOpen = leadData.pressClockOpen;
           }
         );
       }
+      if (activeLeadEntity !== newLeadEntity && leadStore.get(activeLeadEntity)) {
+        ecs.removeComponent(activeLeadEntity, HazardBandLeadComponentName);
+      }
       activeLeadEntity = newLeadEntity;
       leadData = leadStore.get(activeLeadEntity)!;
-      liveMembers = healLiveMemberIds(leadData.memberRowEntityIds, rowStore);
+      liveMembers = healLiveMemberIdsForBand(
+        leadData.memberRowEntityIds,
+        rowStore,
+        bandRowStart,
+        bandRowEnd,
+        bandEpoch
+      );
     }
 
     for (let ri = 0; ri < liveMembers.length; ri++) {
@@ -328,11 +360,12 @@ export const mergeRowHazardPass = (args: MergeRowHazardPassArgs): void => {
       : 0;
     // Never rewind phase — completed presses stay extended (row handoff jitter / lock flips).
     const latchedLocalSec = Math.max(leadData.localSec ?? 0, beatLocalSec);
-    const latchedPressExtent = pressExtentAtLocalSec(hazard, latchedLocalSec).pressExtent;
+    const latchedPressExtent = pressExtentAtLocalSec(hazard, latchedLocalSec, rowDurationSec)
+      .pressExtent;
     const prevPressExtent = leadData.prevPressExtent ?? 0;
     const pressVelocity =
       deltaSeconds > 0 ? (latchedPressExtent - prevPressExtent) / deltaSeconds : 0;
-    const latchedPhase01 = pressExtentAtLocalSec(hazard, latchedLocalSec).pressT;
+    const latchedPhase01 = pressExtentAtLocalSec(hazard, latchedLocalSec, rowDurationSec).pressT;
 
     for (let ri = 0; ri < liveMembers.length; ri++) {
       const rowEntity = liveMembers[ri];
@@ -356,24 +389,26 @@ export const mergeRowHazardPass = (args: MergeRowHazardPassArgs): void => {
         occ ??
         simPlatformPress(hazard, rowLength, latchedLocalSec, beatIdx);
       if (rowSim) {
-        if (occ) {
+        if (occ && rowSim.pressExtent > 0.001) {
           effectiveGapsByEntity.set(rowEntity, occ.effectiveGaps);
         }
-        const closedGapCols = gapColsClosedByPressForCollision(row.gaps, rowSim);
-        if (closedGapCols.length > 0) {
-          mergeBlockColsForEntity(blockColsByEntity, rowEntity, closedGapCols);
+        if (rowSim.pressExtent > 0.001) {
+          const closedGapCols = gapColsClosedByPressForCollision(row.gaps, rowSim);
+          if (closedGapCols.length > 0) {
+            mergeBlockColsForEntity(blockColsByEntity, rowEntity, closedGapCols);
+          }
+          const worldRect = gridSpanToWorld({
+            slabStart: rowSim.slabStart,
+            slabEnd: rowSim.slabEnd,
+            rowYs: [row.y],
+            leftX,
+            columnWidth,
+            blockHeight,
+            rowPitch,
+            columns: rowLength,
+          });
+          slabAabbByEntity.set(rowEntity, slabAabbFromWorldRect(worldRect));
         }
-        const worldRect = gridSpanToWorld({
-          slabStart: rowSim.slabStart,
-          slabEnd: rowSim.slabEnd,
-          rowYs: [row.y],
-          leftX,
-          columnWidth,
-          blockHeight,
-          rowPitch,
-          columns: rowLength,
-        });
-        slabAabbByEntity.set(rowEntity, slabAabbFromWorldRect(worldRect));
       }
     }
 

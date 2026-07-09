@@ -57,14 +57,35 @@ export type PlatformPressSimResult = {
   colEnd: number;
 };
 
+/** Resolve press duration in seconds — row-clock preferred when rows + rowDurationSec set. */
+export const resolvePressDurationSec = (
+  hazard: PlatformSlabHazard,
+  rowDurationSec?: number
+): number => {
+  'worklet';
+  const p = hazard.params;
+  const rows = p.pressDurationRows;
+  if (
+    rows != null &&
+    Number.isFinite(rows) &&
+    rowDurationSec != null &&
+    Number.isFinite(rowDurationSec) &&
+    rowDurationSec > 0
+  ) {
+    return Math.max(0.05, rows * rowDurationSec);
+  }
+  return Math.max(0.05, p.pressDurationSec ?? 0.8);
+};
+
 export const pressExtentAtLocalSec = (
   hazard: PlatformSlabHazard,
-  localSec: number
+  localSec: number,
+  rowDurationSec?: number
 ): { pressT: number; pressExtent: number } => {
   'worklet';
   const p = hazard.params;
   const pressCols = Math.max(0, p.pressCols ?? 1);
-  const pressDuration = Math.max(0.05, p.pressDurationSec ?? 0.8);
+  const pressDuration = resolvePressDurationSec(hazard, rowDurationSec);
   let pressT = 0;
   if (localSec > 0) {
     pressT = applyPressEase(
@@ -79,7 +100,8 @@ export const simPlatformPress = (
   hazard: PlatformSlabHazard,
   columns: number,
   localSec: number,
-  rowIndex: number
+  rowIndex: number,
+  rowDurationSec?: number
 ): PlatformPressSimResult | null => {
   'worklet';
   const b = hazard.bounds;
@@ -88,7 +110,7 @@ export const simPlatformPress = (
   }
   const pressDir =
     hazard.params.pressDirection ?? (hazard.side === 'left' ? 'right' : 'left');
-  const { pressT, pressExtent } = pressExtentAtLocalSec(hazard, localSec);
+  const { pressT, pressExtent } = pressExtentAtLocalSec(hazard, localSec, rowDurationSec);
   const { slabStart, slabEnd } = platformSlabExtents(
     b,
     pressDir,
@@ -148,11 +170,16 @@ export const effectiveGapsAtPressPhase = (
   hazard: PlatformSlabHazard,
   rowIndex: number,
   columns: number,
-  localSec: number
+  localSec: number,
+  rowDurationSec?: number
 ): number[] => {
   'worklet';
-  const sim = simPlatformPress(hazard, columns, localSec, rowIndex);
+  const sim = simPlatformPress(hazard, columns, localSec, rowIndex, rowDurationSec);
   if (!sim) {
+    return baseGaps.slice();
+  }
+  // Telegraph-only frame: show steel visually, but do not narrow passage/collision yet.
+  if (sim.pressExtent <= 1e-3) {
     return baseGaps.slice();
   }
   const gapSet = new Set(baseGaps);

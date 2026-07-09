@@ -1,4 +1,5 @@
 import type { MacroPhase } from '@/Game/path/macroPacing';
+import type { ShaftFlowKind } from '@/Game/path/platformShaft/shaftScheduler/shaftFlowTypes';
 
 export type PressEase = 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out';
 
@@ -11,7 +12,10 @@ export type CorridorSpec = {
 
 export type PlatformSlabParams = {
   pressCols?: number;
+  /** Wall-clock fallback when rowDurationSec unavailable at call site. */
   pressDurationSec?: number;
+  /** Row-clock SSOT — preferred at compose + runtime when rowDurationSec known. */
+  pressDurationRows?: number;
   pressDirection?: 'left' | 'right';
   pressEase?: PressEase;
   animStartRow?: number;
@@ -59,7 +63,11 @@ export type RecipeOutput = {
   rows: PlatformShaftRowDef[];
   hazards: PlatformSlabHazard[];
   markers: unknown[];
-  meta: { recipeId: string; difficultyBand: 'easy' | 'mid' | 'hard' };
+  meta: {
+    recipeId: string;
+    difficultyBand: 'easy' | 'mid' | 'hard';
+    shaftFlowKind?: ShaftFlowKind;
+  };
 };
 
 export type ComposePressIntroShaftParams = {
@@ -72,5 +80,18 @@ export type ComposePressIntroShaftParams = {
 };
 
 export type ComposePressIntroShaftResult = RecipeOutput & {
+  harmonizerWarnings: string[];
+};
+
+export type PressPinballPairParams = {
+  seed?: number;
+  difficulty01?: number;
+  gapWidthCols?: number;
+  minResidualGapCols?: number;
+  columns?: number;
+  startGlobalRow?: number;
+};
+
+export type PressPinballPairResult = RecipeOutput & {
   harmonizerWarnings: string[];
 };

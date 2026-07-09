@@ -47,6 +47,42 @@ export const pressWallCol = (columns: number, side: PlatformSide): number => {
   return side === 'left' ? 1 : columns - 2;
 };
 
+/** Wide corridor trimmed to shaft wall + machinery pocket (PS-002 / SH-011). */
+export const corridorGapsForShaftRow = (
+  columns: number,
+  gapWidth: number,
+  centerCol: number,
+  side: PlatformSide
+): { gaps: number[]; blocks: number[] } => {
+  'worklet';
+  const wallCol = pressWallCol(columns, side);
+  let span = gapColsFromWidth(columns, gapWidth, centerCol);
+  if (side === 'right') {
+    span = span.filter((c) => c <= wallCol);
+  } else {
+    span = span.filter((c) => c >= wallCol);
+  }
+  const gapSet = new Set(span);
+  gapSet.add(wallCol);
+  // Fill machinery pocket from trimmed span extremum BEFORE wallCol is in the set.
+  if (span.length > 0) {
+    if (side === 'left') {
+      const spanMin = Math.min(...span);
+      for (let c = wallCol + 1; c < spanMin; c++) gapSet.add(c);
+    } else {
+      const spanMax = Math.max(...span);
+      for (let c = spanMax + 1; c < wallCol; c++) gapSet.add(c);
+    }
+  }
+  // Outer cave walls never stay playable gaps.
+  const gaps: number[] = [];
+  gapSet.forEach((c) => {
+    if (c > 0 && c < columns - 1) gaps.push(c);
+  });
+  gaps.sort((a, b) => a - b);
+  return { gaps, blocks: blocksFromGaps(columns, gaps) };
+};
+
 export const corridorRowForSlab = (
   columns: number,
   gapWidth: number,
@@ -54,21 +90,44 @@ export const corridorRowForSlab = (
   side: PlatformSide
 ): { gaps: number[]; blocks: number[] } => {
   'worklet';
-  const gaps = gapColsFromWidth(columns, gapWidth, centerCol);
-  const wallCol = pressWallCol(columns, side);
-  const gapSet = new Set(gaps);
-  gapSet.add(wallCol);
-  if (side === 'left') {
-    const gapMin = Math.min(...gaps);
-    for (let c = wallCol + 1; c < gapMin; c++) gapSet.add(c);
-  } else {
-    const gapMax = Math.max(...gaps);
-    for (let c = gapMax + 1; c < wallCol; c++) gapSet.add(c);
-  }
-  const newGaps = Array.from(gapSet).sort((a, b) => a - b);
-  return { gaps: newGaps, blocks: blocksFromGaps(columns, newGaps) };
+  return corridorGapsForShaftRow(columns, gapWidth, centerCol, side);
 };
 
+/** Survivor lane hugs the wall opposite the pressing shaft. */
+export const survivorGapsHugFarWall = (
+  corridorGaps: readonly number[],
+  narrowWidth: number,
+  side: PlatformSide
+): number[] => {
+  'worklet';
+  const w = Math.max(1, Math.round(narrowWidth));
+  const sorted = corridorGaps.slice().sort((a, b) => a - b);
+  if (sorted.length === 0) return [];
+  if (side === 'right') {
+    return sorted.slice(0, Math.min(w, sorted.length));
+  }
+  return sorted.slice(Math.max(0, sorted.length - w));
+};
+
+/** Max pressCols before contiguous slab seals the survivor column. */
+export const maxOneSidedPressCols = (
+  corridorGaps: readonly number[],
+  survivorGaps: readonly number[],
+  side: PlatformSide,
+  columns: number
+): number => {
+  'worklet';
+  if (!corridorGaps.length || !survivorGaps.length) return 0;
+  const wallCol = pressWallCol(columns, side);
+  const survivorCol =
+    side === 'right'
+      ? Math.min(...survivorGaps)
+      : Math.max(...survivorGaps);
+  if (side === 'right') {
+    return Math.max(0, wallCol - survivorCol - 1);
+  }
+  return Math.max(0, survivorCol - wallCol - 1);
+};
 export type TeachEscalation = {
   safeRunwayRows: number;
   breatheRows: number;
@@ -136,6 +195,57 @@ export const lerpTeachEscalation = (difficulty01: number): TeachEscalation => {
     ),
     climaxTelegraph: Math.round(
       lerpNum(t.INTRO_SHAFT_CLIMAX_TELEGRAPH_EASY, t.INTRO_SHAFT_CLIMAX_TELEGRAPH_HARD, d)
+    ),
+  };
+};
+
+export type PinballEscalation = {
+  runwayRows: number;
+  breatheRows: number;
+  chicaneRows: number;
+  releaseRows: number;
+  press1RowSpan: number;
+  press2RowSpan: number;
+  press1Duration: number;
+  press1Telegraph: number;
+  press2Duration: number;
+  press2Telegraph: number;
+};
+
+export const lerpPinballEscalation = (difficulty01: number): PinballEscalation => {
+  'worklet';
+  const d = Math.max(0, Math.min(1, difficulty01 ?? 0.4));
+  const t = platformShaftTuning;
+  return {
+    runwayRows: Math.round(
+      lerpNum(t.PINBALL_RUNWAY_ROWS_EASY, t.PINBALL_RUNWAY_ROWS_HARD, d)
+    ),
+    breatheRows: Math.round(
+      lerpNum(t.PINBALL_BREATHE_ROWS_EASY, t.PINBALL_BREATHE_ROWS_HARD, d)
+    ),
+    chicaneRows: Math.round(
+      lerpNum(t.PINBALL_CHICANE_ROWS_EASY, t.PINBALL_CHICANE_ROWS_HARD, d)
+    ),
+    releaseRows: Math.round(
+      lerpNum(t.PINBALL_RELEASE_ROWS_EASY, t.PINBALL_RELEASE_ROWS_HARD, d)
+    ),
+    press1RowSpan: t.PINBALL_PRESS1_ROW_SPAN,
+    press2RowSpan: t.PINBALL_PRESS2_ROW_SPAN,
+    press1Duration: lerpNum(
+      t.PINBALL_PRESS1_DURATION_EASY,
+      t.PINBALL_PRESS1_DURATION_HARD,
+      d
+    ),
+    press1Telegraph: Math.round(
+      lerpNum(t.PINBALL_PRESS1_TELEGRAPH_EASY, t.PINBALL_PRESS1_TELEGRAPH_HARD, d)
+    ),
+    press2Duration: lerpNum(
+      t.PINBALL_PRESS2_DURATION_EASY,
+      t.PINBALL_PRESS2_DURATION_HARD,
+      d
+    ),
+    press2Telegraph: Math.round(
+      lerpNum(t.PINBALL_PRESS2_TELEGRAPH_EASY, t.PINBALL_PRESS2_TELEGRAPH_HARD, d)
     ),
   };
 };

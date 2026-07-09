@@ -868,6 +868,22 @@
       );
     });
 
+    el("btnInsertPathChicanePreview")?.addEventListener("click", () => {
+      const result = composer.insertPathChicanePreview({ macroPhase: "flow", difficulty01: 0.2 });
+      if (!result) return setStatus("Path preview unavailable.", true);
+      refreshAfterMutation();
+      setStatus(`Inserted path chicane preview (${result.segment?.rows?.length ?? 0} rows, no steel).`);
+    });
+
+    el("btnInsertPathChicaneShaft")?.addEventListener("click", () => {
+      const result = composer.insertPathChicaneShaft({ macroPhase: "flow", difficulty01: 0.2 });
+      if (!result) return setStatus("Path chicane shaft unavailable.", true);
+      refreshAfterMutation();
+      setStatus(
+        `Inserted path chicane shaft (${result.segment?.rows?.length ?? 0} rows, ${result.result?.hazards?.length ?? 0} slabs).`
+      );
+    });
+
     function rerollIntroShaftForSelectedSegment() {
       const seg = composer.getSelectedSegment();
       const result = composer.rerollPressIntroShaft({ segmentId: seg?.id });

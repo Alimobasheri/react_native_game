@@ -171,7 +171,7 @@ describe('mergeRowHazardPass', () => {
           fn({});
         }
       },
-      removeComponent: () => {},
+      removeComponent: () => { },
     } as unknown as ECS;
 
     return { ecs, components, rows, leadEntity, centerBeat, centerY };
@@ -184,7 +184,7 @@ describe('mergeRowHazardPass', () => {
       ecs,
       components,
       deltaTime: 16,
-      eventQueue: { addEvent: () => {} } as never,
+      eventQueue: { addEvent: () => { } } as never,
     });
 
     const trailingRow = rows.get(1)!;
@@ -323,14 +323,14 @@ describe('mergeRowHazardPass', () => {
         }
         if (name === WaterComponentName) fn({});
       },
-      removeComponent: () => {},
+      removeComponent: () => { },
     } as unknown as ECS;
 
     mergeRowHazardPass({
       ecs,
       components,
       deltaTime: 16,
-      eventQueue: { addEvent: () => {} } as never,
+      eventQueue: { addEvent: () => { } } as never,
     });
 
     const steelA = renderStore.get(10)!.renderLayers.filter(
@@ -369,7 +369,7 @@ describe('mergeRowHazardPass', () => {
       ecs,
       components,
       deltaTime: 100,
-      eventQueue: { addEvent: () => {} } as never,
+      eventQueue: { addEvent: () => { } } as never,
     });
 
     expect(platformFlow).toEqual([0, 0, 0, 0]);
@@ -389,7 +389,7 @@ describe('mergeRowHazardPass', () => {
       ecs,
       components,
       deltaTime: 16,
-      eventQueue: { addEvent: () => {} } as never,
+      eventQueue: { addEvent: () => { } } as never,
     });
 
     const trailingRow = rows.get(1)!;
@@ -400,5 +400,29 @@ describe('mergeRowHazardPass', () => {
       Math.min(...(trailingRow.effectiveGaps ?? [])) +
       1;
     expect(effWidth).toBeLessThan(baseWidth);
+  });
+
+  it('does not narrow gaps or write press slab at telegraph', () => {
+    const { ecs, components, rows, leadEntity } = buildEcs(rowStart, 300);
+    const leadStore = components[HazardBandLeadComponentName] as ComponentStore<HazardBandLeadComponentData>;
+    const leadData = leadStore.get(leadEntity)!;
+    const animStart = hazard.params.animStartRow ?? rowStart;
+    const lockRow = rows.get(99)!;
+    lockRow.beatRowIndex = Math.max(0, animStart - 1);
+    leadData.pressClockOpen = false;
+    leadData.maxWorldBeat = rowStart - 1;
+    leadData.localSec = 0;
+    leadData.prevPressExtent = 0;
+
+    mergeRowHazardPass({
+      ecs,
+      components,
+      deltaTime: 16,
+      eventQueue: { addEvent: () => {} } as never,
+    });
+
+    const row = rows.get(1)!;
+    expect(row.effectiveGaps).toBeUndefined();
+    expect(row.effectivePressSlabAabb).toBeUndefined();
   });
 });
