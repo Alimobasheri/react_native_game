@@ -129,7 +129,7 @@ describe('swimmerSkins', () => {
     expect(accessorySize.width / meshWidth).toBeCloseTo(1.5, 5);
   });
 
-  it('aligns pinned crest bottom to squashed body top', () => {
+  it('aligns pinned crest bottom to squashed body top (world top = pin contact after ceiling-anchor)', () => {
     const meshHeight = 120;
     const bodyScaleY = 0.8;
     const crestHeight = 40;

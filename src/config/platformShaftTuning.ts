@@ -131,7 +131,7 @@ export const platformShaftTuning = {
   GAP_SHIFT_MIN_OPEN_COLS: 3,
   /** Min build rows per segment before release (escalate to 1-col). */
   SHAFT_BUILD_ROWS_MIN_EASY: 5,
-  SHAFT_BUILD_ROWS_MIN_HARD: 3,
+  SHAFT_BUILD_ROWS_MIN_HARD: 5,
   /** Rows to hold max 1-col press at stack peak. */
   SHAFT_PEAK_HOLD_ROWS: 2,
   RHYTHM_PROFILE_DEFAULT_DENSITY: 0.85,

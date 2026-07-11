@@ -285,7 +285,11 @@ export const getCrestRestPosition = (
   };
 };
 
-/** Pinned crest: align sprite bottom to squashed body top — prevents ceiling clip. */
+/**
+ * Pinned crest: align sprite bottom to squashed body top.
+ * With ceiling-anchored body layout, body top is the pin contact plane — crest
+ * extends into the block (crush), not into an air gap under the ceiling.
+ */
 export const getPinnedCrestRestOffsetY = (
   meshHeight: number,
   bodyScaleY: number,
@@ -296,7 +300,10 @@ export const getPinnedCrestRestOffsetY = (
   return bodyTopY - crestHeight / 2;
 };
 
-/** Pinned crest: align sprite anchor to squashed body top — prevents ceiling clip. */
+/**
+ * Pinned crest: align sprite anchor to squashed body top (contact plane in world
+ * after computeCeilingAnchoredPinLayout).
+ */
 export const getPinnedCrestRestPosition = (
   skin: SwimmerSkinDefinition,
   meshWidth: number,

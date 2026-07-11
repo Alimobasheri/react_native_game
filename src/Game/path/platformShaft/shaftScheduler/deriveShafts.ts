@@ -335,8 +335,8 @@ export const deriveShaftsFromPath = (
           nextCorridorGaps: nextPeek?.gaps,
           nextBeatRow: pathRows[i + 1]?.row,
           maxPressColsCap: phaseMaxPress,
-          preferLowPress: !rowPhase.preferHighPress,
-          relaxFullPressOverlap: rowPhase.relaxFullPressOverlap,
+          preferLowPress: !rowPhase?.preferHighPress,
+          relaxFullPressOverlap: rowPhase?.relaxFullPressOverlap ?? false,
         });
       }
     }

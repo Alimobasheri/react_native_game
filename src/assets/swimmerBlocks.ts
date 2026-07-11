@@ -32,8 +32,8 @@ const SWIMMER_BLOCK_VARIANT_CUMULATIVE = [
   SWIMMER_BLOCK_VARIANT_WEIGHTS[0],
   SWIMMER_BLOCK_VARIANT_WEIGHTS[0] + SWIMMER_BLOCK_VARIANT_WEIGHTS[1],
   SWIMMER_BLOCK_VARIANT_WEIGHTS[0] +
-    SWIMMER_BLOCK_VARIANT_WEIGHTS[1] +
-    SWIMMER_BLOCK_VARIANT_WEIGHTS[2],
+  SWIMMER_BLOCK_VARIANT_WEIGHTS[1] +
+  SWIMMER_BLOCK_VARIANT_WEIGHTS[2],
 ] as const;
 
 /** Deterministic weighted pick from world position (stable per block cell). */
@@ -56,7 +56,7 @@ export function pickSwimmerBlockImageStable(x: number, y: number): string {
 }
 
 /** Must match `LAYOUT_CONSTANTS.COLUMNS` — local copy keeps this module worklet-safe (no Layout import). */
-const SWIMMER_GRID_COLUMNS = 9;
+const SWIMMER_GRID_COLUMNS = 6;
 
 /** Native sprite height / width (average of assets/swimmer/blocks-meta.json variants). */
 export const SWIMMER_BLOCK_HEIGHT_TO_WIDTH_RATIO = 515.5 / 462;

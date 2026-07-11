@@ -25,7 +25,7 @@ export const swimmerPhysicsTuning = {
   TAP_IMPULSE_MULTIPLIER_MIN: 1,
   TAP_IMPULSE_MULTIPLIER_MAX: 3.5,
   MAX_WATER_CURRENT_SPEED: 400,
-  WATER_CURRENT_RESPONSE_PER_SECOND: 2.5,
+  WATER_CURRENT_RESPONSE_PER_SECOND: 1,
   WATER_CURRENT_SURGE_BOOST: 0.6,
   SURFACE_FOLLOW_RESPONSE_PER_SECOND: 12,
   /** Fraction of full swimmer height placed below the computed surface crest. */

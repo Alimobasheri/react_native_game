@@ -640,11 +640,11 @@ function resolvePinnedState(
     anchored ??
     (persistedCeilingMinX !== undefined && persistedCeilingMaxX !== undefined
       ? {
-          minX: persistedCeilingMinX,
-          maxX: persistedCeilingMaxX,
-          minY: Number.NEGATIVE_INFINITY,
-          maxY: Number.POSITIVE_INFINITY,
-        }
+        minX: persistedCeilingMinX,
+        maxX: persistedCeilingMaxX,
+        minY: Number.NEGATIVE_INFINITY,
+        maxY: Number.POSITIVE_INFINITY,
+      }
       : null);
 
   if (currentlyPinned && columnBounds && horizontalSlide) {
@@ -656,21 +656,21 @@ function resolvePinnedState(
   if (currentlyPinned) {
     const stillPinned = anchored
       ? isPinnedUnderBlock(
-          swimmerX,
-          swimmerY,
-          upHalfW,
-          upHalfH,
-          anchored,
-          rowDeltaY
-        )
+        swimmerX,
+        swimmerY,
+        upHalfW,
+        upHalfH,
+        anchored,
+        rowDeltaY
+      )
       : isPinnedUnderAnySolid(
-          swimmerX,
-          swimmerY,
-          upHalfW,
-          upHalfH,
-          solids,
-          rowDeltaY
-        );
+        swimmerX,
+        swimmerY,
+        upHalfW,
+        upHalfH,
+        solids,
+        rowDeltaY
+      );
     if (!stillPinned) {
       return { isPinned: false };
     }
@@ -1008,21 +1008,21 @@ function resolveSwimmerAgainstRowsStep(
       isColliding = true;
       const ceilingContact = pinnedUnderCeiling
         ? isAnchoredPinnedCeiling(
-            pinAnchorX,
-            y,
-            upHalfW,
-            upHalfH,
-            solids[i],
-            rowDeltaY
-          )
+          pinAnchorX,
+          y,
+          upHalfW,
+          upHalfH,
+          solids[i],
+          rowDeltaY
+        )
         : isPinnedUnderBlock(
-            x,
-            y,
-            upHalfW,
-            upHalfH,
-            solids[i],
-            rowDeltaY
-          );
+          x,
+          y,
+          upHalfW,
+          upHalfH,
+          solids[i],
+          rowDeltaY
+        );
       const pushX = resolveAxisPenetration(motionMover, solids[i], 'x');
       const pushY = resolveAxisPenetration(uprightMover, solids[i], 'y');
       const preferSideResolution =
@@ -1166,10 +1166,10 @@ export function resolveSwimmerAgainstRows(
       Math.max(
         Math.abs(input.deltaY) / maxStep,
         Math.abs(input.deltaX) /
-          Math.max(
-            4,
-            blockW * swimmerPhysicsTuning.MAX_HORIZONTAL_STEP_BLOCK_FRACTION
-          ),
+        Math.max(
+          4,
+          blockW * swimmerPhysicsTuning.MAX_HORIZONTAL_STEP_BLOCK_FRACTION
+        ),
         Math.abs(input.rowDeltaY) / maxStep
       )
     )

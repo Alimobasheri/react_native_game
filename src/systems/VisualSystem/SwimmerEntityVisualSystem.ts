@@ -25,14 +25,17 @@ import {
   getSwimmerSkin,
   skinUsesCrestAnchorLayout,
 } from '@/Game/characters/swimmerSkins';
+import { getSwimmerColliderExtents } from '@/Game/characters/swimmerCollider';
+import { computeCeilingAnchoredPinLayout } from '@/Game/characters/pinnedVisualLayout';
 import { updateFeatureBlink } from '@/Game/characters/swimmerFeatureBlink';
 import {
   SwimmerComponentData,
   SwimmerComponentName,
 } from '@/Game/ecs-components/Swimmer';
 import type { RenderLayerData } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
+import { LAYOUT_CONSTANTS } from '@/Layout';
 
-/** Extra Y squash on crest when pinned — keeps tuft inside ceiling gap. */
+/** Extra Y squash on crest when pinned — pressed into the ceiling contact plane. */
 const PINNED_CREST_EXTRA_SCALE_Y = 0.72;
 
 const createAccessoryLayerSink = (
@@ -249,6 +252,28 @@ export const SwimmerEntityVisualSystem: System = {
         : accessoryBaseSize.height * visualResult.scaleY;
 
       if (isPinned) {
+        const columnWidth =
+          swimmer.containerWidth / LAYOUT_CONSTANTS.COLUMNS;
+        const contactHalfH = getSwimmerColliderExtents(
+          columnWidth,
+          true
+        ).halfHeight;
+        const pinLayout = computeCeilingAnchoredPinLayout({
+          physicsCenterY: swimmer.y,
+          contactHalfHeight: contactHalfH,
+          meshBaseHeight: baseHeight,
+          bodyScaleY: visualResult.scaleY,
+        });
+        const prevX = render.position?.x ?? swimmer.x;
+        if (
+          !render.position ||
+          Math.abs(render.position.y - pinLayout.displayCenterY) > 0.01
+        ) {
+          render.position = { x: prevX, y: pinLayout.displayCenterY };
+          render.isDirty = true;
+        }
+
+        // Crest bottom on squashed body top (= contact plane) → tuft presses into clay.
         const pinnedRest = getPinnedCrestRestPosition(
           skin,
           baseWidth,

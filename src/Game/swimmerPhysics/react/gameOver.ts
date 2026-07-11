@@ -15,6 +15,9 @@ import { getGameSessionEntity } from '@/Game/session/gameSessionQuery';
 import { markGameSessionGameOver } from '@/Game/session/beginGameplay';
 import { persistRunFinishedRunBridge } from '@/Game/persistence/persistRunFinishedRunBridge';
 import { getSwimmerColliderExtents } from '@/Game/characters/swimmerCollider';
+import { isPinnedBodyFullyOffScreen } from '@/Game/characters/pinnedVisualLayout';
+import { swimmerDeformationTuning } from '@/config/swimmerDeformationTuning';
+import { swimmerVisualTuning } from '@/config/swimmerVisualTuning';
 import type {
   CollisionResolutionStep,
   GameOverStep,
@@ -24,12 +27,13 @@ import type {
 } from '@/Game/swimmerPhysics/types';
 
 /**
- * Pinned past the bottom edge — run ends, score persists on RN thread.
+ * Pinned body top past the screen bottom — run ends, score persists on RN thread.
+ * Uses the same ceiling-anchored layout as SwimmerEntityVisualSystem.
  *
  * @see docs/game-design/swimmer-physics-flow.md#per-frame-pipeline
  */
 export const evaluateGameOver = (
-  frame: SwimmerFrameContext,
+  _frame: SwimmerFrameContext,
   swimmer: SwimmerSnapshot,
   proposed: ProposeMotionResult,
   collision: CollisionResolutionStep,
@@ -43,18 +47,36 @@ export const evaluateGameOver = (
     return { shouldDispatchGameOver: false };
   }
 
-  const navColliderExtents = getSwimmerColliderExtents(proposed.columnWidth, false);
-  const swimmerBottomY = collision.finalY + navColliderExtents.halfHeight;
-  const pinnedPastContainerBottom =
-    collision.isBlockedFromAbove && swimmerBottomY > frame.containerBottom;
-  const pinnedPastScreenBottom =
-    collision.isBlockedFromAbove &&
-    collision.finalY > dimensions.value.height - 8;
+  if (swimmer.component.gameOverDispatched) {
+    return { shouldDispatchGameOver: false };
+  }
 
-  if (
-    !(pinnedPastContainerBottom || pinnedPastScreenBottom) ||
-    swimmer.component.gameOverDispatched
-  ) {
+  if (!collision.isBlockedFromAbove) {
+    return { shouldDispatchGameOver: false };
+  }
+
+  const contactHalfH = getSwimmerColliderExtents(
+    proposed.columnWidth,
+    true
+  ).halfHeight;
+  const meshBaseHeight =
+    swimmer.component.meshBaseHeight ??
+    proposed.columnWidth *
+      swimmerVisualTuning.VISUAL_WIDTH_COLUMN_RATIO *
+      swimmerVisualTuning.VISUAL_HEIGHT_TO_WIDTH_RATIO;
+  const bodyScaleY =
+    swimmer.component.locomotion.meshScaleY ??
+    swimmerDeformationTuning.PINNED_SCALE_Y;
+
+  const shouldDie = isPinnedBodyFullyOffScreen(
+    collision.finalY,
+    contactHalfH,
+    meshBaseHeight,
+    bodyScaleY,
+    dimensions.value.height
+  );
+
+  if (!shouldDie) {
     return { shouldDispatchGameOver: false };
   }
 
