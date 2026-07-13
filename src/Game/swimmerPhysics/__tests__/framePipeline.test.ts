@@ -111,6 +111,8 @@ describe('swimmerPhysics frame pipeline', () => {
       tapImpulseAppliedThisFrame: false,
       tapDirectionThisFrame: 0,
       waterCurrentVelocityX: 200,
+      pinnedMomentumCoast: false,
+      preDragVelocityX: 0,
     };
     const advected = applyWaterAdvection(swimmer, horizontal, 1 / 60);
     expect(advected.velocityX).toBeGreaterThan(0);
@@ -126,8 +128,51 @@ describe('swimmerPhysics frame pipeline', () => {
       tapImpulseAppliedThisFrame: true,
       tapDirectionThisFrame: 1,
       waterCurrentVelocityX: 0,
+      pinnedMomentumCoast: false,
+      preDragVelocityX: 0,
     };
     const advected = applyWaterAdvection(swimmer, horizontal, 1 / 60);
     expect(advected.velocityX).toBeGreaterThan(50);
+  });
+
+  it('pinned swimmer bleeds less velocityX at high body lean', () => {
+    const swimmer = makeSwimmer({ isPinnedFromAbove: true, velocityX: 100 });
+    const flatLocomotion = makeLocomotion();
+    const stretchedLocomotion = {
+      ...makeLocomotion(),
+      visualAngleDeg: 90,
+      currentAngleDeg: 90,
+    };
+    const flat = applyWaterAdvection(
+      swimmer,
+      {
+        velocityX: 100,
+        locomotion: flatLocomotion,
+        kinematicsAngleRad: 0,
+        tapImpulseAppliedThisFrame: false,
+        tapDirectionThisFrame: 0,
+        waterCurrentVelocityX: 0,
+        pinnedMomentumCoast: false,
+      preDragVelocityX: 0,
+      },
+      1 / 60
+    );
+    const stretched = applyWaterAdvection(
+      swimmer,
+      {
+        velocityX: 100,
+        locomotion: stretchedLocomotion,
+        kinematicsAngleRad: Math.PI / 2,
+        tapImpulseAppliedThisFrame: false,
+        tapDirectionThisFrame: 0,
+        waterCurrentVelocityX: 0,
+        pinnedMomentumCoast: true,
+        preDragVelocityX: 100,
+      },
+      1 / 60
+    );
+    expect(stretched.velocityX).toBeGreaterThan(flat.velocityX);
+    expect(flat.velocityX).toBeCloseTo(70, 1);
+    expect(stretched.velocityX).toBeCloseTo(93, 0);
   });
 });

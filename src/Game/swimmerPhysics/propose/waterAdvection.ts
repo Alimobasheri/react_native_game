@@ -3,7 +3,10 @@ import {
   swimmerCoastPresets,
   swimmerPhysicsTuning,
 } from '@/config/swimmerTuning';
-import { computePinnedWaterCurrentResponse } from '@/Game/characters/swimmerPinnedWaterCurrent';
+import {
+  computePinnedVelocityDamping,
+  computePinnedWaterCurrentResponse,
+} from '@/Game/characters/swimmerPinnedWaterCurrent';
 import type {
   HorizontalLocomotionStep,
   SwimmerSnapshot,
@@ -49,7 +52,11 @@ export const applyWaterAdvection = (
   }
 
   if (swimmer.wasPinnedFromAbove && !horizontal.tapImpulseAppliedThisFrame) {
-    swimmerVelocityX *= swimmerPhysicsTuning.PINNED_VELOCITY_DAMPING;
+    const angleDeg =
+      horizontal.locomotion.visualAngleDeg ??
+      horizontal.locomotion.currentAngleDeg ??
+      0;
+    swimmerVelocityX *= computePinnedVelocityDamping(angleDeg);
   }
 
   return { velocityX: swimmerVelocityX };

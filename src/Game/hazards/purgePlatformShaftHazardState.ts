@@ -72,7 +72,8 @@ export const purgePlatformShaftHazardsAndEffectiveGaps = (args: {
       if (
         !rowData.effectiveGaps &&
         !rowData.effectiveSolidColumnCentersX &&
-        !rowData.effectivePressSlabAabb
+        !rowData.effectivePressSlabAabb &&
+        !rowData.pressSlabVelocityX
       ) {
         return;
       }
@@ -83,6 +84,7 @@ export const purgePlatformShaftHazardsAndEffectiveGaps = (args: {
           row.effectiveGaps = undefined;
           row.effectiveSolidColumnCentersX = undefined;
           row.effectivePressSlabAabb = undefined;
+          row.pressSlabVelocityX = undefined;
         }
       );
     });

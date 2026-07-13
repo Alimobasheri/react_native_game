@@ -14,6 +14,11 @@ import {
 
 const REFERENCE_FRAME_DT = 1 / 60;
 
+const clamp01 = (value: number): number => {
+  'worklet';
+  return Math.max(0, Math.min(1, value));
+};
+
 export type HyperCasualTapResult = {
   velocityX: number;
   facingDirection: 1 | -1;
@@ -52,15 +57,17 @@ export const applyHyperCasualDrag = (
   normalizedWaterSpeed: number,
   profile: ICharacterProfile,
   dt: number,
-  preset?: SwimmerCoastPresetValues
+  preset?: SwimmerCoastPresetValues,
+  dragMultiplier = 1
 ): number => {
   'worklet';
   const coastPreset = preset ?? swimmerCoastPresets[swimmerCoastPreset];
   const safeDt = clampFrameDt(dt);
   const retainPerSecond = getRetainPerSecond(normalizedWaterSpeed, coastPreset);
   const adjustedRetain = Math.pow(retainPerSecond, profile.dragScale);
-  let nextVelocityX =
-    velocityX * Math.pow(Math.max(0.0001, adjustedRetain), safeDt);
+  const retainPerFrame = Math.pow(Math.max(0.0001, adjustedRetain), safeDt);
+  const easedRetain = 1 - (1 - retainPerFrame) * clamp01(dragMultiplier);
+  let nextVelocityX = velocityX * easedRetain;
 
   if (Math.abs(nextVelocityX) < hyperCasualPhysicsTuning.VELOCITY_ZERO_EPSILON) {
     nextVelocityX = 0;

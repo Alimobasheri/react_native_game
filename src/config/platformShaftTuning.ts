@@ -103,9 +103,9 @@ export const platformShaftTuning = {
   /** Full-press target width (PS-003). */
   NARROW_GAP_COLS: 1,
   /** Extra rows beyond swimmer-height clearance for barely-clear timing. */
-  CLEARANCE_MARGIN_ROWS: 1,
-  TELEGRAPH_ROWS_EASY: 3,
-  TELEGRAPH_ROWS_HARD: 1,
+  CLEARANCE_MARGIN_ROWS: 8,
+  TELEGRAPH_ROWS_EASY: 1,
+  TELEGRAPH_ROWS_HARD: 3,
   STACK_STAGGER_ROWS_EASY: 1,
   STACK_STAGGER_ROWS_HARD: 0,
   /** Multiplier on pressDurationRows (>1 = slower / more rows). */

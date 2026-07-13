@@ -24,6 +24,20 @@ export type PlatformFlowVelocityInput = {
   pressDirection: 'left' | 'right';
 };
 
+/** World px/s of the extending slab leading edge (signed). */
+export const pressSlabSurfaceVelocityXPx = (
+  pressVelocityColsPerSec: number,
+  columnWidth: number,
+  pressDirection: 'left' | 'right'
+): number => {
+  'worklet';
+  if (Math.abs(pressVelocityColsPerSec) < 0.001) {
+    return 0;
+  }
+  const intoWater = pressDirection === 'right' ? 1 : -1;
+  return pressVelocityColsPerSec * columnWidth * intoWater;
+};
+
 /** Lateral flow norm from press extent velocity (PS-007) — preferred runtime API. */
 export const flowNormFromPressVelocity = (input: PlatformFlowVelocityInput): number => {
   'worklet';

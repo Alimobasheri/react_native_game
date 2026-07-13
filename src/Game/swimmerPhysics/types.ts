@@ -70,6 +70,8 @@ export type HorizontalLocomotionStep = {
   tapImpulseAppliedThisFrame: boolean;
   tapDirectionThisFrame: -1 | 0 | 1;
   waterCurrentVelocityX: number;
+  pinnedMomentumCoast: boolean;
+  preDragVelocityX: number;
 };
 
 export type WaterAdvectionStep = {
@@ -102,6 +104,8 @@ export type CollisionResolutionStep = {
   nearbyRows: readonly CollisionRow[];
   minX: number;
   maxX: number;
+  /** Signed px/s from an extending press slab pinning the swimmer. */
+  pinnedSlabSurfaceVelocityX: number;
 };
 
 export type WallBumpStep = {

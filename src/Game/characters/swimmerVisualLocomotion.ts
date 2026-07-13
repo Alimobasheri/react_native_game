@@ -8,6 +8,11 @@ import {
   swimmerPhysicsTuning,
   tapInputTuning,
 } from '@/config/swimmerTuning';
+import {
+  computePinnedAngleInterpPerSec,
+  computePinnedVisualTargetAngleDeg,
+  shouldEnablePinnedMomentumCoast,
+} from '@/Game/characters/swimmerPinnedLocomotion';
 import type { SpeedTier, SwimmerLocomotionData } from '@/Game/ecs-components/Swimmer';
 
 import { VisualStrokePhase } from './visualStrokePhase';
@@ -245,10 +250,16 @@ export const updateSwimmerVisualLocomotion = (
   columnWidth: number,
   dt: number,
   startReady: boolean,
-  normalizedWaterSpeed = 0
+  normalizedWaterSpeed = 0,
+  isPinned = false,
+  tapDirection: -1 | 0 | 1 = 0
 ): void => {
   'worklet';
   const safeDt = dt > 0 ? dt : 0;
+  const currentAngleDeg = locomotion.visualAngleDeg ?? locomotion.currentAngleDeg ?? 0;
+  const pinnedMomentumCoast =
+    isPinned &&
+    shouldEnablePinnedMomentumCoast(currentAngleDeg, velocityX);
 
   if (!startReady) {
     advanceVisualPhaseTimers(locomotion, safeDt, normalizedWaterSpeed);
@@ -279,19 +290,44 @@ export const updateSwimmerVisualLocomotion = (
   );
 
   // Subtle phase nudge on top of velocity lean — deformation carries most stroke juice.
-  if (locomotion.visualPhase === VisualStrokePhase.PIVOT) {
+  if (
+    !isPinned &&
+    locomotion.visualPhase === VisualStrokePhase.PIVOT
+  ) {
     const pivotLean =
       -swimmerVisualTuning.NARROW_GAP_MAX_ANGLE_DEG * locomotion.facingDirection;
     targetAngleDeg = lerp(targetAngleDeg, pivotLean, 0.55);
   }
 
+  if (isPinned) {
+    targetAngleDeg = computePinnedVisualTargetAngleDeg(
+      currentAngleDeg,
+      targetAngleDeg,
+      velocityX,
+      pinnedMomentumCoast,
+      locomotion.facingDirection,
+      tapDirection
+    );
+  }
+
   locomotion.targetAngleDeg = targetAngleDeg;
 
-  const interpStep = Math.min(
+  const defaultInterp = Math.min(
     1,
     swimmerCoastPresets[swimmerCoastPreset].VELOCITY_LEAN_SMOOTH_PER_SEC * safeDt
   );
-  const delta = targetAngleDeg - (locomotion.visualAngleDeg ?? 0);
-  locomotion.visualAngleDeg = (locomotion.visualAngleDeg ?? 0) + delta * interpStep;
+  const pinnedInterp = Math.min(
+    1,
+    computePinnedAngleInterpPerSec(currentAngleDeg, pinnedMomentumCoast) * safeDt
+  );
+  const interpStep =
+    isPinned &&
+    (pinnedMomentumCoast ||
+      Math.abs(currentAngleDeg) >=
+        swimmerPhysicsTuning.PINNED_EDGE_SLIDE_MIN_ANGLE_DEG)
+      ? pinnedInterp
+      : defaultInterp;
+  const delta = targetAngleDeg - currentAngleDeg;
+  locomotion.visualAngleDeg = currentAngleDeg + delta * interpStep;
   locomotion.currentAngleDeg = locomotion.visualAngleDeg;
 };

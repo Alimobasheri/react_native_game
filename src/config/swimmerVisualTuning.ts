@@ -9,21 +9,21 @@ export const swimmerVisualTuning = {
   VISUAL_HEIGHT_TO_WIDTH_RATIO: 1.8,
 
   /** Navigation hitbox width — narrower than visual mesh (forgiving in gaps). */
-  COLLIDER_WIDTH_COLUMN_RATIO: 0.6,
+  COLLIDER_WIDTH_COLUMN_RATIO: 0.63,
   /** Navigation hitbox height = collider width × this (0.95 ≈ slightly wider than tall). */
-  COLLIDER_HEIGHT_TO_WIDTH_RATIO: 1.1,
+  COLLIDER_HEIGHT_TO_WIDTH_RATIO: 0.85,
 
   /**
    * Ceiling-pin collider — narrower and taller for sliding under blocks.
    * height = (column × PINNED_COLLIDER_WIDTH_COLUMN_RATIO) × PINNED_COLLIDER_HEIGHT_TO_WIDTH_RATIO
    */
-  PINNED_COLLIDER_WIDTH_COLUMN_RATIO: 0.65,
-  PINNED_COLLIDER_HEIGHT_TO_WIDTH_RATIO: 2,
+  PINNED_COLLIDER_WIDTH_COLUMN_RATIO: 0.63,
+  PINNED_COLLIDER_HEIGHT_TO_WIDTH_RATIO: 0.85,
 
   /** Open-water lean caps per combo tier (degrees). Still clamped by clearance. */
   OPEN_WATER_MAX_ANGLE_TIER: [35, 45, 60] as const,
   /** Max lean when clearance is at or below narrow-gap threshold. */
-  NARROW_GAP_MAX_ANGLE_DEG: 20,
+  NARROW_GAP_MAX_ANGLE_DEG: 40,
   /** Minimum lean at rest / low speed. */
   MIN_SPEED_ANGLE_DEG: 8,
   /** |velocityX| reference for legacy tier path and FX intensity. */

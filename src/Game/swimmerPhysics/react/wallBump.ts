@@ -1,15 +1,6 @@
 import type { EventQueueContextType } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useEventQueue/useEventQueue';
-import {
-  WaterComponentName,
-  type WaterComponentData,
-} from '@/Game/ecs-components/Water';
-import { bounceDisruptorTuning, swimmerPhysicsTuning } from '@/config/swimmerTuning';
-import {
-  computeReboundVelocityX,
-  shouldDebounceWallBump,
-  shouldTriggerBounceDisruptor,
-} from '@/Game/characters/swimmerBounceDisruptor';
-import { SwimmerWallBumpEventType } from '@/Game/characters/swimmerLocomotionEvents';
+import { blendPinnedSlabSurfaceVelocityX } from '@/Game/characters/swimmerPinnedLocomotion';
+import { logSwimmerPinnedDebug } from '@/Game/debug/swimmerPinnedDebug';
 import type {
   CollisionResolutionStep,
   ProposeMotionResult,
@@ -28,13 +19,38 @@ export const applyWallBump = (
   swimmer: SwimmerSnapshot,
   proposed: ProposeMotionResult,
   collision: CollisionResolutionStep,
-  eventQueue: EventQueueContextType
+  _eventQueue: EventQueueContextType
 ): WallBumpStep => {
   'worklet';
 
   let swimmerVelocityX = proposed.velocityX;
   let locomotion = proposed.locomotion;
   let movementBlockedThisFrame = false;
+
+  if (
+    (swimmer.wasPinnedFromAbove || collision.isBlockedFromAbove) &&
+    collision.pinnedSlabSurfaceVelocityX !== 0
+  ) {
+    swimmerVelocityX = blendPinnedSlabSurfaceVelocityX(
+      swimmerVelocityX,
+      collision.pinnedSlabSurfaceVelocityX,
+      frame.deltaSeconds
+    );
+  }
+
+  if (swimmer.wasPinnedFromAbove || collision.isBlockedFromAbove) {
+    const angleDeg =
+      proposed.locomotion.visualAngleDeg ??
+      proposed.locomotion.currentAngleDeg ??
+      0;
+    logSwimmerPinnedDebug(
+      `[PIN] ang=${angleDeg.toFixed(0)} vx=${swimmerVelocityX.toFixed(0)} ` +
+        `dx=${(collision.finalX - swimmer.centerX).toFixed(1)} ` +
+        `coast=${proposed.pinnedMomentumCoast ? 1 : 0} ` +
+        `slab=${collision.pinnedSlabSurfaceVelocityX.toFixed(0)} ` +
+        `side=${collision.collisionResult.sideBlockedDirection}`
+    );
+  }
 
   const appliedDx = collision.finalX - swimmer.centerX;
   const escapedOrMovedFreely =
@@ -45,6 +61,7 @@ export const applyWallBump = (
   const blockedDir = collision.collisionResult.sideBlockedDirection;
 
   if (
+    !proposed.pinnedMomentumCoast &&
     !proposed.tapImpulseAppliedThisFrame &&
     !escapedOrMovedFreely &&
     blockedDir !== 0
@@ -54,62 +71,6 @@ export const applyWallBump = (
       Math.abs(appliedDx) < Math.abs(proposed.proposedDeltaX) * 0.2;
     if (movementBlocked && Math.sign(swimmerVelocityX) === blockedDir) {
       movementBlockedThisFrame = true;
-      const impactSpeed = Math.abs(swimmerVelocityX);
-      swimmerVelocityX = 0;
-
-      if (
-        shouldTriggerBounceDisruptor(
-          movementBlocked,
-          collision.isBlockedFromAbove,
-          blockedDir
-        )
-      ) {
-        const clearance01 = locomotion.clearance01 ?? 1;
-        const reboundScale =
-          bounceDisruptorTuning.reboundSpeedScale *
-          Math.max(bounceDisruptorTuning.narrowReboundScaleMin, clearance01);
-        swimmerVelocityX = computeReboundVelocityX(
-          blockedDir,
-          swimmerPhysicsTuning.MAX_HORIZONTAL_SPEED,
-          reboundScale
-        );
-        const nowMs = Date.now();
-        const lastBumpMs = locomotion.lastWallBumpMs ?? 0;
-        if (
-          shouldDebounceWallBump(
-            nowMs,
-            lastBumpMs,
-            bounceDisruptorTuning.debounceMs
-          )
-        ) {
-          locomotion.lastWallBumpMs = nowMs;
-          locomotion.wallBumpSquashTimer =
-            bounceDisruptorTuning.squashDurationSec;
-          if (bounceDisruptorTuning.calmnessDip > 0) {
-            frame.ecs.updateComponent<WaterComponentData>(
-              frame.waterEntity,
-              WaterComponentName,
-              (water) => {
-                'worklet';
-                water.calmness = Math.max(
-                  0,
-                  (water.calmness ?? 0.5) - bounceDisruptorTuning.calmnessDip
-                );
-              }
-            );
-          }
-          eventQueue.addEvent({
-            type: SwimmerWallBumpEventType,
-            payload: {
-              entityId: swimmer.entity,
-              x: collision.finalX,
-              y: collision.finalY,
-              direction: blockedDir,
-              impactSpeed,
-            },
-          });
-        }
-      }
     }
   }
 

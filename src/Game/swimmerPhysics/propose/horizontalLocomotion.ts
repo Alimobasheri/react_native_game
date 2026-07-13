@@ -25,6 +25,10 @@ import {
   sampleApproachRowClearancePx,
   sampleHorizontalClearancePx,
 } from '@/Game/characters/swimmerClearance';
+import {
+  computePinnedCoastDragMultiplier,
+  shouldEnablePinnedMomentumCoast,
+} from '@/Game/characters/swimmerPinnedLocomotion';
 import { updateSwimmerVisualLocomotion } from '@/Game/characters/swimmerVisualLocomotion';
 import { MovementState } from '@/Game/characters/characterMovementStates';
 import { selectRowsNearSwimmerFromComponentStore } from '@/Game/collision/swimmerBlockCollision';
@@ -63,6 +67,8 @@ export const applyHorizontalLocomotion = (
   let kinematicsAngleRad = 0;
   let tapImpulseAppliedThisFrame = false;
   let tapDirectionThisFrame: -1 | 0 | 1 = 0;
+  let preDragVelocityX = component.velocityX ?? 0;
+  let pinnedMomentumCoast = false;
 
   const containerLeftX = container.centerX - container.width / 2;
   const currentUVX = clamp01(
@@ -135,13 +141,25 @@ export const applyHorizontalLocomotion = (
 
     const pendingTapDirection = locomotion.pendingTapDirection ?? 0;
     const hasPendingTap = pendingTapDirection === -1 || pendingTapDirection === 1;
+    const preAngleDeg =
+      locomotion.visualAngleDeg ?? locomotion.currentAngleDeg ?? 0;
+    const preDragVelocityX = swimmerVelocityX;
+    // Free swim: always full hyper-casual drag. Only while pinned, angle softens it.
+    const pinnedCoastDragMultiplier = wasPinnedFromAbove
+      ? computePinnedCoastDragMultiplier(preAngleDeg)
+      : 1;
+    pinnedMomentumCoast =
+      wasPinnedFromAbove &&
+      shouldEnablePinnedMomentumCoast(preAngleDeg, preDragVelocityX);
 
     if (swimmerLocomotionMode === 'hybrid') {
       swimmerVelocityX = applyHyperCasualDrag(
         swimmerVelocityX,
         normalizedSpeed,
         profile,
-        deltaSeconds
+        deltaSeconds,
+        undefined,
+        pinnedCoastDragMultiplier
       );
     } else if (!hasPendingTap) {
       swimmerVelocityX = swimmerKinematicsUpdate(
@@ -283,7 +301,9 @@ export const applyHorizontalLocomotion = (
       obstacleWidth,
       deltaSeconds,
       startReady,
-      normalizedSpeed
+      normalizedSpeed,
+      wasPinnedFromAbove,
+      tapDirectionThisFrame
     );
     kinematicsAngleRad = degreesToRadians(
       locomotion.visualAngleDeg ?? locomotion.currentAngleDeg
@@ -302,5 +322,7 @@ export const applyHorizontalLocomotion = (
     tapImpulseAppliedThisFrame,
     tapDirectionThisFrame,
     waterCurrentVelocityX,
+    preDragVelocityX,
+    pinnedMomentumCoast,
   };
 };

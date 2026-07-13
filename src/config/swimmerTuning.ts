@@ -9,7 +9,27 @@ export const swimmerPhysicsTuning = {
   SWIMMER_HEIGHT_TO_WIDTH_RATIO: 2.1,
 
   MAX_HORIZONTAL_SPEED: 520,
-  PINNED_VELOCITY_DAMPING: 0.93,
+  /** Per-frame velocityX multiplier while pinned (no tap) at ~0° body lean. */
+  PINNED_VELOCITY_DAMPING: 0.7,
+  /** Per-frame velocityX multiplier while pinned at PINNED_VELOCITY_DAMPING_ANGLE_REF_DEG lean. */
+  PINNED_VELOCITY_DAMPING_AT_MAX_ANGLE: 0.93,
+  /** |body lean| in degrees that maps to PINNED_VELOCITY_DAMPING_AT_MAX_ANGLE. */
+  PINNED_VELOCITY_DAMPING_ANGLE_REF_DEG: 90,
+  /** Min |lean| for pinned lip-slide assist (angle stick + collision skim). */
+  PINNED_EDGE_SLIDE_MIN_ANGLE_DEG: 45,
+  /** Min |velocityX| with high lean to keep lip-slide assist while pinned. */
+  PINNED_MOMENTUM_COAST_MIN_SPEED_PX: 40,
+  /** Visual lean interp rate while pinned at high angle (lower = stickier lean). */
+  PINNED_ANGLE_STICK_PER_SEC: 8,
+  /**
+   * Hyper-casual coast drag scale at max lean while pinned (1 = full free-swim drag).
+   * Only applied when already pinned — free swim always uses full drag.
+   */
+  PINNED_EDGE_SLIDE_COAST_DRAG_MULTIPLIER: 0.28,
+  /** How strongly Y rides the ceiling underside each pinned coast frame (0..1). */
+  PINNED_EDGE_SLIDE_LIP_FOLLOW: 0.72,
+  /** Per-second blend toward extending press-slab surface velocity while pinned. */
+  PINNED_SLAB_SURFACE_RESPONSE_PER_SECOND: 14,
   /** Floor for pinned escape tap travel target (fraction of column width). */
   PINNED_ESCAPE_MIN_TAP_TRAVEL_COLUMN_FRACTION: 0.45,
   /** Extra slide past ceiling column edge to clear pin (fraction of column width). */

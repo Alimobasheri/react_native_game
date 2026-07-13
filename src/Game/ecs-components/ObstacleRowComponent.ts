@@ -19,6 +19,8 @@ export type ObstacleRowComponentData = {
   effectiveSolidColumnCentersX?: readonly number[];
   /** Fractional press-slab world AABB — matches steel render, not integer column snap. */
   effectivePressSlabAabb?: AABB;
+  /** Signed world px/s of extending press slab surface while active. */
+  pressSlabVelocityX?: number;
   prevRowEntity: Entity | null;
   /**
    * Which `MappedTemplates` key produced this row (`directed`, `smily`, …). Used for

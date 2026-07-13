@@ -3,6 +3,7 @@ import {
   aabbOverlap,
   resolvePinnedTapSlide,
   resolveSwimmerAgainstRows,
+  samplePinnedPressSlabSurfaceVelocityX,
   selectRowsNearSwimmer,
   selectRowsNearSwimmerFromComponentStore,
   solidAABBsFromRow,
@@ -165,6 +166,35 @@ describe('tiltedAabbHalfExtents', () => {
     expect(tilted.halfWidth + tilted.halfHeight).toBeGreaterThan(
       upright.halfWidth + upright.halfHeight
     );
+  });
+});
+
+describe('samplePinnedPressSlabSurfaceVelocityX', () => {
+  it('returns slab velocity when swimmer is pinned under press slab aabb', () => {
+    const blockBottom = 250 + (BLOCK.height * 1.0) / 2;
+    const halfH = 23;
+    const swimmerY = blockBottom + halfH;
+    const slab = {
+      minX: COL4_CENTER_X - 80,
+      maxX: COL4_CENTER_X + 80,
+      minY: 250 - BLOCK.height / 2,
+      maxY: blockBottom,
+    };
+    const vx = samplePinnedPressSlabSurfaceVelocityX(
+      COL4_CENTER_X,
+      swimmerY,
+      20,
+      halfH,
+      [
+        {
+          y: 250,
+          gaps: [4],
+          pressSlabAabb: slab,
+          pressSlabVelocityX: 95,
+        },
+      ]
+    );
+    expect(vx).toBe(95);
   });
 });
 

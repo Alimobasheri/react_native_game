@@ -1,5 +1,29 @@
 import { swimmerPhysicsTuning } from '@/config/swimmerTuning';
-import { computePinnedWaterCurrentResponse } from '../swimmerPinnedWaterCurrent';
+import {
+  computePinnedVelocityDamping,
+  computePinnedWaterCurrentResponse,
+} from '../swimmerPinnedWaterCurrent';
+
+describe('computePinnedVelocityDamping', () => {
+  it('uses full damping at 0° lean', () => {
+    expect(computePinnedVelocityDamping(0)).toBe(
+      swimmerPhysicsTuning.PINNED_VELOCITY_DAMPING
+    );
+  });
+
+  it('uses max-angle damping at 90° lean', () => {
+    expect(computePinnedVelocityDamping(90)).toBe(
+      swimmerPhysicsTuning.PINNED_VELOCITY_DAMPING_AT_MAX_ANGLE
+    );
+    expect(computePinnedVelocityDamping(-90)).toBe(
+      swimmerPhysicsTuning.PINNED_VELOCITY_DAMPING_AT_MAX_ANGLE
+    );
+  });
+
+  it('lerps between base and max-angle damping', () => {
+    expect(computePinnedVelocityDamping(45)).toBeCloseTo(0.815, 2);
+  });
+});
 
 describe('computePinnedWaterCurrentResponse', () => {
   const base = 0.28;

@@ -8,6 +8,7 @@ import { SwimmerPinnedSplashEventType } from '@/Game/characters/swimmerLocomotio
 import {
   resolvePinnedTapSlide,
   resolveSwimmerAgainstRows,
+  samplePinnedPressSlabSurfaceVelocityX,
   selectRowsNearSwimmerFromComponentStore,
 } from '@/Game/collision/swimmerBlockCollision';
 import type {
@@ -53,17 +54,21 @@ export const resolveSwimmerCollision = (
   const visualAngleRad = swimmer.component.useColumnControl
     ? kinematicsAngleRad
     : (() => {
-        const fullTiltSpeed =
-          swimmerPhysicsTuning.MAX_HORIZONTAL_SPEED *
-          swimmerPhysicsTuning.FULL_TILT_SPEED_FRACTION;
-        const tiltNormalized = Math.max(
-          -1,
-          Math.min(1, velocityX / fullTiltSpeed)
-        );
-        return tiltNormalized * swimmerPhysicsTuning.MAX_TILT_RADIANS;
-      })();
+      const fullTiltSpeed =
+        swimmerPhysicsTuning.MAX_HORIZONTAL_SPEED *
+        swimmerPhysicsTuning.FULL_TILT_SPEED_FRACTION;
+      const tiltNormalized = Math.max(
+        -1,
+        Math.min(1, velocityX / fullTiltSpeed)
+      );
+      return tiltNormalized * swimmerPhysicsTuning.MAX_TILT_RADIANS;
+    })();
 
-  const collisionAngleRad = swimmer.component.useColumnControl ? 0 : visualAngleRad;
+  const collisionAngleRad = swimmer.component.useColumnControl
+    ? wasPinnedFromAbove && proposed.pinnedMomentumCoast
+      ? proposed.kinematicsAngleRad
+      : 0
+    : visualAngleRad;
 
   const verticalSweepPx =
     Math.abs(proposedDeltaY) + rowDeltaY + maxVerticalStepPx;
@@ -84,6 +89,17 @@ export const resolveSwimmerCollision = (
     verticalSweepPx
   );
 
+  const pinnedSlabSurfaceVelocityX = wasPinnedFromAbove
+    ? samplePinnedPressSlabSurfaceVelocityX(
+        centerX,
+        centerY,
+        collisionHalfWidth,
+        collisionHalfHeight,
+        nearbyRows
+      )
+    : 0;
+  const slabDeltaX = pinnedSlabSurfaceVelocityX * frame.deltaSeconds;
+
   const collisionReleaseHalfWidth = wasPinnedFromAbove
     ? navColliderExtents.halfWidth
     : undefined;
@@ -101,8 +117,9 @@ export const resolveSwimmerCollision = (
     pinAnchorX: centerX,
     pinnedCeilingMinX: swimmer.component.pinnedCeilingMinX,
     pinnedCeilingMaxX: swimmer.component.pinnedCeilingMaxX,
+    pinnedMomentumCoast: wasPinnedFromAbove && proposed.pinnedMomentumCoast,
     angle: collisionAngleRad,
-    deltaX: proposedDeltaX,
+    deltaX: proposedDeltaX + slabDeltaX,
     deltaY: proposedDeltaY,
     rowDeltaY,
     rows: nearbyRows,
@@ -178,6 +195,17 @@ export const resolveSwimmerCollision = (
     finalX = slideResult.x;
   }
 
+  const committedSlabSurfaceVelocityX =
+    wasPinnedFromAbove || isBlockedFromAbove
+      ? samplePinnedPressSlabSurfaceVelocityX(
+          finalX,
+          finalY,
+          collisionHalfWidth,
+          collisionHalfHeight,
+          nearbyRows
+        )
+      : 0;
+
   return {
     finalX,
     finalY,
@@ -190,5 +218,6 @@ export const resolveSwimmerCollision = (
     nearbyRows,
     minX,
     maxX,
+    pinnedSlabSurfaceVelocityX: committedSlabSurfaceVelocityX,
   };
 };

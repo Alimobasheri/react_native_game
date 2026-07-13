@@ -18,6 +18,8 @@ export type CollisionRow = {
   solidColumnCentersX?: readonly number[];
   /** Fractional press-slab solid — matches steel render extent. */
   pressSlabAabb?: AABB;
+  /** Signed world px/s of extending press slab underside while pinned under it. */
+  pressSlabVelocityX?: number;
 };
 
 export type ContainerLayout = {
@@ -58,6 +60,8 @@ export type ResolveSwimmerInput = {
   /** Persisted ceiling column from prior frame while pinned. */
   pinnedCeilingMinX?: number;
   pinnedCeilingMaxX?: number;
+  /** High-angle / momentum coast along the anchored ceiling underside. */
+  pinnedMomentumCoast?: boolean;
   /**
    * Legacy flag from the pre-swept pipeline. Horizontal row solids are always
    * swept; this field is retained for API compatibility and ignored.
@@ -79,7 +83,7 @@ export type ResolveSwimmerResult = {
   pinnedCeilingMaxX?: number;
 };
 
-const DEFAULT_HITBOX_SCALE = 1.0;
+const DEFAULT_HITBOX_SCALE = 0.95;
 const SKIN_EPSILON = 0.5;
 
 function aabbWithHitboxScale(aabb: AABB, hitboxScale: number): AABB {
@@ -257,6 +261,7 @@ export function selectRowsNearSwimmerFromComponentStore(
       solidColumnCentersX:
         rowData.effectiveSolidColumnCentersX ?? rowData.solidColumnCentersX,
       pressSlabAabb: rowData.effectivePressSlabAabb,
+      pressSlabVelocityX: rowData.pressSlabVelocityX,
     });
   });
   return out;
@@ -426,6 +431,40 @@ function isPinnedUnderBlock(
 
   return true;
 }
+
+/**
+ * Lateral surface speed of an extending press slab pinning the swimmer this frame.
+ */
+export const samplePinnedPressSlabSurfaceVelocityX = (
+  swimmerX: number,
+  swimmerY: number,
+  swimmerHalfWidth: number,
+  swimmerHalfHeight: number,
+  rows: readonly CollisionRow[]
+): number => {
+  'worklet';
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const slab = row.pressSlabAabb;
+    const slabVx = row.pressSlabVelocityX;
+    if (!slab || slabVx === undefined || Math.abs(slabVx) < 0.5) {
+      continue;
+    }
+    if (
+      isPinnedUnderBlock(
+        swimmerX,
+        swimmerY,
+        swimmerHalfWidth,
+        swimmerHalfHeight,
+        slab,
+        0
+      )
+    ) {
+      return slabVx;
+    }
+  }
+  return 0;
+};
 
 const CEILING_BRUSH_EPSILON = SKIN_EPSILON * 4;
 
@@ -624,7 +663,8 @@ function resolvePinnedState(
   rowDeltaY: number,
   currentlyPinned: boolean,
   persistedCeilingMinX?: number,
-  persistedCeilingMaxX?: number
+  persistedCeilingMaxX?: number,
+  momentumCoast = false
 ): { isPinned: boolean; ceilingMinX?: number; ceilingMaxX?: number } {
   'worklet';
   const anchored = findAnchoredCeilingBlock(
@@ -648,7 +688,18 @@ function resolvePinnedState(
       : null);
 
   if (currentlyPinned && columnBounds && horizontalSlide) {
-    if (!isSwimmerUnderBlockColumn(swimmerX, columnBounds)) {
+    const span = columnBounds.maxX - columnBounds.minX;
+    const slack =
+      momentumCoast
+        ? span * swimmerPhysicsTuning.PINNED_ESCAPE_EXIT_SLACK_COLUMN_FRACTION
+        : 0;
+    const releaseBounds = {
+      minX: columnBounds.minX + slack,
+      maxX: columnBounds.maxX - slack,
+      minY: columnBounds.minY,
+      maxY: columnBounds.maxY,
+    };
+    if (!isSwimmerUnderBlockColumn(swimmerX, releaseBounds)) {
       return { isPinned: false };
     }
   }
@@ -737,6 +788,32 @@ function resolveAxisPenetration(
  * Kinematic resolver: swimmer vs row-grid solids with swept vertical/horizontal motion.
  * Blocks are axis-aligned; swimmer hitbox is axis-aligned (visual tilt is render-only).
  */
+function followPinnedCeilingLipY(
+  x: number,
+  y: number,
+  upHalfW: number,
+  upHalfH: number,
+  solids: readonly AABB[],
+  pinAnchorX: number,
+  rowDeltaY: number
+): number {
+  'worklet';
+  const anchored = findAnchoredCeilingBlock(
+    pinAnchorX,
+    y,
+    upHalfW,
+    upHalfH,
+    solids,
+    rowDeltaY
+  );
+  if (!anchored) {
+    return y;
+  }
+  const targetY = anchored.maxY + SKIN_EPSILON + upHalfH;
+  const follow = swimmerPhysicsTuning.PINNED_EDGE_SLIDE_LIP_FOLLOW;
+  return y + (targetY - y) * follow;
+}
+
 function resolveSwimmerAgainstRowsStep(
   input: ResolveSwimmerInput
 ): ResolveSwimmerResult {
@@ -873,7 +950,8 @@ function resolveSwimmerAgainstRowsStep(
     pinnedUnderCeiling &&
     horizontalDelta !== 0 &&
     input.releaseHalfWidth !== undefined &&
-    input.releaseHalfHeight !== undefined;
+    input.releaseHalfHeight !== undefined &&
+    (!input.pinnedMomentumCoast || Math.abs(input.angle ?? 0) < 0.4);
   const slideHalfW = useReleaseSlide ? input.releaseHalfWidth! : motHalfW;
   const slideHalfH = useReleaseSlide ? input.releaseHalfHeight! : motHalfH;
   let targetX = Math.max(input.minX, Math.min(input.maxX, x + horizontalDelta));
@@ -972,6 +1050,13 @@ function resolveSwimmerAgainstRowsStep(
 
       // Gap skim: center in gap column, only vertical brush on a pillar — no push.
       if (!underColumn) {
+        if (
+          input.pinnedMomentumCoast &&
+          pinnedUnderCeiling &&
+          horizontalDelta !== 0
+        ) {
+          continue;
+        }
         if (overlapX <= 0 || overlapY > overlapX * 1.2) {
           continue;
         }
@@ -1051,7 +1136,12 @@ function resolveSwimmerAgainstRowsStep(
         }
         moved = true;
       } else if (ceilingContact && Math.abs(pushY) > 0) {
-        if (!pinnedUnderCeiling || pushY >= 0) {
+        if (input.pinnedMomentumCoast && horizontalDelta !== 0) {
+          if (Math.abs(pushX) > 0) {
+            x += pushX;
+          }
+          moved = true;
+        } else if (!pinnedUnderCeiling || pushY >= 0) {
           y += pushY;
           isPinnedFromAbove = true;
           moved = true;
@@ -1098,6 +1188,22 @@ function resolveSwimmerAgainstRowsStep(
 
   x = Math.max(input.minX, Math.min(input.maxX, x));
 
+  if (
+    input.pinnedMomentumCoast &&
+    horizontalDelta !== 0 &&
+    isPinnedFromAbove
+  ) {
+    y = followPinnedCeilingLipY(
+      x,
+      y,
+      upHalfW,
+      upHalfH,
+      solids,
+      pinAnchorX,
+      rowDeltaY
+    );
+  }
+
   const pinState = resolvePinnedState(
     x,
     y,
@@ -1109,7 +1215,8 @@ function resolveSwimmerAgainstRowsStep(
     rowDeltaY,
     isPinnedFromAbove,
     input.pinnedCeilingMinX,
-    input.pinnedCeilingMaxX
+    input.pinnedCeilingMaxX,
+    input.pinnedMomentumCoast === true
   );
   isPinnedFromAbove = pinState.isPinned;
 
@@ -1284,7 +1391,8 @@ export function resolveSwimmerAgainstRows(
       input.rowDeltaY,
       isPinnedFromAbove,
       pinnedCeilingMinX,
-      pinnedCeilingMaxX
+      pinnedCeilingMaxX,
+      input.pinnedMomentumCoast === true
     );
     isPinnedFromAbove = pinState.isPinned;
     if (pinState.isPinned) {

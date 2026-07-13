@@ -1,5 +1,9 @@
 import { composePressIntroShaft } from '@/Game/path/platformShaft/composePressIntroShaft';
-import { flowNormFromPlatformPress, flowNormFromPressVelocity } from '@/Game/hazards/flowFromPlatform';
+import {
+  flowNormFromPlatformPress,
+  flowNormFromPressVelocity,
+  pressSlabSurfaceVelocityXPx,
+} from '@/Game/hazards/flowFromPlatform';
 import { TEST_COLS } from '@/Game/path/__tests__/testGrid';
 
 describe('flowFromPlatform', () => {
@@ -53,5 +57,11 @@ describe('flowFromPlatform', () => {
       pressDirection: 'right',
     });
     expect(Math.abs(flow)).toBeGreaterThan(0);
+  });
+
+  it('pressSlabSurfaceVelocityXPx converts extent velocity to px/s', () => {
+    expect(pressSlabSurfaceVelocityXPx(0.5, 60, 'right')).toBe(30);
+    expect(pressSlabSurfaceVelocityXPx(0.5, 60, 'left')).toBe(-30);
+    expect(pressSlabSurfaceVelocityXPx(0, 60, 'right')).toBe(0);
   });
 });

@@ -37,7 +37,7 @@ import {
   worldBeatFromWaterLock,
 } from '@/Game/grid/worldBeatFromWaterLock';
 import { waterTransitionBandFromSurface } from '@/Game/grid/waterTransitionBand';
-import { flowNormFromPressVelocity } from '@/Game/hazards/flowFromPlatform';
+import { flowNormFromPressVelocity, pressSlabSurfaceVelocityXPx } from '@/Game/hazards/flowFromPlatform';
 import { gapColsClosedByPressForCollision, pressExtentAtLocalSec, simPlatformPress } from '@/Game/hazards/platformPressMotion';
 import { solidColumnCentersFromGaps } from '@/Game/path/obstacleRowGeometry';
 import { minGapWidthCols } from '@/Game/path/platformShaft/primitives';
@@ -232,6 +232,7 @@ export const mergeRowHazardPass = (args: MergeRowHazardPassArgs): void => {
   const blockColsByEntity = new Map<number, number[]>();
   const effectiveGapsByEntity = new Map<number, number[]>();
   const slabAabbByEntity = new Map<number, AABB>();
+  const slabVelocityXByEntity = new Map<number, number>();
   const memberEntityIds: number[] = [];
   let maxPlatformFlow = 0;
 
@@ -366,6 +367,13 @@ export const mergeRowHazardPass = (args: MergeRowHazardPassArgs): void => {
     const pressVelocity =
       deltaSeconds > 0 ? (latchedPressExtent - prevPressExtent) / deltaSeconds : 0;
     const latchedPhase01 = pressExtentAtLocalSec(hazard, latchedLocalSec, rowDurationSec).pressT;
+    const pressDir =
+      hazard.params.pressDirection ?? (hazard.side === 'left' ? 'right' : 'left');
+    const bandSlabSurfaceVelocityX = pressSlabSurfaceVelocityXPx(
+      pressVelocity,
+      columnWidth,
+      pressDir
+    );
 
     for (let ri = 0; ri < liveMembers.length; ri++) {
       const rowEntity = liveMembers[ri];
@@ -408,6 +416,9 @@ export const mergeRowHazardPass = (args: MergeRowHazardPassArgs): void => {
             columns: rowLength,
           });
           slabAabbByEntity.set(rowEntity, slabAabbFromWorldRect(worldRect));
+          if (Math.abs(bandSlabSurfaceVelocityX) > 0.5) {
+            slabVelocityXByEntity.set(rowEntity, bandSlabSurfaceVelocityX);
+          }
         }
       }
     }
@@ -531,11 +542,17 @@ export const mergeRowHazardPass = (args: MergeRowHazardPassArgs): void => {
       occGaps && gapsDiffer(rowData.gaps, occGaps) ? occGaps.slice() : undefined;
 
     if (!isMember || (blockCols.length === 0 && !narrowedGaps && !slabAabbByEntity.has(rowEntity))) {
-      if (rowData.effectiveGaps || rowData.effectiveSolidColumnCentersX || rowData.effectivePressSlabAabb) {
+      if (
+        rowData.effectiveGaps ||
+        rowData.effectiveSolidColumnCentersX ||
+        rowData.effectivePressSlabAabb ||
+        rowData.pressSlabVelocityX
+      ) {
         ecs.updateComponent<ObstacleRowComponentData>(rowEntity, ObstacleRowComponentName, (row) => {
           row.effectiveGaps = undefined;
           row.effectiveSolidColumnCentersX = undefined;
           row.effectivePressSlabAabb = undefined;
+          row.pressSlabVelocityX = undefined;
         });
       }
       return;
@@ -552,10 +569,12 @@ export const mergeRowHazardPass = (args: MergeRowHazardPassArgs): void => {
         )
         : undefined;
     const effectivePressSlabAabb = slabAabbByEntity.get(rowEntity);
+    const pressSlabVelocityX = slabVelocityXByEntity.get(rowEntity);
     ecs.updateComponent<ObstacleRowComponentData>(rowEntity, ObstacleRowComponentName, (row) => {
       row.effectiveGaps = effectiveGaps;
       row.effectiveSolidColumnCentersX = effectiveSolidColumnCentersX;
       row.effectivePressSlabAabb = effectivePressSlabAabb;
+      row.pressSlabVelocityX = pressSlabVelocityX;
     });
   });
 
