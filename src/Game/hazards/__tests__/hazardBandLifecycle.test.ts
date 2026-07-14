@@ -172,7 +172,7 @@ describe('hazardBandLifecycle', () => {
       ecs,
       components,
       deltaTime: 16,
-      eventQueue: { addEvent: () => {} } as never,
+      eventQueue: { addEvent: () => { } } as never,
     });
 
     const lead = leadStore.get(leadEntity);
@@ -187,7 +187,7 @@ describe('hazardBandLifecycle', () => {
       ecs,
       components,
       deltaTime: 16,
-      eventQueue: { addEvent: () => {} } as never,
+      eventQueue: { addEvent: () => { } } as never,
     });
 
     expect(leadStore.has(leadEntity)).toBe(false);
@@ -290,14 +290,14 @@ describe('hazardBandLifecycle', () => {
         }
         if (name === WaterComponentName) fn({});
       },
-      removeComponent: () => {},
+      removeComponent: () => { },
     } as unknown as ECS;
 
     mergeRowHazardPass({
       ecs,
       components,
       deltaTime: 16,
-      eventQueue: { addEvent: () => {} } as never,
+      eventQueue: { addEvent: () => { } } as never,
     });
 
     expect(leadStore.has(5)).toBe(true);
@@ -315,7 +315,7 @@ describe('hazardBandLifecycle', () => {
       ecs,
       components,
       sceneKey: 'swimmerGame',
-      eventQueue: { addEvent: () => {} },
+      eventQueue: { addEvent: () => { } },
     });
 
     expect(leadStore.size).toBe(0);

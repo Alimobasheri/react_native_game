@@ -11,9 +11,8 @@ import {
   HazardBandLeadComponentData,
   HazardBandLeadComponentName,
 } from '@/Game/ecs-components/HazardBandLead';
-import {
-  HazardBandMemberComponentName,
-} from '@/Game/ecs-components/HazardBandMember';
+import { HazardBandMemberComponentName } from '@/Game/ecs-components/HazardBandMember';
+import { removePivotArmEntities } from '@/Game/hazards/pivotArmSpawn';
 import {
   ObstacleRowComponentData,
   ObstacleRowComponentName,
@@ -47,6 +46,12 @@ import { gridSpanToWorld, slabAabbFromWorldRect } from '@/Game/grid/gridSpanToWo
 import { getGameSession, isGameOverPhase, isStartReady } from '@/Game/session/gameSessionQuery';
 import { platformShaftTuning } from '@/config/platformShaftTuning';
 import { appendHazardSteelToRowRender, restoreOrangeOnlyHazardRowRender } from '@/Game/render/appendHazardSteelToRowRender';
+import { SwimmerRenderLayer } from '@/Game/render/swimmerRenderLayers';
+import { mergePivotHazardLead } from '@/Game/grid/mergePivotHazardPass';
+import {
+  ObstaclesManagerComponentData,
+  ObstaclesManagerComponentName,
+} from '@/Game/ecs-components/ObstaclesManager';
 import {
   RenderComponentData,
   RenderComponentName,
@@ -149,7 +154,11 @@ const restoreSteelOnEntity = (
   });
   ecs.updateComponent<RenderComponentData>(entity, RenderComponentName, (render) => {
     render.renderLayers = restored.renderLayers;
-    render.position = { ...render.position, y: restored.positionY };
+    render.position = {
+      x: render.position?.x ?? restored.positionY,
+      y: restored.positionY,
+    };
+    render.renderLayer = SwimmerRenderLayer.Obstacles;
     render.isDirty = true;
   });
 };
@@ -162,6 +171,13 @@ const stripHazardBandFromLead = (
   rowStore: ComponentStore<ObstacleRowComponentData>
 ): void => {
   'worklet';
+  const leadStore = components[HazardBandLeadComponentName] as
+    | ComponentStore<HazardBandLeadComponentData>
+    | undefined;
+  const leadData = leadStore?.get(leadEntity);
+  if (leadData?.kind === 'pivot') {
+    removePivotArmEntities({ ecs, components, leadData });
+  }
   const renderStore = components[RenderComponentName] as
     | ComponentStore<RenderComponentData>
     | undefined;
@@ -229,6 +245,11 @@ export const mergeRowHazardPass = (args: MergeRowHazardPassArgs): void => {
   const containerBottom = containerData.centerY + containerData.height / 2;
   const deltaSeconds = deltaTime / 1000;
 
+  const managerData = firstDataFromStore<ObstaclesManagerComponentData>(
+    components[ObstaclesManagerComponentName] as ComponentStore<ObstaclesManagerComponentData>
+  );
+  const sceneKey = managerData?.sceneKey ?? 'swimmerGame';
+
   const blockColsByEntity = new Map<number, number[]>();
   const effectiveGapsByEntity = new Map<number, number[]>();
   const slabAabbByEntity = new Map<number, AABB>();
@@ -286,29 +307,50 @@ export const mergeRowHazardPass = (args: MergeRowHazardPassArgs): void => {
 
     if (!rowStore.get(activeLeadEntity) && liveMembers.length > 0) {
       const newLeadEntity = liveMembers[liveMembers.length - 1];
+      const migratingLead = leadData;
       if (!leadStore.get(newLeadEntity)) {
-        ecs.addComponent(
-          newLeadEntity,
-          createHazardBandLeadComponent({
-            modifierId: leadData.modifierId,
-            hazardId: leadData.hazardId,
-            side: leadData.side,
-            bounds: leadData.bounds,
-            params: leadData.params,
-            memberRowEntityIds: liveMembers,
-            shaftSegmentEpoch: leadData.shaftSegmentEpoch,
-          })
-        );
+        if (migratingLead.kind === 'pivot' && migratingLead.pivotParams) {
+          ecs.addComponent(
+            newLeadEntity,
+            createHazardBandLeadComponent({
+              kind: 'pivot',
+              modifierId: migratingLead.modifierId,
+              hazardId: migratingLead.hazardId,
+              bounds: migratingLead.bounds,
+              pivotParams: migratingLead.pivotParams,
+              memberRowEntityIds: liveMembers,
+              shaftSegmentEpoch: migratingLead.shaftSegmentEpoch,
+            })
+          );
+        } else {
+          ecs.addComponent(
+            newLeadEntity,
+            createHazardBandLeadComponent({
+              modifierId: migratingLead.modifierId,
+              hazardId: migratingLead.hazardId,
+              side: migratingLead.side,
+              bounds: migratingLead.bounds,
+              params: migratingLead.params,
+              memberRowEntityIds: liveMembers,
+              shaftSegmentEpoch: migratingLead.shaftSegmentEpoch,
+            })
+          );
+        }
         ecs.updateComponent<HazardBandLeadComponentData>(
           newLeadEntity,
           HazardBandLeadComponentName,
           (lead) => {
-            lead.phase01 = leadData.phase01;
-            lead.maxWorldBeat = leadData.maxWorldBeat;
-            lead.localSec = leadData.localSec;
-            lead.prevPressExtent = leadData.prevPressExtent;
-            lead.lastSteelRenderEntity = leadData.lastSteelRenderEntity;
-            lead.pressClockOpen = leadData.pressClockOpen;
+            lead.phase01 = migratingLead.phase01;
+            lead.maxWorldBeat = migratingLead.maxWorldBeat;
+            lead.localSec = migratingLead.localSec;
+            lead.prevPressExtent = migratingLead.prevPressExtent;
+            lead.lastSteelRenderEntity = migratingLead.lastSteelRenderEntity;
+            lead.pressClockOpen = migratingLead.pressClockOpen;
+            if (migratingLead.kind === 'pivot') {
+              lead.currentAngleRad = migratingLead.currentAngleRad;
+              lead.pivotArmEntityIds = migratingLead.pivotArmEntityIds;
+              lead.pivotMatterSpawned = migratingLead.pivotMatterSpawned;
+            }
           }
         );
       }
@@ -324,6 +366,41 @@ export const mergeRowHazardPass = (args: MergeRowHazardPassArgs): void => {
         bandRowEnd,
         bandEpoch
       );
+    }
+
+    if (leadData.kind === 'pivot') {
+      const pivotResult = mergePivotHazardLead({
+        ecs,
+        components,
+        activeLeadEntity,
+        leadData,
+        liveMembers,
+        rowStore,
+        leftX,
+        columnWidth,
+        blockHeight,
+        rowLength,
+        containerCenterX,
+        containerTop,
+        containerBottom,
+        waterSurfaceY,
+        waterData,
+        rowPitch,
+        rowDurationSec,
+        deltaSeconds,
+        sceneKey,
+        blockColsByEntity,
+        effectiveGapsByEntity,
+        slabAabbByEntity,
+        memberEntityIds,
+      });
+      if (Math.abs(pivotResult.maxPlatformFlow) > Math.abs(maxPlatformFlow)) {
+        maxPlatformFlow = pivotResult.maxPlatformFlow;
+      }
+      if (pivotResult.culled) {
+        stripHazardBandFromLead(ecs, components, activeLeadEntity, liveMembers, rowStore);
+      }
+      continue;
     }
 
     for (let ri = 0; ri < liveMembers.length; ri++) {
@@ -584,6 +661,10 @@ export const mergeRowHazardPass = (args: MergeRowHazardPassArgs): void => {
       ecs.updateComponent<WaterComponentData>(waterEntity, WaterComponentName, (water) => {
         if (Math.abs(maxPlatformFlow) > 0.01) {
           water.platformFlowPerRange = [maxPlatformFlow, 0, 0, 0];
+          water.surgeEnergy = Math.min(
+            1,
+            (water.surgeEnergy ?? 0) + Math.abs(maxPlatformFlow) * 0.35
+          );
         } else {
           water.platformFlowPerRange = [0, 0, 0, 0];
         }

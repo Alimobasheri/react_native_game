@@ -14,6 +14,7 @@ import {
   HazardBandLeadComponentName,
 } from '@/Game/ecs-components/HazardBandLead';
 import { HazardBandMemberComponentName } from '@/Game/ecs-components/HazardBandMember';
+import { removePivotArmEntities } from '@/Game/hazards/pivotArmSpawn';
 import { restoreOrangeOnlyHazardRowRender } from '@/Game/render/appendHazardSteelToRowRender';
 import {
   RemoveEntityBatchRequest,
@@ -38,6 +39,9 @@ export const purgePlatformShaftHazardsAndEffectiveGaps = (args: {
     leadStore.forEach((leadEnt: Entity) => {
       const lead = leadStore.get(leadEnt) as HazardBandLeadComponentData | undefined;
       if (lead) {
+        if (lead.kind === 'pivot') {
+          removePivotArmEntities({ ecs, components, leadData: lead });
+        }
         if (renderStore && rowStoreForPurge) {
           const renderData = renderStore.get(leadEnt) as RenderComponentData | undefined;
           const leadRow = rowStoreForPurge.get(leadEnt);

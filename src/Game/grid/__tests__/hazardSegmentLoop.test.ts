@@ -96,7 +96,7 @@ describe('hazardSegmentLoop', () => {
       } as ComponentStore<unknown>,
       [ObstacleRowComponentName]: {
         get: () => undefined,
-        forEach: () => {},
+        forEach: () => { },
         count: () => 0,
       } as ComponentStore<ObstacleRowComponentData>,
     };
@@ -111,14 +111,14 @@ describe('hazardSegmentLoop', () => {
           memberStore.delete(entity);
         }
       },
-      updateComponent: () => {},
+      updateComponent: () => { },
     } as unknown as ECS;
 
     purgePlatformShaftHazardsAndEffectiveGaps({
       ecs,
       components,
       sceneKey: 'swimmerGame',
-      eventQueue: { addEvent: () => {} },
+      eventQueue: { addEvent: () => { } },
     });
 
     expect(leadStore.size).toBe(0);

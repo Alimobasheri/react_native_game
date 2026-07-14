@@ -116,3 +116,5 @@ export const teachRecipeCappedPressCols = (requested: number): number => {
     platformShaftTuning.MIN_RESIDUAL_GAP_COLS
   );
 };
+
+export { capPivotRpm, maxFairPivotRpm } from '@/config/pivotHazardTuning';

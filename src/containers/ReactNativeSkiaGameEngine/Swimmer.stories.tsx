@@ -93,6 +93,7 @@ import type {
 } from '@/Game/ecs-systems/obstacleSystem';
 import { HazardBandLeadComponentName } from '@/Game/ecs-components/HazardBandLead';
 import { HazardBandMemberComponentName } from '@/Game/ecs-components/HazardBandMember';
+import { PivotHazardArmComponentName } from '@/Game/ecs-components/PivotHazardArm';
 
 /** Same geometry as `getWaterSurfaceRestY` but uses story arg `fraction` for experiments. */
 function waterSurfaceYFromBottomFraction(
@@ -179,6 +180,8 @@ const SHAFT_RECIPE_OPTIONS: ('' | StoryLockedShaftRecipe)[] = [
   'composePressIntroShaft',
   'pressPinballPair',
   'pathChicaneShaft',
+  'pivotGate',
+  'pivotCross',
 ];
 
 export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
@@ -228,6 +231,7 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
               StageOverlayTagComponentName,
               HazardBandLeadComponentName,
               HazardBandMemberComponentName,
+              PivotHazardArmComponentName,
             ]}
           >
             <Preload>
@@ -583,6 +587,28 @@ export const LockedPathChicaneShaftLoop: StoryObj<typeof meta> = {
     storyLockedShaftRecipe: 'pathChicaneShaft',
     storyLockedShaftSeed: 42,
     storyLockedShaftDifficulty: 0.2,
+    storyLockShaftLoop: true,
+  },
+};
+
+/** 2-arm Pivot teach gate — timing dodge through rotating negative space. */
+export const LockedPivotGateLoop: StoryObj<typeof meta> = {
+  args: {
+    lockedTemplateName: 'directed',
+    storyLockedShaftRecipe: 'pivotGate',
+    storyLockedShaftSeed: 42,
+    storyLockedShaftDifficulty: 0.3,
+    storyLockShaftLoop: true,
+  },
+};
+
+/** 4-arm center Pivot cross — tension timing challenge. */
+export const LockedPivotCrossLoop: StoryObj<typeof meta> = {
+  args: {
+    lockedTemplateName: 'directed',
+    storyLockedShaftRecipe: 'pivotCross',
+    storyLockedShaftSeed: 42,
+    storyLockedShaftDifficulty: 0.55,
     storyLockShaftLoop: true,
   },
 };

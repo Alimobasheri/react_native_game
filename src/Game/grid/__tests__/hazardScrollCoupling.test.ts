@@ -145,7 +145,7 @@ describe('hazardScrollCoupling', () => {
           fn(waterData);
         }
       },
-      removeComponent: () => {},
+      removeComponent: () => { },
     } as unknown as ECS;
 
     return { ecs, components, leadEntity, leadStore, renderStore, rows, rowEntities };
@@ -170,7 +170,7 @@ describe('hazardScrollCoupling', () => {
         ecs,
         components,
         deltaTime: deltaMs,
-        eventQueue: { addEvent: () => {} } as never,
+        eventQueue: { addEvent: () => { } } as never,
       });
 
       const leadingY = rowYs[rowYs.length - 1];
@@ -196,7 +196,7 @@ describe('hazardScrollCoupling', () => {
         ecs,
         components,
         deltaTime: 16,
-        eventQueue: { addEvent: () => {} } as never,
+        eventQueue: { addEvent: () => { } } as never,
       });
 
       const phase = leadStore.get(leadEntity)?.phase01 ?? 0;

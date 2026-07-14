@@ -418,7 +418,7 @@ describe('mergeRowHazardPass', () => {
       ecs,
       components,
       deltaTime: 16,
-      eventQueue: { addEvent: () => {} } as never,
+      eventQueue: { addEvent: () => { } } as never,
     });
 
     const row = rows.get(1)!;

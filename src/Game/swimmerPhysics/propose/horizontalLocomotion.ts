@@ -178,13 +178,13 @@ export const applyHorizontalLocomotion = (
         const streakMultiplier = locomotion.pendingTapMultiplier ?? 1;
         const pinnedEscape = wasPinnedFromAbove
           ? buildPinnedEscapeContext(
-              centerX,
-              buoyancy.columnWidth,
-              container.centerX,
-              container.width,
-              component.pinnedCeilingMinX,
-              component.pinnedCeilingMaxX
-            )
+            centerX,
+            buoyancy.columnWidth,
+            container.centerX,
+            container.width,
+            component.pinnedCeilingMinX,
+            component.pinnedCeilingMaxX
+          )
           : undefined;
         const tapResult = applyHyperCasualTap(
           profile,

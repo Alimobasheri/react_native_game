@@ -1,8 +1,13 @@
 import { getColumnCenterX, LAYOUT_CONSTANTS } from '@/Layout';
 import { swimmerPhysicsTuning } from '@/config/swimmerTuning';
+import { pivotHazardTuning } from '@/config/pivotHazardTuning';
 import { ComponentStore } from '@/containers/ReactNativeSkiaGameEngine/services-ecs';
 import { Entity } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/entity';
 import { ObstacleRowComponentData } from '@/Game/ecs-components/ObstacleRowComponent';
+import {
+  HazardBandLeadComponentData,
+} from '@/Game/ecs-components/HazardBandLead';
+import { pivotArmAabbsFromLead } from '@/Game/grid/mergePivotHazardPass';
 
 /** Axis-aligned bounding box in world pixels. */
 export type AABB = {
@@ -10,6 +15,12 @@ export type AABB = {
   minY: number;
   maxX: number;
   maxY: number;
+};
+
+export type PivotArmSolid = {
+  aabb: AABB;
+  velocityX: number;
+  velocityY: number;
 };
 
 export type CollisionRow = {
@@ -60,6 +71,8 @@ export type ResolveSwimmerInput = {
   /** Persisted ceiling column from prior frame while pinned. */
   pinnedCeilingMinX?: number;
   pinnedCeilingMaxX?: number;
+  /** Rotating pivot arm solids from active hazard bands. */
+  extraSolids?: readonly PivotArmSolid[];
   /** High-angle / momentum coast along the anchored ceiling underside. */
   pinnedMomentumCoast?: boolean;
   /**
@@ -267,6 +280,130 @@ export function selectRowsNearSwimmerFromComponentStore(
   return out;
 }
 
+export function collectPivotArmSolidsNearSwimmer(
+  leadStore: ComponentStore<HazardBandLeadComponentData> | undefined,
+  rowStore: ComponentStore<ObstacleRowComponentData>,
+  swimmerY: number,
+  swimmerHalfHeight: number,
+  rowHeight: number,
+  leftX: number,
+  columnWidth: number,
+  blockHeight: number,
+  rowLength: number
+): PivotArmSolid[] {
+  'worklet';
+  if (!leadStore) {
+    return [];
+  }
+  const band = rowHeight + swimmerHalfHeight + rowHeight;
+  const out: PivotArmSolid[] = [];
+  leadStore.forEach((_leadEnt: Entity, leadData: HazardBandLeadComponentData) => {
+    if (leadData.kind !== 'pivot' || !leadData.pivotParams) {
+      return;
+    }
+    const memberYs: number[] = [];
+    for (let i = 0; i < leadData.memberRowEntityIds.length; i++) {
+      const row = rowStore.get(leadData.memberRowEntityIds[i]);
+      if (row) {
+        memberYs.push(row.y);
+      }
+    }
+    if (memberYs.length === 0) {
+      return;
+    }
+    let hubY = 0;
+    for (let i = 0; i < memberYs.length; i++) {
+      hubY += memberYs[i];
+    }
+    hubY /= memberYs.length;
+    if (Math.abs(hubY - swimmerY) >= band * 2) {
+      return;
+    }
+    const armSolids = pivotArmAabbsFromLead(
+      leadData,
+      memberYs,
+      leftX,
+      columnWidth,
+      blockHeight,
+      rowLength
+    );
+    for (let i = 0; i < armSolids.length; i++) {
+      out.push(armSolids[i]);
+    }
+  });
+  return out;
+}
+
+export function solidAABBsFromMatterBody(
+  body: { bounds: { min: { x: number; y: number }; max: { x: number; y: number } } },
+  hitboxScale = 1
+): AABB {
+  'worklet';
+  const cx = (body.bounds.min.x + body.bounds.max.x) * 0.5;
+  const cy = (body.bounds.min.y + body.bounds.max.y) * 0.5;
+  const halfW = ((body.bounds.max.x - body.bounds.min.x) * 0.5) * hitboxScale;
+  const halfH = ((body.bounds.max.y - body.bounds.min.y) * 0.5) * hitboxScale;
+  return {
+    minX: cx - halfW,
+    maxX: cx + halfW,
+    minY: cy - halfH,
+    maxY: cy + halfH,
+  };
+}
+
+export function isPinnedUnderRotatingArm(
+  swimmerX: number,
+  swimmerY: number,
+  swimmerHalfWidth: number,
+  swimmerHalfHeight: number,
+  arm: PivotArmSolid,
+  rowDeltaY = 0
+): boolean {
+  'worklet';
+  const block = arm.aabb;
+  const swimmerTopY = swimmerY - swimmerHalfHeight;
+  const swimmerBottomY = swimmerY + swimmerHalfHeight;
+  const swimmerLeftX = swimmerX - swimmerHalfWidth;
+  const swimmerRightX = swimmerX + swimmerHalfWidth;
+  const blockBottomY = block.maxY;
+  const blockTopY = block.minY;
+  const horizontalOverlap =
+    swimmerRightX > block.minX + SKIN_EPSILON &&
+    swimmerLeftX < block.maxX - SKIN_EPSILON;
+  if (!horizontalOverlap) {
+    return false;
+  }
+  const nearCeiling =
+    swimmerTopY <= blockBottomY + SKIN_EPSILON * 4 &&
+    swimmerTopY >= blockTopY - swimmerHalfHeight * 2;
+  const belowCeiling = swimmerBottomY > blockTopY + SKIN_EPSILON;
+  const armMovingDown = arm.velocityY > 0.5 || rowDeltaY > 0;
+  return nearCeiling && belowCeiling && armMovingDown;
+}
+
+export function lateralShoveFromArmImpact(
+  swimmerX: number,
+  swimmerY: number,
+  arm: PivotArmSolid,
+  deltaSec: number
+): number {
+  'worklet';
+  const block = arm.aabb;
+  if (
+    swimmerX < block.minX - 0.01 ||
+    swimmerX > block.maxX + 0.01 ||
+    swimmerY < block.minY ||
+    swimmerY > block.maxY
+  ) {
+    return 0;
+  }
+  return (
+    arm.velocityX *
+    deltaSec *
+    pivotHazardTuning.LATERAL_IMPULSE_MULTIPLIER
+  );
+}
+
 export function solidAABBsFromRow(
   row: CollisionRow,
   container: ContainerLayout,
@@ -324,7 +461,8 @@ function collectSolidAABBs(
   rows: readonly CollisionRow[],
   container: ContainerLayout,
   blockSize: BlockSize,
-  hitboxScale: number
+  hitboxScale: number,
+  extraSolids?: readonly PivotArmSolid[]
 ): AABB[] {
   'worklet';
   const all: AABB[] = [];
@@ -332,6 +470,11 @@ function collectSolidAABBs(
     const solids = solidAABBsFromRow(rows[i], container, blockSize, hitboxScale);
     for (let j = 0; j < solids.length; j++) {
       all.push(solids[j]);
+    }
+  }
+  if (extraSolids) {
+    for (let i = 0; i < extraSolids.length; i++) {
+      all.push(aabbWithHitboxScale(extraSolids[i].aabb, hitboxScale));
     }
   }
   return all;
@@ -824,7 +967,8 @@ function resolveSwimmerAgainstRowsStep(
     input.rows,
     input.container,
     input.blockSize,
-    hitboxScale
+    hitboxScale,
+    input.extraSolids
   );
 
   const uprightHalf = tiltedAabbHalfExtents(

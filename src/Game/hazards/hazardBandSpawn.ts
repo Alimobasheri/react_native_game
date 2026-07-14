@@ -15,12 +15,16 @@ import {
   HazardBandMemberComponentName,
 } from '@/Game/ecs-components/HazardBandMember';
 import type { PlatformShaftTemplateCtx } from '@/Game/path/platformShaft/platformShaftRowPathTemplate';
-import type { PlatformSlabHazard } from '@/Game/path/platformShaft/types';
+import type {
+  PlatformShaftHazard,
+  PlatformSlabHazard,
+  PivotHazard,
+} from '@/Game/path/platformShaft/types';
 import {
   growHazardBandMemberIds,
   resolveRowEntitiesForBeatRange,
 } from '@/Game/grid/gridAnchor';
-import { gridSpanFromPlatformSlab } from '@/Game/grid/gridSpan';
+import { gridSpanFromHazard } from '@/Game/grid/gridSpan';
 
 export type HazardSpawnFromBeatArgs = {
   ecs: ECS;
@@ -87,21 +91,22 @@ const syncHazardBandMembers = (
   }
 };
 
-const trySpawnOrGrowHazardBand = (
+const growOrCreateBand = (
   ecs: ECS,
-  hazard: PlatformSlabHazard,
+  hazard: PlatformShaftHazard,
   rowStore: ComponentStore<ObstacleRowComponentData>,
   spawned: string[],
-  shaftSegmentEpoch?: number
+  shaftSegmentEpoch: number | undefined,
+  createLead: (leadEntity: Entity, rowEntityIds: Entity[]) => void
 ): boolean => {
   'worklet';
-  const span = gridSpanFromPlatformSlab(hazard);
+  const span = gridSpanFromHazard(hazard);
   const existingLead = findLeadEntityForHazard(ecs, hazard.id, shaftSegmentEpoch);
   if (existingLead != null) {
     const leadData = (
       ecs.components[HazardBandLeadComponentName] as
-        | ComponentStore<HazardBandLeadComponentData>
-        | undefined
+      | ComponentStore<HazardBandLeadComponentData>
+      | undefined
     )?.get(existingLead);
     const rowEntityIds = growHazardBandMemberIds(
       leadData?.memberRowEntityIds ?? [],
@@ -138,7 +143,6 @@ const trySpawnOrGrowHazardBand = (
   }
 
   if (spawned.includes(hazard.id)) {
-    // mergeRowHazardPass can strip a band while ctx.spawnedHazardIds still lists the id.
     if (findLeadEntityForHazard(ecs, hazard.id, shaftSegmentEpoch) != null) {
       return false;
     }
@@ -149,23 +153,72 @@ const trySpawnOrGrowHazardBand = (
   }
 
   const leadEntity = rowEntityIds[rowEntityIds.length - 1];
-
-  ecs.addComponent(
-    leadEntity,
-    createHazardBandLeadComponent({
-      modifierId: hazard.id,
-      hazardId: hazard.id,
-      side: hazard.side,
-      bounds: span,
-      params: hazard.params,
-      memberRowEntityIds: rowEntityIds,
-      shaftSegmentEpoch,
-    })
-  );
-
+  createLead(leadEntity, rowEntityIds);
   syncHazardBandMembers(ecs, leadEntity, hazard.id, rowEntityIds);
   spawned.push(hazard.id);
   return true;
+};
+
+const trySpawnOrGrowPlatformSlabBand = (
+  ecs: ECS,
+  hazard: PlatformSlabHazard,
+  rowStore: ComponentStore<ObstacleRowComponentData>,
+  spawned: string[],
+  shaftSegmentEpoch?: number
+): boolean => {
+  'worklet';
+  return growOrCreateBand(ecs, hazard, rowStore, spawned, shaftSegmentEpoch, (leadEntity, rowEntityIds) => {
+    ecs.addComponent(
+      leadEntity,
+      createHazardBandLeadComponent({
+        modifierId: hazard.id,
+        hazardId: hazard.id,
+        side: hazard.side,
+        bounds: gridSpanFromHazard(hazard),
+        params: hazard.params,
+        memberRowEntityIds: rowEntityIds,
+        shaftSegmentEpoch,
+      })
+    );
+  });
+};
+
+const trySpawnOrGrowPivotBand = (
+  ecs: ECS,
+  hazard: PivotHazard,
+  rowStore: ComponentStore<ObstacleRowComponentData>,
+  spawned: string[],
+  shaftSegmentEpoch?: number
+): boolean => {
+  'worklet';
+  return growOrCreateBand(ecs, hazard, rowStore, spawned, shaftSegmentEpoch, (leadEntity, rowEntityIds) => {
+    ecs.addComponent(
+      leadEntity,
+      createHazardBandLeadComponent({
+        kind: 'pivot',
+        modifierId: hazard.id,
+        hazardId: hazard.id,
+        bounds: gridSpanFromHazard(hazard),
+        pivotParams: hazard.params,
+        memberRowEntityIds: rowEntityIds,
+        shaftSegmentEpoch,
+      })
+    );
+  });
+};
+
+const trySpawnOrGrowHazardBand = (
+  ecs: ECS,
+  hazard: PlatformShaftHazard,
+  rowStore: ComponentStore<ObstacleRowComponentData>,
+  spawned: string[],
+  shaftSegmentEpoch?: number
+): boolean => {
+  'worklet';
+  if (hazard.kind === 'hazard_pivot') {
+    return trySpawnOrGrowPivotBand(ecs, hazard, rowStore, spawned, shaftSegmentEpoch);
+  }
+  return trySpawnOrGrowPlatformSlabBand(ecs, hazard, rowStore, spawned, shaftSegmentEpoch);
 };
 
 export const maybeSpawnHazardBandsForRow = (args: HazardSpawnFromBeatArgs): void => {
@@ -186,7 +239,7 @@ export const maybeSpawnHazardBandsForRow = (args: HazardSpawnFromBeatArgs): void
   }
 
   for (let i = 0; i < beat.hazards.length; i++) {
-    const hazard = beat.hazards[i] as PlatformSlabHazard;
+    const hazard = beat.hazards[i];
     if (rowIndex < hazard.bounds.rowStart || rowIndex > hazard.bounds.rowEnd) {
       continue;
     }
@@ -194,7 +247,7 @@ export const maybeSpawnHazardBandsForRow = (args: HazardSpawnFromBeatArgs): void
   }
 
   for (let i = 0; i < beat.hazards.length; i++) {
-    const hazard = beat.hazards[i] as PlatformSlabHazard;
+    const hazard = beat.hazards[i];
     if (hazard.bounds.rowEnd > rowIndex) {
       continue;
     }

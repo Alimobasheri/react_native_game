@@ -52,7 +52,7 @@ export const computeBobbingAndBuoyancy = (
   const swimmerVisualWidth =
     component.meshBaseWidth ??
     (container.width / LAYOUT_CONSTANTS.COLUMNS) *
-      swimmerVisualTuning.VISUAL_WIDTH_COLUMN_RATIO;
+    swimmerVisualTuning.VISUAL_WIDTH_COLUMN_RATIO;
   const swimmerVisualHeight =
     component.meshBaseHeight ??
     swimmerVisualWidth * swimmerVisualTuning.VISUAL_HEIGHT_TO_WIDTH_RATIO;

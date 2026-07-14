@@ -32,10 +32,9 @@ function App() {
           lifeDebugMode={0}
           internalIntensity={0.55}
           {...{
-            lockedTemplateName: 'directed',
-            storyLockedShaftRecipe: 'pathChicaneShaft',
-            storyLockedShaftSeed: 12,
-            storyLockedShaftDifficulty: 0.6,
+            storyLockedShaftRecipe: 'pivotCross',
+            storyLockedShaftSeed: 42,
+            storyLockedShaftDifficulty: 0.55,
             storyLockShaftLoop: true,
           }}
         />

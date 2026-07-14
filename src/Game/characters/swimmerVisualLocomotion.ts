@@ -322,8 +322,8 @@ export const updateSwimmerVisualLocomotion = (
   );
   const interpStep =
     isPinned &&
-    (pinnedMomentumCoast ||
-      Math.abs(currentAngleDeg) >=
+      (pinnedMomentumCoast ||
+        Math.abs(currentAngleDeg) >=
         swimmerPhysicsTuning.PINNED_EDGE_SLIDE_MIN_ANGLE_DEG)
       ? pinnedInterp
       : defaultInterp;

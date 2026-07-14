@@ -1,3 +1,4 @@
+import type { ComponentStore } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/component';
 import type { EventQueueContextType } from '@/containers/ReactNativeSkiaGameEngine/hooks-ecs/useEventQueue/useEventQueue';
 import { swimmerPhysicsTuning } from '@/config/swimmerTuning';
 import {
@@ -6,11 +7,18 @@ import {
 } from '@/Game/characters/swimmerHyperCasualPhysics';
 import { SwimmerPinnedSplashEventType } from '@/Game/characters/swimmerLocomotionEvents';
 import {
+  collectPivotArmSolidsNearSwimmer,
+  lateralShoveFromArmImpact,
   resolvePinnedTapSlide,
   resolveSwimmerAgainstRows,
   samplePinnedPressSlabSurfaceVelocityX,
   selectRowsNearSwimmerFromComponentStore,
 } from '@/Game/collision/swimmerBlockCollision';
+import {
+  HazardBandLeadComponentData,
+  HazardBandLeadComponentName,
+} from '@/Game/ecs-components/HazardBandLead';
+import { LAYOUT_CONSTANTS } from '@/Layout';
 import type {
   CollisionResolutionStep,
   ProposeMotionResult,
@@ -89,6 +97,23 @@ export const resolveSwimmerCollision = (
     verticalSweepPx
   );
 
+  const leftX =
+    container.centerX - container.width / 2;
+  const leadStore = frame.components[HazardBandLeadComponentName] as
+    | ComponentStore<HazardBandLeadComponentData>
+    | undefined;
+  const extraSolids = collectPivotArmSolidsNearSwimmer(
+    leadStore,
+    obstacleRowStore,
+    centerY,
+    collisionHalfHeight,
+    rowHeight,
+    leftX,
+    blockDimensions.width,
+    blockDimensions.height,
+    LAYOUT_CONSTANTS.COLUMNS
+  );
+
   const pinnedSlabSurfaceVelocityX = wasPinnedFromAbove
     ? samplePinnedPressSlabSurfaceVelocityX(
         centerX,
@@ -123,6 +148,7 @@ export const resolveSwimmerCollision = (
     deltaY: proposedDeltaY,
     rowDeltaY,
     rows: nearbyRows,
+    extraSolids,
     container: {
       centerX: container.centerX,
       width: container.width,
@@ -140,6 +166,22 @@ export const resolveSwimmerCollision = (
 
   let finalX = collisionResult.x;
   const finalY = collisionResult.y;
+
+  if (extraSolids.length > 0) {
+    let shoveX = 0;
+    for (let i = 0; i < extraSolids.length; i++) {
+      shoveX += lateralShoveFromArmImpact(
+        finalX,
+        finalY,
+        extraSolids[i],
+        frame.deltaSeconds
+      );
+    }
+    if (shoveX !== 0) {
+      finalX = Math.max(minX, Math.min(maxX, finalX + shoveX));
+    }
+  }
+
   const isBlockedFromAbove = collisionResult.isPinnedFromAbove;
   const isCollidingWithObstacle = collisionResult.isColliding;
 

@@ -1,7 +1,7 @@
-import type { PlatformSlabHazard } from '@/Game/path/platformShaft/types';
+import type { PlatformShaftHazard } from '@/Game/path/platformShaft/types';
 import type { GridSpan } from '@/Game/grid/types';
 
-export const gridSpanFromPlatformSlab = (hazard: PlatformSlabHazard): GridSpan => {
+export const gridSpanFromHazard = (hazard: PlatformShaftHazard): GridSpan => {
   'worklet';
   const b = hazard.bounds;
   return {
@@ -11,6 +11,9 @@ export const gridSpanFromPlatformSlab = (hazard: PlatformSlabHazard): GridSpan =
     colEnd: b.colEnd,
   };
 };
+
+/** @deprecated Use gridSpanFromHazard */
+export const gridSpanFromPlatformSlab = gridSpanFromHazard;
 
 export const rowSpanOf = (span: GridSpan): number => {
   'worklet';

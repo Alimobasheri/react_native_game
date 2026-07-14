@@ -54,6 +54,29 @@ export type PlatformSlabHazard = {
   params: PlatformSlabParams;
 };
 
+export type PivotAnchorMode = 'center' | 'wall_left' | 'wall_right';
+
+export type PivotRotationDirection = 'cw' | 'ccw';
+
+export type PivotHazardParams = {
+  armCount: 2 | 3 | 4;
+  rpm: number;
+  direction: PivotRotationDirection;
+  anchorMode: PivotAnchorMode;
+  armLengthCols: number;
+  armThicknessRows: number;
+  animStartRow?: number;
+};
+
+export type PivotHazard = {
+  id: string;
+  kind: 'hazard_pivot';
+  bounds: PlatformSlabBounds;
+  params: PivotHazardParams;
+};
+
+export type PlatformShaftHazard = PlatformSlabHazard | PivotHazard;
+
 export type PlatformSlabRowOverlay = {
   side: PlatformSide;
   pressWallCol: number;
@@ -61,7 +84,7 @@ export type PlatformSlabRowOverlay = {
 
 export type RecipeOutput = {
   rows: PlatformShaftRowDef[];
-  hazards: PlatformSlabHazard[];
+  hazards: PlatformShaftHazard[];
   markers: unknown[];
   meta: {
     recipeId: string;

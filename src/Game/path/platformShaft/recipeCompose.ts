@@ -6,6 +6,7 @@
 import { harmonizePlatformSlab } from '@/Game/path/platformShaft/harmonizer';
 import { corridorRowForSlab } from '@/Game/path/platformShaft/primitives';
 import type {
+  PlatformShaftHazard,
   PlatformShaftRowDef,
   PlatformSide,
   PlatformSlabHazard,
@@ -33,7 +34,7 @@ export type SlabEventSpec = {
 
 export type ComposeCtx = {
   rowDefs: PlatformShaftRowDef[];
-  hazards: PlatformSlabHazard[];
+  hazards: PlatformShaftHazard[];
   markers: unknown[];
   columns: number;
   warnings: string[];
@@ -171,17 +172,21 @@ export const appendSlabEvent = (
 };
 
 export const harmonizeBeatHazards = (
-  hazards: PlatformSlabHazard[],
+  hazards: PlatformShaftHazard[],
   corridor: { gapWidthCols: number; oppositeWallInset: number },
   minResidualGapCols: number
 ): string[] => {
   'worklet';
   const warnings: string[] = [];
   for (let i = 0; i < hazards.length; i++) {
-    const result = harmonizePlatformSlab(hazards[i].params, corridor, {
+    const hazard = hazards[i];
+    if (hazard.kind !== 'hazard_platform') {
+      continue;
+    }
+    const result = harmonizePlatformSlab(hazard.params, corridor, {
       minResidualGapCols,
     });
-    hazards[i].params = result.params;
+    hazard.params = result.params;
     warnings.push(...result.warnings);
   }
   return warnings;
