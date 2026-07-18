@@ -5,45 +5,35 @@ export type ShadersCache = Record<string, SkRuntimeEffect>;
 export type LoadedShader = {
   type: 'shader';
   name: string;
-  data: SkRuntimeEffect;
+  data: string;
+};
+
+/** Compile on the worklet thread — RuntimeEffect must not cross scheduleOnUI on web. */
+export const compileShaderOnUI = (source: string): SkRuntimeEffect | null => {
+  'worklet';
+  try {
+    const effect = Skia.RuntimeEffect.Make(source);
+    if (!effect) {
+      console.warn('[RNTGE][shaderLoader] RuntimeEffect.Make returned null');
+      return null;
+    }
+    return effect;
+  } catch (error) {
+    console.warn('[RNTGE][shaderLoader] RuntimeEffect compile failed', error);
+    return null;
+  }
 };
 
 export const loadShaderAssets = (
   assets: Record<string, string>
 ): LoadedShader[] => {
-  if (assets) {
-    const compiledShaders = Object.fromEntries(
-      Object.entries(assets).reduce((acc, [key, source]) => {
-        try {
-          const effect = Skia.RuntimeEffect.Make(source);
-          if (!effect) {
-            console.warn(
-              "[RNTGE] Warning: Couldn't make RuntimeEffect for shader:",
-              key
-            );
-            return acc;
-          }
-          return acc.concat([[key, effect]]);
-        } catch (error) {
-          console.warn(
-            '[RNTGE] Warning: RuntimeEffect compile failed for shader:',
-            key,
-            error
-          );
-          return acc;
-        }
-      }, [] as [string, SkRuntimeEffect][])
-    );
-
-    let loadedShaders: LoadedShader[] = Object.entries(compiledShaders)
-      .filter(([, effect]) => effect !== null)
-      .map(([name, data]) => ({
-        type: 'shader',
-        name,
-        data,
-      }));
-
-    return loadedShaders;
+  if (!assets) {
+    return [];
   }
-  return [];
+
+  return Object.entries(assets).map(([name, source]) => ({
+    type: 'shader',
+    name,
+    data: source,
+  }));
 };

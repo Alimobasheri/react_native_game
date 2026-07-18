@@ -62,6 +62,21 @@ export const applyHorizontalLocomotion = (
   const { container, water, startReady, deltaSeconds, obstacleWidth, obstacleRowStore, rowHeight } =
     frame;
 
+  const knockbackFrames = component.plungeOverrideFramesRemaining ?? 0;
+  const pistonRecovery = component.pistonBounceRecoverySecRemaining ?? 0;
+  if (knockbackFrames > 0 || pistonRecovery > 0) {
+    return {
+      velocityX: component.velocityX ?? 0,
+      locomotion: component.locomotion,
+      kinematicsAngleRad: 0,
+      tapImpulseAppliedThisFrame: false,
+      tapDirectionThisFrame: 0 as const,
+      preDragVelocityX: component.velocityX ?? 0,
+      pinnedMomentumCoast: false,
+      waterCurrentVelocityX: 0,
+    };
+  }
+
   let swimmerVelocityX = component.velocityX ?? 0;
   let locomotion = component.locomotion;
   let kinematicsAngleRad = 0;

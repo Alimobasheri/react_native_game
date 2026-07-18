@@ -31,12 +31,13 @@ function App() {
           sideWallContainerOverlapPx={sideWallTuning.CONTAINER_OVERLAP_PX}
           lifeDebugMode={0}
           internalIntensity={0.55}
-          {...{
-            storyLockedShaftRecipe: 'pivotCross',
-            storyLockedShaftSeed: 42,
-            storyLockedShaftDifficulty: 0.55,
-            storyLockShaftLoop: true,
-          }}
+          // Device-debug: lock floor piston loop (production stays unlocked above).
+          // {...{
+          //   storyLockedShaftRecipe: 'pistonCeiling',
+          //   storyLockedShaftSeed: 42,
+          //   storyLockedShaftDifficulty: 0.5,
+          //   storyLockShaftLoop: true,
+          // }}
         />
       </View>
     </SafeAreaProvider>

@@ -31,6 +31,7 @@ export default ({ config }) => {
       },
       web: {
         favicon: './assets/favicon.png',
+        bundler: 'metro',
       },
       experiments: {
         tsconfigPaths: true,
@@ -41,9 +42,7 @@ export default ({ config }) => {
         },
         storybookEnabled: process.env.STORYBOOK_ENABLED,
       },
-      plugins: [
-        "@react-native-community/datetimepicker"
-      ],
+      plugins: ['@react-native-community/datetimepicker'],
     },
   };
 };

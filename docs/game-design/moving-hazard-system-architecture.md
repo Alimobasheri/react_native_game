@@ -215,8 +215,37 @@ sequenceDiagram
 | Buzz wheel | `buzz_wheel` | Rotation + sweep AABB | Separate sweep collider |
 | Tilt gate | `tilt_gate` | Row-timed phase flip | Timed row FSM (path B) |
 | Vise jaw | `vise_jaw` | Dual-sided press | Two hazards, linked phase |
+| **Vertical piston** | `piston` / `hazard_piston` | Vertical ping-pong on grey track | Lead-owned pose; bounce impulse (not gap mask) |
 
-All use **MovingHazard** + kind-specific params; none reuse orange block layers.
+All use **row-integrated HazardBandLead** + kind-specific params; none reuse orange block layers for machinery motion.
+
+### 6.1 Vertical Piston (shipped gameplay — 2026-07-18)
+
+**Player read:** Grey track draws the full stroke before the crimson head moves. Floor mount = wait for water to lift you above the tip, then tap across. Ceiling mount = rush under before it descends. Early tap → bounce back into the water (not instant death).
+
+**Architecture (matches pendulum/pivot, not Transform/Velocity children):**
+
+| Piece | Location |
+|-------|----------|
+| Params | `PistonHazard` / `PistonHazardParams` in `platformShaft/types.ts` |
+| Tuning | `src/config/pistonHazardTuning.ts` |
+| Motion | `src/Game/hazards/pistonMotion.ts` (ease-in-out ping-pong, analytic) |
+| Band lead | `HazardBandKind = 'piston'` on `HazardBandLead` |
+| Merge | `mergePistonHazardPass.ts` via `mergeRowHazardPass` |
+| Render | `buildPistonHazardRenderLayers.ts` — track + head on lead, Obstacles layer |
+| Collision | `collectPistonHeadSolidsNearSwimmer` + `pistonStrike.ts` (swept AABB) |
+| Recipes | `pistonFloor` / `pistonCeiling` |
+| Production | `pistonProductionSchedule.ts` — FLOW / early TENSION after `gapDifficulty01 > 0.35` |
+
+**Collision contract:**
+
+- Bounce on **contact-enter** only; re-arm after full AABB separation.
+- Away-X = `BASE + abs(incomingToward) × MULT`, capped; +Y downward impulse, capped.
+- Does **not** kill; does **not** set pin-from-above. Death only via existing pin/submerge/off-screen rules.
+- Rest `gaps[]` unchanged — water shader gap data unchanged.
+- Rebound re-swept against orange rows so bounce cannot tunnel through walls.
+
+**Deferred polish (flags in `platformShaftTODO.ts`):** PS-TODO-006…012 — spawn click, telegraph tick/haptic, move friction, bounce thud/haptic, base sparks, foam burst, 3-frame squash.
 
 ---
 
@@ -267,3 +296,4 @@ Task: Implement MovingHazard entity + HazardMotionSystem spike for one platform_
 |------|--------|
 | 2026-07-04 | Row-integrated hazard bands shipped — `HazardBandLead`/`Member`, `mergeRowHazardPass`, `MovingHazard` stack removed |
 | 2026-07-04 | Initial architecture — Slice 3 stub removed, L7 design locked |
+| 2026-07-18 | Vertical piston (`hazard_piston`) — lead-owned ping-pong, bounce strike, production schedule; polish PS-TODO-006…012 |

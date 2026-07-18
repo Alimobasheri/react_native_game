@@ -8,6 +8,9 @@ import {
 import {
   createTypefaceOnUI,
   createTypefacesOnUI,
+  createImageFromBytesOnUI,
+  takeStagedWebImage,
+  compileShaderOnUI,
   LoadedFontSources,
 } from '@/containers/ReactNativeSkiaGameEngine/loaders-ecs';
 import { SceneComponentData, SceneComponentName } from '../../components/scene';
@@ -71,16 +74,50 @@ export const assetPreloadSystem: System = {
       for (let j = 0; j < payload.items.length; j++) {
         const item = payload.items[j];
         switch (item.type) {
-          case 'image':
+          case 'image': {
             const images = global._RNTGE_.imageCache;
-            images[item.name] = item.data;
-            pushSceneObjectsAsset(ecs, sceneEntity, item.name, 'images');
+            let image = null;
+            if (item.data != null) {
+              if (item.data.kind === 'staged') {
+                // Web: pull from same-heap staging map (SkImage never entered the event).
+                image = takeStagedWebImage(item.name);
+              } else if (item.data.kind === 'bytes') {
+                image = createImageFromBytesOnUI(item.data.bytes);
+              } else if (
+                // Legacy / defensive: payload already carried a SkImage
+                'image' in item.data &&
+                (item.data as { image?: unknown }).image
+              ) {
+                image = (item.data as { image: NonNullable<typeof image> }).image;
+              }
+            }
+            if (image) {
+              images[item.name] = image;
+              pushSceneObjectsAsset(ecs, sceneEntity, item.name, 'images');
+            } else {
+              console.warn(
+                '[RNTGE][assetPreloadSystem] Failed to decode image:',
+                item.name,
+                'payload=',
+                item.data
+              );
+            }
             break;
-          case 'shader':
+          }
+          case 'shader': {
             const shaders = global._RNTGE_.shaderCache;
-            shaders[item.name] = item.data;
-            pushSceneObjectsAsset(ecs, sceneEntity, item.name, 'shaders');
+            const effect = compileShaderOnUI(item.data);
+            if (effect) {
+              shaders[item.name] = effect;
+              pushSceneObjectsAsset(ecs, sceneEntity, item.name, 'shaders');
+            } else {
+              console.warn(
+                '[RNTGE][assetPreloadSystem] Failed to compile shader:',
+                item.name
+              );
+            }
             break;
+          }
           case 'font':
             const fonts = global._RNTGE_.fontCache;
             const typeface = createTypefaceOnUI(

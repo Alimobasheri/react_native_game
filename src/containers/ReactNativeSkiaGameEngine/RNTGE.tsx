@@ -1,5 +1,11 @@
 import { Canvas, SkPath, SkPicture } from '@shopify/react-native-skia';
-import { FC, PropsWithChildren, useCallback, useLayoutEffect, useState } from 'react';
+import {
+  FC,
+  PropsWithChildren,
+  useCallback,
+  useLayoutEffect,
+  useState,
+} from 'react';
 import { useECS } from './hooks-ecs/useECS/useECS';
 import {
   FrameInfo,
@@ -46,8 +52,11 @@ import {
   PanComponentName,
   LongPressComponentName,
 } from './internal/components/touch';
+import { KeyboardComponentName } from './internal/components/keyboard';
 import { touchSystem } from './internal/systems/touchSystem';
+import { keyboardSystem } from './internal/systems/keyboardSystem';
 import { TouchOverlay } from './components-rntge/Input/TouchOverlay';
+import { useKeyboardInput } from './hooks/useKeyboardInput/useKeyboardInput';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets as useRNSafeAreaInsets } from 'react-native-safe-area-context';
@@ -110,6 +119,7 @@ export const ReactNativeTurboGameEngine: FC<
       );
   });
   const eventQueue = useEventQueue();
+  useKeyboardInput(eventQueue);
   const { initECS } = useECS();
   // const picture = useSharedValue<SkPicture | null>(null);
   // const pictureCache = useSharedValue<Record<number, SkPicture | SkPath>>({});
@@ -126,6 +136,7 @@ export const ReactNativeTurboGameEngine: FC<
     global._RNTGE_.ecs.createComponent(TapComponentName);
     global._RNTGE_.ecs.createComponent(PanComponentName);
     global._RNTGE_.ecs.createComponent(LongPressComponentName);
+    global._RNTGE_.ecs.createComponent(KeyboardComponentName);
     global._RNTGE_.ecs.createComponent(MatterBodyComponentName);
     global._RNTGE_.ecs.createComponent(SpriteComponentName);
     global._RNTGE_.ecs.createComponent(AnimationClipComponentName);
@@ -157,6 +168,7 @@ export const ReactNativeTurboGameEngine: FC<
     global._RNTGE_.ecs.registerSystem(unLoadSceneSystem);
     global._RNTGE_.ecs.registerSystem(assetPreloadSystem);
     global._RNTGE_.ecs.registerSystem(touchSystem);
+    global._RNTGE_.ecs.registerSystem(keyboardSystem);
     global._RNTGE_.ecs.registerSystem(renderSystem);
   }, []);
 
@@ -201,6 +213,8 @@ export const ReactNativeTurboGameEngine: FC<
           state: ECSState.NOT_INITIALIZED,
           picture: null,
           pictureCache: {},
+          _pictureDisposeQueue: [],
+          _pictureDisposeReady: [],
         };
         initECS();
         initPhysics();

@@ -6,6 +6,7 @@
 import { harmonizePlatformSlab } from '@/Game/path/platformShaft/harmonizer';
 import { corridorRowForSlab } from '@/Game/path/platformShaft/primitives';
 import type {
+  ComposePressIntroShaftResult,
   PlatformShaftHazard,
   PlatformShaftRowDef,
   PlatformSide,
@@ -13,6 +14,7 @@ import type {
   PlatformSlabParams,
   PressEase,
   RecipeOutput,
+  ShaftRecipeComposeResult,
 } from '@/Game/path/platformShaft/types';
 
 export type SlabEventSpec = {
@@ -205,7 +207,7 @@ export const finalizeRecipeOutput = (
   ctx: ComposeCtx,
   corridor: { gapWidthCols: number; oppositeWallInset: number },
   meta: RecipeOutput['meta']
-): RecipeOutput & { harmonizerWarnings: string[] } => {
+): ShaftRecipeComposeResult => {
   'worklet';
   const beatWarnings = harmonizeBeatHazards(
     ctx.hazards,
@@ -218,5 +220,22 @@ export const finalizeRecipeOutput = (
     markers: ctx.markers,
     meta,
     harmonizerWarnings: [...ctx.warnings, ...beatWarnings],
+  };
+};
+
+/** Narrow finalize output when the composer only appended platform slabs. */
+export const finalizePlatformSlabRecipeOutput = (
+  ctx: ComposeCtx,
+  corridor: { gapWidthCols: number; oppositeWallInset: number },
+  meta: RecipeOutput['meta']
+): ComposePressIntroShaftResult => {
+  'worklet';
+  const out = finalizeRecipeOutput(ctx, corridor, meta);
+  return {
+    rows: out.rows,
+    hazards: out.hazards as PlatformSlabHazard[],
+    markers: out.markers,
+    meta: out.meta,
+    harmonizerWarnings: out.harmonizerWarnings,
   };
 };

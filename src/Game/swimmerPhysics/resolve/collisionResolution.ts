@@ -8,12 +8,19 @@ import {
 import { SwimmerPinnedSplashEventType } from '@/Game/characters/swimmerLocomotionEvents';
 import {
   collectPivotArmSolidsNearSwimmer,
+  collectPendulumHeadSolidsNearSwimmer,
+  collectPistonHeadSolidsNearSwimmer,
   lateralShoveFromArmImpact,
   resolvePinnedTapSlide,
   resolveSwimmerAgainstRows,
   samplePinnedPressSlabSurfaceVelocityX,
   selectRowsNearSwimmerFromComponentStore,
 } from '@/Game/collision/swimmerBlockCollision';
+import { resolvePendulumHeadStrike } from '@/Game/swimmerPhysics/react/pendulumStrike';
+import {
+  pistonStillOverlapping,
+  resolvePistonHeadStrike,
+} from '@/Game/swimmerPhysics/react/pistonStrike';
 import {
   HazardBandLeadComponentData,
   HazardBandLeadComponentName,
@@ -165,7 +172,132 @@ export const resolveSwimmerCollision = (
   const collisionResult = resolveSwimmerAgainstRows(motionInput);
 
   let finalX = collisionResult.x;
-  const finalY = collisionResult.y;
+  let finalY = collisionResult.y;
+
+  const pendulumSolids =
+    (swimmer.component.plungeOverrideFramesRemaining ?? 0) > 0
+      ? []
+      : collectPendulumHeadSolidsNearSwimmer(
+          leadStore,
+          frame.components,
+          obstacleRowStore,
+          centerY,
+          collisionHalfHeight,
+          rowHeight,
+          leftX,
+          blockDimensions.width,
+          blockDimensions.height,
+          LAYOUT_CONSTANTS.COLUMNS
+        );
+
+  const pendulumStrike = resolvePendulumHeadStrike(
+    finalX,
+    finalY,
+    collisionHalfWidth,
+    collisionHalfHeight,
+    pendulumSolids,
+    frame.deltaSeconds
+  );
+
+  if (pendulumStrike.struck) {
+    finalX += pendulumStrike.knockbackDeltaX;
+    finalY += pendulumStrike.knockbackDeltaY;
+  }
+
+  const raisingSpeed = frame.water.raisingSpeed ?? 0;
+  const rowDurationSec =
+    raisingSpeed > 0 ? blockDimensions.height / raisingSpeed : 0.1;
+  const pistonSolids = collectPistonHeadSolidsNearSwimmer(
+    leadStore,
+    obstacleRowStore,
+    centerY,
+    collisionHalfHeight,
+    rowHeight,
+    leftX,
+    blockDimensions.width,
+    blockDimensions.height,
+    rowDurationSec
+  );
+
+  // During recovery we still collect solids for separation latch, but skip new strikes.
+  const allowNewPistonStrike =
+    (swimmer.component.pistonBounceRecoverySecRemaining ?? 0) <= 0.001 &&
+    (swimmer.component.plungeOverrideFramesRemaining ?? 0) <= 0;
+
+  const pistonStrike = allowNewPistonStrike
+    ? resolvePistonHeadStrike({
+        swimmerX: finalX,
+        swimmerY: finalY,
+        swimmerStartX: centerX,
+        swimmerStartY: centerY,
+        swimmerHalfWidth: collisionHalfWidth,
+        swimmerHalfHeight: collisionHalfHeight,
+        velocityX,
+        pistonSolids,
+        activeContactHazardId: swimmer.component.pistonContactHazardId,
+        deltaSeconds: frame.deltaSeconds,
+      })
+    : {
+        struck: false,
+        impulseVelocityX: 0,
+        impulseVelocityY: 0,
+        knockbackDeltaX: 0,
+        knockbackDeltaY: 0,
+        bounceRecoverySec: 0,
+        hazardId: swimmer.component.pistonContactHazardId ?? '',
+        forceAngleRad: 0,
+      };
+
+  if (pistonStrike.struck) {
+    const preBounceX = finalX;
+    const preBounceY = finalY;
+    finalX += pistonStrike.knockbackDeltaX;
+    finalY += pistonStrike.knockbackDeltaY;
+    // Re-sweep against rows so bounce cannot tunnel through orange walls.
+    const wallSafe = resolveSwimmerAgainstRows({
+      x: preBounceX,
+      y: preBounceY,
+      halfWidth: collisionHalfWidth,
+      halfHeight: collisionHalfHeight,
+      angle: collisionAngleRad,
+      deltaX: finalX - preBounceX,
+      deltaY: finalY - preBounceY,
+      rowDeltaY: 0,
+      rows: nearbyRows,
+      extraSolids: [],
+      container: {
+        centerX: container.centerX,
+        width: container.width,
+      },
+      blockSize: {
+        width: blockDimensions.width,
+        height: blockDimensions.height,
+      },
+      minX,
+      maxX,
+      kinematicHorizontal: true,
+    });
+    finalX = wallSafe.x;
+    finalY = wallSafe.y;
+  }
+
+  let pistonContactHazardId = swimmer.component.pistonContactHazardId;
+  if (pistonStrike.struck) {
+    pistonContactHazardId = pistonStrike.hazardId;
+  } else if (pistonContactHazardId) {
+    if (
+      !pistonStillOverlapping(
+        finalX,
+        finalY,
+        collisionHalfWidth,
+        collisionHalfHeight,
+        pistonContactHazardId,
+        pistonSolids
+      )
+    ) {
+      pistonContactHazardId = undefined;
+    }
+  }
 
   if (extraSolids.length > 0) {
     let shoveX = 0;
@@ -182,8 +314,14 @@ export const resolveSwimmerCollision = (
     }
   }
 
-  const isBlockedFromAbove = collisionResult.isPinnedFromAbove;
-  const isCollidingWithObstacle = collisionResult.isColliding;
+  const isBlockedFromAbove =
+    pendulumStrike.bypassPinState || pistonStrike.struck
+      ? false
+      : collisionResult.isPinnedFromAbove;
+  const isCollidingWithObstacle =
+    collisionResult.isColliding ||
+    pendulumStrike.struck ||
+    pistonStrike.struck;
 
   if (!wasPinnedFromAbove && isBlockedFromAbove) {
     eventQueue.addEvent({
@@ -248,10 +386,16 @@ export const resolveSwimmerCollision = (
         )
       : 0;
 
+  const strikeVisualAngle = pendulumStrike.struck
+    ? pendulumStrike.forceAngleRad
+    : pistonStrike.struck
+      ? pistonStrike.forceAngleRad
+      : visualAngleRad;
+
   return {
     finalX,
     finalY,
-    visualAngleRad,
+    visualAngleRad: strikeVisualAngle,
     collisionAngleRad,
     collisionResult,
     isBlockedFromAbove,
@@ -261,5 +405,8 @@ export const resolveSwimmerCollision = (
     minX,
     maxX,
     pinnedSlabSurfaceVelocityX: committedSlabSurfaceVelocityX,
+    pendulumStrike,
+    pistonStrike,
+    pistonContactHazardId,
   };
 };

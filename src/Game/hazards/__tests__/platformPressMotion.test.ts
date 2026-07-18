@@ -12,7 +12,7 @@ import {
   pressExtentAtLocalSec,
   simPlatformPress,
 } from '@/Game/hazards/platformPressMotion';
-import { TEST_COLS } from '@/Game/path/__tests__/testGrid';
+import { TEST_COLS, asPlatformSlabHazard, asPlatformSlabHazards } from '@/Game/path/__tests__/testGrid';
 
 describe('platformPressMotion', () => {
   const columns = TEST_COLS;
@@ -27,7 +27,7 @@ describe('platformPressMotion', () => {
 
   it('press extent grows with localSec and caps at pressCols', () => {
     const result = composePressIntroShaft({ seed: 42, difficulty01: 0.4, columns });
-    const hazard = result.hazards[0];
+    const hazard = asPlatformSlabHazard(result.hazards[0]);
     const duration = hazard.params.pressDurationSec ?? 1.4;
 
     const atRest = pressExtentAtLocalSec(hazard, 0);
@@ -42,7 +42,7 @@ describe('platformPressMotion', () => {
   it('effectiveGapsAtPressPhase matches full press at large localSec', () => {
     const result = composePressIntroShaft({ seed: 42, difficulty01: 0.4, columns });
     for (let rowIndex = 0; rowIndex < result.rows.length; rowIndex++) {
-      const hazard = hazardForRowIndex(result.hazards, rowIndex);
+      const hazard = hazardForRowIndex(asPlatformSlabHazards(result.hazards), rowIndex);
       if (!hazard) continue;
       const baseGaps = result.rows[rowIndex].gaps;
       const fullPress = effectiveGapsAtFullPress(baseGaps, hazard, rowIndex, columns);
@@ -59,7 +59,7 @@ describe('platformPressMotion', () => {
 
   it('partial press keeps wider gap than full press on slab rows', () => {
     const result = composePressIntroShaft({ seed: 42, difficulty01: 0.4, columns });
-    const hazard = result.hazards.find((h) => (h.params.pressCols ?? 1) >= 1);
+    const hazard = asPlatformSlabHazards(result.hazards).find((h) => (h.params.pressCols ?? 1) >= 1);
     expect(hazard).toBeDefined();
     if (!hazard) return;
     const rowIndex = hazard.bounds.rowStart;
@@ -86,7 +86,7 @@ describe('platformPressMotion', () => {
     const result = composePressIntroShaft({ seed: 42, difficulty01: 0.4, columns });
     const samples = [0, 0.25, 0.5, 0.75, 1, 2];
     for (let rowIndex = 0; rowIndex < result.rows.length; rowIndex++) {
-      const hazard = hazardForRowIndex(result.hazards, rowIndex);
+      const hazard = hazardForRowIndex(asPlatformSlabHazards(result.hazards), rowIndex);
       if (!hazard) continue;
       const baseGaps = result.rows[rowIndex].gaps;
       const duration = hazard.params.pressDurationSec ?? 1.4;
@@ -109,7 +109,7 @@ describe('platformPressMotion', () => {
 
   it('gapColsClosedByPressForCollision stays empty at telegraph (pressExtent 0)', () => {
     const result = composePressIntroShaft({ seed: 42, difficulty01: 0.4, columns });
-    const hazard = result.hazards[0];
+    const hazard = asPlatformSlabHazard(result.hazards[0]);
     const rowIndex = hazard.bounds.rowStart;
     const baseGaps = result.rows[rowIndex].gaps;
     const atTelegraph = simPlatformPress(hazard, columns, 0, rowIndex)!;
@@ -118,7 +118,7 @@ describe('platformPressMotion', () => {
 
   it('effectiveGapsAtPressPhase preserves base gaps at telegraph', () => {
     const result = composePressIntroShaft({ seed: 42, difficulty01: 0.4, columns });
-    const hazard = result.hazards[0];
+    const hazard = asPlatformSlabHazard(result.hazards[0]);
     const rowIndex = hazard.bounds.rowStart;
     const baseGaps = result.rows[rowIndex].gaps;
     expect(
@@ -128,7 +128,7 @@ describe('platformPressMotion', () => {
 
   it('gapColsClosedByPressForCollision does not close uninvaded corridor cols during partial press', () => {
     const result = composePressIntroShaft({ seed: 42, difficulty01: 0.4, columns });
-    const hazard = result.hazards[0];
+    const hazard = asPlatformSlabHazard(result.hazards[0]);
     const rowIndex = hazard.bounds.rowStart;
     const baseGaps = result.rows[rowIndex].gaps;
     const duration = hazard.params.pressDurationSec ?? 1.4;
@@ -141,7 +141,7 @@ describe('platformPressMotion', () => {
 
   it('gapColsClosedByPressForCollision closes invaded gap cols at full press', () => {
     const result = composePressIntroShaft({ seed: 42, difficulty01: 0.4, columns });
-    const hazard = result.hazards[0];
+    const hazard = asPlatformSlabHazard(result.hazards[0]);
     const rowIndex = hazard.bounds.rowStart;
     const baseGaps = result.rows[rowIndex].gaps;
     const duration = hazard.params.pressDurationSec ?? 1.4;
@@ -155,14 +155,14 @@ describe('platformPressMotion', () => {
 
   it('simPlatformPress returns null outside hazard band', () => {
     const result = composePressIntroShaft({ seed: 42, difficulty01: 0.4, columns });
-    const hazard = result.hazards[0];
+    const hazard = asPlatformSlabHazard(result.hazards[0]);
     expect(simPlatformPress(hazard, columns, 1, hazard.bounds.rowStart - 1)).toBeNull();
     expect(simPlatformPress(hazard, columns, 1, hazard.bounds.rowEnd + 1)).toBeNull();
   });
 
   it('hazardAnimLocalSecFromBeatRow is zero before animStartRow', () => {
     const result = composePressIntroShaft({ seed: 42, difficulty01: 0.4, columns });
-    const hazard = result.hazards[0];
+    const hazard = asPlatformSlabHazard(result.hazards[0]);
     const startRow = hazard.params.animStartRow ?? hazard.bounds.rowStart;
     const local = hazardAnimLocalSecFromBeatRow(
       hazard,

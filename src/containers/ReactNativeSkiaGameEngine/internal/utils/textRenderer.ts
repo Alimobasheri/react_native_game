@@ -80,7 +80,12 @@ export function buildParagraphForText(textComponent: TextComponentData) {
 
   const typeface = resolveTypeface(fontAssetId);
   if (!typeface) {
-    console.warn('Typeface not resolved for ID:', textComponent.fontAssetId);
+    const warned = (global._RNTGE_.fontResolveWarnings =
+      global._RNTGE_.fontResolveWarnings || {});
+    if (!warned[textComponent.fontAssetId]) {
+      warned[textComponent.fontAssetId] = true;
+      console.warn('Typeface not resolved for ID:', textComponent.fontAssetId);
+    }
     return null;
   }
 
@@ -161,6 +166,13 @@ export const paintParagraphAt = (
     paragraph.paint(canvas, 0, 0);
   }
   canvas.restore();
+  if (typeof (shadowPaint as { dispose?: () => void }).dispose === 'function') {
+    try {
+      (shadowPaint as { dispose: () => void }).dispose();
+    } catch {
+      // ignore
+    }
+  }
 };
 
 /**

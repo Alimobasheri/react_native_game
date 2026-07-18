@@ -42,6 +42,15 @@ export type ObstaclesManagerComponentData = {
   storyLockedShaftDifficulty?: number;
   /** When true, repeat the same shaft segment on template rollover (Slice 3). */
   storyLockShaftLoop?: boolean;
+  /**
+   * One-shot production shaft recipe (e.g. pistonFloor). Cleared after the segment
+   * finishes — does not persist like storyLockedShaftRecipe.
+   */
+  runtimeShaftRecipe?: StoryLockedShaftRecipe;
+  /** totalRowsGenerated when the last production piston insert was scheduled. */
+  lastPistonInsertTotalRows?: number;
+  /** Active gameplay time used to guarantee the first live piston insertion. */
+  pistonProductionElapsedSeconds?: number;
   templateInfo?: {
     currentTemplateName: string;
     currentTempalteTotalRow: number;

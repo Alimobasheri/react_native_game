@@ -25,6 +25,13 @@ export const applyWaterAdvection = (
 ): WaterAdvectionStep => {
   'worklet';
 
+  const knockbackFrames = swimmer.component.plungeOverrideFramesRemaining ?? 0;
+  const pistonRecovery =
+    swimmer.component.pistonBounceRecoverySecRemaining ?? 0;
+  if (knockbackFrames > 0 || pistonRecovery > 0) {
+    return { velocityX: horizontal.velocityX };
+  }
+
   let swimmerVelocityX = horizontal.velocityX;
   let currentResponse =
     1 -

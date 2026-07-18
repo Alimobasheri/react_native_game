@@ -160,6 +160,8 @@ export const createWaterLifecycleSystem = (params: {
               uCurveCenter: 0.5,
               uCurveAmp: 0,
               uCurveTilt: 0,
+              u_pendulumX: 0.5,
+              u_pendulumForce: 0,
               ...lightingUniforms,
             },
           },

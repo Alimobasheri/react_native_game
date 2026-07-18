@@ -133,7 +133,7 @@ STAGE N opens
 | **3** | Drawbridge Den | **Iris clamp** + **Tilt gate** | Variable-width closing | 6/8 vs 2/8 open presets; asymmetric flap timing |
 | **4** | Buzz Cavern | **Buzz wheel** | Drifting gap + pinwheel | Spin VFX; column/circle hitbox |
 | **5** | Pinball Vault | **Paddle set-piece** | Signature pinball hop | Phase 6; BOING zip |
-| **6** | Crush Tube | **Ceiling crusher** | Pin-heavy low air | TAP/SAVED! hero channel |
+| **6** | Crush Tube | **Vertical piston** (floor + ceiling) | Timing dodge via wait/rush | Bounce penalty; grey track telegraph; TAP if pin after bounce |
 | **7+** | *(pool)* | Mix 2 hazards / stage | Blueprint + `stageIndex` table | Expand after Slice 1–5 feel good |
 
 ### 4.3 REST as chapter punctuation
@@ -272,6 +272,30 @@ Covered by **§5.3 Vise rows** + optional **sliding gap** (§6.2) — sequences 
 **Behavior:** Timed row-attached machinery mask; optional flow force into shrinking lane. Recipes: teach single, pinball pair, stack cascade, opposite-wall squeeze.
 
 **Full spec + slices:** [platform-shaft-roadmap.md](./platform-shaft-roadmap.md) — do not duplicate here.
+
+---
+
+### 5.7 Vertical piston (track-mounted timing gate)
+
+**IDs:** `hazard_piston`  
+**Player name:** **Piston!** / "Crush tube"
+
+**Visual:** Thin dark-grey (`#555555`) vertical track + crimson elongated head. Track visible the moment the row enters. Head telegraphs with a bright pulse (~0.5s) before motion. Machinery art — **not** orange clay (SH-011).
+
+**Behavior:**
+
+| Mount | Player verb |
+|-------|-------------|
+| **Floor** | Wait — water lifts you above the tip, then tap across |
+| **Ceiling** | Rush — dart under before it descends |
+
+Ping-pong ease-in-out along track; speed in rows/sec independent of water. Collision = **bounce** (away-X + down-Y), never instant kill. Grey track = 100% path predictability.
+
+**Fairness:** Inner cols 1–4 only; ≥2 clear rows beyond max extension; adjacent escape column open; rest gaps stay connected for water. Spawns after `gapDifficulty01 > 0.35` in FLOW / early TENSION only.
+
+**Architecture + deferred juice:** [moving-hazard-system-architecture.md](./moving-hazard-system-architecture.md) §6.1; `platformShaftTODO.ts` PS-TODO-006…012.
+
+**Story locks:** `LockedPistonFloorLoop` / `LockedPistonCeilingLoop` in `Swimmer.stories.tsx`.
 
 ---
 
@@ -608,6 +632,7 @@ Phase 2 REST coins + preview ghost (parallel art)
 | 2026-07-04 | v1.0 — Initial roadmap: stage chapter model, hazard catalog (iris, tilt, vise, buzz wheel), survival heat pivot, flow streak deprecation, implementation slices, research refs |
 | 2026-07-04 | v1.1 — **SH-011** moving platforms = machinery art (compressor pans, metal flaps, vise jaws) — **not** orange cave blocks; §5.0 visual identity; engineering render split |
 | 2026-07-04 | v1.2 — **SH-007** corrected to **6-column** grid; §5.6 press platforms stub; link to [platform-shaft-roadmap.md](./platform-shaft-roadmap.md); Q6–Q7 open questions |
+| 2026-07-18 | v1.3 — §5.7 Vertical piston; Stage 6 Crush Tube = floor/ceiling piston timing gate (gameplay-complete; polish deferred) |
 
 ---
 

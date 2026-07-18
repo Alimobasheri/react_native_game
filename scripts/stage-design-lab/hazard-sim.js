@@ -267,6 +267,82 @@
     return { gaps, blocks: blocksFromGaps(columns, gaps), draw: { kind: "pattern_sliding_gap", center, step } };
   }
 
+  /** Smoothstep — must match pistonEaseInOut in src/Game/hazards/pistonMotion.ts. */
+  function pistonEaseInOut(t) {
+    const x = clamp(t, 0, 1);
+    return x * x * (3 - 2 * x);
+  }
+
+  /** Ping-pong 0..1: extend (ease) → hold at tip → retract (ease). Mirrors pistonExtension01. */
+  function pistonExtension01(motionSec, speedRowsPerSec, trackLengthRows, holdAtTipSec) {
+    const speed = Math.max(0.05, speedRowsPerSec);
+    const track = Math.max(0.25, trackLengthRows);
+    const travelSec = track / speed;
+    const hold = Math.max(0, holdAtTipSec);
+    const halfCycle = travelSec + hold;
+    const fullCycle = halfCycle * 2;
+    if (fullCycle <= 0.001) return 0;
+    const t = ((motionSec % fullCycle) + fullCycle) % fullCycle;
+    if (t <= travelSec) return pistonEaseInOut(t / travelSec);
+    if (t <= halfCycle) return 1;
+    const retractT = t - halfCycle;
+    if (retractT <= travelSec) return 1 - pistonEaseInOut(retractT / travelSec);
+    return 0;
+  }
+
+  function simPiston(hazard, columns, localSec, doc) {
+    const p = hazard.params || {};
+    const b = hazard.bounds || {};
+    const mount = p.mount === "ceiling" ? "ceiling" : "floor";
+    const rowStart = b.rowStart ?? 0;
+    const rowEnd = b.rowEnd ?? rowStart;
+    const spanRows = rowEnd - rowStart + 1;
+    const column = clamp(Math.round(p.column ?? b.colStart ?? 0), 0, columns - 1);
+    const trackRows = Math.max(0.5, Number(p.trackLengthRows) || Math.max(1, spanRows - 1));
+    const rowHeight = doc.playback?.rowHeightPx || doc.grid?.rowHeightPx || 24;
+    const speedPx = doc.playback?.waterSpeedPxPerSec || doc.stage?.waterSpeedPxPerSec || 350;
+    const rowDurationSec = rowHeight / Math.max(1, speedPx);
+    const telegraphSec = Math.max(0, Number(p.telegraphDelayRows) || 0) * rowDurationSec;
+    const pulseSec = 0.5;
+    const motionStarted = localSec >= telegraphSec;
+    const motionSec = motionStarted ? localSec - telegraphSec : 0;
+
+    let telegraphPulse01 = 0;
+    if (!motionStarted && telegraphSec > 0 && localSec > 0) {
+      const remaining = telegraphSec - localSec;
+      if (remaining <= pulseSec) {
+        const pulseT = 1 - remaining / pulseSec;
+        telegraphPulse01 = 0.5 + 0.5 * Math.sin(pulseT * Math.PI * 6);
+      }
+    }
+
+    const extension01 = motionStarted
+      ? pistonExtension01(
+          motionSec,
+          Number(p.speedRowsPerSec) || 1.5,
+          trackRows,
+          p.holdAtTipSec != null ? Number(p.holdAtTipSec) : 0.18
+        )
+      : 0;
+
+    return {
+      // Bounce hazard — never seals gaps; water/gap masks stay untouched.
+      gaps: null,
+      blocks: null,
+      draw: {
+        kind: "hazard_piston",
+        mount,
+        column,
+        extension01,
+        trackRows,
+        mountRow: mount === "floor" ? rowStart : rowEnd,
+        rowSpan: spanRows,
+        telegraphPulse01,
+        motionStarted,
+      },
+    };
+  }
+
   function platformSlabExtents(b, pressDir, pressExtent, columns) {
     let slabStart = b.colStart;
     let slabEnd = b.colEnd + 1;
@@ -383,6 +459,17 @@
             hazardDraws.push({ hazardId: hz.id, globalRowIndex: r, ...sim.draw });
           }
         }
+        continue;
+      }
+
+      if (kind === "hazard_piston") {
+        const local = hazardAnimLocalSec(doc, hz, elapsedSec);
+        const sim = simPiston(hz, columns, local, doc);
+        const mountRow = sim.draw.mountRow;
+        if (perRow[mountRow]) {
+          perRow[mountRow].machinery.push({ hazardId: hz.id, ...sim.draw });
+        }
+        hazardDraws.push({ hazardId: hz.id, globalRowIndex: mountRow, ...sim.draw });
         continue;
       }
 

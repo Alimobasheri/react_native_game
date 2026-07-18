@@ -65,6 +65,10 @@ export type WaterComponentData = {
   surfaceCurveTilt?: number; // smoothed directional tilt in UV units
   /** 0 = idle polish surface, 1 = full gameplay gap/surge surface. */
   visualIntensity?: number;
+  /** Normalized X (0–1) of active pendulum head for water trough shader. */
+  pendulumXNorm?: number;
+  /** Pendulum kinetic pressure 0–1 driving localized trough depth. */
+  pendulumForce?: number;
 };
 
 export const createWaterComponent = (

@@ -52,13 +52,13 @@ export const ensureAccessoryState = (
   return createDefaultAccessoryState(type);
 };
 
-export const updateSecondaryAccessory = (
+export function updateSecondaryAccessory(
   type: SecondaryItemType,
   weight: number,
   state: SecondaryItemPersistedState,
   args: SecondaryAccessoryUpdateArgs,
   sink: SecondaryItemLayerSink | null
-): SecondaryItemPersistedState => {
+): SecondaryItemPersistedState {
   'worklet';
   if (state.kind === 'LaggingSpring' && type === 'LaggingSpring') {
     if (args.crestLayerHeight !== undefined) {
@@ -118,7 +118,7 @@ export const updateSecondaryAccessory = (
 
   const freshState = createDefaultAccessoryState(type);
   return updateSecondaryAccessory(type, weight, freshState, args, sink);
-};
+}
 
 export const notifySecondaryAccessoryPivotImpact = (
   type: SecondaryItemType,

@@ -51,6 +51,24 @@
       params: { mode: "drift", spinRpm: 120 },
     },
     {
+      kind: "hazard_piston",
+      playerFlash: "Piston!",
+      templateName: "Vertical piston",
+      description:
+        "Grey track + crimson head in ONE column. Drag tall: bottom row = floor mount (or top row = ceiling mount), remaining rows = stroke. Bounce hazard — does not seal gaps.",
+      wizardFn: null,
+      defaultRows: 3,
+      defaultCols: 1,
+      icon: "piston",
+      params: {
+        mount: "floor",
+        trackLengthRows: 1.5,
+        speedRowsPerSec: 1.5,
+        holdAtTipSec: 0.18,
+        telegraphDelayRows: 1.0,
+      },
+    },
+    {
       kind: "pattern_sliding_gap",
       playerFlash: "",
       templateName: "Drifting lane",

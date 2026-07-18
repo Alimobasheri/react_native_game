@@ -466,6 +466,15 @@
       if (kind === "hazard_buzz_wheel") {
         params.column = (b.colStart + b.colEnd) / 2;
       }
+      if (kind === "hazard_piston") {
+        // One column only; drag height = mount row + stroke rows.
+        b.colEnd = b.colStart;
+        params.column = b.colStart;
+        params.mount = params.mount === "ceiling" ? "ceiling" : "floor";
+        if (extra?.params?.trackLengthRows == null) {
+          params.trackLengthRows = Math.max(1, rowSpan - 1);
+        }
+      }
       const phases =
         extra?.phases ||
         (kind === "hazard_platform"
@@ -486,13 +495,14 @@
                 { name: "closed", durationSec: 0.25 },
               ]
             : []);
+      // Spread extra first — merged params/phases must win over raw extra.params.
       return addHazard({
+        ...extra,
         kind,
         bounds: b,
         anchor: { globalRowIndex: b.rowStart },
         params,
         phases,
-        ...extra,
       });
     }
 
@@ -711,6 +721,22 @@
           { params: { pressDirection: "left", pressCols: 2, pressDurationSec: 0.9 } }
         );
         return { placed: "platforms" };
+      }
+      if (preset.signatureHazardId === "hazard_piston") {
+        // Crush Tube teach pair: floor "wait" piston, then ceiling "rush" piston.
+        const columns = doc.grid.columns;
+        const row = Math.max(0, doc.flattened.totalRows - 8);
+        createHazardInBounds(
+          "hazard_piston",
+          { rowStart: row, rowEnd: row + 2, colStart: 1, colEnd: 1 },
+          { params: { mount: "floor", trackLengthRows: 1.5, speedRowsPerSec: 1.5 } }
+        );
+        createHazardInBounds(
+          "hazard_piston",
+          { rowStart: row + 4, rowEnd: row + 6, colStart: Math.min(columns - 2, 4), colEnd: Math.min(columns - 2, 4) },
+          { params: { mount: "ceiling", trackLengthRows: 1.5, speedRowsPerSec: 1.5 } }
+        );
+        return { placed: "pistons" };
       }
       if (preset.signatureHazardId === "hazard_iris_clamp") {
         return applyWizard("irisClampRow", { preset: "narrowPreset" }, { macroPhase: "climax", label: "Iris clamp" });

@@ -147,6 +147,9 @@ const restartGameplay = (
         m.templateInfo = undefined;
         m.lastObstacleRowGenLogKey = undefined;
         m.lastPlayerDiagCenterRowEntity = null;
+        m.runtimeShaftRecipe = undefined;
+        m.lastPistonInsertTotalRows = undefined;
+        m.pistonProductionElapsedSeconds = 0;
       }
     );
   }
@@ -231,6 +234,11 @@ const restartGameplay = (
           s.movementBlockedThisFrame = false;
           s.sideBlockedDirection = 0;
           s.fallingVelocityY = 0;
+          s.plungeOverrideFramesRemaining = 0;
+          s.pendulumKnockbackActive = false;
+          s.pendulumForceAngleRad = undefined;
+          s.pistonContactHazardId = undefined;
+          s.pistonBounceRecoverySecRemaining = 0;
           s.gameOverDispatched = false;
           s.angle = 0;
           s.bobbingPhase = 0;

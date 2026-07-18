@@ -63,4 +63,6 @@ export const syncWaterShaderGameplayUniforms = (
   uniforms.uCurveAmp = water.surfaceCurveAmp ?? 0.008;
   uniforms.uCurveTilt = water.surfaceCurveTilt ?? 0;
   uniforms.uVisualIntensity = water.visualIntensity ?? 1;
+  uniforms.u_pendulumX = water.pendulumXNorm ?? 0.5;
+  uniforms.u_pendulumForce = water.pendulumForce ?? 0;
 };

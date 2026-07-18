@@ -47,6 +47,66 @@ import { TextComponentData, TextComponentName } from '../components/text';
 import { renderTextForEntity } from '../utils/textRenderer';
 import { SceneComponentData, SceneComponentName } from '../components/scene';
 
+/**
+ * Web CanvasKit: JS GC cannot free WASM heap. PictureRecorder / SkPicture / Paint
+ * must be disposed explicitly or the heap grows until Aborted() freezes the canvas.
+ * Native dispose is a safe no-op / ref.delete — always call it.
+ */
+const disposeSkiaObject = (obj: { dispose?: () => void } | null | undefined) => {
+  'worklet';
+  if (obj && typeof obj.dispose === 'function') {
+    try {
+      obj.dispose();
+    } catch {
+      // Already deleted or unsupported — ignore.
+    }
+  }
+};
+
+const finishPictureAndDisposeRecorder = (
+  recorder: ReturnType<typeof Skia.PictureRecorder>
+): SkPicture => {
+  'worklet';
+  const picture = recorder.finishRecordingAsPicture();
+  disposeSkiaObject(recorder);
+  return picture;
+};
+
+/**
+ * Queue SkPictures for dispose on the *next* frame.
+ * Same-frame dispose races with: (1) the previous root picture still holding
+ * drawPicture refs, and (2) RenderEntities' SharedValue still pointing at the
+ * last frame's root. Immediate dispose → CanvasKit Aborted().
+ */
+const enqueuePictureDispose = (picture: SkPicture | null | undefined) => {
+  'worklet';
+  if (!picture) return;
+  if (!global._RNTGE_._pictureDisposeQueue) {
+    global._RNTGE_._pictureDisposeQueue = [];
+  }
+  global._RNTGE_._pictureDisposeQueue.push(picture);
+};
+
+/**
+ * Two-stage flush: dispose only pictures queued ≥2 frames ago. A derived value
+ * computed just before the root swap can still draw last frame's picture on the
+ * following frame — one frame of delay is not always enough on web CanvasKit.
+ */
+const flushPictureDisposeQueue = () => {
+  'worklet';
+  const ready = global._RNTGE_._pictureDisposeReady as
+    | SkPicture[]
+    | undefined;
+  if (ready && ready.length > 0) {
+    for (let i = 0; i < ready.length; i++) {
+      disposeSkiaObject(ready[i]);
+    }
+  }
+  global._RNTGE_._pictureDisposeReady =
+    global._RNTGE_._pictureDisposeQueue ?? [];
+  global._RNTGE_._pictureDisposeQueue = [];
+};
+
 type RenderShape =
   | RenderShapeRectangle
   | RenderShapeCircle
@@ -133,23 +193,24 @@ const drawImageRectWithShadow = (
 
   const filter = shadowOnly
     ? Skia.ImageFilter.MakeDropShadowOnly(
-        dx,
-        dy,
-        sigma,
-        sigma,
-        shadowColor,
-        null
-      )
+      dx,
+      dy,
+      sigma,
+      sigma,
+      shadowColor,
+      null
+    )
     : Skia.ImageFilter.MakeDropShadow(
-        dx,
-        dy,
-        sigma,
-        sigma,
-        shadowColor,
-        null
-      );
+      dx,
+      dy,
+      sigma,
+      sigma,
+      shadowColor,
+      null
+    );
   shadowPaint.setImageFilter(filter);
   canvas.drawImageRect(image, sourceRect, destRect, shadowPaint);
+  disposeSkiaObject(shadowPaint);
 
   if (shadowOnly) {
     canvas.drawImageRect(image, sourceRect, destRect, paint);
@@ -393,7 +454,7 @@ const createAndCacheStaticShaderPicture = (
     Skia.XYWHRect(-width / 2, -height / 2, width, height)
   );
   drawShaderPath(canvas, renderData, effect, path);
-  return recorder.finishRecordingAsPicture();
+  return finishPictureAndDisposeRecorder(recorder);
 };
 
 const getSpriteFrameInfo = (
@@ -512,6 +573,7 @@ const drawDrawableContent = (
         blendMode,
         drawData.imageShadow
       );
+      disposeSkiaObject(paint);
     } else {
       const errorPaint = Skia.Paint();
       errorPaint.setColor(Skia.Color('magenta'));
@@ -527,6 +589,7 @@ const drawDrawableContent = (
         Skia.XYWHRect(-size / 2, -size / 2, size, size),
         errorPaint
       );
+      disposeSkiaObject(errorPaint);
     }
     return;
   }
@@ -543,6 +606,7 @@ const drawDrawableContent = (
       fillPaint.setAlphaf(drawData.opacity);
     }
     canvas.drawPath(skPath, fillPaint);
+    disposeSkiaObject(fillPaint);
 
     if (drawData.strokeColor) {
       const strokePaint = Skia.Paint();
@@ -553,6 +617,7 @@ const drawDrawableContent = (
         strokePaint.setAlphaf(drawData.opacity);
       }
       canvas.drawPath(skPath, strokePaint);
+      disposeSkiaObject(strokePaint);
     }
   }
 };
@@ -625,8 +690,9 @@ const drawGroupLayersToCanvas = (
     height + shadowPad * 2
   );
 
+  let layerPaint: ReturnType<typeof Skia.Paint> | null = null;
   if (gooey) {
-    const layerPaint = Skia.Paint();
+    layerPaint = Skia.Paint();
     layerPaint.setImageFilter(createGooeyImageFilter(gooey));
     canvas.saveLayer(layerPaint, bounds);
   }
@@ -663,6 +729,7 @@ const drawGroupLayersToCanvas = (
 
   if (gooey) {
     canvas.restore();
+    disposeSkiaObject(layerPaint);
   }
 };
 
@@ -691,7 +758,7 @@ const createAndCacheGroupPicture = (
 
   drawGroupLayersToCanvas(canvas, renderData, spriteComponent);
 
-  return recorder.finishRecordingAsPicture();
+  return finishPictureAndDisposeRecorder(recorder);
 };
 
 const createAndCacheEntityPicture = (
@@ -723,13 +790,16 @@ const createAndCacheEntityPicture = (
       renderData,
       { ...textComponent, textShadow: undefined }
     );
-    if (!text) return null;
+    if (!text) {
+      disposeSkiaObject(recorder);
+      return null;
+    }
   } else {
     const spriteComponent = components[SpriteComponentName]?.get(entityId);
     drawDrawableContent(canvas, renderData, spriteComponent);
   }
 
-  return recorder.finishRecordingAsPicture();
+  return finishPictureAndDisposeRecorder(recorder);
 };
 
 export const renderSystem: System = {
@@ -737,6 +807,9 @@ export const renderSystem: System = {
   requiredComponents: [],
   process: ({ entities, components, eventQueue, deltaTime, ecs, dimensions }) => {
     'worklet';
+
+    // Free pictures queued last frame (now safe — no live draw refs).
+    flushPictureDisposeQueue();
 
     if (!global._RNTGE_.picture || !global._RNTGE_.pictureCache) {
       global._RNTGE_.picture = null;
@@ -758,8 +831,10 @@ export const renderSystem: System = {
     const sceneStore = components[SceneComponentName];
     const renderStore = components[RenderComponentName];
     if (!sceneStore || !renderStore) {
-      const newPicture = recorder.finishRecordingAsPicture();
+      const newPicture = finishPictureAndDisposeRecorder(recorder);
+      const prevPicture = global._RNTGE_.picture;
       global._RNTGE_.picture = newPicture;
+      enqueuePictureDispose(prevPicture);
       return;
     }
 
@@ -875,8 +950,12 @@ export const renderSystem: System = {
                   effect
                 );
                 if (newEntityPicture) {
+                  const prevEntityPicture = entityPicture;
                   pictureCache[entity] = newEntityPicture;
                   entityPicture = newEntityPicture;
+                  if (prevEntityPicture && prevEntityPicture !== newEntityPicture) {
+                    enqueuePictureDispose(prevEntityPicture);
+                  }
                 }
               }
               if (entityPicture) {
@@ -885,8 +964,12 @@ export const renderSystem: System = {
             } else {
               let path = pictureCache[entity] as SkPath;
               if (!path || renderData.isDirty) {
+                const prevPath = path;
                 path = createPathFromShape(renderData) as SkPath;
                 pictureCache[entity] = path;
+                if (prevPath && prevPath !== path) {
+                  disposeSkiaObject(prevPath);
+                }
               }
               if (path) {
                 drawShaderPath(canvas, renderData, effect, path);
@@ -911,8 +994,17 @@ export const renderSystem: System = {
                 entity
               );
               if (newEntityPicture) {
+                const prevEntityPicture = entityPicture;
                 pictureCache[entity] = newEntityPicture;
                 entityPicture = newEntityPicture;
+                // Animated sprites rebuild every frame — queue old picture for
+                // next-frame dispose (still referenced by previous root).
+                if (
+                  prevEntityPicture &&
+                  prevEntityPicture !== newEntityPicture
+                ) {
+                  enqueuePictureDispose(prevEntityPicture);
+                }
               }
             }
 
@@ -927,7 +1019,11 @@ export const renderSystem: System = {
       }
     }
 
-    const newPicture = recorder.finishRecordingAsPicture();
+    const newPicture = finishPictureAndDisposeRecorder(recorder);
+    const prevPicture = global._RNTGE_.picture;
     global._RNTGE_.picture = newPicture;
+    // Root picture may still be referenced by RenderEntities' derived value /
+    // in-flight draw — never dispose same-frame (deleted sk_sp<Picture> crash).
+    enqueuePictureDispose(prevPicture);
   }
 };

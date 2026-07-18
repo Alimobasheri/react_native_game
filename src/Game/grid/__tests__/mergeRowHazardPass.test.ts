@@ -16,7 +16,7 @@ import { WaterComponentName } from '@/Game/ecs-components/Water';
 import { ObstaclesManagerComponentName } from '@/Game/ecs-components/ObstaclesManager';
 import { GameSessionComponentName } from '@/Game/ecs-components/GameSession';
 import { RenderComponentName } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
-import { TEST_COLS } from '@/Game/path/__tests__/testGrid';
+import { TEST_COLS, asPlatformSlabHazard } from '@/Game/path/__tests__/testGrid';
 import { waterTransitionBandFromSurface } from '@/Game/grid/waterTransitionBand';
 import type { ECS } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/ecs';
 import type { ComponentStore } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/component';
@@ -25,7 +25,7 @@ describe('mergeRowHazardPass', () => {
   const blockHeight = 60;
   const rowPitch = getObstacleRowPitch(blockHeight);
   const beat = composePressIntroShaft({ seed: 42, difficulty01: 0.4, columns: TEST_COLS });
-  const hazard = beat.hazards[0];
+  const hazard = asPlatformSlabHazard(beat.hazards[0]);
   const rowStart = hazard.bounds.rowStart;
   const rowEnd = hazard.bounds.rowEnd;
 

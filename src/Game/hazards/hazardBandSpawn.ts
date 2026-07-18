@@ -16,6 +16,8 @@ import {
 } from '@/Game/ecs-components/HazardBandMember';
 import type { PlatformShaftTemplateCtx } from '@/Game/path/platformShaft/platformShaftRowPathTemplate';
 import type {
+  PendulumHazard,
+  PistonHazard,
   PlatformShaftHazard,
   PlatformSlabHazard,
   PivotHazard,
@@ -207,6 +209,56 @@ const trySpawnOrGrowPivotBand = (
   });
 };
 
+const trySpawnOrGrowPendulumBand = (
+  ecs: ECS,
+  hazard: PendulumHazard,
+  rowStore: ComponentStore<ObstacleRowComponentData>,
+  spawned: string[],
+  shaftSegmentEpoch?: number
+): boolean => {
+  'worklet';
+  return growOrCreateBand(ecs, hazard, rowStore, spawned, shaftSegmentEpoch, (leadEntity, rowEntityIds) => {
+    ecs.addComponent(
+      leadEntity,
+      createHazardBandLeadComponent({
+        kind: 'pendulum',
+        modifierId: hazard.id,
+        hazardId: hazard.id,
+        bounds: gridSpanFromHazard(hazard),
+        pendulumParams: hazard.params,
+        memberRowEntityIds: rowEntityIds,
+        shaftSegmentEpoch,
+        spawnTimeMs: performance.now(),
+      })
+    );
+  });
+};
+
+const trySpawnOrGrowPistonBand = (
+  ecs: ECS,
+  hazard: PistonHazard,
+  rowStore: ComponentStore<ObstacleRowComponentData>,
+  spawned: string[],
+  shaftSegmentEpoch?: number
+): boolean => {
+  'worklet';
+  return growOrCreateBand(ecs, hazard, rowStore, spawned, shaftSegmentEpoch, (leadEntity, rowEntityIds) => {
+    ecs.addComponent(
+      leadEntity,
+      createHazardBandLeadComponent({
+        kind: 'piston',
+        modifierId: hazard.id,
+        hazardId: hazard.id,
+        bounds: gridSpanFromHazard(hazard),
+        pistonParams: hazard.params,
+        memberRowEntityIds: rowEntityIds,
+        shaftSegmentEpoch,
+        spawnTimeMs: performance.now(),
+      })
+    );
+  });
+};
+
 const trySpawnOrGrowHazardBand = (
   ecs: ECS,
   hazard: PlatformShaftHazard,
@@ -217,6 +269,12 @@ const trySpawnOrGrowHazardBand = (
   'worklet';
   if (hazard.kind === 'hazard_pivot') {
     return trySpawnOrGrowPivotBand(ecs, hazard, rowStore, spawned, shaftSegmentEpoch);
+  }
+  if (hazard.kind === 'hazard_pendulum') {
+    return trySpawnOrGrowPendulumBand(ecs, hazard, rowStore, spawned, shaftSegmentEpoch);
+  }
+  if (hazard.kind === 'hazard_piston') {
+    return trySpawnOrGrowPistonBand(ecs, hazard, rowStore, spawned, shaftSegmentEpoch);
   }
   return trySpawnOrGrowPlatformSlabBand(ecs, hazard, rowStore, spawned, shaftSegmentEpoch);
 };

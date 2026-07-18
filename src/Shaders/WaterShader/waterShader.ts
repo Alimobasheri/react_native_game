@@ -56,6 +56,8 @@ export const waveShaderUniforms = `
   uniform float uCurveCenter;
   uniform float uCurveAmp;
   uniform float uCurveTilt;
+  uniform float u_pendulumX;
+  uniform float u_pendulumForce;
   ${waterLightingUniforms}
 `;
 
@@ -284,9 +286,17 @@ export const waveShaderMainFunc = `
       directionalFlowBoost *
       (mix(0.0042, 0.032, pressFlowMask) + 0.0061 * surgeEnergy * pressFlowMask) *
       curveInfluence;
+    float pendulumTroughWidth = max(0.04, displayGapWidth * 0.22);
+    float pendulumDist = (containerUV.x - clamp(u_pendulumX, 0.0, 1.0)) / pendulumTroughWidth;
+    float pendulumDip =
+      exp(-pendulumDist * pendulumDist * 3.2) *
+      clamp(u_pendulumForce, 0.0, 1.0) *
+      uTroughDepth *
+      1.6 *
+      activeBandMask;
     float idleOffset = computeIdleSurfaceOffset(containerUV);
     float gameplayDelta =
-      (centerCurve + directionalTilt) * curveInfluence + calmRipples - edgeBend + flowLean;
+      (centerCurve + directionalTilt) * curveInfluence + calmRipples - edgeBend + flowLean - pendulumDip;
     float visualIntensity = clamp(uVisualIntensity, 0.0, 1.0);
     // Body stays full-width; only the surface line bulges/tilts in the row band.
     float finalSurface = clamp(

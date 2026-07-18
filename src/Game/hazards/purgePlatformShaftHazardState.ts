@@ -15,6 +15,7 @@ import {
 } from '@/Game/ecs-components/HazardBandLead';
 import { HazardBandMemberComponentName } from '@/Game/ecs-components/HazardBandMember';
 import { removePivotArmEntities } from '@/Game/hazards/pivotArmSpawn';
+import { removePendulumHeadEntities } from '@/Game/hazards/pendulumHeadSpawn';
 import { restoreOrangeOnlyHazardRowRender } from '@/Game/render/appendHazardSteelToRowRender';
 import {
   RemoveEntityBatchRequest,
@@ -42,6 +43,9 @@ export const purgePlatformShaftHazardsAndEffectiveGaps = (args: {
         if (lead.kind === 'pivot') {
           removePivotArmEntities({ ecs, components, leadData: lead });
         }
+        if (lead.kind === 'pendulum') {
+          removePendulumHeadEntities({ ecs, components, leadData: lead });
+        }
         if (renderStore && rowStoreForPurge) {
           const renderData = renderStore.get(leadEnt) as RenderComponentData | undefined;
           const leadRow = rowStoreForPurge.get(leadEnt);
@@ -52,7 +56,10 @@ export const purgePlatformShaftHazardsAndEffectiveGaps = (args: {
             });
             ecs.updateComponent<RenderComponentData>(leadEnt, RenderComponentName, (render) => {
               render.renderLayers = restored.renderLayers;
-              render.position = { ...render.position, y: restored.positionY };
+              render.position = {
+                x: render.position?.x ?? 0,
+                y: restored.positionY,
+              };
               render.isDirty = true;
             });
           }

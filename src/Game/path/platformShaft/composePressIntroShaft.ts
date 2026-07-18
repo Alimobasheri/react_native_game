@@ -8,7 +8,7 @@ import {
   appendSlabEvent,
   createComposeCtx,
   difficultyBand,
-  finalizeRecipeOutput,
+  finalizePlatformSlabRecipeOutput,
 } from '@/Game/path/platformShaft/recipeCompose';
 import { appendCorridorRows, lerpTeachEscalation } from '@/Game/path/platformShaft/primitives';
 import type {
@@ -141,7 +141,7 @@ export const composePressIntroShaft = (
     macroPhase: 'release',
   });
 
-  return finalizeRecipeOutput(
+  return finalizePlatformSlabRecipeOutput(
     ctx,
     { gapWidthCols: gapW, oppositeWallInset: 0 },
     {

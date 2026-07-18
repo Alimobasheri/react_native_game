@@ -8,7 +8,7 @@ import {
   appendSlabEvent,
   createComposeCtx,
   difficultyBand,
-  finalizeRecipeOutput,
+  finalizePlatformSlabRecipeOutput,
 } from '@/Game/path/platformShaft/recipeCompose';
 import { appendCorridorRows, lerpPinballEscalation } from '@/Game/path/platformShaft/primitives';
 import type {
@@ -94,7 +94,7 @@ export const pressPinballPair = (
     macroPhase: 'release',
   });
 
-  return finalizeRecipeOutput(
+  return finalizePlatformSlabRecipeOutput(
     ctx,
     { gapWidthCols: gapW, oppositeWallInset: 0 },
     {

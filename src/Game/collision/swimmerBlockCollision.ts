@@ -7,7 +7,15 @@ import { ObstacleRowComponentData } from '@/Game/ecs-components/ObstacleRowCompo
 import {
   HazardBandLeadComponentData,
 } from '@/Game/ecs-components/HazardBandLead';
+import { MatterBodyComponentName } from '@/containers/ReactNativeSkiaGameEngine/internal/components/matterBody';
 import { pivotArmAabbsFromLead } from '@/Game/grid/mergePivotHazardPass';
+import { pendulumHeadSolidsFromLead } from '@/Game/hazards/mergePendulumHazardPass';
+import {
+  pistonHeadSolidFromLead,
+  type PistonHeadSolid,
+} from '@/Game/hazards/mergePistonHazardPass';
+
+export type { PistonHeadSolid };
 
 /** Axis-aligned bounding box in world pixels. */
 export type AABB = {
@@ -21,6 +29,15 @@ export type PivotArmSolid = {
   aabb: AABB;
   velocityX: number;
   velocityY: number;
+};
+
+export type PendulumHeadSolid = {
+  aabb: AABB;
+  velocityX: number;
+  velocityY: number;
+  leadEntityId: number;
+  strikeProfile?: string;
+  impulseOverride?: number;
 };
 
 export type CollisionRow = {
@@ -329,6 +346,128 @@ export function collectPivotArmSolidsNearSwimmer(
     );
     for (let i = 0; i < armSolids.length; i++) {
       out.push(armSolids[i]);
+    }
+  });
+  return out;
+}
+
+export function collectPistonHeadSolidsNearSwimmer(
+  leadStore: ComponentStore<HazardBandLeadComponentData> | undefined,
+  rowStore: ComponentStore<ObstacleRowComponentData>,
+  swimmerY: number,
+  swimmerHalfHeight: number,
+  rowHeight: number,
+  leftX: number,
+  columnWidth: number,
+  blockHeight: number,
+  rowDurationSec: number
+): PistonHeadSolid[] {
+  'worklet';
+  if (!leadStore) {
+    return [];
+  }
+  const band = rowHeight + swimmerHalfHeight + rowHeight;
+  const out: PistonHeadSolid[] = [];
+
+  leadStore.forEach((leadEnt: Entity, leadData: HazardBandLeadComponentData) => {
+    if (leadData.kind !== 'piston' || !leadData.pistonParams) {
+      return;
+    }
+    const memberYs: number[] = [];
+    for (let i = 0; i < leadData.memberRowEntityIds.length; i++) {
+      const row = rowStore.get(leadData.memberRowEntityIds[i]);
+      if (row) {
+        memberYs.push(row.y);
+      }
+    }
+    if (memberYs.length === 0) {
+      return;
+    }
+    let hubY = 0;
+    for (let i = 0; i < memberYs.length; i++) {
+      hubY += memberYs[i];
+    }
+    hubY /= memberYs.length;
+    if (Math.abs(hubY - swimmerY) >= band * 3) {
+      return;
+    }
+    const solid = pistonHeadSolidFromLead(
+      leadEnt,
+      leadData,
+      memberYs,
+      leftX,
+      columnWidth,
+      blockHeight,
+      rowDurationSec
+    );
+    if (solid) {
+      out.push(solid);
+    }
+  });
+  return out;
+}
+
+export function collectPendulumHeadSolidsNearSwimmer(
+  leadStore: ComponentStore<HazardBandLeadComponentData> | undefined,
+  components: Record<string, ComponentStore<unknown>>,
+  rowStore: ComponentStore<ObstacleRowComponentData>,
+  swimmerY: number,
+  swimmerHalfHeight: number,
+  rowHeight: number,
+  leftX: number,
+  columnWidth: number,
+  blockHeight: number,
+  rowLength: number
+): PendulumHeadSolid[] {
+  'worklet';
+  if (!leadStore) {
+    return [];
+  }
+  const band = rowHeight + swimmerHalfHeight + rowHeight;
+  const out: PendulumHeadSolid[] = [];
+  const matterStore = components[MatterBodyComponentName] as
+    | ComponentStore<Matter.Body>
+    | undefined;
+
+  leadStore.forEach((leadEnt: Entity, leadData: HazardBandLeadComponentData) => {
+    if (leadData.kind !== 'pendulum' || !leadData.pendulumParams) {
+      return;
+    }
+    const memberYs: number[] = [];
+    for (let i = 0; i < leadData.memberRowEntityIds.length; i++) {
+      const row = rowStore.get(leadData.memberRowEntityIds[i]);
+      if (row) {
+        memberYs.push(row.y);
+      }
+    }
+    if (memberYs.length === 0) {
+      return;
+    }
+    let hubY = 0;
+    for (let i = 0; i < memberYs.length; i++) {
+      hubY += memberYs[i];
+    }
+    hubY /= memberYs.length;
+    if (Math.abs(hubY - swimmerY) >= band * 2) {
+      return;
+    }
+    const headEntityId = leadData.pendulumHeadEntityId;
+    const matterBody =
+      headEntityId != null ? matterStore?.get(headEntityId) : undefined;
+    const solids = pendulumHeadSolidsFromLead(
+      leadData,
+      memberYs,
+      leftX,
+      columnWidth,
+      blockHeight,
+      rowLength,
+      matterBody
+    );
+    for (let i = 0; i < solids.length; i++) {
+      out.push({
+        ...solids[i],
+        leadEntityId: leadEnt,
+      });
     }
   });
   return out;

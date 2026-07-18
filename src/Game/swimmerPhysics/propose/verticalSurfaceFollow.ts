@@ -49,6 +49,29 @@ export const integrateVerticalAndSurfaceFollow = (
   const maxVerticalStepPx =
     blockHeight * swimmerPhysicsTuning.MAX_VERTICAL_STEP_BLOCK_FRACTION;
 
+  const plungeFrames = swimmer.component.plungeOverrideFramesRemaining ?? 0;
+  const pistonRecovery =
+    swimmer.component.pistonBounceRecoverySecRemaining ?? 0;
+  if ((plungeFrames > 0 || pistonRecovery > 0) && !startReady) {
+    const fallVel = swimmer.component.fallingVelocityY ?? 0;
+    targetY += fallVel * deltaSeconds;
+    const gapFollowMaskPlunge = computeGapFollowMaskAtX(profileBase, containerUVX);
+    const finalSurfaceNormPlunge = computeFinalSurfaceUv({
+      ...profileBase,
+      xNorm: containerUVX,
+    });
+    const curveSurfaceYPlunge =
+      containerTop + (1 - finalSurfaceNormPlunge) * container.height;
+    return {
+      targetY,
+      curveSurfaceY: curveSurfaceYPlunge,
+      proposedDeltaX,
+      containerUVX,
+      rowDeltaY,
+      maxVerticalStepPx,
+    };
+  }
+
   if (!startReady && !wasPinnedFromAbove) {
     if (depth > 0) {
       const maxRise = Math.min(buoyancySpeed * deltaSeconds, maxVerticalStepPx);

@@ -92,6 +92,9 @@ export type ProposeMotionResult = BobbingBuoyancyStep &
   WaterAdvectionStep &
   VerticalSurfaceStep;
 
+import type { PendulumStrikeStep } from '@/Game/swimmerPhysics/react/pendulumStrike';
+import type { PistonStrikeStep } from '@/Game/swimmerPhysics/react/pistonStrike';
+
 export type CollisionResolutionStep = {
   finalX: number;
   finalY: number;
@@ -106,6 +109,10 @@ export type CollisionResolutionStep = {
   maxX: number;
   /** Signed px/s from an extending press slab pinning the swimmer. */
   pinnedSlabSurfaceVelocityX: number;
+  pendulumStrike?: PendulumStrikeStep;
+  pistonStrike?: PistonStrikeStep;
+  /** Cleared when swimmer fully separates from the latched piston. */
+  pistonContactHazardId?: string;
 };
 
 export type WallBumpStep = {

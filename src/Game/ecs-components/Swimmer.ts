@@ -148,6 +148,19 @@ export type SwimmerComponentData = {
   /** Direction blocked when side-blocked (-1 left, 1 right). */
   sideBlockedDirection?: -1 | 0 | 1;
   fallingVelocityY: number;
+  /** Frames remaining to skip buoyancy/surface snap after pendulum strike. */
+  plungeOverrideFramesRemaining?: number;
+  /** Active pendulum knockback — die when launched off-screen or into walls. */
+  pendulumKnockbackActive?: boolean;
+  /** Visual tilt direction during pendulum knockback. */
+  pendulumForceAngleRad?: number;
+  /**
+   * Piston hazard id currently latched after a bounce.
+   * Cleared only after full AABB separation so one contact = one bounce.
+   */
+  pistonContactHazardId?: string;
+  /** Seconds remaining of piston bounce recovery (time-based, not frame-based). */
+  pistonBounceRecoverySecRemaining?: number;
   useColumnControl?: boolean;
   column?: number;
   bobbingPhase?: number;

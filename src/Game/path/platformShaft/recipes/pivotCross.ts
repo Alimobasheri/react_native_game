@@ -15,12 +15,12 @@ import {
 } from '@/Game/path/platformShaft/recipeCompose';
 import type {
   ComposePressIntroShaftParams,
-  ComposePressIntroShaftResult,
+  ShaftRecipeComposeResult,
 } from '@/Game/path/platformShaft/types';
 
 export const pivotCross = (
   params: ComposePressIntroShaftParams = {}
-): ComposePressIntroShaftResult => {
+): ShaftRecipeComposeResult => {
   'worklet';
   const seed = params.seed ?? 0;
   const difficulty01 = Math.max(0, Math.min(1, params.difficulty01 ?? 0.55));

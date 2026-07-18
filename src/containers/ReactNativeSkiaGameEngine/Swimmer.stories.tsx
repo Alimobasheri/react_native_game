@@ -94,6 +94,7 @@ import type {
 import { HazardBandLeadComponentName } from '@/Game/ecs-components/HazardBandLead';
 import { HazardBandMemberComponentName } from '@/Game/ecs-components/HazardBandMember';
 import { PivotHazardArmComponentName } from '@/Game/ecs-components/PivotHazardArm';
+import { PendulumHazardHeadComponentName } from '@/Game/ecs-components/PendulumHazardHead';
 
 /** Same geometry as `getWaterSurfaceRestY` but uses story arg `fraction` for experiments. */
 function waterSurfaceYFromBottomFraction(
@@ -182,6 +183,10 @@ const SHAFT_RECIPE_OPTIONS: ('' | StoryLockedShaftRecipe)[] = [
   'pathChicaneShaft',
   'pivotGate',
   'pivotCross',
+  'pendulumSweep',
+  'pendulumCross',
+  'pistonFloor',
+  'pistonCeiling',
 ];
 
 export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
@@ -232,6 +237,7 @@ export const SwimmerGameComp: FC<SwimmerStoryArgs> = memo(
               HazardBandLeadComponentName,
               HazardBandMemberComponentName,
               PivotHazardArmComponentName,
+              PendulumHazardHeadComponentName,
             ]}
           >
             <Preload>
@@ -607,6 +613,50 @@ export const LockedPivotCrossLoop: StoryObj<typeof meta> = {
   args: {
     lockedTemplateName: 'directed',
     storyLockedShaftRecipe: 'pivotCross',
+    storyLockedShaftSeed: 42,
+    storyLockedShaftDifficulty: 0.55,
+    storyLockShaftLoop: true,
+  },
+};
+
+/** Single pendulum wide sweep — timing dash through swinging gap. */
+export const LockedPendulumSweepLoop: StoryObj<typeof meta> = {
+  args: {
+    lockedTemplateName: 'directed',
+    storyLockedShaftRecipe: 'pendulumSweep',
+    storyLockedShaftSeed: 42,
+    storyLockedShaftDifficulty: 0.5,
+    storyLockShaftLoop: true,
+  },
+};
+
+/** Dual pendulum scissor gauntlet — 180° phase offset. */
+export const LockedPendulumCrossLoop: StoryObj<typeof meta> = {
+  args: {
+    lockedTemplateName: 'directed',
+    storyLockedShaftRecipe: 'pendulumCross',
+    storyLockedShaftSeed: 42,
+    storyLockedShaftDifficulty: 0.65,
+    storyLockShaftLoop: true,
+  },
+};
+
+/** Floor-mounted vertical piston — wait for water, then tap over the tip. */
+export const LockedPistonFloorLoop: StoryObj<typeof meta> = {
+  args: {
+    lockedTemplateName: 'directed',
+    storyLockedShaftRecipe: 'pistonFloor',
+    storyLockedShaftSeed: 42,
+    storyLockedShaftDifficulty: 0.5,
+    storyLockShaftLoop: true,
+  },
+};
+
+/** Ceiling-mounted vertical piston — rush under before it descends. */
+export const LockedPistonCeilingLoop: StoryObj<typeof meta> = {
+  args: {
+    lockedTemplateName: 'directed',
+    storyLockedShaftRecipe: 'pistonCeiling',
     storyLockedShaftSeed: 42,
     storyLockedShaftDifficulty: 0.55,
     storyLockShaftLoop: true,

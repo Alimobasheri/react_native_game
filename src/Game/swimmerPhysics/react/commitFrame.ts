@@ -67,12 +67,16 @@ export const commitSwimmerGameplayState = (
   proposed: ProposeMotionResult,
   collision: CollisionResolutionStep,
   wallBump: WallBumpStep,
-  gameOver: GameOverStep
+  gameOver: GameOverStep,
+  deltaSeconds = 1 / 60
 ): void => {
   'worklet';
 
   const swimmerAngle = collision.visualAngleRad;
   const blockedDir = collision.collisionResult.sideBlockedDirection;
+  const strike = collision.pendulumStrike;
+  const pistonStrike = collision.pistonStrike;
+  const dt = Math.max(0.001, deltaSeconds);
 
   ecs.updateComponent<RenderComponentData>(
     swimmer.entity,
@@ -81,6 +85,7 @@ export const commitSwimmerGameplayState = (
       'worklet';
       render.position = { x: collision.finalX, y: collision.finalY };
       render.angle = swimmerAngle;
+      // PS-TODO-012: apply 3-frame squash (scaleX 0.6, scaleY 1.2) when pistonStrike.struck.
     }
   );
 
@@ -114,6 +119,36 @@ export const commitSwimmerGameplayState = (
       swimmerData.gameOverDispatched =
         swimmer.component.gameOverDispatched || gameOver.shouldDispatchGameOver;
       swimmerData.angle = swimmerAngle;
+      swimmerData.pistonContactHazardId = collision.pistonContactHazardId;
+
+      if (strike?.struck) {
+        swimmerData.velocityX = strike.impulseVelocityX;
+        swimmerData.fallingVelocityY = strike.impulseVelocityY;
+        swimmerData.plungeOverrideFramesRemaining = strike.knockbackOverrideFrames;
+        swimmerData.pendulumKnockbackActive = strike.triggerGameOverOnHit;
+        swimmerData.pendulumForceAngleRad = strike.forceAngleRad;
+      } else if ((swimmerData.plungeOverrideFramesRemaining ?? 0) > 0) {
+        swimmerData.plungeOverrideFramesRemaining =
+          (swimmerData.plungeOverrideFramesRemaining ?? 0) - 1;
+      } else if (swimmerData.pendulumKnockbackActive) {
+        swimmerData.pendulumKnockbackActive = false;
+        swimmerData.pendulumForceAngleRad = undefined;
+      }
+
+      // PS-TODO-009: dispatch bounce audio/haptic event when pistonStrike.struck.
+      if (pistonStrike?.struck) {
+        swimmerData.velocityX = pistonStrike.impulseVelocityX;
+        swimmerData.fallingVelocityY = pistonStrike.impulseVelocityY;
+        swimmerData.pistonBounceRecoverySecRemaining =
+          pistonStrike.bounceRecoverySec;
+        swimmerData.pistonContactHazardId = pistonStrike.hazardId;
+      } else if ((swimmerData.pistonBounceRecoverySecRemaining ?? 0) > 0) {
+        // Time-based decay — same duration at 60Hz and 120Hz.
+        swimmerData.pistonBounceRecoverySecRemaining = Math.max(
+          0,
+          (swimmerData.pistonBounceRecoverySecRemaining ?? 0) - dt
+        );
+      }
     }
   );
 };

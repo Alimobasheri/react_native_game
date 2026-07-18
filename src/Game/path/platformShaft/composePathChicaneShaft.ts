@@ -12,14 +12,14 @@ import { deriveShaftsFromPath } from '@/Game/path/platformShaft/shaftScheduler/d
 import { difficultyBand } from '@/Game/path/platformShaft/recipeCompose';
 import type {
   ComposePressIntroShaftParams,
-  ComposePressIntroShaftResult,
+  ShaftRecipeComposeResult,
 } from '@/Game/path/platformShaft/types';
 
 const DEFAULT_BLOCK_HEIGHT = 60;
 
 export const composePathChicaneShaft = (
   params: ComposePressIntroShaftParams & { raisingSpeed?: number; blockHeight?: number } = {}
-): ComposePressIntroShaftResult => {
+): ShaftRecipeComposeResult => {
   'worklet';
   const seed = params.seed ?? 0;
   const difficulty01 = Math.max(0, Math.min(1, params.difficulty01 ?? 0.2));

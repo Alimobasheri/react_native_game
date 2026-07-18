@@ -7,13 +7,13 @@ import {
 import { buildGridAnchor } from '@/Game/grid/gridAnchor';
 import { waterTransitionBandFromSurface } from '@/Game/grid/waterTransitionBand';
 import { getObstacleRowPitch } from '@/assets/swimmerBlocks';
-import { TEST_COLS } from '@/Game/path/__tests__/testGrid';
+import { TEST_COLS, asPlatformSlabHazard } from '@/Game/path/__tests__/testGrid';
 import type { ComponentStore } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/component';
 import type { ObstacleRowComponentData } from '@/Game/ecs-components/ObstacleRowComponent';
 
 describe('hazardPhase', () => {
   const result = composePressIntroShaft({ seed: 42, difficulty01: 0.4, columns: TEST_COLS });
-  const hazard = result.hazards[0];
+  const hazard = asPlatformSlabHazard(result.hazards[0]);
   const rowDurationSec = 0.25;
   const animStart = hazard.params.animStartRow ?? hazard.bounds.rowStart;
 

@@ -184,6 +184,23 @@
       doc.playback.rowHeightPx = Number(el("sd_rowHeight")?.value) || doc.grid.rowHeightPx;
       doc.playback.waterSpeedPxPerSec = Number(el("sd_waterSpeed")?.value) || doc.stage.waterSpeedPxPerSec;
       const hz = (doc.hazards || []).find((h) => h.id === hzId);
+      if (hz?.kind === "hazard_piston") {
+        const sim = Sim().compute(doc, t.elapsedSec);
+        const draw = (sim.hazardDraws || []).find((d) => d.hazardId === hzId);
+        if (!draw) {
+          phaseEl.textContent = "";
+        } else if (!draw.motionStarted) {
+          const waiting = Sim().hazardAnimWaiting?.(doc, hz, t.elapsedSec);
+          phaseEl.textContent = waiting
+            ? `waiting · water row ${waterRow.toFixed(1)} → need row ${Sim().hazardAnimStartRow(doc, hz)}`
+            : draw.telegraphPulse01 > 0.01
+              ? "telegraph pulse"
+              : "telegraph";
+        } else {
+          phaseEl.textContent = `extension ${Math.round((draw.extension01 ?? 0) * 100)}% · ${draw.mount}`;
+        }
+        return;
+      }
       if (hz?.phases?.length) {
         const local = Sim().hazardAnimLocalSec(doc, hz, t.elapsedSec);
         const waiting = Sim().hazardAnimWaiting?.(doc, hz, t.elapsedSec);
@@ -422,6 +439,23 @@
       } else if (hz.kind === "hazard_vise") {
         paramsRoot.innerHTML = `
           <p class="mutedHint">Legacy paired-jaw wizard. Prefer <strong>Steel platform</strong> — one slab per drag.</p>`;
+      } else if (hz.kind === "hazard_piston") {
+        paramsRoot.innerHTML = `
+          <label>Mount
+            <select id="insp_pistonMount">
+              <option value="floor">Floor — wait for water, then cross</option>
+              <option value="ceiling">Ceiling — rush under before it drops</option>
+            </select>
+          </label>
+          <label>Track length (rows) <input id="insp_pistonTrack" type="number" step="0.5" min="0.5" max="4" value="${p.trackLengthRows ?? 1.5}" /></label>
+          <label>Speed (rows/sec) <input id="insp_pistonSpeed" type="number" step="0.1" min="0.5" max="3" value="${p.speedRowsPerSec ?? 1.5}" /></label>
+          <label>Hold at tip (sec) <input id="insp_pistonHold" type="number" step="0.02" min="0" max="1" value="${p.holdAtTipSec ?? 0.18}" /></label>
+          <label>Telegraph delay (rows) <input id="insp_pistonTelegraph" type="number" step="0.5" min="0" max="4" value="${p.telegraphDelayRows ?? 1}" /></label>
+          <label>Start when water reaches row
+            <input id="insp_animStartRow" type="number" min="0" max="${totalRows - 1}" step="1" value="${defaultStartRow}" />
+          </label>
+          <p class="mutedHint">Bounce hazard — track + head never seal the gap mask. Column comes from bounds (one column wide). Live tuning: pistonHazardTuning.ts.</p>`;
+        if (el("insp_pistonMount")) el("insp_pistonMount").value = p.mount || "floor";
       } else if (hz.kind === "hazard_buzz_wheel") {
         paramsRoot.innerHTML = `<label>Spin speed (RPM) <input id="insp_spinRpm" type="number" value="${p.spinRpm ?? 120}" /></label>`;
       } else if (hz.kind === "hazard_tilt_gate") {
@@ -455,6 +489,14 @@
         if (el("insp_startGap")) patch.params.startGapCols = Number(el("insp_startGap").value);
         if (el("insp_endGap")) patch.params.endGapCols = Number(el("insp_endGap").value);
         if (el("insp_spinRpm")) patch.params.spinRpm = Number(el("insp_spinRpm").value);
+        if (el("insp_pistonMount")) patch.params.mount = el("insp_pistonMount").value;
+        if (el("insp_pistonTrack")) patch.params.trackLengthRows = Number(el("insp_pistonTrack").value);
+        if (el("insp_pistonSpeed")) patch.params.speedRowsPerSec = Number(el("insp_pistonSpeed").value);
+        if (el("insp_pistonHold")) patch.params.holdAtTipSec = Number(el("insp_pistonHold").value);
+        if (el("insp_pistonTelegraph")) patch.params.telegraphDelayRows = Number(el("insp_pistonTelegraph").value);
+        if (hz.kind === "hazard_piston") {
+          patch.params.column = Number(el("insp_colStart").value);
+        }
         composer.updateHazard(hzId, patch);
         refreshAfterMutation();
       };

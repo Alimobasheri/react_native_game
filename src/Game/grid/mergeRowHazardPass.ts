@@ -13,6 +13,7 @@ import {
 } from '@/Game/ecs-components/HazardBandLead';
 import { HazardBandMemberComponentName } from '@/Game/ecs-components/HazardBandMember';
 import { removePivotArmEntities } from '@/Game/hazards/pivotArmSpawn';
+import { removePendulumHeadEntities } from '@/Game/hazards/pendulumHeadSpawn';
 import {
   ObstacleRowComponentData,
   ObstacleRowComponentName,
@@ -48,6 +49,8 @@ import { platformShaftTuning } from '@/config/platformShaftTuning';
 import { appendHazardSteelToRowRender, restoreOrangeOnlyHazardRowRender } from '@/Game/render/appendHazardSteelToRowRender';
 import { SwimmerRenderLayer } from '@/Game/render/swimmerRenderLayers';
 import { mergePivotHazardLead } from '@/Game/grid/mergePivotHazardPass';
+import { mergePendulumHazardLead } from '@/Game/hazards/mergePendulumHazardPass';
+import { mergePistonHazardLead } from '@/Game/hazards/mergePistonHazardPass';
 import {
   ObstaclesManagerComponentData,
   ObstaclesManagerComponentName,
@@ -178,6 +181,9 @@ const stripHazardBandFromLead = (
   if (leadData?.kind === 'pivot') {
     removePivotArmEntities({ ecs, components, leadData });
   }
+  if (leadData?.kind === 'pendulum') {
+    removePendulumHeadEntities({ ecs, components, leadData });
+  }
   const renderStore = components[RenderComponentName] as
     | ComponentStore<RenderComponentData>
     | undefined;
@@ -257,6 +263,9 @@ export const mergeRowHazardPass = (args: MergeRowHazardPassArgs): void => {
   const memberEntityIds: number[] = [];
   let maxPlatformFlow = 0;
 
+  waterData.pendulumXNorm = 0.5;
+  waterData.pendulumForce = 0;
+
   for (let li = 0; li < leadEntities.length; li++) {
     let activeLeadEntity = leadEntities[li];
     let leadData = leadStore.get(activeLeadEntity);
@@ -322,6 +331,40 @@ export const mergeRowHazardPass = (args: MergeRowHazardPassArgs): void => {
               shaftSegmentEpoch: migratingLead.shaftSegmentEpoch,
             })
           );
+        } else if (
+          migratingLead.kind === 'pendulum' &&
+          migratingLead.pendulumParams
+        ) {
+          ecs.addComponent(
+            newLeadEntity,
+            createHazardBandLeadComponent({
+              kind: 'pendulum',
+              modifierId: migratingLead.modifierId,
+              hazardId: migratingLead.hazardId,
+              bounds: migratingLead.bounds,
+              pendulumParams: migratingLead.pendulumParams,
+              memberRowEntityIds: liveMembers,
+              shaftSegmentEpoch: migratingLead.shaftSegmentEpoch,
+              spawnTimeMs: migratingLead.spawnTimeMs,
+            })
+          );
+        } else if (
+          migratingLead.kind === 'piston' &&
+          migratingLead.pistonParams
+        ) {
+          ecs.addComponent(
+            newLeadEntity,
+            createHazardBandLeadComponent({
+              kind: 'piston',
+              modifierId: migratingLead.modifierId,
+              hazardId: migratingLead.hazardId,
+              bounds: migratingLead.bounds,
+              pistonParams: migratingLead.pistonParams,
+              memberRowEntityIds: liveMembers,
+              shaftSegmentEpoch: migratingLead.shaftSegmentEpoch,
+              spawnTimeMs: migratingLead.spawnTimeMs,
+            })
+          );
         } else {
           ecs.addComponent(
             newLeadEntity,
@@ -350,6 +393,21 @@ export const mergeRowHazardPass = (args: MergeRowHazardPassArgs): void => {
               lead.currentAngleRad = migratingLead.currentAngleRad;
               lead.pivotArmEntityIds = migratingLead.pivotArmEntityIds;
               lead.pivotMatterSpawned = migratingLead.pivotMatterSpawned;
+            }
+            if (migratingLead.kind === 'pendulum') {
+              lead.currentAngleRad = migratingLead.currentAngleRad;
+              lead.pendulumHeadEntityId = migratingLead.pendulumHeadEntityId;
+              lead.pendulumMatterSpawned = migratingLead.pendulumMatterSpawned;
+              lead.pendulumTetherSnapped = migratingLead.pendulumTetherSnapped;
+              lead.spawnTimeMs = migratingLead.spawnTimeMs;
+            }
+            if (migratingLead.kind === 'piston') {
+              lead.spawnTimeMs = migratingLead.spawnTimeMs;
+              lead.pistonPrevHeadCenterX = migratingLead.pistonPrevHeadCenterX;
+              lead.pistonPrevHeadCenterY = migratingLead.pistonPrevHeadCenterY;
+              lead.pistonCurrHeadCenterX = migratingLead.pistonCurrHeadCenterX;
+              lead.pistonCurrHeadCenterY = migratingLead.pistonCurrHeadCenterY;
+              lead.pistonMotionStarted = migratingLead.pistonMotionStarted;
             }
           }
         );
@@ -398,6 +456,59 @@ export const mergeRowHazardPass = (args: MergeRowHazardPassArgs): void => {
         maxPlatformFlow = pivotResult.maxPlatformFlow;
       }
       if (pivotResult.culled) {
+        stripHazardBandFromLead(ecs, components, activeLeadEntity, liveMembers, rowStore);
+      }
+      continue;
+    }
+
+    if (leadData.kind === 'pendulum') {
+      const pendulumResult = mergePendulumHazardLead({
+        ecs,
+        components,
+        activeLeadEntity,
+        leadData,
+        liveMembers,
+        rowStore,
+        leftX,
+        columnWidth,
+        blockHeight,
+        rowLength,
+        containerLeftX: leftX,
+        containerWidth: containerData.width,
+        containerTop,
+        containerBottom,
+        waterSurfaceY,
+        waterData,
+        sceneKey,
+        blockColsByEntity,
+        effectiveGapsByEntity,
+        slabAabbByEntity,
+        memberEntityIds,
+      });
+      if (pendulumResult.culled) {
+        stripHazardBandFromLead(ecs, components, activeLeadEntity, liveMembers, rowStore);
+      }
+      continue;
+    }
+
+    if (leadData.kind === 'piston') {
+      const pistonResult = mergePistonHazardLead({
+        ecs,
+        components,
+        activeLeadEntity,
+        leadData,
+        liveMembers,
+        rowStore,
+        leftX,
+        columnWidth,
+        blockHeight,
+        rowLength,
+        containerTop,
+        containerBottom,
+        rowDurationSec,
+        memberEntityIds,
+      });
+      if (pistonResult.culled) {
         stripHazardBandFromLead(ecs, components, activeLeadEntity, liveMembers, rowStore);
       }
       continue;

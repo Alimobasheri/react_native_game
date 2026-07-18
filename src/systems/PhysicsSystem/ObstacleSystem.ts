@@ -39,6 +39,7 @@ import {
   FALSE_WALL_MIN_PHASE_ROWS_SINGLE_SEGMENT,
 } from '@/Layout';
 import {
+  gapDifficulty01FromTotalRows,
   gapShiftRunwayDupRowsFromTotalRows,
   pathSegmentClimaxFalseWallSoloRows,
   pathSegmentClimaxFalseWallTotalRows,
@@ -144,6 +145,7 @@ import {
 } from '@/Game/path/platformShaft/platformShaftRowPathTemplate';
 import { maybeSpawnMovingHazardsForRow } from '@/Game/hazards/hazardSpawnFromBeat';
 import { PLATFORM_SHAFT_ROW_HAZARD_BANDS } from '@/Game/hazards/platformShaftTODO';
+import { decidePistonProductionInsert } from '@/Game/path/platformShaft/pistonProductionSchedule';
 import { mergeRowHazardPass } from '@/Game/grid/mergeRowHazardPass';
 import {
   rowOverlapsTransitionBand,
@@ -173,6 +175,17 @@ function readStoryLockedShaftRecipe(
   return mgr?.storyLockedShaftRecipe;
 }
 
+function readActiveShaftRecipe(
+  components: Record<string, any>,
+  managerEntity: Entity
+): StoryLockedShaftRecipe | undefined {
+  'worklet';
+  const mgr = components[ObstaclesManagerComponentName]?.get(
+    managerEntity
+  ) as ObstaclesManagerComponentData | undefined;
+  return mgr?.storyLockedShaftRecipe ?? mgr?.runtimeShaftRecipe;
+}
+
 function readStoryLockShaftLoop(
   components: Record<string, any>,
   managerEntity: Entity
@@ -190,24 +203,109 @@ function resolveEffectiveTemplateName(
   lock?: string
 ): string {
   'worklet';
-  if (readStoryLockedShaftRecipe(components, managerEntity)) {
+  if (readActiveShaftRecipe(components, managerEntity)) {
     return 'platformShaftIntro';
   }
   return lock ?? 'directed';
 }
 
+// Defined before first worklet use — worklet closures capture at module eval (no hoisting).
+const readPacingRunContextFromComponents = (
+  components: Record<string, any>
+): PacingRunContext | undefined => {
+  'worklet';
+  const session = getGameSession(components);
+  return resolvePacingRunContext(
+    session?.runBlueprint,
+    session?.runAttemptIndex ?? 0
+  );
+};
+
+function maybeSchedulePistonProductionInsert(
+  ecs: ECS,
+  components: Record<string, any>,
+  managerEntity: Entity
+): StoryLockedShaftRecipe | undefined {
+  'worklet';
+  const mgr = components[ObstaclesManagerComponentName]?.get(
+    managerEntity
+  ) as ObstaclesManagerComponentData | undefined;
+  if (!mgr) {
+    return undefined;
+  }
+  // Story lock owns the shaft — never inject production pistons over it.
+  if (mgr.storyLockedShaftRecipe) {
+    return undefined;
+  }
+  const session = getGameSession(components);
+  const totalRows = mgr.totalRowsGenerated ?? 0;
+  const decision = decidePistonProductionInsert({
+    totalRowsGenerated: totalRows,
+    runSeed: (session?.runSeed ?? 0) >>> 0,
+    lastInsertTotalRows: mgr.lastPistonInsertTotalRows ?? -1,
+    gameplayElapsedSeconds: mgr.pistonProductionElapsedSeconds ?? 0,
+    pacingCtx: readPacingRunContextFromComponents(components),
+  });
+  if (!decision.insert || !decision.recipe) {
+    return undefined;
+  }
+  ecs.updateComponent<ObstaclesManagerComponentData>(
+    managerEntity,
+    ObstaclesManagerComponentName,
+    (m) => {
+      m.runtimeShaftRecipe = decision.recipe;
+      m.lastPistonInsertTotalRows = totalRows;
+    }
+  );
+  return decision.recipe;
+}
+
+function clearRuntimeShaftRecipe(
+  ecs: ECS,
+  managerEntity: Entity
+): void {
+  'worklet';
+  ecs.updateComponent<ObstaclesManagerComponentData>(
+    managerEntity,
+    ObstaclesManagerComponentName,
+    (m) => {
+      m.runtimeShaftRecipe = undefined;
+    }
+  );
+}
+
 function resolveTemplateNameOnRollover(
+  ecs: ECS,
   components: Record<string, any>,
   managerEntity: Entity,
   lock?: string
 ): string {
   'worklet';
-  const shaftRecipe = readStoryLockedShaftRecipe(components, managerEntity);
-  if (shaftRecipe && readStoryLockShaftLoop(components, managerEntity)) {
+  const storyRecipe = readStoryLockedShaftRecipe(components, managerEntity);
+  if (storyRecipe && readStoryLockShaftLoop(components, managerEntity)) {
     return 'platformShaftIntro';
   }
-  if (shaftRecipe) {
+  if (storyRecipe) {
+    // One-shot story lock without loop → return to directed/lock.
     return lock ?? 'directed';
+  }
+
+  const mgr = components[ObstaclesManagerComponentName]?.get(
+    managerEntity
+  ) as ObstaclesManagerComponentData | undefined;
+  // Finishing a one-shot production piston segment → clear and resume directed.
+  if (mgr?.runtimeShaftRecipe) {
+    clearRuntimeShaftRecipe(ecs, managerEntity);
+    return lock ?? 'directed';
+  }
+
+  const inserted = maybeSchedulePistonProductionInsert(
+    ecs,
+    components,
+    managerEntity
+  );
+  if (inserted) {
+    return 'platformShaftIntro';
   }
   return lock ?? 'directed';
 }
@@ -416,17 +514,6 @@ const bumpTotalRowsGenerated = (ecs: ECS, managerEntity: Entity) => {
     (m) => {
       m.totalRowsGenerated = (m.totalRowsGenerated ?? 0) + 1;
     }
-  );
-};
-
-const readPacingRunContextFromComponents = (
-  components: Record<string, any>
-): PacingRunContext | undefined => {
-  'worklet';
-  const session = getGameSession(components);
-  return resolvePacingRunContext(
-    session?.runBlueprint,
-    session?.runAttemptIndex ?? 0
   );
 };
 
@@ -1322,10 +1409,12 @@ function selectTemplate(args: {
       | undefined;
     const prevEpoch =
       ((ctxData?.ctx ?? {}) as PlatformShaftTemplateCtx).shaftSegmentEpoch ?? 0;
-    (ctx as Record<string, unknown>).platformShaftRecipe = mgr?.storyLockedShaftRecipe;
+    (ctx as Record<string, unknown>).platformShaftRecipe =
+      mgr?.storyLockedShaftRecipe ?? mgr?.runtimeShaftRecipe;
     (ctx as Record<string, unknown>).platformShaftSeed = mgr?.storyLockedShaftSeed ?? 42;
     (ctx as Record<string, unknown>).platformShaftDifficulty =
-      mgr?.storyLockedShaftDifficulty ?? 0.4;
+      mgr?.storyLockedShaftDifficulty ??
+      gapDifficulty01FromTotalRows(mgr?.totalRowsGenerated ?? 0);
     (ctx as Record<string, unknown>).columns = initArgs.rowLength;
     if (template.init) {
       template.init(ctx, initArgs);
@@ -1630,7 +1719,12 @@ export const ObstacleSystem: System = {
         // If we've reached the end of the active template, switch to the next template
         // and continue filling the seed rows.
         if (activeRowIndex > activeRowCount - 1) {
-          const newTemplateName = resolveTemplateNameOnRollover(components, managerEntity, lock);
+          const newTemplateName = resolveTemplateNameOnRollover(
+            ecs,
+            components,
+            managerEntity,
+            lock
+          );
           const nextSelected = selectTemplate({
             ecs,
             components,
@@ -1739,6 +1833,8 @@ export const ObstacleSystem: System = {
         ObstaclesManagerComponentName,
         (m) => {
           m.spawnTimerSeconds += deltaSeconds;
+          m.pistonProductionElapsedSeconds =
+            (m.pistonProductionElapsedSeconds ?? 0) + deltaSeconds;
         }
       );
 
@@ -1778,9 +1874,24 @@ export const ObstacleSystem: System = {
 
         let lastRowIndex = templateInfo.currentRowIndex
         let totalRow = templateInfo.currentTempalteTotalRow
+        const livePistonRecipe =
+          templateInfo.currentTemplateName === 'directed' && lock === undefined
+            ? maybeSchedulePistonProductionInsert(
+                ecs,
+                components,
+                managerEntity
+              )
+            : undefined;
 
-        if (lastRowIndex > totalRow - 1) {
-          const newTemplateName = resolveTemplateNameOnRollover(components, managerEntity, lock);
+        if (lastRowIndex > totalRow - 1 || livePistonRecipe) {
+          const newTemplateName = livePistonRecipe
+            ? 'platformShaftIntro'
+            : resolveTemplateNameOnRollover(
+                ecs,
+                components,
+                managerEntity,
+                lock
+              );
           // Do not purge hazard bands on loop rollover: prior-epoch rows are still on screen
           // for many frames. Epoch-tagged spawn + merge pass strip when members scroll off.
           const initArgs: TemplateInitArgs = {

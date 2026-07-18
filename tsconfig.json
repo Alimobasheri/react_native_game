@@ -1,10 +1,9 @@
 {
   "compilerOptions": {
     "strict": true,
-    "baseUrl": ".",
     "allowJs": true,
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src/**/*", "index.d.ts"],

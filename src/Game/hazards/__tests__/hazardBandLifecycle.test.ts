@@ -18,7 +18,7 @@ import { ObstaclesManagerComponentName } from '@/Game/ecs-components/ObstaclesMa
 import { GameSessionComponentName } from '@/Game/ecs-components/GameSession';
 import { RenderComponentName } from '@/containers/ReactNativeSkiaGameEngine/internal/components/render';
 import { purgePlatformShaftHazardsAndEffectiveGaps } from '@/Game/hazards/purgePlatformShaftHazardState';
-import { TEST_COLS } from '@/Game/path/__tests__/testGrid';
+import { TEST_COLS, asPlatformSlabHazard } from '@/Game/path/__tests__/testGrid';
 import type { ECS } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/ecs';
 import type { ComponentStore } from '@/containers/ReactNativeSkiaGameEngine/services-ecs/component';
 
@@ -196,9 +196,10 @@ describe('hazardBandLifecycle', () => {
 
   it('keeps steel collision when entity id was recycled to a different beat', () => {
     const beat = composePathChicaneShaft({ seed: 42, difficulty01: 0.2, columns: TEST_COLS });
-    const hazard = beat.hazards.find((h) => h.bounds.rowStart >= 30);
-    expect(hazard).toBeDefined();
-    if (!hazard) return;
+    const found = beat.hazards.find((h) => h.bounds.rowStart >= 30);
+    expect(found).toBeDefined();
+    if (!found) return;
+    const hazard = asPlatformSlabHazard(found);
     const beatRow = hazard.bounds.rowStart;
     const rows = new Map<number, ObstacleRowComponentData>();
     rows.set(5, {

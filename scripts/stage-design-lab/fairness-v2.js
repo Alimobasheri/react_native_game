@@ -57,6 +57,38 @@
     }
   }
 
+  /**
+   * Piston fairness — mirrors compose contract in composePistonShaft.ts:
+   * inner columns only, adjacent escape column open across the swept rows.
+   */
+  function auditPistons(doc, warnings) {
+    const columns = doc.grid?.columns ?? 6;
+    const flat = doc.flattened?.rows || [];
+    for (const hz of doc.hazards || []) {
+      if (hz.kind !== "hazard_piston") continue;
+      const b = hz.bounds || {};
+      const col = b.colStart ?? 0;
+      if (col <= 0 || col >= columns - 1) {
+        warnings.push(
+          `Piston ${hz.id}: column ${col} touches a wall — live game allows inner columns only (1–${columns - 2}).`
+        );
+      }
+      const sweptStart = Math.max(0, b.rowStart ?? 0);
+      const sweptEnd = Math.min(flat.length - 1, b.rowEnd ?? sweptStart);
+      for (let r = sweptStart; r <= sweptEnd; r++) {
+        const gaps = new Set(flat[r]?.gaps || []);
+        const leftOpen = col - 1 >= 0 && gaps.has(col - 1);
+        const rightOpen = col + 1 < columns && gaps.has(col + 1);
+        if (!leftOpen && !rightOpen) {
+          warnings.push(
+            `Piston ${hz.id}: row ${r} has no open escape column beside col ${col} — player cannot dodge the head.`
+          );
+          break;
+        }
+      }
+    }
+  }
+
   function computeFairnessReport(doc) {
     const warnings = [];
     const issues = [];
@@ -71,6 +103,7 @@
     }
 
     auditPlatformPressCaps(doc, warnings);
+    auditPistons(doc, warnings);
 
     for (let i = 1; i < flat.length; i++) {
       const ov = overlapBetweenRows(flat[i - 1].gaps, flat[i].gaps, columns);

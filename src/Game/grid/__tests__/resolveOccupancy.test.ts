@@ -4,11 +4,11 @@ import {
   unionBlockedCols,
 } from '@/Game/grid/resolveOccupancy';
 import { effectiveGapsAtPressPhase } from '@/Game/hazards/platformPressMotion';
-import { TEST_COLS } from '@/Game/path/__tests__/testGrid';
+import { TEST_COLS, asPlatformSlabHazard } from '@/Game/path/__tests__/testGrid';
 
 describe('resolveOccupancy', () => {
   const result = composePressIntroShaft({ seed: 42, difficulty01: 0.4, columns: TEST_COLS });
-  const hazard = result.hazards[0];
+  const hazard = asPlatformSlabHazard(result.hazards[0]);
   const rowIndex = hazard.bounds.rowStart;
   const baseGaps = result.rows[rowIndex].gaps;
   const duration = hazard.params.pressDurationSec ?? 1.4;

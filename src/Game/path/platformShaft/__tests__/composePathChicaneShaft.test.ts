@@ -2,7 +2,7 @@ import { composePathChicaneShaft } from '@/Game/path/platformShaft/composePathCh
 import { composePathChicane } from '@/Game/path/platformShaft/pathIntent/pathGenerators';
 import { effectiveGapsAtFullPress, minGapWidthCols, pressWallCol } from '@/Game/path/platformShaft/primitives';
 import { platformShaftTuning } from '@/config/platformShaftTuning';
-import { TEST_COLS } from '@/Game/path/__tests__/testGrid';
+import { TEST_COLS, asPlatformSlabHazard, asPlatformSlabHazards } from '@/Game/path/__tests__/testGrid';
 
 describe('composePathChicaneShaft', () => {
   it('dense hazards after runway; ≥1-col at full press; no seal into opposite blocks', () => {
@@ -19,7 +19,7 @@ describe('composePathChicaneShaft', () => {
       platformShaftTuning.PATH_SHAFT_START_ROW
     );
 
-    for (const hz of result.hazards) {
+    for (const hz of asPlatformSlabHazards(result.hazards)) {
       const wallCol = pressWallCol(TEST_COLS, hz.side);
       expect(hz.side).toBe(path.pathRows[hz.bounds.rowStart]!.shaftSide);
       expect(hz.bounds.colStart).toBe(wallCol);
@@ -28,10 +28,11 @@ describe('composePathChicaneShaft', () => {
     }
 
     for (let i = 0; i < result.rows.length; i++) {
-      const hz = result.hazards.find(
+      const found = result.hazards.find(
         (h) => i >= h.bounds.rowStart && i <= h.bounds.rowEnd
       );
-      if (!hz) continue;
+      if (!found) continue;
+      const hz = asPlatformSlabHazard(found);
       const baseGaps = result.rows[i]!.gaps;
       const baseBlocks = result.rows[i]!.blocks ?? [];
       const wallCol = pressWallCol(TEST_COLS, hz.side);

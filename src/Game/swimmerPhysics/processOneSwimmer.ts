@@ -48,7 +48,8 @@ export const reactSwimmerOutcome = (
     proposed,
     collision,
     wallBump,
-    gameOver
+    gameOver,
+    args.frame.deltaSeconds
   );
 };
 

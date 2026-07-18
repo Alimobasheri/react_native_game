@@ -14,7 +14,7 @@ import {
 } from '@/Game/path/platformShaft/primitives';
 import { swimmerPhysicsTuning } from '@/config/swimmerTuning';
 import { platformShaftTuning } from '@/config/platformShaftTuning';
-import { TEST_COLS } from '@/Game/path/__tests__/testGrid';
+import { TEST_COLS, asPlatformSlabHazard, asPlatformSlabHazards } from '@/Game/path/__tests__/testGrid';
 
 const BLOCK_HEIGHT = 60;
 const RAISING_SPEED = 400;
@@ -228,8 +228,9 @@ describe('passagePlanner / deriveShafts', () => {
       columns: TEST_COLS,
     });
     const shaftStart = platformShaftTuning.PATH_SHAFT_START_ROW;
-    const left = result.hazards.filter((h) => h.side === 'left').length;
-    const right = result.hazards.filter((h) => h.side === 'right').length;
+    const slabs = asPlatformSlabHazards(result.hazards);
+    const left = slabs.filter((h) => h.side === 'left').length;
+    const right = slabs.filter((h) => h.side === 'right').length;
     expect(left).toBeGreaterThan(0);
     expect(right).toBeGreaterThan(0);
 
@@ -239,7 +240,7 @@ describe('passagePlanner / deriveShafts', () => {
     // Non-runway authored shaft sides should place; skip warnings must not dominate left stretch.
     expect(skipWarns.length).toBeLessThan(result.hazards.length);
 
-    for (const hazard of result.hazards) {
+    for (const hazard of asPlatformSlabHazards(result.hazards)) {
       if (hazard.bounds.rowStart < shaftStart) continue;
       const wallCol = pressWallCol(TEST_COLS, hazard.side);
       const row = result.rows[hazard.bounds.rowStart]!;

@@ -4,12 +4,12 @@ import {
   flowNormFromPressVelocity,
   pressSlabSurfaceVelocityXPx,
 } from '@/Game/hazards/flowFromPlatform';
-import { TEST_COLS } from '@/Game/path/__tests__/testGrid';
+import { TEST_COLS, asPlatformSlabHazard } from '@/Game/path/__tests__/testGrid';
 
 describe('flowFromPlatform', () => {
   it('returns zero at rest', () => {
     const result = composePressIntroShaft({ seed: 42, difficulty01: 0.4, columns: TEST_COLS });
-    const hazard = result.hazards[0];
+    const hazard = asPlatformSlabHazard(result.hazards[0]);
     const flow = flowNormFromPlatformPress({
       hazard,
       localSec: 0,
@@ -23,7 +23,7 @@ describe('flowFromPlatform', () => {
 
   it('returns non-zero during active press', () => {
     const result = composePressIntroShaft({ seed: 42, difficulty01: 0.4, columns: TEST_COLS });
-    const hazard = result.hazards[0];
+    const hazard = asPlatformSlabHazard(result.hazards[0]);
     const duration = hazard.params.pressDurationSec ?? 1.4;
     const mid = duration * 0.5;
     const flow = flowNormFromPlatformPress({

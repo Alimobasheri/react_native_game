@@ -10,7 +10,7 @@ import {
 import type { ObstacleRowComponentData } from '@/Game/ecs-components/ObstacleRowComponent';
 import { getObstacleRowPitch } from '@/assets/swimmerBlocks';
 import { waterTransitionBandFromSurface } from '@/Game/grid/waterTransitionBand';
-import { TEST_COLS } from '@/Game/path/__tests__/testGrid';
+import { TEST_COLS, asPlatformSlabHazard } from '@/Game/path/__tests__/testGrid';
 
 describe('worldBeatFromWaterLock', () => {
   const blockHeight = 60;
@@ -87,7 +87,7 @@ describe('worldBeatFromWaterLock', () => {
 
   it('localSec is zero before animStartRow', () => {
     const result = composePressIntroShaft({ seed: 42, difficulty01: 0.4, columns: TEST_COLS });
-    const hazard = result.hazards[0];
+    const hazard = asPlatformSlabHazard(result.hazards[0]);
     const animStart = hazard.params.animStartRow ?? hazard.bounds.rowStart;
     const rowDurationSec = 0.25;
     const beatBefore = animStart - 0.5;
@@ -96,7 +96,7 @@ describe('worldBeatFromWaterLock', () => {
 
   it('localSec reaches press duration after enough worldBeat advance', () => {
     const result = composePressIntroShaft({ seed: 42, difficulty01: 0.4, columns: TEST_COLS });
-    const hazard = result.hazards[0];
+    const hazard = asPlatformSlabHazard(result.hazards[0]);
     const animStart = hazard.params.animStartRow ?? hazard.bounds.rowStart;
     const rowDurationSec = 0.25;
     const pressDuration = hazard.params.pressDurationSec ?? 1.4;

@@ -1,5 +1,5 @@
 import { Skia, SkTypeface } from '@shopify/react-native-skia';
-import { runOnUI } from 'react-native-reanimated';
+import { resolveBundledAssetBytes } from './bundledAssetBytes';
 
 type FontAsset = {
   type: 'font';
@@ -109,38 +109,23 @@ export async function loadFontAssets(
     const id = asset.id;
     try {
       if (asset.resource) {
-        // --- NEW LOGIC: Convert bundled resource URI to bytes on JS thread ---
-        try {
-          // 1. Resolve asset to get its local URI
-          const resolved = require('react-native').Image.resolveAssetSource(
-            asset.resource
-          );
-          const uri = resolved?.uri;
-
-          if (uri) {
-            // 2. Fetch the content from the asset URI
-            const response = await fetch(uri);
-            const arrayBuffer = await response.arrayBuffer();
-            const bytes = new Uint8Array(arrayBuffer); // Convert to Uint8Array
-
-            // 3. Push to sources using 'bytes' instead of 'uri'
-            sources.push({
-              id,
-              family: asset.family || '',
-              base64: { bytes },
-            });
-            continue; // Continue to next asset
-          }
-        } catch (err) {
-          console.warn(
-            '[RNTGE][fontLoader] Resource fetch failed; falling back to checking asset.uri',
-            err
-          );
+        const bytes = await resolveBundledAssetBytes(asset.resource);
+        if (bytes) {
+          sources.push({
+            id,
+            family: asset.family || '',
+            base64: { bytes },
+          });
+          continue;
         }
+        console.warn(
+          '[RNTGE][fontLoader] Could not load font bytes for asset:',
+          id
+        );
       }
 
       console.warn(
-        '[RNTGE][fontLoader] No valid uri or resource found for font asset:',
+        '[RNTGE][fontLoader] No valid resource found for font asset:',
         id
       );
     } catch (e) {

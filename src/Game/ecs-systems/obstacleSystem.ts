@@ -22,7 +22,16 @@ export type StoryLockedProceduralSegment =
  * Storybook / debug: lock one platform-shaft composer loop (Slice 2+).
  * ObstacleSystem consumes in Slice 3 — see platform-shaft-roadmap.md §7.
  */
-export type StoryLockedShaftRecipe = "composePressIntroShaft" | "pressPinballPair" | "pathChicaneShaft" | "pivotGate" | "pivotCross"
+export type StoryLockedShaftRecipe =
+  | "composePressIntroShaft"
+  | "pressPinballPair"
+  | "pathChicaneShaft"
+  | "pivotGate"
+  | "pivotCross"
+  | "pendulumSweep"
+  | "pendulumCross"
+  | "pistonFloor"
+  | "pistonCeiling"
 
 export interface GetRowArgs {
   rowIndex: number,

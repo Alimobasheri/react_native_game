@@ -19,6 +19,7 @@
     { id: "hazard_iris_clamp", label: "Iris clamp / Drawbridge Den" },
     { id: "hazard_tilt_gate", label: "Tilt gate" },
     { id: "hazard_buzz_wheel", label: "Buzz wheel" },
+    { id: "hazard_piston", label: "Vertical piston (Crush Tube)" },
     { id: "setpiece_paddle", label: "Pinball paddle set-piece" },
   ];
 
@@ -28,7 +29,7 @@
     { index: 3, displayName: "Drawbridge Den", signatureHazardId: "hazard_iris_clamp" },
     { index: 4, displayName: "Buzz Cavern", signatureHazardId: "hazard_buzz_wheel" },
     { index: 5, displayName: "Pinball Vault", signatureHazardId: "setpiece_paddle" },
-    { index: 6, displayName: "Crush Tube", signatureHazardId: "hazard_vise" },
+    { index: 6, displayName: "Crush Tube", signatureHazardId: "hazard_piston" },
   ];
 
   const PHASE_COLORS = {
@@ -44,6 +45,7 @@
     { id: "hazard_iris_clamp", label: "Iris clamp" },
     { id: "hazard_tilt_gate", label: "Tilt gate" },
     { id: "hazard_buzz_wheel", label: "Buzz wheel" },
+    { id: "hazard_piston", label: "Vertical piston" },
     { id: "pattern_sliding_gap", label: "Sliding gap" },
   ];
 
@@ -122,6 +124,12 @@
     if (hazard.kind === "hazard_vise" || hazard.kind === "pattern_sliding_gap") {
       hazard.params.rowSpan = rowSpan;
       hazard.params.rows = rowSpan;
+    }
+    if (hazard.kind === "hazard_piston") {
+      // Single-column hazard: bounds carry the column; keep params in sync on import.
+      hazard.bounds.colEnd = hazard.bounds.colStart;
+      hazard.params.column = hazard.bounds.colStart;
+      if (hazard.params.mount !== "ceiling") hazard.params.mount = "floor";
     }
     return hazard;
   }

@@ -1,0 +1,118 @@
+diff --git a/node_modules/@shopify/react-native-skia/lib/commonjs/sksg/Container.web.js b/node_modules/@shopify/react-native-skia/lib/commonjs/sksg/Container.web.js
+index 5155d49..6b7c82d 100644
+--- a/node_modules/@shopify/react-native-skia/lib/commonjs/sksg/Container.web.js
++++ b/node_modules/@shopify/react-native-skia/lib/commonjs/sksg/Container.web.js
+@@ -27,9 +27,16 @@ const drawOnscreen = (Skia, nativeId, recording) => {
+   const ctx = (0, _DrawingContext.createDrawingContext)(Skia, recording.paintPool, canvas);
+   (0, _Player.replay)(ctx, recording.commands);
+   const picture = rec.finishRecordingAsPicture();
++  // Web WASM: JS GC cannot free CanvasKit heap — must dispose spent recorder
++  // and the previous frame picture (Shopify/react-native-skia#3699 / #3940).
++  rec.dispose();
+   //const end = performance.now();
+   //console.log("Recording time: ", end - start);
+   SkiaViewApi.setJsiProperty(nativeId, "picture", picture);
++  if (recording.lastPicture && recording.lastPicture !== picture) {
++    recording.lastPicture.dispose();
++  }
++  recording.lastPicture = picture;
+ };
+ class ReanimatedContainer extends _StaticContainer.Container {
+   constructor(Skia, nativeId) {
+diff --git a/node_modules/@shopify/react-native-skia/lib/commonjs/sksg/Recorder/DrawingContext.js b/node_modules/@shopify/react-native-skia/lib/commonjs/sksg/Recorder/DrawingContext.js
+index 281d56e..7dd6847 100644
+--- a/node_modules/@shopify/react-native-skia/lib/commonjs/sksg/Recorder/DrawingContext.js
++++ b/node_modules/@shopify/react-native-skia/lib/commonjs/sksg/Recorder/DrawingContext.js
+@@ -17,8 +17,13 @@ const createDrawingContext = (Skia, paintPool, canvas) => {
+   const opacities = [];
+   let nextPaintIndex = 1;
+ 
+-  // Initialize first paint and opacity
+-  paintPool[0] = Skia.Paint();
++  // Initialize first paint and opacity — reuse pool slot (web WASM leak if
++  // a new Paint is allocated every frame; see Skia #3940 DrawingContext).
++  if (paintPool.length === 0) {
++    paintPool.push(Skia.Paint());
++  } else {
++    paintPool[0].reset();
++  }
+   paints.push(paintPool[0]);
+   opacities.push(1);
+ 
+diff --git a/node_modules/@shopify/react-native-skia/lib/commonjs/sksg/StaticContainer.js b/node_modules/@shopify/react-native-skia/lib/commonjs/sksg/StaticContainer.js
+index e1637f7..47d84a8 100644
+--- a/node_modules/@shopify/react-native-skia/lib/commonjs/sksg/StaticContainer.js
++++ b/node_modules/@shopify/react-native-skia/lib/commonjs/sksg/StaticContainer.js
+@@ -55,7 +55,13 @@ class StaticContainer extends Container {
+       const canvas = rec.beginRecording();
+       this.drawOnCanvas(canvas);
+       const picture = rec.finishRecordingAsPicture();
++      // Web WASM: dispose spent recorder + previous picture (#3699 / #3940).
++      rec.dispose();
+       SkiaViewApi.setJsiProperty(this.nativeId, "picture", picture);
++      if (this._lastPicture && this._lastPicture !== picture) {
++        this._lastPicture.dispose();
++      }
++      this._lastPicture = picture;
+     }
+   }
+ }
+diff --git a/node_modules/@shopify/react-native-skia/lib/module/sksg/Container.web.js b/node_modules/@shopify/react-native-skia/lib/module/sksg/Container.web.js
+index a3e9071..040732c 100644
+--- a/node_modules/@shopify/react-native-skia/lib/module/sksg/Container.web.js
++++ b/node_modules/@shopify/react-native-skia/lib/module/sksg/Container.web.js
+@@ -20,9 +20,16 @@ const drawOnscreen = (Skia, nativeId, recording) => {
+   const ctx = createDrawingContext(Skia, recording.paintPool, canvas);
+   replay(ctx, recording.commands);
+   const picture = rec.finishRecordingAsPicture();
++  // Web WASM: JS GC cannot free CanvasKit heap — must dispose spent recorder
++  // and the previous frame picture (Shopify/react-native-skia#3699 / #3940).
++  rec.dispose();
+   //const end = performance.now();
+   //console.log("Recording time: ", end - start);
+   SkiaViewApi.setJsiProperty(nativeId, "picture", picture);
++  if (recording.lastPicture && recording.lastPicture !== picture) {
++    recording.lastPicture.dispose();
++  }
++  recording.lastPicture = picture;
+ };
+ class ReanimatedContainer extends Container {
+   constructor(Skia, nativeId) {
+diff --git a/node_modules/@shopify/react-native-skia/lib/module/sksg/Recorder/DrawingContext.js b/node_modules/@shopify/react-native-skia/lib/module/sksg/Recorder/DrawingContext.js
+index d131685..88803fb 100644
+--- a/node_modules/@shopify/react-native-skia/lib/module/sksg/Recorder/DrawingContext.js
++++ b/node_modules/@shopify/react-native-skia/lib/module/sksg/Recorder/DrawingContext.js
+@@ -11,8 +11,13 @@ export const createDrawingContext = (Skia, paintPool, canvas) => {
+   const opacities = [];
+   let nextPaintIndex = 1;
+ 
+-  // Initialize first paint and opacity
+-  paintPool[0] = Skia.Paint();
++  // Initialize first paint and opacity — reuse pool slot (web WASM leak if
++  // a new Paint is allocated every frame; see Skia #3940 DrawingContext).
++  if (paintPool.length === 0) {
++    paintPool.push(Skia.Paint());
++  } else {
++    paintPool[0].reset();
++  }
+   paints.push(paintPool[0]);
+   opacities.push(1);
+ 
+diff --git a/node_modules/@shopify/react-native-skia/lib/module/sksg/StaticContainer.js b/node_modules/@shopify/react-native-skia/lib/module/sksg/StaticContainer.js
+index 966b224..4e2e240 100644
+--- a/node_modules/@shopify/react-native-skia/lib/module/sksg/StaticContainer.js
++++ b/node_modules/@shopify/react-native-skia/lib/module/sksg/StaticContainer.js
+@@ -48,7 +48,13 @@ export class StaticContainer extends Container {
+       const canvas = rec.beginRecording();
+       this.drawOnCanvas(canvas);
+       const picture = rec.finishRecordingAsPicture();
++      // Web WASM: dispose spent recorder + previous picture (#3699 / #3940).
++      rec.dispose();
+       SkiaViewApi.setJsiProperty(this.nativeId, "picture", picture);
++      if (this._lastPicture && this._lastPicture !== picture) {
++        this._lastPicture.dispose();
++      }
++      this._lastPicture = picture;
+     }
+   }
+ }

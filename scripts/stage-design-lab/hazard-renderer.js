@@ -16,6 +16,10 @@
     buzzEdge: "#ef4444",
     region: "rgba(168, 85, 247, 0.12)",
     regionBorder: "rgba(168, 85, 247, 0.55)",
+    // Piston palette — mirrors pistonHazardTuning (TRACK_COLOR / HEAD_COLOR / HEAD_TELEGRAPH_COLOR).
+    pistonTrack: "#555555",
+    pistonHead: "#C41E3A",
+    pistonTelegraph: "#FF6B7A",
   };
 
   function drawBolt(ctx, x, y) {
@@ -179,6 +183,68 @@
         ctx.font = `bold ${Math.max(7, cell * 0.28)}px ui-sans-serif, system-ui, sans-serif`;
         ctx.textAlign = "center";
         ctx.fillText("Buzz!", cx, y - 3);
+      }
+      return;
+    }
+
+    if (draw.kind === "hazard_piston") {
+      const mount = draw.mount === "ceiling" ? "ceiling" : "floor";
+      const col = Math.max(0, Math.min(columns - 1, draw.column ?? 0));
+      const trackRows = Math.max(0.5, draw.trackRows ?? 1.5);
+      const travelPx = trackRows * stride;
+      const cx = col * stride + cell / 2;
+      // Mount face: floor = top edge of mount row cell, ceiling = bottom edge.
+      const mountFaceY = mount === "floor" ? y : y + cell;
+      const dir = mount === "floor" ? -1 : 1;
+      const tipY = mountFaceY + dir * travelPx;
+
+      const headW = Math.max(4, cell * 0.32);
+      const headH = Math.max(6, cell * 1.15);
+      const ext = Math.max(0, Math.min(1, draw.extension01 ?? 0));
+      const headCenterY =
+        mountFaceY + dir * (headH / 2 + ext * (travelPx - headH / 2));
+
+      // Grey track, drawn full length so the player read is 100% predictable.
+      ctx.strokeStyle = STEEL.pistonTrack;
+      ctx.lineWidth = Math.max(2, cell * 0.13);
+      ctx.beginPath();
+      ctx.moveTo(cx, mountFaceY);
+      ctx.lineTo(cx, tipY);
+      ctx.stroke();
+      // Tip cross-bar.
+      ctx.beginPath();
+      ctx.moveTo(cx - cell * 0.2, tipY);
+      ctx.lineTo(cx + cell * 0.2, tipY);
+      ctx.stroke();
+
+      // Steel mount plate on the mount block face.
+      ctx.fillStyle = STEEL.dark;
+      ctx.fillRect(cx - cell * 0.32, mount === "floor" ? mountFaceY - 3 : mountFaceY, cell * 0.64, 3);
+      drawBolt(ctx, cx - cell * 0.22, mount === "floor" ? mountFaceY - 1.5 : mountFaceY + 1.5);
+      drawBolt(ctx, cx + cell * 0.22, mount === "floor" ? mountFaceY - 1.5 : mountFaceY + 1.5);
+
+      // Crimson head — telegraph pulse blends toward the bright telegraph tint.
+      const pulse = Math.max(0, Math.min(1, draw.telegraphPulse01 ?? 0));
+      ctx.fillStyle = pulse > 0.01 ? STEEL.pistonTelegraph : STEEL.pistonHead;
+      if (pulse > 0.01) {
+        ctx.save();
+        ctx.shadowColor = STEEL.pistonTelegraph;
+        ctx.shadowBlur = 6 + pulse * 8;
+      }
+      const hx = cx - headW / 2;
+      const hy = headCenterY - headH / 2;
+      ctx.fillRect(hx, hy, headW, headH);
+      ctx.strokeStyle = STEEL.light;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(hx + 0.5, hy + 0.5, headW - 1, headH - 1);
+      if (pulse > 0.01) ctx.restore();
+
+      if (showLabels !== false) {
+        ctx.fillStyle = STEEL.pistonTelegraph;
+        ctx.font = `bold ${Math.max(7, cell * 0.28)}px ui-sans-serif, system-ui, sans-serif`;
+        ctx.textAlign = "center";
+        const labelY = mount === "floor" ? tipY - 4 : tipY + 10;
+        ctx.fillText(draw.motionStarted ? "PISTON" : "Piston!", cx, labelY);
       }
       return;
     }

@@ -52,6 +52,10 @@ declare namespace _RNTGE_ {
   var state: ECSState | undefined;
   var picture: SkPicture | null;
   var pictureCache: Record<number, SkPicture | SkPath> | undefined;
+  /** Pictures queued this frame; promoted to _pictureDisposeReady next frame. */
+  var _pictureDisposeQueue: (SkPicture | SkPath)[] | undefined;
+  /** Pictures queued ≥1 frame ago — safe to dispose at the start of this frame. */
+  var _pictureDisposeReady: (SkPicture | SkPath)[] | undefined;
   var eventQueue: {
     eventStore: EventQueue;
     nextEvents: EventQueue;
